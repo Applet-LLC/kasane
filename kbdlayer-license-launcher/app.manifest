@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <!--
+    最初から管理者権限を要求する。asInvoker のまま msiexec /i を起動すると、
+    msiexec 側が per-machine インストール実行のために別途 UAC 昇格を挟む
+    （ランチャー起動→ボタンクリック→msiexecでもう一度UACダイアログ、という二段階になり分かりにくい）。
+    ランチャー自体を requireAdministrator にしておけば起動時に一度だけ確認すれば済み、
+    その後 Process.Start する msiexec.exe も昇格済みの親プロセスからそのまま権限を引き継ぐ。
+  -->
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+    <security>
+      <requestedPrivileges>
+        <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+</assembly>

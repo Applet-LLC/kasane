@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>KbdLayerLicenseSvc</RootNamespace>
+    <AssemblyName>kbdlayer-license-svc</AssemblyName>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <!-- single-file publish: dotnet publish -c Release -r win-x64 /p:PublishSingleFile=true -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <IncludeAllContentForSelfExtract>false</IncludeAllContentForSelfExtract>
+    <Platforms>AnyCPU;x64</Platforms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.0" />
+    <!-- DPAPI (ProtectedData.Protect/Unprotect) — moved out of the BCL into this package since
+         .NET Core; used by TokenSigner.cs to keep the ECDSA signing private key encrypted at
+         rest instead of embedded in source (see TokenSigner.cs's header comment). -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.Sample.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- appsettings.json is gitignored (contains the real Gumroad product id and the bootstrap
+         SigningKey — see TokenSigner.cs). The SDK already auto-includes it as a Content item
+         when present on disk (fresh clones without it still build fine); Update (not Include)
+         just adjusts its copy behavior instead of declaring a duplicate item. -->
+    <Content Update="appsettings.json" Condition="Exists('appsettings.json')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

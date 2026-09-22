@@ -1,0 +1,438 @@
+// Copyright (c) 2026 Applet LLC
+// SPDX-License-Identifier: MIT
+
+#include <ntddk.h>
+#include <wdm.h>
+#include <wdmsec.h>
+#include <ntstrsafe.h>
+#include "DeviceExtension.h"
+#include "LayerEngine.h"
+#include "ControlDevice.h"
+#include "..\\common\\kbdlayer_ioctl.h"
+
+#ifndef DBG
+#define DbgPrint(...) ((void)0)
+#endif
+
+// IOCTL_KBDLAYER_CAPTURE_NEXT_KEY の入力でTimeoutMs=0が指定された場合に使う既定値。
+#define KBDLAYER_CAPTURE_DEFAULT_TIMEOUT_MS 10000
+
+PDEVICE_OBJECT g_ControlDeviceObject = NULL;
+
+// コントロールデバイスの既定セキュリティ記述子（SDDL）。kbdaddidと同じ方針:
+// - WD (Everyone): GRGWGX (読み取り・書き込み・実行=オープン) を許可
+//   -> KeymapTool（キャリブレーションウィザード含む）を管理者権限なしで実行できるようにする。
+// - SY (SYSTEM) / BA (Administrators): GA (フルコントロール)
+static const UNICODE_STRING g_ControlDeviceSddl =
+    RTL_CONSTANT_STRING(L"D:P(A;;GRGWGX;;;WD)(A;;GA;;;SY)(A;;GA;;;BA)");
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+CreateControlDevice(
+    _In_ PDRIVER_OBJECT DriverObject
+    )
+{
+    UNICODE_STRING deviceName;
+    UNICODE_STRING symLinkName;
+    NTSTATUS status;
+
+    PAGED_CODE();
+
+    RtlInitUnicodeString(&deviceName, KBDLAYER_CONTROL_DEVICE_NT_NAME);
+
+    status = IoCreateDeviceSecure(
+        DriverObject,
+        0,
+        &deviceName,
+        FILE_DEVICE_KBDLAYER,
+        FILE_DEVICE_SECURE_OPEN,
+        FALSE,
+        &g_ControlDeviceSddl,
+        NULL,
+        &g_ControlDeviceObject);
+
+    if (!NT_SUCCESS(status)) {
+        KdPrint(("kbdlayer: CreateControlDevice: IoCreateDeviceSecure failed, status=0x%08X\n", status));
+        g_ControlDeviceObject = NULL;
+        return status;
+    }
+
+    RtlInitUnicodeString(&symLinkName, KBDLAYER_CONTROL_SYMLINK_NT_NAME);
+    status = IoCreateSymbolicLink(&symLinkName, &deviceName);
+    if (!NT_SUCCESS(status)) {
+        KdPrint(("kbdlayer: CreateControlDevice: IoCreateSymbolicLink failed, status=0x%08X\n", status));
+        IoDeleteDevice(g_ControlDeviceObject);
+        g_ControlDeviceObject = NULL;
+        return status;
+    }
+
+    // DriverEntryから直接作られる制御デバイスはPnPのAddDeviceを経由しないため、
+    // 自分でDO_DEVICE_INITIALIZINGを落とす必要がある。
+    g_ControlDeviceObject->Flags &= ~DO_DEVICE_INITIALIZING;
+
+    return STATUS_SUCCESS;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+TeardownControlDevice(
+    VOID
+    )
+{
+    UNICODE_STRING symLinkName;
+
+    PAGED_CODE();
+
+    if (g_ControlDeviceObject == NULL) {
+        return;
+    }
+
+    RtlInitUnicodeString(&symLinkName, KBDLAYER_CONTROL_SYMLINK_NT_NAME);
+    IoDeleteSymbolicLink(&symLinkName);
+
+    IoDeleteDevice(g_ControlDeviceObject);
+    g_ControlDeviceObject = NULL;
+}
+
+NTSTATUS
+DispatchControlCreateClose(
+    IN PDEVICE_OBJECT DeviceObject,
+    IN PIRP Irp
+    )
+{
+    UNREFERENCED_PARAMETER(DeviceObject);
+
+    Irp->IoStatus.Status = STATUS_SUCCESS;
+    Irp->IoStatus.Information = 0;
+    IoCompleteRequest(Irp, IO_NO_INCREMENT);
+    return STATUS_SUCCESS;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleListDevices(
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG outputLen = IrpSp->Parameters.DeviceIoControl.OutputBufferLength;
+    ULONG count = 0;
+    ULONG required;
+    KIRQL oldIrql;
+    PLIST_ENTRY entry;
+    PDEVICE_EXTENSION devExt;
+    PKBDLAYER_LIST_DEVICES_OUTPUT out = (PKBDLAYER_LIST_DEVICES_OUTPUT)SystemBuffer;
+
+    *BytesReturned = 0;
+
+    KeAcquireSpinLock(&g_listLock, &oldIrql);
+
+    for (entry = g_deviceList.Flink; entry != &g_deviceList; entry = entry->Flink) {
+        devExt = CONTAINING_RECORD(entry, DEVICE_EXTENSION, ListEntry);
+        if (devExt->DeviceId != 0) {
+            count++;
+        }
+    }
+
+    required = sizeof(KBDLAYER_LIST_DEVICES_OUTPUT) + count * sizeof(KBDLAYER_DEVICE_INFO);
+
+    if (SystemBuffer == NULL || outputLen < required) {
+        KeReleaseSpinLock(&g_listLock, oldIrql);
+        *BytesReturned = required;
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+
+    out->DeviceCount = count;
+    {
+        PKBDLAYER_DEVICE_INFO infoArray =
+            (PKBDLAYER_DEVICE_INFO)((PUCHAR)out + sizeof(KBDLAYER_LIST_DEVICES_OUTPUT));
+        ULONG i = 0;
+
+        for (entry = g_deviceList.Flink; entry != &g_deviceList; entry = entry->Flink) {
+            devExt = CONTAINING_RECORD(entry, DEVICE_EXTENSION, ListEntry);
+            if (devExt->DeviceId == 0) {
+                continue;
+            }
+            infoArray[i].UniqId = devExt->DeviceId;
+            infoArray[i].HasLayerMap = (devExt->LayerMap != NULL) ? 1 : 0;
+            infoArray[i].Enabled = devExt->LayerMapEnabled ? 1 : 0;
+            infoArray[i].ActiveLayerMask = devExt->ActiveLayerMask | (1UL << devExt->DefaultLayer);
+            RtlCopyMemory(infoArray[i].HardwareId, devExt->HardwareId, sizeof(infoArray[i].HardwareId));
+            i++;
+        }
+    }
+
+    KeReleaseSpinLock(&g_listLock, oldIrql);
+
+    *BytesReturned = required;
+    return STATUS_SUCCESS;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleGetLayerMap(
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    ULONG outputLen = IrpSp->Parameters.DeviceIoControl.OutputBufferLength;
+    PKBDLAYER_TARGET target = (PKBDLAYER_TARGET)SystemBuffer;
+    PDEVICE_EXTENSION devExt;
+    PKBDLAYER_GET_MAP_OUTPUT out;
+    ULONG blobCapacity;
+    ULONG blobBytes = 0;
+    NTSTATUS status;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_TARGET)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (outputLen < sizeof(KBDLAYER_GET_MAP_OUTPUT)) {
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+
+    devExt = FindDeviceExtensionByUniqId(target->UniqId);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    // METHOD_BUFFERED: 入力(target)と出力(out)は同じSystemBufferを共有する。
+    // target->UniqIdは既に読み終えているので、そのまま上書きしてよい。
+    out = (PKBDLAYER_GET_MAP_OUTPUT)SystemBuffer;
+    blobCapacity = outputLen - sizeof(KBDLAYER_GET_MAP_OUTPUT);
+
+    status = GetLayerMapForDevice(
+        devExt,
+        (PUCHAR)out + sizeof(KBDLAYER_GET_MAP_OUTPUT),
+        blobCapacity,
+        &blobBytes,
+        NULL);
+
+    if (status == STATUS_BUFFER_TOO_SMALL) {
+        *BytesReturned = sizeof(KBDLAYER_GET_MAP_OUTPUT) + blobBytes;
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+    if (!NT_SUCCESS(status)) {
+        return status;
+    }
+
+    out->BlobLength = blobBytes;
+    *BytesReturned = sizeof(KBDLAYER_GET_MAP_OUTPUT) + blobBytes;
+    return STATUS_SUCCESS;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleSetLayerMap(
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    PKBDLAYER_SET_MAP_INPUT input = (PKBDLAYER_SET_MAP_INPUT)SystemBuffer;
+    PDEVICE_EXTENSION devExt;
+    PVOID blob;
+    ULONG blobLength;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_SET_MAP_INPUT)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    blobLength = input->BlobLength;
+    if (blobLength < sizeof(KBDLAYER_MAP_HEADER) || blobLength > KBDLAYER_MAX_MAP_BLOB_BYTES) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (inputLen < sizeof(KBDLAYER_SET_MAP_INPUT) + blobLength) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    blob = (PUCHAR)SystemBuffer + sizeof(KBDLAYER_SET_MAP_INPUT);
+    return SetLayerMapForDevice(devExt, blob, blobLength);
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleClearLayerMap(
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    PKBDLAYER_TARGET target = (PKBDLAYER_TARGET)SystemBuffer;
+    PDEVICE_EXTENSION devExt;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_TARGET)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    devExt = FindDeviceExtensionByUniqId(target->UniqId);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    return ClearLayerMapForDevice(devExt);
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleSetLayerMapEnabled(
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    PKBDLAYER_SET_ENABLED_INPUT input = (PKBDLAYER_SET_ENABLED_INPUT)SystemBuffer;
+    PDEVICE_EXTENSION devExt;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_SET_ENABLED_INPUT)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    return SetLayerMapEnabledForDevice(devExt, input->Enabled != 0);
+}
+
+// キャリブレーションウィザード専用。呼び出し元スレッドをPASSIVE_LEVELでブロックし、
+// 対象デバイスの次の物理キー押下1回分のスキャンコードを返す。
+// devExt->RemoveLockを保持したまま待機することで、待機中にキーボードが
+// サプライズリムーブされてもdevExtが解放されないようにする
+// （Driver.c DispatchPnpのIRP_MN_REMOVE_DEVICE処理はIoReleaseRemoveLockAndWaitで
+// 既存のロック保持者がいなくなるのを待ってからLayerMap解放・devExt解放を行うため、
+// このロックを保持している間はdevExtの寿命が保証される）。
+// トレードオフ: このロックを保持している間（最大TimeoutMs、既定10秒）は
+// DispatchPnpのREMOVE_DEVICE処理もそれだけブロックされる。IRPキャンセル
+// ルーチンによる早期離脱はPhase 1のスコープでは実装しない
+// （キャリブレーション中に対象キーボードを引き抜く操作は通常発生しないため、
+// 実用上の影響は小さいと判断）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleCaptureNextKey(
+    _In_ PIRP Irp,
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    ULONG outputLen = IrpSp->Parameters.DeviceIoControl.OutputBufferLength;
+    PKBDLAYER_CAPTURE_NEXT_KEY_INPUT input = (PKBDLAYER_CAPTURE_NEXT_KEY_INPUT)SystemBuffer;
+    PKBDLAYER_CAPTURE_NEXT_KEY_OUTPUT out;
+    PDEVICE_EXTENSION devExt;
+    NTSTATUS status;
+    NTSTATUS waitStatus;
+    ULONG timeoutMs;
+    LARGE_INTEGER timeout;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_CAPTURE_NEXT_KEY_INPUT)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (outputLen < sizeof(KBDLAYER_CAPTURE_NEXT_KEY_OUTPUT)) {
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+
+    timeoutMs = input->TimeoutMs != 0 ? input->TimeoutMs : KBDLAYER_CAPTURE_DEFAULT_TIMEOUT_MS;
+
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    status = IoAcquireRemoveLock(&devExt->RemoveLock, Irp);
+    if (!NT_SUCCESS(status)) {
+        return status;
+    }
+
+    status = BeginCaptureNextKey(devExt);
+    if (!NT_SUCCESS(status)) {
+        IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+        return status;
+    }
+
+    // 負の相対時間（100ns単位）。
+    timeout.QuadPart = -((LONGLONG)timeoutMs * 10000LL);
+    waitStatus = KeWaitForSingleObject(&devExt->CaptureEvent, Executive, KernelMode, FALSE, &timeout);
+
+    out = (PKBDLAYER_CAPTURE_NEXT_KEY_OUTPUT)SystemBuffer;
+    if (waitStatus == STATUS_TIMEOUT) {
+        CancelCaptureNextKey(devExt);
+        out->ScanCode = 0;
+        out->TimedOut = 1;
+    } else {
+        out->ScanCode = ConsumeCapturedScanCode(devExt);
+        out->TimedOut = 0;
+    }
+
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+
+    *BytesReturned = sizeof(KBDLAYER_CAPTURE_NEXT_KEY_OUTPUT);
+    return STATUS_SUCCESS;
+}
+
+NTSTATUS
+DispatchControlIoctl(
+    IN PDEVICE_OBJECT DeviceObject,
+    IN PIRP Irp
+    )
+{
+    PIO_STACK_LOCATION irpSp = IoGetCurrentIrpStackLocation(Irp);
+    ULONG code = irpSp->Parameters.DeviceIoControl.IoControlCode;
+    PVOID systemBuffer = Irp->AssociatedIrp.SystemBuffer;
+    NTSTATUS status;
+    ULONG bytesReturned = 0;
+
+    UNREFERENCED_PARAMETER(DeviceObject);
+
+    switch (code) {
+    case IOCTL_KBDLAYER_LIST_DEVICES:
+        status = HandleListDevices(irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_GET_LAYERMAP:
+        status = HandleGetLayerMap(irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_SET_LAYERMAP:
+        status = HandleSetLayerMap(irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_CLEAR_LAYERMAP:
+        status = HandleClearLayerMap(irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_SET_LAYERMAP_ENABLED:
+        status = HandleSetLayerMapEnabled(irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_CAPTURE_NEXT_KEY:
+        status = HandleCaptureNextKey(Irp, irpSp, systemBuffer, &bytesReturned);
+        break;
+    // IOCTL_KBDLAYER_SET_CONFIG (Tap-Hold設定) はPhase 2で実装する。
+    default:
+        status = STATUS_INVALID_DEVICE_REQUEST;
+        break;
+    }
+
+    Irp->IoStatus.Status = status;
+    Irp->IoStatus.Information = bytesReturned;
+    IoCompleteRequest(Irp, IO_NO_INCREMENT);
+    return status;
+}

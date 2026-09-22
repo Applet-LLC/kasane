@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="ja-jp" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+  <String Id="LicenseSvcDescription">LayerDriver サブスクリプションライセンス管理</String>
+  <String Id="ExitDialogOptionalText">インストールを完了するには、コンピューターを再起動してください。再起動後にログインすると、ライセンス管理ツールが自動的に起動します。</String>
+
+  <String Id="DeviceIdModeDlg_Title">デバイス識別モードの設定</String>
+  <String Id="DeviceIdModeDlg_Description">kbdlayer が接続機器をどのように区別するかを選択してください</String>
+  <String Id="DeviceIdModeDlg_Explain">デバイスインスタンスIDモードでは、USBの接続先（ポート）ごとに区別します。まったく同じ製品のキーボードでも、接続するポートが変わると別デバイスとして扱われます。ハードウェアIDモードでは、デバイス固有のIDで区別します。同じキーボードであれば、USBの接続先を変えても同一デバイスとして扱われます。</String>
+  <String Id="DeviceIdModeDlg_KbdLabel">キーボードドライバ (kbdlayer):</String>
+  <String Id="DeviceIdModeDlg_InstancePath">デバイスインスタンスIDモード（既定） - 接続先ごとに区別する</String>
+  <String Id="DeviceIdModeDlg_DeviceId">ハードウェアIDモード - デバイス固有のIDで区別する</String>
+</WixLocalization>

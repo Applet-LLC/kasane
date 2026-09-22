@@ -1,0 +1,65 @@
+# Forked from kbdaddid_subscribe's .gitignore for the LayerDriver project.
+# Renames: kbdaddid-license-svc/appsettings.json -> kbdlayer-license-svc/appsettings.json.
+# mouaddid-specific entry removed (LayerDriver has no mouse component / no addid/signed tree).
+
+# Visual Studio / MSBuild
+.vs/
+bin/
+obj/
+x64/
+x86/
+ARM64/
+Debug/
+Release/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# .NET publish output
+publish/
+
+# WiX / installer staging
+setup/staging/
+*.msi
+*.wixpdb
+*.wixobj
+
+# Package-Dist.ps1 output (distributable zip)
+setup/dist/
+
+# MS Office lock/temp files
+~$*
+
+# WDK / driver build outputs
+*.cat
+*.pdb
+*.exp
+*.lib
+*.obj
+*.tlog
+*.log
+
+# EWDK / SDK junctions (machine-specific, not part of source)
+*.lnk
+
+# Driver Verifier / static analysis output (generated, not source)
+DvlErrLog.txt
+*.DVL.XML
+*.sarif
+
+# specstory session history (local chat/tool history, not project source)
+.specstory/
+
+# Claude Code local session/runtime state (lock files, not project config)
+.claude/
+
+# Licensing secrets — never commit the ECDSA signing private key or Gumroad access
+# token (see driver/kbdlayer/KEYS.md and kbdlayer-license-svc/TokenSigner.cs). Only
+# the *.Sample.json template is tracked; each environment supplies its own
+# appsettings.json locally (bootstrap-only, DPAPI-protected on first run).
+kbdlayer-license-svc/appsettings.json
+
+# Perplexity research notes and the original planning doc are kept locally for
+# reference only and must never be committed (explicit user instruction).
+.plans/

@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ARM64 build of kbdlayer. Deliberately a separate project file rather than an additional
+Platform inside kbdlayer.vcxproj, following the same pattern as kbdaddid_arm64.vcxproj in the
+kbdaddid_subscribe repo this project was forked from: it lives in this same directory and every
+ClCompile/ClInclude/Inf/ResourceCompile item below references the exact same source files
+kbdlayer.vcxproj does, by the same relative paths (shares source by reference, does not copy it).
+It is wired into LayerDriver.sln with ONLY an ARM64 project configuration, mapped from every
+existing (x64) solution configuration via Configuration Manager, so a single ordinary solution
+build produces both the x64 and ARM64 .sys in the same pass without adding a new solution
+Platform.
+-->
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|ARM64">
+      <Configuration>Debug</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ARM64">
+      <Configuration>Release</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{556E55EC-7942-42BB-A4C9-1E231103F080}</ProjectGuid>
+    <TemplateGuid>{1bc93793-694f-48fe-9372-81e2b05556fd}</TemplateGuid>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <MinimumVisualStudioVersion>12.0</MinimumVisualStudioVersion>
+    <Configuration>Debug</Configuration>
+    <Platform Condition="'$(Platform)' == ''">ARM64</Platform>
+    <RootNamespace>kbdlayer_arm64</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
+    <TargetVersion>Windows10</TargetVersion>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+    <ConfigurationType>Driver</ConfigurationType>
+    <DriverType>WDM</DriverType>
+    <DriverTargetPlatform>Windows Driver</DriverTargetPlatform>
+    <_NT_TARGET_VERSION>0xA00000B</_NT_TARGET_VERSION>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
+    <TargetVersion>Windows10</TargetVersion>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
+    <ConfigurationType>Driver</ConfigurationType>
+    <DriverType>WDM</DriverType>
+    <DriverTargetPlatform>Windows Driver</DriverTargetPlatform>
+    <_NT_TARGET_VERSION>0xA00000B</_NT_TARGET_VERSION>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <!-- WindowsDriver.Common.targets defaults OutDir/PackageDir to $(Platform)\$(Configuration)\
+         and $(OutDir)$(ProjectName)\ respectively, and $(ProjectName) is this .vcxproj file's own
+         base name ("kbdlayer_arm64"), not "kbdlayer". Pin both explicitly so the packaged driver
+         folder and .sys/.pdb are named kbdlayer here too, matching what kbdlayer.inf's
+         CopyFiles/ServiceBinary (hardcoded to kbdlayer.sys) and every downstream consumer
+         (DriverManager.exe, Prepare-Staging.ps1) expect. -->
+    <OutDir>$(MSBuildProjectDirectory)\$(Platform)\$(Configuration)\</OutDir>
+    <PackageDir>$(OutDir)kbdlayer\</PackageDir>
+    <TargetName>kbdlayer</TargetName>
+  </PropertyGroup>
+  <PropertyGroup />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
+    <RunInf2Cat>true</RunInf2Cat>
+    <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
+    <RunCodeAnalysis>true</RunCodeAnalysis>
+    <DriverCatalog_Enable>true</DriverCatalog_Enable>
+    <PostBuildEventUseInBuild>true</PostBuildEventUseInBuild>
+    <InfVerif_AdditionalOptions>/v</InfVerif_AdditionalOptions>
+    <Inf2CatVerbose>true</Inf2CatVerbose>
+    <Inf2CatUseLocalTime>true</Inf2CatUseLocalTime>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
+    <RunInf2Cat>true</RunInf2Cat>
+    <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
+    <RunCodeAnalysis>true</RunCodeAnalysis>
+    <DriverCatalog_Enable>true</DriverCatalog_Enable>
+    <PostBuildEventUseInBuild>true</PostBuildEventUseInBuild>
+    <InfVerif_AdditionalOptions>/v</InfVerif_AdditionalOptions>
+    <Inf2CatVerbose>true</Inf2CatVerbose>
+    <Inf2CatUseLocalTime>true</Inf2CatUseLocalTime>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
+    <DriverSign>
+      <SignMode>Off</SignMode>
+      <FileDigestAlgorithm>sha256</FileDigestAlgorithm>
+    </DriverSign>
+    <Link>
+      <AdditionalDependencies>WdfDriverEntry.lib;hidclass.lib;ntoskrnl.lib;wdm.lib;ksecdd.lib;wdmsec.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(WindowsSdkDir)Lib\wdf\kmdf\ARM64\1.35\;$(WindowsSdkDir)Lib\$(TargetPlatformVersion)\km\ARM64\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(WindowsSdkDir)Include\$(TargetPlatformVersion)\km;$(WindowsSdkDir)Include\wdf\kmdf\1.35;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_ARM64_;KMDF_VERSION_OVERRIDE=135;NTDDI_VERSION=0x0A00000C;WINVER=0x0A00;DBG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
+    <DriverSign>
+      <SignMode>Off</SignMode>
+      <FileDigestAlgorithm>sha256</FileDigestAlgorithm>
+    </DriverSign>
+    <Link>
+      <AdditionalDependencies>WdfDriverEntry.lib;hidclass.lib;ntoskrnl.lib;wdm.lib;ksecdd.lib;wdmsec.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(WindowsSdkDir)Lib\wdf\kmdf\ARM64\1.35\;$(WindowsSdkDir)Lib\$(TargetPlatformVersion)\km\ARM64\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(WindowsSdkDir)Include\$(TargetPlatformVersion)\km;$(WindowsSdkDir)Include\wdf\kmdf\1.35;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_ARM64_;KMDF_VERSION_OVERRIDE=135;NTDDI_VERSION=0x0A00000C;WINVER=0x0A00;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <FilesToPackage Include="$(TargetPath)" />
+  </ItemGroup>
+  <ItemGroup>
+    <Inf Include="kbdlayer.inf" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="kbdlayer.rc">
+      <AdditionalIncludeDirectories>$(WindowsSdkDir)Include\$(TargetPlatformVersion)\um;$(WindowsSdkDir)Include\$(TargetPlatformVersion)\shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\common\devprop.c" />
+    <ClCompile Include="..\common\fallback.c" />
+    <ClCompile Include="..\common\hash.c" />
+    <ClCompile Include="..\common\hwidutil.c" />
+    <ClCompile Include="..\common\regutil.c" />
+    <ClCompile Include="Driver.c" />
+    <ClCompile Include="token.c" />
+    <ClCompile Include="LayerEngine.c" />
+    <ClCompile Include="ControlDevice.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\common\devprop.h" />
+    <ClInclude Include="..\common\fallback.h" />
+    <ClInclude Include="..\common\hash.h" />
+    <ClInclude Include="..\common\hwidutil.h" />
+    <ClInclude Include="..\common\regutil.h" />
+    <ClInclude Include="..\common\kbdlayer_ioctl.h" />
+    <ClInclude Include="token.h" />
+    <ClInclude Include="DeviceExtension.h" />
+    <ClInclude Include="LayerEngine.h" />
+    <ClInclude Include="ControlDevice.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

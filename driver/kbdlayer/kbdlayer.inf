@@ -1,0 +1,79 @@
+[Version]
+Signature="$Windows NT$"
+Class=Keyboard
+ClassGuid={4D36E96B-E325-11CE-BFC1-08002BE10318}
+Provider=%ProviderName%
+CatalogFile=kbdlayer.cat
+DriverVer=01/01/2026,1.0.0.1
+PnpLockdown=1
+
+
+[DefaultInstall.NTamd64]
+CopyFiles=kbdlayer_Files_Driver
+AddReg=kbdlayer_Service_AddReg
+AddService=kbdlayer,0x00000002,kbdlayer_Service_Install
+
+[DefaultInstall.NTamd64.Filters]
+AddFilter=kbdlayer,, kbdlayer_UpperFilter
+
+[DefaultInstall.NTarm64]
+CopyFiles=kbdlayer_Files_Driver
+AddReg=kbdlayer_Service_AddReg
+AddService=kbdlayer,0x00000002,kbdlayer_Service_Install
+
+[DefaultInstall.NTarm64.Filters]
+AddFilter=kbdlayer,, kbdlayer_UpperFilter
+
+[kbdlayer_UpperFilter]
+FilterPosition=Upper
+
+[DestinationDirs]
+DefaultDestDir=13
+
+[SourceDisksNames]
+1=%DiskName%,,,
+
+[SourceDisksFiles]
+kbdlayer.sys=1
+
+[kbdlayer_Service_AddReg]
+HKR,,Security,,"D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GA;;;WD)(A;;GA;;;AU)"
+
+
+[kbdlayer_Files_Driver]
+kbdlayer.sys
+
+[DefaultInstall.NTamd64.Services]
+AddService=kbdlayer,0x00000002,kbdlayer_Service_Install
+AddReg=kbdlayer_Service_AddReg
+
+[DefaultInstall.NTarm64.Services]
+AddService=kbdlayer,0x00000002,kbdlayer_Service_Install
+AddReg=kbdlayer_Service_AddReg
+
+[kbdlayer_Service_Install]
+DisplayName    = %ServiceName%
+ServiceType    = 1                  ; SERVICE_KERNEL_DRIVER
+StartType      = 3                  ; SERVICE_DEMAND_START
+ErrorControl   = 1                  ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %13%\kbdlayer.sys
+Dependencies   = kbdclass
+
+[DefaultUninstall.NTamd64]
+LegacyUninstall=1
+
+[DefaultUninstall.NTamd64.Services]
+DelService = kbdlayer,0x200
+
+[DefaultUninstall.NTarm64]
+LegacyUninstall=1
+
+[DefaultUninstall.NTarm64.Services]
+DelService = kbdlayer,0x200
+
+[Strings]
+ProviderName="Applet LLC"
+DiskName="LayerDriver Installation Disk"
+DeviceDesc="LayerDriver Keyboard Filter Driver"
+FilterDesc="kbdlayer Filter"
+ServiceName="LayerDriver Service"
