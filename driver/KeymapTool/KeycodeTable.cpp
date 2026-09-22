@@ -54,6 +54,15 @@ const std::unordered_map<std::string, USHORT>& BaseKeyTable() {
         {"KC_SLASH", SC1(0x35)}, {"KC_SLSH", SC1(0x35)},
         {"KC_NONUS_BSLASH", SC1(0x56)}, {"KC_NUBS", SC1(0x56)},
         {"KC_CAPSLOCK", SC1(0x3A)}, {"KC_CAPS", SC1(0x3A)},
+        // JIS配列専用キー（109キーボードがUS 104キーに対して追加で持つ入力キー）。
+        // KC_ZKHK（半角/全角）は上のKC_GRAVEと同じ物理位置(0x29)のエイリアスとして
+        // 既に定義済みのためここには無い。それ以外の5キーはそれぞれ独立したスキャンコードを
+        // 持つ、JIS配列固有の追加キー。
+        {"KC_RO", SC1(0x73)}, {"KC_INT1", SC1(0x73)},       // \_ (ろ)。右Shift手前の追加キー
+        {"KC_KANA", SC1(0x70)}, {"KC_INT2", SC1(0x70)},     // カタカナ ひらがな ローマ字
+        {"KC_JYEN", SC1(0x7D)}, {"KC_INT3", SC1(0x7D)},     // ¥ (Backspace付近、US KC_BSLASHとは別物理位置の機種もある)
+        {"KC_HENK", SC1(0x79)}, {"KC_INT4", SC1(0x79)},     // 変換（スペースキー右）
+        {"KC_MHEN", SC1(0x7B)}, {"KC_INT5", SC1(0x7B)},     // 無変換（スペースキー左）
         // ファンクションキー
         {"KC_F1", SC1(0x3B)}, {"KC_F2", SC1(0x3C)}, {"KC_F3", SC1(0x3D)}, {"KC_F4", SC1(0x3E)},
         {"KC_F5", SC1(0x3F)}, {"KC_F6", SC1(0x40)}, {"KC_F7", SC1(0x41)}, {"KC_F8", SC1(0x42)},

@@ -54,6 +54,9 @@ DvlErrLog.txt
 # Claude Code local session/runtime state (lock files, not project config)
 .claude/
 
+# Editor-local workspace settings (machine-specific, not project config)
+.vscode/
+
 # Licensing secrets — never commit the ECDSA signing private key or Gumroad access
 # token (see driver/kbdlayer/KEYS.md and kbdlayer-license-svc/TokenSigner.cs). Only
 # the *.Sample.json template is tracked; each environment supplies its own
