@@ -51,6 +51,8 @@ typedef struct _KBDLAYER_ACTION {
 #define KBDLAYER_ACTION_ONESHOT_MOD   7  // OSM(mod): Param1=修飾子ビット (Phase 2以降)
 #define KBDLAYER_ACTION_MODTAP        8  // MT(mod,kc): Param1=修飾子ビット, Param2=タップ時スキャンコード (Phase 2)
 #define KBDLAYER_ACTION_LAYERTAP      9  // LT(layer,kc): Param1=レイヤー番号, Param2=タップ時スキャンコード (Phase 2)
+#define KBDLAYER_ACTION_MACRO         10 // MACRO(id): Param1=マクロID(0..KBDLAYER_MAX_MACRO_COUNT-1) (Phase 3)
+#define KBDLAYER_ACTION_CUSTOM        11 // 将来の拡張フック点として予約のみ。詳細設計は先送り (Phase 3)
 
 #define KBDLAYER_MAX_LAYERS 8   // VIA実務上の上限(4)に余裕を持たせる
 #define KBDLAYER_MAX_KEYS   256 // 既存 KBDADDID_MAX_REMAP_ENTRIES を踏襲
@@ -142,6 +144,39 @@ typedef struct _KBDLAYER_SET_CONFIG_INPUT {
     ULONG TapTermMs; // 既定200ms。0を渡すと既定値にリセットする。
 } KBDLAYER_SET_CONFIG_INPUT, *PKBDLAYER_SET_CONFIG_INPUT;
 
+// --- Phase 3: マクロ ---
+
+#define KBDLAYER_MAX_MACRO_COUNT 32  // KBDLAYER_ACTION_MACROのParam1(UCHAR)が指せる範囲を実務的に制限
+#define KBDLAYER_MAX_MACRO_STEPS 64  // 1マクロあたりのステップ数上限
+
+// マクロ1ステップ分。単純なキー押下/解放のみ（遅延指定は将来拡張、Phase 3では未対応）。
+typedef struct _KBDLAYER_MACRO_STEP {
+    USHORT ScanCode;  // 送出先スキャンコード（Enc16形式）
+    UCHAR  IsBreak;   // 0 = 押下(make), 1 = 解放(break)
+    UCHAR  Reserved;
+} KBDLAYER_MACRO_STEP, *PKBDLAYER_MACRO_STEP;
+
+// IOCTL_KBDLAYER_SET_MACRO の入力バッファ。
+// StepCount=0 は該当マクロIDのクリア（未設定に戻す）を意味する。
+typedef struct _KBDLAYER_SET_MACRO_INPUT {
+    KBDLAYER_TARGET Target;
+    ULONG MacroId;     // 0 <= MacroId < KBDLAYER_MAX_MACRO_COUNT
+    ULONG StepCount;   // 0 <= StepCount <= KBDLAYER_MAX_MACRO_STEPS
+    // 続けて StepCount 個の KBDLAYER_MACRO_STEP
+} KBDLAYER_SET_MACRO_INPUT, *PKBDLAYER_SET_MACRO_INPUT;
+
+// IOCTL_KBDLAYER_GET_MACRO の入力バッファ。
+typedef struct _KBDLAYER_GET_MACRO_INPUT {
+    KBDLAYER_TARGET Target;
+    ULONG MacroId;
+} KBDLAYER_GET_MACRO_INPUT, *PKBDLAYER_GET_MACRO_INPUT;
+
+// IOCTL_KBDLAYER_GET_MACRO の出力バッファ。未設定のマクロIDに対してはStepCount=0で成功する。
+typedef struct _KBDLAYER_GET_MACRO_OUTPUT {
+    ULONG StepCount;
+    // 続けて StepCount 個の KBDLAYER_MACRO_STEP
+} KBDLAYER_GET_MACRO_OUTPUT, *PKBDLAYER_GET_MACRO_OUTPUT;
+
 #pragma pack(pop)
 
 // IOCTL_INTERNAL_KEYBOARD_CONNECT 等の既存IOCTLと衝突しないよう、
@@ -163,5 +198,9 @@ typedef struct _KBDLAYER_SET_CONFIG_INPUT {
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x805, METHOD_BUFFERED, FILE_ANY_ACCESS)
 #define IOCTL_KBDLAYER_SET_CONFIG \
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x806, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_KBDLAYER_SET_MACRO \
+    CTL_CODE(FILE_DEVICE_KBDLAYER, 0x807, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_KBDLAYER_GET_MACRO \
+    CTL_CODE(FILE_DEVICE_KBDLAYER, 0x808, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
 #endif // _KBDLAYER_COMMON_IOCTL_H_

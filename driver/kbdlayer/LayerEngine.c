@@ -32,7 +32,20 @@
 #define KBDLAYER_MAP_VALUE_NAME L"LayerMap"
 #define KBDLAYER_ENABLED_VALUE_NAME L"Enabled"
 #define KBDLAYER_TAPTERM_VALUE_NAME L"TapTermMs"
+#define KBDLAYER_MACROS_VALUE_NAME L"Macros"
 #define KBDLAYER_REGTEMP_POOL_TAG 'tLdK'
+
+// マクロの永続化形式（レジストリ"Macros"値）。KBDLAYER_MAX_MACRO_COUNT個ぶん
+// 固定サイズで連続して並べる。devExt->MacroStepCounts/Macros（別々の配列）とは
+// レイアウトが異なるため、そのままmemcpyはできず明示的なシリアライズ/
+// デシリアライズが必要（PersistAllMacros/LoadPersistedMacrosForDevice参照）。
+typedef struct _KBDLAYER_MACRO_PERSIST_ENTRY {
+    ULONG StepCount;
+    KBDLAYER_MACRO_STEP Steps[KBDLAYER_MAX_MACRO_STEPS];
+} KBDLAYER_MACRO_PERSIST_ENTRY;
+
+#define KBDLAYER_MACRO_PERSIST_BLOB_BYTES \
+    (KBDLAYER_MAX_MACRO_COUNT * sizeof(KBDLAYER_MACRO_PERSIST_ENTRY))
 
 // ---------------------------------------------------------------------------
 // スキャンコードの16bitエンコード/デコード（OS標準Scancode Mapと同じ規約。
@@ -123,7 +136,7 @@ ParseLayerMapBlob(
     for (ULONG k = 0; k < header->KeyCount; k++) {
         for (ULONG L = 0; L < header->LayerCount; L++) {
             UCHAR type = entries[k].Actions[L].Type;
-            if (type > KBDLAYER_ACTION_LAYERTAP) {
+            if (type > KBDLAYER_ACTION_CUSTOM) {
                 return STATUS_INVALID_PARAMETER;
             }
         }
@@ -346,10 +359,11 @@ LayerEngineShouldDropEntry(
         return TRUE; // 出力しない
 
     default:
-        // MODTAP/LAYERTAPはResolveTapHold（ServiceCallbackからResolveLayerActionより
-        // 前に呼ばれる、Driver.c参照）が先に横取りして処理するため、通常はここに
-        // 到達しない。ここに来るのはOSM（未実装）や、複数件バッチの一部として届いた
-        // ためResolveTapHoldがスキップしたMT/LTキーなど、想定外の経路のみ。
+        // MODTAP/LAYERTAPはResolveTapHold、MACROはResolveMacro（どちらもServiceCallback
+        // からResolveLayerActionより前に呼ばれる、Driver.c参照）が先に横取りして処理する
+        // ため、通常はここに到達しない。ここに来るのはOSM/CUSTOM（未実装、予約のみ）や、
+        // 複数件バッチの一部として届いたためResolveTapHold/ResolveMacroがスキップした
+        // MT/LT/MACROキーなど、想定外の経路のみ。
         // 安全側に倒して「何もしない」として扱う（ParseLayerMapBlobで型自体は
         // 許可しているため、KeymapTool側が未対応アクションを送ってきてもクラッシュしない）。
         return TRUE;
@@ -684,6 +698,119 @@ ResolveTapHold(
 }
 
 // ---------------------------------------------------------------------------
+// Phase 3: マクロ（MACRO(id)）
+//
+// MT/LTのようなタップ/ホールドの時間的な曖昧さが無いため、Phase 2のタイマー
+// 基盤は不要。押下イベントを受け取ったその場で、マクロの各ステップぶん
+// OriginalClassServiceを逐次呼ぶだけ（プラン記載の通り）。ResolveTapHoldと同じく
+// ServiceCallbackからResolveLayerActionより前に呼ばれる、独立した横取りパス。
+// ---------------------------------------------------------------------------
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+ResolveMacro(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd,
+    _Inout_opt_ PVOID SystemArgument3
+    )
+{
+    PKEYBOARD_INPUT_DATA ev;
+    USHORT scanCode;
+    BOOLEAN isBreak;
+    KIRQL oldIrql;
+    PKBDLAYER_KEY_ENTRY keyEntry;
+    PKBDLAYER_ACTION action;
+    ULONG macroId;
+    ULONG stepCount;
+    KBDLAYER_MACRO_STEP localSteps[KBDLAYER_MAX_MACRO_STEPS];
+
+    // ResolveTapHoldと同じ理由で1件バッチのみを対象とする。
+    if ((InputDataEnd - InputDataStart) != 1) {
+        return FALSE;
+    }
+
+    ev = InputDataStart;
+    scanCode = EncodeScancode16(ev->MakeCode, ev->Flags);
+    isBreak = (ev->Flags & KEY_BREAK) != 0;
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+
+    if (!devExt->LayerMapEnabled || devExt->LayerMap == NULL) {
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        return FALSE;
+    }
+
+    keyEntry = FindKeyEntry(devExt->LayerMap, scanCode);
+    if (keyEntry == NULL) {
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        return FALSE;
+    }
+
+    action = ResolveEffectiveAction(devExt, devExt->LayerMap, keyEntry);
+    if (action == NULL || action->Type != KBDLAYER_ACTION_MACRO) {
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        return FALSE;
+    }
+
+    // マクロキー自身の生のスキャンコードは押下・解放とも転送しない
+    // （解放は必ず飲み込む。対応する押下も転送していないため、Phase 2の
+    // スパイクで踏み抜いた「飲み込んでいない押下の解放まで飲み込む」バグとは
+    // 逆に、こちらは「押下を飲み込んだなら対応する解放も必ず飲み込む」が
+    // 常に成立する設計 -- マクロキーの押下/解放はタップ/ホールドのような
+    // 時間差判定が無く、このServiceCallback呼び出し単体で完結するため）。
+    if (isBreak) {
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        if (SystemArgument3 != NULL) {
+            *(PULONG)SystemArgument3 = 1;
+        }
+        return TRUE;
+    }
+
+    // KEYアクションと同様、マクロの実行も「実際に何かを送出する行為」なので
+    // OSL(layer)発動中の一発消費として扱う（LayerEngineShouldDropEntryのKEYケースと
+    // 同じ規則）。
+    if (devExt->OneShotLayerPending) {
+        devExt->ActiveLayerMask &= ~devExt->OneShotLayerBit;
+        devExt->OneShotLayerPending = FALSE;
+    }
+
+    macroId = action->Param1;
+    if (macroId >= KBDLAYER_MAX_MACRO_COUNT) {
+        // 不正なマクロID（KeymapTool側のバグ等）。安全側に倒して何もしない。
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        if (SystemArgument3 != NULL) {
+            *(PULONG)SystemArgument3 = 1;
+        }
+        return TRUE;
+    }
+
+    stepCount = devExt->MacroStepCounts[macroId];
+    if (stepCount > KBDLAYER_MAX_MACRO_STEPS) {
+        stepCount = KBDLAYER_MAX_MACRO_STEPS; // 念のための防御（本来起こり得ない）
+    }
+    if (stepCount > 0) {
+        RtlCopyMemory(localSteps, devExt->Macros[macroId], stepCount * sizeof(KBDLAYER_MACRO_STEP));
+    }
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    // OriginalClassServiceはEngineLockを解放してから呼ぶ（既存の規律を踏襲）。
+    // 未設定のマクロID（stepCount==0）を押しても単に何も出力しないだけで安全。
+    // localSteps[i].ScanCodeはEnc16形式なので、SendDecodedEventでMakeCode/Flagsへ
+    // デコードしてから送る（SendSyntheticEventは既にデコード済みのMakeCode/Flagsを
+    // 直接取る低レベルヘルパーで、ここでは使わない）。
+    for (ULONG i = 0; i < stepCount; i++) {
+        USHORT breakBit = localSteps[i].IsBreak ? KEY_BREAK : KEY_MAKE;
+        SendDecodedEvent(devExt, localSteps[i].ScanCode, breakBit);
+    }
+
+    if (SystemArgument3 != NULL) {
+        *(PULONG)SystemArgument3 = 1;
+    }
+    return TRUE;
+}
+
+// ---------------------------------------------------------------------------
 // IOCTLハンドラから呼ばれる設定関数（PASSIVE_LEVEL）
 // ---------------------------------------------------------------------------
 
@@ -837,6 +964,15 @@ GetLayerMapForDevice(
     return status;
 }
 
+// Phase 3のLayerEngine.c後半で定義されるが、AddDeviceからの「永続化状態を
+// まとめてロードする」単一の呼び出し(LoadPersistedLayerMapForDevice)に
+// 統合するため、ここから先行して呼び出す。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static VOID
+LoadPersistedMacrosForDevice(
+    _In_ PDEVICE_EXTENSION devExt
+    );
+
 _IRQL_requires_max_(PASSIVE_LEVEL)
 VOID
 LoadPersistedLayerMapForDevice(
@@ -876,6 +1012,8 @@ LoadPersistedLayerMapForDevice(
                         &tapTermValue, KBDLAYER_DEFAULT_TAP_TERM_MS);
         devExt->TapTermMs = (tapTermValue != 0) ? tapTermValue : KBDLAYER_DEFAULT_TAP_TERM_MS;
     }
+
+    LoadPersistedMacrosForDevice(devExt);
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
@@ -912,6 +1050,165 @@ InitializeTapHoldState(
     devExt->HoldConfirmed = FALSE;
     devExt->PendingScanCode = 0;
     RtlZeroMemory(&devExt->PendingAction, sizeof(devExt->PendingAction));
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3: マクロの設定関数（PASSIVE_LEVEL）
+// ---------------------------------------------------------------------------
+
+// devExt->MacroStepCounts/Macros全体を1つのblobへシリアライズしてレジストリへ
+// 書き込む。ベストエフォート（確保失敗時は何もしない。ライブ状態には影響しない）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static VOID
+PersistAllMacros(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    WCHAR subKeyPath[64];
+    PKBDLAYER_MACRO_PERSIST_ENTRY buffer;
+    KIRQL oldIrql;
+
+    buffer = (PKBDLAYER_MACRO_PERSIST_ENTRY)ExAllocatePool2(
+        POOL_FLAG_PAGED, KBDLAYER_MACRO_PERSIST_BLOB_BYTES, KBDLAYER_REGTEMP_POOL_TAG);
+    if (buffer == NULL) {
+        return;
+    }
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    for (ULONG i = 0; i < KBDLAYER_MAX_MACRO_COUNT; i++) {
+        buffer[i].StepCount = devExt->MacroStepCounts[i];
+        RtlCopyMemory(buffer[i].Steps, devExt->Macros[i], sizeof(buffer[i].Steps));
+    }
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_MACROS_VALUE_NAME,
+                    buffer, KBDLAYER_MACRO_PERSIST_BLOB_BYTES);
+
+    ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetMacroForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG MacroId,
+    _In_reads_opt_(StepCount) PKBDLAYER_MACRO_STEP Steps,
+    _In_ ULONG StepCount
+    )
+{
+    KIRQL oldIrql;
+
+    if (MacroId >= KBDLAYER_MAX_MACRO_COUNT || StepCount > KBDLAYER_MAX_MACRO_STEPS) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (StepCount > 0 && Steps == NULL) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    if (StepCount > 0) {
+        RtlCopyMemory(devExt->Macros[MacroId], Steps, StepCount * sizeof(KBDLAYER_MACRO_STEP));
+    }
+    if (StepCount < KBDLAYER_MAX_MACRO_STEPS) {
+        RtlZeroMemory(&devExt->Macros[MacroId][StepCount],
+                      (KBDLAYER_MAX_MACRO_STEPS - StepCount) * sizeof(KBDLAYER_MACRO_STEP));
+    }
+    devExt->MacroStepCounts[MacroId] = StepCount;
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    // 生きているマクロ実行（ResolveMacro）とはEngineLockで直列化されているので、
+    // ここでのSET中にちょうどマクロが実行されてもロック単位で整合した状態
+    // （更新前 or 更新後のどちらか）しか見えない。
+    PersistAllMacros(devExt);
+
+    return STATUS_SUCCESS;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+GetMacroForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG MacroId,
+    _Out_writes_bytes_to_opt_(OutBufferLength, *BytesReturned) PVOID OutBuffer,
+    _In_ ULONG OutBufferLength,
+    _Out_ PULONG BytesReturned,
+    _Out_ PULONG OutStepCount
+    )
+{
+    KIRQL oldIrql;
+    ULONG stepCount;
+    ULONG required;
+
+    *BytesReturned = 0;
+    *OutStepCount = 0;
+
+    if (MacroId >= KBDLAYER_MAX_MACRO_COUNT) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    stepCount = devExt->MacroStepCounts[MacroId];
+    required = stepCount * sizeof(KBDLAYER_MACRO_STEP);
+
+    if (OutBuffer == NULL || OutBufferLength < required) {
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        *BytesReturned = required;
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+
+    if (stepCount > 0) {
+        RtlCopyMemory(OutBuffer, devExt->Macros[MacroId], required);
+    }
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    *BytesReturned = required;
+    *OutStepCount = stepCount;
+    return STATUS_SUCCESS;
+}
+
+// AddDeviceから呼ばれる: レジストリの"Macros"値を読み、devExt->MacroStepCounts/
+// Macrosを初期化する（devExtはまだg_deviceListに公開されておらず、他スレッドとの
+// 競合が無い前提でロック無しに直接書き込む。LoadPersistedLayerMapForDeviceと
+// 同じ理屈）。失敗時は全マクロ未設定のままでよい（ベストエフォート。
+// RtlZeroMemory済みのAddDeviceの初期状態と同じ）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static VOID
+LoadPersistedMacrosForDevice(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    WCHAR subKeyPath[64];
+    PKBDLAYER_MACRO_PERSIST_ENTRY buffer;
+    ULONG actualLength = 0;
+    NTSTATUS status;
+
+    buffer = (PKBDLAYER_MACRO_PERSIST_ENTRY)ExAllocatePool2(
+        POOL_FLAG_PAGED, KBDLAYER_MACRO_PERSIST_BLOB_BYTES, KBDLAYER_REGTEMP_POOL_TAG);
+    if (buffer == NULL) {
+        return;
+    }
+
+    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    status = RegReadBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_MACROS_VALUE_NAME,
+                            buffer, KBDLAYER_MACRO_PERSIST_BLOB_BYTES, &actualLength);
+    if (NT_SUCCESS(status) && actualLength == KBDLAYER_MACRO_PERSIST_BLOB_BYTES) {
+        for (ULONG i = 0; i < KBDLAYER_MAX_MACRO_COUNT; i++) {
+            ULONG stepCount = buffer[i].StepCount;
+            if (stepCount > KBDLAYER_MAX_MACRO_STEPS) {
+                stepCount = 0; // 壊れたデータは無視する（安全側）
+            }
+            devExt->MacroStepCounts[i] = stepCount;
+            if (stepCount > 0) {
+                RtlCopyMemory(devExt->Macros[i], buffer[i].Steps, stepCount * sizeof(KBDLAYER_MACRO_STEP));
+            }
+        }
+    }
+    // actualLengthがKBDLAYER_MACRO_PERSIST_BLOB_BYTESと一致しない場合（値が
+    // 存在しない、または将来の互換性が壊れた場合）は何もしない。AddDeviceで
+    // RtlZeroMemory済みのため全マクロ未設定のままで安全。
+
+    ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
 }
 
 // ---------------------------------------------------------------------------

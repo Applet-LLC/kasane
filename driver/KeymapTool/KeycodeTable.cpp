@@ -167,6 +167,17 @@ bool ParseLayerNumber(const std::string& s, UCHAR* out) {
     return true;
 }
 
+// MACRO(id)のid用。ParseLayerNumberと同じ形だが上限がKBDLAYER_MAX_MACRO_COUNT
+// （レイヤー数とは無関係な範囲）である点だけが異なる。
+bool ParseMacroId(const std::string& s, UCHAR* out) {
+    if (s.empty()) return false;
+    char* end = nullptr;
+    long v = strtol(s.c_str(), &end, 10);
+    if (end != s.c_str() + s.size() || v < 0 || v >= KBDLAYER_MAX_MACRO_COUNT) return false;
+    *out = (UCHAR)v;
+    return true;
+}
+
 } // namespace
 
 bool KeycodeTable::ResolveBaseKey(const std::string& token, USHORT* outScanCode16) {
@@ -261,6 +272,14 @@ bool KeycodeTable::Resolve(const std::string& token, KeycodeMapping* out) {
             out->ActionType = KBDLAYER_ACTION_LAYERTAP;
             out->Param1 = layer;
             out->Param2 = tapSc;
+            return true;
+        }
+        if (name == "MACRO" && parts.size() == 1) {
+            UCHAR macroId;
+            if (!ParseMacroId(parts[0], &macroId)) return false;
+            out->ActionType = KBDLAYER_ACTION_MACRO;
+            out->Param1 = macroId;
+            out->Param2 = 0;
             return true;
         }
     }

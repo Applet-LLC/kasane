@@ -340,6 +340,103 @@ HandleSetConfig(
     return SetTapTermForDevice(devExt, input->TapTermMs);
 }
 
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleSetMacro(
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    PKBDLAYER_SET_MACRO_INPUT input = (PKBDLAYER_SET_MACRO_INPUT)SystemBuffer;
+    PDEVICE_EXTENSION devExt;
+    PKBDLAYER_MACRO_STEP steps;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_SET_MACRO_INPUT)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    if (input->StepCount > KBDLAYER_MAX_MACRO_STEPS) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (inputLen < sizeof(KBDLAYER_SET_MACRO_INPUT) + input->StepCount * sizeof(KBDLAYER_MACRO_STEP)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    steps = (input->StepCount > 0)
+        ? (PKBDLAYER_MACRO_STEP)((PUCHAR)SystemBuffer + sizeof(KBDLAYER_SET_MACRO_INPUT))
+        : NULL;
+
+    return SetMacroForDevice(devExt, input->MacroId, steps, input->StepCount);
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleGetMacro(
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    ULONG outputLen = IrpSp->Parameters.DeviceIoControl.OutputBufferLength;
+    PKBDLAYER_GET_MACRO_INPUT input = (PKBDLAYER_GET_MACRO_INPUT)SystemBuffer;
+    PDEVICE_EXTENSION devExt;
+    PKBDLAYER_GET_MACRO_OUTPUT out;
+    ULONG stepsCapacity;
+    ULONG stepBytes = 0;
+    ULONG stepCount = 0;
+    NTSTATUS status;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_GET_MACRO_INPUT)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (outputLen < sizeof(KBDLAYER_GET_MACRO_OUTPUT)) {
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    // METHOD_BUFFERED: 入力(input)と出力(out)は同じSystemBufferを共有する。
+    // input->MacroIdは既に読み終えているので、そのまま上書きしてよい
+    // （HandleGetLayerMapと同じパターン）。
+    out = (PKBDLAYER_GET_MACRO_OUTPUT)SystemBuffer;
+    stepsCapacity = outputLen - sizeof(KBDLAYER_GET_MACRO_OUTPUT);
+
+    status = GetMacroForDevice(
+        devExt,
+        input->MacroId,
+        (PUCHAR)out + sizeof(KBDLAYER_GET_MACRO_OUTPUT),
+        stepsCapacity,
+        &stepBytes,
+        &stepCount);
+
+    if (status == STATUS_BUFFER_TOO_SMALL) {
+        *BytesReturned = sizeof(KBDLAYER_GET_MACRO_OUTPUT) + stepBytes;
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+    if (!NT_SUCCESS(status)) {
+        return status;
+    }
+
+    out->StepCount = stepCount;
+    *BytesReturned = sizeof(KBDLAYER_GET_MACRO_OUTPUT) + stepBytes;
+    return STATUS_SUCCESS;
+}
+
 // キャリブレーションウィザード専用。呼び出し元スレッドをPASSIVE_LEVELでブロックし、
 // 対象デバイスの次の物理キー押下1回分のスキャンコードを返す。
 // devExt->RemoveLockを保持したまま待機することで、待機中にキーボードが
@@ -453,6 +550,12 @@ DispatchControlIoctl(
         break;
     case IOCTL_KBDLAYER_SET_CONFIG:
         status = HandleSetConfig(irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_SET_MACRO:
+        status = HandleSetMacro(irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_GET_MACRO:
+        status = HandleGetMacro(irpSp, systemBuffer, &bytesReturned);
         break;
     default:
         status = STATUS_INVALID_DEVICE_REQUEST;

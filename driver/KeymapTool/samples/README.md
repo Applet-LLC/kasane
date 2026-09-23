@@ -1,5 +1,48 @@
 # KeymapTool サンプル
 
+## test-keymap-macro.json — Phase 3 (マクロ) 動作確認用
+
+10キー・1レイヤーで、`MACRO(id)`を確認する最小テストキーマップ。位置0が
+`MACRO(0)`。マクロの中身（何を送出するか）はkeymap.jsonには含まれず、
+`--set-macro`で別途デバイスへ登録する必要がある点に注意。
+
+### 手順
+
+```
+KeymapTool.exe --list
+KeymapTool.exe --calibrate-simple <UniqIdHex> 10 test-profile.json
+KeymapTool.exe --apply-simple <UniqIdHex> test-keymap-macro.json test-profile.json
+
+REM マクロ0の中身を「hi」と定義する（各キーコードはタップ=押下+解放として展開される）
+KeymapTool.exe --set-macro <UniqIdHex> 0 KC_H KC_I
+
+KeymapTool.exe --on <UniqIdHex>
+```
+
+### 確認項目
+
+- 位置0をタップ → `hi` が2文字続けて出力される（1回のキー入力から複数文字が
+  出力されることを確認）。
+- 位置0を連打 → 毎回`hi`が出力される（マクロが何度でも再実行できること）。
+- 位置1〜9（通常キー`a`〜`i`）が普段通り動くこと（マクロ機構が他のキー処理に
+  影響しないこと）。
+- `KeymapTool.exe --get-macro <UniqIdHex> 0` → 登録した4ステップ
+  （H押下, H解放, I押下, I解放）がそのまま返ってくることを確認できる。
+
+マクロを別の内容に変えたい場合は、`--off`にしてから`--set-macro`をやり直すのではなく、
+`--set-macro`はいつでも上書きできる（`LayerMapEnabled`の状態に依存しない）ので、
+`--on`のまま再定義して構わない。
+
+### 元に戻す
+
+```
+KeymapTool.exe --set-macro <UniqIdHex> 0
+KeymapTool.exe --off <UniqIdHex>
+KeymapTool.exe --clear <UniqIdHex>
+```
+
+(`--set-macro`にキーコードを1つも渡さないとマクロ0がクリアされる)
+
 ## test-keymap-modtap.json — Phase 2 (Mod-Tap/Layer-Tap) 動作確認用
 
 10キー・2レイヤーで、`MT(mod,kc)`（Mod-Tap）と`LT(layer,kc)`（Layer-Tap）を

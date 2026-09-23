@@ -1,0 +1,6 @@
+{
+  "notes": "LayerDriver Phase 3 (Macro) smoke-test keymap. 10 physical keys, 1 layer. Position 0 is bound to MACRO(0); the macro's actual content is programmed separately via KeymapTool --set-macro (macros are a separate registered resource, not embedded in this file). See driver/KeymapTool/samples/README.md.",
+  "layout": [
+    ["MACRO(0)", "KC_A", "KC_B", "KC_C", "KC_D", "KC_E", "KC_F", "KC_G", "KC_H", "KC_I"]
+  ]
+}

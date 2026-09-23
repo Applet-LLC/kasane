@@ -535,6 +535,13 @@ VOID ServiceCallback(
             return;
         }
 
+        // Phase 3: マクロ(MACRO(id))。ResolveTapHoldと同じく、対象キーならここで
+        // 完結し通常のResolveLayerAction以降の処理は行わない。詳細はLayerEngine.cの
+        // ResolveMacro参照。
+        if (ResolveMacro(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
+            return;
+        }
+
         PKEYBOARD_INPUT_DATA newEnd = ResolveLayerAction(devExt, InputDataStart, InputDataEnd);
         if (newEnd != InputDataEnd) {
             compacted = TRUE;

@@ -178,3 +178,47 @@ bool IoctlClient::SetConfig(ULONG uniqId, ULONG tapTermMs) {
     }
     return true;
 }
+
+bool IoctlClient::SetMacro(ULONG uniqId, ULONG macroId, const std::vector<KBDLAYER_MACRO_STEP>& steps) {
+    std::vector<unsigned char> input(sizeof(KBDLAYER_SET_MACRO_INPUT) + steps.size() * sizeof(KBDLAYER_MACRO_STEP));
+    KBDLAYER_SET_MACRO_INPUT* header = (KBDLAYER_SET_MACRO_INPUT*)input.data();
+    header->Target.UniqId = uniqId;
+    header->MacroId = macroId;
+    header->StepCount = (ULONG)steps.size();
+    if (!steps.empty()) {
+        memcpy(input.data() + sizeof(KBDLAYER_SET_MACRO_INPUT), steps.data(), steps.size() * sizeof(KBDLAYER_MACRO_STEP));
+    }
+
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_SET_MACRO,
+                              input.data(), (DWORD)input.size(),
+                              NULL, 0,
+                              &bytesReturned, NULL);
+    if (!ok) {
+        fprintf(stderr, "IOCTL_KBDLAYER_SET_MACRO failed. Error: %lu\n", GetLastError());
+        return false;
+    }
+    return true;
+}
+
+bool IoctlClient::GetMacro(ULONG uniqId, ULONG macroId, std::vector<KBDLAYER_MACRO_STEP>* outSteps) {
+    KBDLAYER_GET_MACRO_INPUT target;
+    target.Target.UniqId = uniqId;
+    target.MacroId = macroId;
+
+    std::vector<unsigned char> buffer(sizeof(KBDLAYER_GET_MACRO_OUTPUT) + KBDLAYER_MAX_MACRO_STEPS * sizeof(KBDLAYER_MACRO_STEP));
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_GET_MACRO,
+                              &target, sizeof(target),
+                              buffer.data(), (DWORD)buffer.size(),
+                              &bytesReturned, NULL);
+    if (!ok) {
+        fprintf(stderr, "IOCTL_KBDLAYER_GET_MACRO failed. Error: %lu\n", GetLastError());
+        return false;
+    }
+
+    const KBDLAYER_GET_MACRO_OUTPUT* header = (const KBDLAYER_GET_MACRO_OUTPUT*)buffer.data();
+    const KBDLAYER_MACRO_STEP* steps = (const KBDLAYER_MACRO_STEP*)(buffer.data() + sizeof(KBDLAYER_GET_MACRO_OUTPUT));
+    outSteps->assign(steps, steps + header->StepCount);
+    return true;
+}

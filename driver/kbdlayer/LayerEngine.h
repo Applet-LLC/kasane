@@ -100,6 +100,21 @@ InitializeTapHoldState(
     _In_ PDEVICE_EXTENSION devExt
     );
 
+// Phase 3: マクロ(MACRO(id))の実行。Driver.cのServiceCallbackから、
+// ResolveTapHoldの後・ResolveLayerActionの前に呼ぶこと。MT/LTのような時間的な
+// 曖昧さが無いため、押下イベントを受け取ったその場でマクロの各ステップぶん
+// OriginalClassServiceを逐次呼ぶ。単一イベントのバッチのみを対象とする
+// （ResolveTapHoldと同じ制約）。
+// 戻り値: ResolveTapHoldと同じ意味（TRUE=処理済み、FALSE=対象外）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+ResolveMacro(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd,
+    _Inout_opt_ PVOID SystemArgument3
+    );
+
 // --- IOCTLハンドラ（ControlDevice.c）から呼ばれる、PASSIVE_LEVEL専用 ---
 
 // SET_LAYERMAP: devExt->LayerMapEnabled == FALSE のときだけ成功する
@@ -156,6 +171,33 @@ NTSTATUS
 SetTapTermForDevice(
     _In_ PDEVICE_EXTENSION devExt,
     _In_ ULONG TapTermMs
+    );
+
+// SET_MACRO: 指定したMacroIdのステップ列を設定する。StepCount=0はそのマクロIDの
+// クリアを意味する。LayerMapEnabledの状態に関わらず常に成功する（TapTermMsと同じ
+// 理由）。ライブ反映後、レジストリの"Macros"値へ永続化する（全マクロスロットを
+// まとめて1つのblobとして保存する）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetMacroForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG MacroId,
+    _In_reads_opt_(StepCount) PKBDLAYER_MACRO_STEP Steps,
+    _In_ ULONG StepCount
+    );
+
+// GET_MACRO: 指定したMacroIdの現在のステップ列（OutBuffer、KBDLAYER_MACRO_STEPの
+// 生配列のみ。ヘッダは呼び出し元のControlDevice.cが組み立てる）とステップ数
+// （OutStepCount）を返す。未設定の場合は *BytesReturned=0, *OutStepCount=0で成功する。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+GetMacroForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG MacroId,
+    _Out_writes_bytes_to_opt_(OutBufferLength, *BytesReturned) PVOID OutBuffer,
+    _In_ ULONG OutBufferLength,
+    _Out_ PULONG BytesReturned,
+    _Out_ PULONG OutStepCount
     );
 
 // AddDeviceから呼ばれる: レジストリの"LayerMap"/"Enabled"を読み、

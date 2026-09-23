@@ -70,6 +70,14 @@ typedef struct _DEVICE_EXTENSION {
     KBDLAYER_ACTION PendingAction; // 保留中/ホールド中のMT/LTアクション本体（Type/Param1/Param2）
     LARGE_INTEGER PendingPressTime; // デバッグ用（現状ロジックはKeSetTimerの相対時間で完結し未使用）
 
+    // --- Phase 3: マクロ ---
+    // 固定サイズで埋め込み（32 * (4 + 64*4) = 8320バイト程度。動的確保・解放の
+    // ライフサイクル管理を避けるため、DEVICE_EXTENSION内に直接持つ）。
+    // MacroStepCounts[i]==0 はマクロID iが未設定であることを表す。
+    // EngineLock保持中に読み書きすること（LayerMap等と同じ規律）。
+    ULONG MacroStepCounts[KBDLAYER_MAX_MACRO_COUNT];
+    KBDLAYER_MACRO_STEP Macros[KBDLAYER_MAX_MACRO_COUNT][KBDLAYER_MAX_MACRO_STEPS];
+
     // --- キャリブレーションウィザード (IOCTL_KBDLAYER_CAPTURE_NEXT_KEY) 用 ---
     // ServiceCallback（DISPATCH_LEVEL、EngineLock保持中）と、PASSIVE_LEVELで
     // KeWaitForSingleObjectするIOCTLハンドラ（ControlDevice.c）との受け渡しに使う。

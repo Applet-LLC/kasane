@@ -22,6 +22,7 @@
 #include "KeymapJson.h"
 #include "CalibrationProfile.h"
 #include "BlobBuilder.h"
+#include "KeycodeTable.h"
 
 namespace {
 
@@ -103,6 +104,50 @@ int CmdSetConfig(IoctlClient* client, ULONG uniqId, ULONG tapTermMs) {
     printf("SET_CONFIG ok. UniqId=%08X TapTermMs=%lu%s\n", uniqId,
            tapTermMs != 0 ? tapTermMs : 200UL,
            tapTermMs == 0 ? " (reset to default)" : "");
+    return 0;
+}
+
+// --set-macro <UniqIdHex> <MacroId> [KC_xxx KC_yyy ...]
+// 各キーコードトークンをタップ（押下+解放）1回分のステップとして展開する。
+// 引数無し（キーコードを1つも渡さない）場合はそのマクロIDをクリアする。
+int CmdSetMacro(IoctlClient* client, ULONG uniqId, ULONG macroId, int argc, char** argv) {
+    std::vector<KBDLAYER_MACRO_STEP> steps;
+    for (int i = 0; i < argc; i++) {
+        KeycodeMapping mapping;
+        if (!KeycodeTable::Resolve(argv[i], &mapping) || mapping.ActionType != KBDLAYER_ACTION_KEY) {
+            fprintf(stderr, "--set-macro: \"%s\" is not a plain key (macros only support KC_* keys, not layer actions)\n", argv[i]);
+            return 1;
+        }
+        if (steps.size() + 2 > KBDLAYER_MAX_MACRO_STEPS) {
+            fprintf(stderr, "--set-macro: too many steps (max %d key taps = %d steps)\n",
+                    KBDLAYER_MAX_MACRO_STEPS / 2, KBDLAYER_MAX_MACRO_STEPS);
+            return 1;
+        }
+        KBDLAYER_MACRO_STEP press{ mapping.Param2, 0, 0 };
+        KBDLAYER_MACRO_STEP release{ mapping.Param2, 1, 0 };
+        steps.push_back(press);
+        steps.push_back(release);
+    }
+
+    if (!client->SetMacro(uniqId, macroId, steps)) return 1;
+    if (steps.empty()) {
+        printf("SET_MACRO ok. UniqId=%08X MacroId=%lu cleared.\n", uniqId, macroId);
+    } else {
+        printf("SET_MACRO ok. UniqId=%08X MacroId=%lu, %zu steps (%d key taps).\n",
+               uniqId, macroId, steps.size(), argc);
+    }
+    return 0;
+}
+
+int CmdGetMacro(IoctlClient* client, ULONG uniqId, ULONG macroId) {
+    std::vector<KBDLAYER_MACRO_STEP> steps;
+    if (!client->GetMacro(uniqId, macroId, &steps)) return 1;
+
+    printf("UniqId=%08X MacroId=%lu StepCount=%zu\n", uniqId, macroId, steps.size());
+    for (size_t i = 0; i < steps.size(); i++) {
+        printf("  [%zu] ScanCode=0x%04X %s\n", i, steps[i].ScanCode,
+               steps[i].IsBreak ? "release" : "press");
+    }
     return 0;
 }
 
@@ -281,6 +326,11 @@ void PrintUsage() {
         "  KeymapTool.exe --set-config <UniqIdHex> <TapTermMs>\n"
         "      Set the Mod-Tap/Layer-Tap tap-vs-hold threshold in milliseconds\n"
         "      (0 resets to the driver default, 200ms).\n"
+        "  KeymapTool.exe --set-macro <UniqIdHex> <MacroId> [KC_xxx KC_yyy ...]\n"
+        "      Define macro <MacroId> (0-31) as a sequence of key taps, played back\n"
+        "      via MACRO(<MacroId>) in a keymap.json. Omit the keycodes to clear it.\n"
+        "  KeymapTool.exe --get-macro <UniqIdHex> <MacroId>\n"
+        "      Show the raw step list currently stored for a macro (debugging).\n"
         "\n"
         "  UniqIdHex is the value shown by --list (e.g. A1B20000).\n");
 }
@@ -325,6 +375,20 @@ int main(int argc, char** argv) {
         if (argc < 4 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
         ULONG tapTermMs = (ULONG)strtoul(argv[3], nullptr, 10);
         return CmdSetConfig(&client, uniqId, tapTermMs);
+    }
+
+    if (strcmp(cmd, "--set-macro") == 0) {
+        ULONG uniqId;
+        if (argc < 4 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
+        ULONG macroId = (ULONG)strtoul(argv[3], nullptr, 10);
+        return CmdSetMacro(&client, uniqId, macroId, argc - 4, argv + 4);
+    }
+
+    if (strcmp(cmd, "--get-macro") == 0) {
+        ULONG uniqId;
+        if (argc < 4 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
+        ULONG macroId = (ULONG)strtoul(argv[3], nullptr, 10);
+        return CmdGetMacro(&client, uniqId, macroId);
     }
 
     if (strcmp(cmd, "--capture") == 0) {

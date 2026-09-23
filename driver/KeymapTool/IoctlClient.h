@@ -47,6 +47,10 @@ public:
     // tapTermMs=0はドライバ側既定値(KBDLAYER_DEFAULT_TAP_TERM_MS=200ms)にリセットする。
     bool SetConfig(ULONG uniqId, ULONG tapTermMs);
 
+    // Phase 3: マクロ。stepsが空ならそのmacroIdをクリアする。
+    bool SetMacro(ULONG uniqId, ULONG macroId, const std::vector<KBDLAYER_MACRO_STEP>& steps);
+    bool GetMacro(ULONG uniqId, ULONG macroId, std::vector<KBDLAYER_MACRO_STEP>* outSteps);
+
     ~IoctlClient() { Close(); }
 
 private:
