@@ -123,9 +123,9 @@ const std::unordered_map<std::string, USHORT>& BaseKeyTable() {
 }
 
 const std::unordered_map<std::string, UCHAR>& ModifierBitTable() {
-    // MT(mod,kc)のParam1に使うビット番号。QMKのMOD_LCTL等に対応する任意の
-    // 0-7の番号でよい（KBDLAYER_ACTION_MODTAPの解釈はPhase 2のカーネル側実装で
-    // 固定する。現時点ではKeymapTool側のパースのみが対象）。
+    // MT(mod,kc)のParam1に使うビット番号。driver/kbdlayer/LayerEngine.cの
+    // s_ModifierScanCodesと同じ割り当て（0=LCTL,1=LSFT,2=LALT,3=LGUI,
+    // 4=RCTL,5=RSFT,6=RALT,7=RGUI）。両側で変更する場合は必ず一致させること。
     static const std::unordered_map<std::string, UCHAR> table = {
         {"MOD_LCTL", 0}, {"MOD_LSFT", 1}, {"MOD_LALT", 2}, {"MOD_LGUI", 3},
         {"MOD_RCTL", 4}, {"MOD_RSFT", 5}, {"MOD_RALT", 6}, {"MOD_RGUI", 7},

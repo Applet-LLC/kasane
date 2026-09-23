@@ -55,34 +55,20 @@ typedef struct _DEVICE_EXTENSION {
     BOOLEAN OneShotLayerPending;        // OSL(layer)発動中、次のKEYアクション解決でOFFに戻す
     ULONG OneShotLayerBit;              // OneShotLayerPending==TRUE時に、解除すべきビット
 
-    // --- Phase 2 (Tap-Hold) で使用。Phase 1ではフィールドのみ確保し未使用 ---
+    // --- Phase 2 (Tap-Hold: MT/LT) ---
     //
-    // phase2-spikeブランチでの実機検証（Hold On Other Key Press方式で、1回の
-    // ServiceCallback呼び出し内でOriginalClassServiceを2回呼ぶパターン）で、
-    // kbdclass.sysへの二重呼び出し自体は安全に動作することを確認済み。ただし
-    // 検証用の使い捨て実装で以下3点の罠を踏み抜いたため、本実装時は要注意:
-    //   1. 物理キーは押しっぱなしの間、MAKEイベントをオートリピートで連続送信して
-    //      くる（1回の押下につき1回のMAKEではない）。既にホールド確定済みの状態を
-    //      このオートリピートMAKEで無条件にリセットすると、最終的にキーを離した
-    //      ときタップ/ホールドの判定を誤り、ホールド解除イベントの送出漏れにつながる
-    //      （実機で確認: 合成した修飾キーが押しっぱなしのまま戻らなくなった）。
-    //      PendingActive/HoldConfirmed相当の状態は「現在アイドルのときだけ新規
-    //      ライフサイクルとして開始し、既にpending/confirmed中のMAKEはオート
-    //      リピートとして状態を変えずに黙って飲み込む」設計にすること。
-    //   2. 対応する押下イベントを（複数件バッチ等の理由で）このコードが飲み込んで
-    //      いない場合、その解放イベントまで無条件に飲み込んではいけない。Windows側の
-    //      make/break対応が崩れ、キーが永久に押しっぱなし扱いになる。解放イベントを
-    //      飲み込んでよいのは、対応する押下を確かに飲み込んだと分かっている場合のみ。
-    //   3. 「タップだったか、既にホールド確定済みだったか」を単一フラグの値の変遷から
-    //      推測する設計は誤りやすい。両状態を独立したフラグとして持つこと。
-    // 詳細はphase2-spikeブランチのPhase2Spike.c/.hおよびそのコミット履歴を参照。
-    KTIMER HoldTimer;
-    KDPC HoldDpc;
-    ULONG TapTermMs;
-    BOOLEAN PendingActive;
-    USHORT PendingScanCode;
-    KBDLAYER_ACTION PendingAction;
-    LARGE_INTEGER PendingPressTime;
+    // Hold On Other Key Press方式。phase2-spikeブランチでの実機検証で得た教訓
+    // （オートリピート対応・未飲み込みの解放は素通し・状態は独立フラグで管理）を
+    // 反映済み。DeviceExtension.hのこのコメント自体は元々スパイクの教訓置き場
+    // だったもので、以下がその教訓を踏まえた本実装。
+    KTIMER HoldTimer;             // TapTermMs後にHoldDpcを起動するタイマー
+    KDPC HoldDpc;                 // タイムアウト時にホールド確定を行うDPC（HoldTapDpcRoutine, LayerEngine.c）
+    ULONG TapTermMs;              // タップ/ホールドの閾値（既定200ms、IOCTL_KBDLAYER_SET_CONFIGで変更可）
+    BOOLEAN PendingActive;        // TRUE = MT/LTキー押下中、タップ/ホールド未確定
+    BOOLEAN HoldConfirmed;        // TRUE = ホールド確定済み、PendingScanCodeの解放待ち
+    USHORT PendingScanCode;       // 保留中/ホールド中のMT/LTキーの物理スキャンコード（Enc16）
+    KBDLAYER_ACTION PendingAction; // 保留中/ホールド中のMT/LTアクション本体（Type/Param1/Param2）
+    LARGE_INTEGER PendingPressTime; // デバッグ用（現状ロジックはKeSetTimerの相対時間で完結し未使用）
 
     // --- キャリブレーションウィザード (IOCTL_KBDLAYER_CAPTURE_NEXT_KEY) 用 ---
     // ServiceCallback（DISPATCH_LEVEL、EngineLock保持中）と、PASSIVE_LEVELで

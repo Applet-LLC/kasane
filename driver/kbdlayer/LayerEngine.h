@@ -4,14 +4,16 @@
 /*
   kbdlayer/LayerEngine.h
 
-  レイヤーエンジンの中核ロジック（Phase 1: 基本キーコード + レイヤー切替
-  MO/TG/DF/OSL + 修飾キー。Mod-Tap/Layer-Tapは Phase 2 で追加）:
+  レイヤーエンジンの中核ロジック:
+  - Phase 1: 基本キーコード + レイヤー切替 MO/TG/DF/OSL + 修飾キー
+  - Phase 2: Mod-Tap(MT)/Layer-Tap(LT)（Hold On Other Key Press方式、
+    ResolveTapHold。phase2-spikeブランチでの実機検証を踏まえた実装）
   - blob（KBDLAYER_MAP_HEADER形式、common/kbdlayer_ioctl.h）の検証・
     内部形式（KBDLAYER_MAP_TABLE, DeviceExtension.h）への変換、および逆変換
-  - ServiceCallbackのホットパスで呼ばれる ResolveLayerAction
+  - ServiceCallbackのホットパスで呼ばれる ResolveTapHold / ResolveLayerAction
   - コントロールデバイスのIOCTLハンドラ（ControlDevice.c）から呼ばれる
-    Set/Clear/SetEnabled/Get
-  - AddDeviceから呼ばれるレジストリからの永続化ロード
+    Set/Clear/SetEnabled/Get/SetConfig
+  - AddDeviceから呼ばれるレジストリからの永続化ロードと、タイマー/DPCの初期化
   - キャリブレーションウィザード用のキー捕捉（Start/Cancel/Consume）
 
   kbdaddid/RemapTable.c からのフォーク。1:1スキャンコード置換は「レイヤー0での
@@ -68,6 +70,36 @@ CompactInputDataArray(
     _In_opt_ PVOID Context
     );
 
+// Phase 2: Mod-Tap(MT)/Layer-Tap(LT)のタップ/ホールド判定（Hold On Other Key
+// Press方式）。Driver.cのServiceCallbackから、ResolveLayerActionより前に呼ぶこと。
+// 単一イベントのバッチのみを対象とする（複数件バッチは素通しに倒す。理由は
+// LayerEngine.cの実装コメント参照）。
+// 戻り値:
+//   TRUE  = このイベントバッチはこの関数が処理済み。呼び出し元は通常の
+//           ResolveLayerAction/OriginalClassService呼び出しを行わずそのまま
+//           ServiceCallbackから戻ってよい。
+//   FALSE = このイベントバッチは対象外（LayerMap未設定/無効、MT/LT以外の
+//           通常キー、複数件バッチ等）。呼び出し元は通常通り処理を続ける。
+// IRQL: <= DISPATCH_LEVEL。EngineLock保持中はOriginalClassServiceを呼ばない
+// （既存のホットパスの規律を踏襲）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+ResolveTapHold(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd,
+    _Inout_opt_ PVOID SystemArgument3
+    );
+
+// AddDeviceから呼ばれる: devExt->HoldTimer/HoldDpcを初期化し、TapTermMsを
+// 既定値にする（レジストリからの永続化読み込みはLoadPersistedLayerMapForDevice側で
+// 上書きする）。devExtがまだg_deviceListに公開されていない前提。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+InitializeTapHoldState(
+    _In_ PDEVICE_EXTENSION devExt
+    );
+
 // --- IOCTLハンドラ（ControlDevice.c）から呼ばれる、PASSIVE_LEVEL専用 ---
 
 // SET_LAYERMAP: devExt->LayerMapEnabled == FALSE のときだけ成功する
@@ -113,6 +145,17 @@ GetLayerMapForDevice(
     _In_ ULONG OutBufferLength,
     _Out_ PULONG BytesReturned,
     _Out_opt_ PBOOLEAN OutEnabled
+    );
+
+// SET_CONFIG: devExt->TapTermMsを変更し、レジストリの"TapTermMs"値へ永続化する。
+// TapTermMs=0を渡すと既定値(KBDLAYER_DEFAULT_TAP_TERM_MS)にリセットする。
+// LayerMapEnabledの状態に関わらず常に成功する（TapTermMsはMT/LTの判定パラメータで
+// あり、レイヤーマップ本体とは独立した設定のため）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetTapTermForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG TapTermMs
     );
 
 // AddDeviceから呼ばれる: レジストリの"LayerMap"/"Enabled"を読み、

@@ -194,7 +194,7 @@ NTSTATUS AddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT PhysicalDev
     KeInitializeSpinLock(&devExt->EngineLock);
     devExt->LayerMap = NULL;
     devExt->LayerMapEnabled = FALSE;
-    devExt->TapTermMs = KBDLAYER_DEFAULT_TAP_TERM_MS;
+    InitializeTapHoldState(devExt); // HoldTimer/HoldDpcの初期化含む（Phase 2）
     KeInitializeEvent(&devExt->CaptureEvent, NotificationEvent, FALSE);
 
     // LicenseTokenをECDSA検証してライセンス状態を決定（PASSIVE_LEVEL）
@@ -421,6 +421,17 @@ NTSTATUS DispatchPnp(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
         RemoveEntryList(&devExt->ListEntry);
         KeReleaseSpinLock(&g_listLock, oldIrql);
 
+        // Phase 2: HoldTimer/HoldDpcはServiceCallbackの呼び出し経路とは独立に
+        // （タイマー満了によって）DPCがキューされるため、上のIoCallDriver完了だけでは
+        // 安全な解放を保証できない。KeCancelTimerでこれからの発火を止め、
+        // KeFlushQueuedDpcsで既にキューされていたDPCの実行完了を待ってから
+        // devExtの解放（このIRPの先のIoDeleteDeviceでのデバイス拡張領域解放）に進む。
+        // HoldTapDpcRoutine自体はPendingActiveがFALSEなら何もしないので、この時点で
+        // 発火しても安全だが、それでも「devExt解放後にDPCが動く」余地を残さないために
+        // 明示的に同期する。
+        KeCancelTimer(&devExt->HoldTimer);
+        KeFlushQueuedDpcs();
+
         // この時点ではport driver側のREMOVE_DEVICE処理（上のIoCallDriver）が
         // 既に完了しておりServiceCallbackは再度呼ばれ得ないため、LayerMapを
         // ロック無しで安全に解放できる（Unloadの対応箇所と同じ理屈）。
@@ -517,6 +528,13 @@ VOID ServiceCallback(
     // （ただしキャリブレーションウィザードのCAPTURE_NEXT_KEYはDeviceId確定後
     // にしか呼べないため、この経路には影響しない）。
     if (devExt->DeviceId != 0) {
+        // Phase 2: Mod-Tap/Layer-Tapのタップ/ホールド判定（Hold On Other Key Press方式）。
+        // MT/LTキーの保留・確定・タイムアウトに関わるイベントはここで完結し、通常の
+        // ResolveLayerAction以降の処理は行わない。詳細はLayerEngine.cのResolveTapHold参照。
+        if (ResolveTapHold(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
+            return;
+        }
+
         PKEYBOARD_INPUT_DATA newEnd = ResolveLayerAction(devExt, InputDataStart, InputDataEnd);
         if (newEnd != InputDataEnd) {
             compacted = TRUE;
@@ -616,6 +634,11 @@ VOID Unload(IN PDRIVER_OBJECT DriverObject) {
             KeAcquireSpinLock(&g_listLock, &oldIrql);
             RemoveEntryList(&devExt->ListEntry);
             KeReleaseSpinLock(&g_listLock, oldIrql);
+
+            // Phase 2: DispatchPnpのIRP_MN_REMOVE_DEVICE処理と同じ理由で、
+            // devExt解放前にHoldTimer/HoldDpcを確実に無害化する。
+            KeCancelTimer(&devExt->HoldTimer);
+            KeFlushQueuedDpcs();
 
             if (devExt->LayerMap != NULL) {
                 ExFreePoolWithTag(devExt->LayerMap, KBDLAYER_MAP_POOL_TAG);

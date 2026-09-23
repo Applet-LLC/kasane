@@ -161,3 +161,20 @@ bool IoctlClient::CaptureNextKey(ULONG uniqId, ULONG timeoutMs, USHORT* outScanC
     *outTimedOut = output.TimedOut != 0;
     return true;
 }
+
+bool IoctlClient::SetConfig(ULONG uniqId, ULONG tapTermMs) {
+    KBDLAYER_SET_CONFIG_INPUT input;
+    input.Target.UniqId = uniqId;
+    input.TapTermMs = tapTermMs;
+
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_SET_CONFIG,
+                              &input, sizeof(input),
+                              NULL, 0,
+                              &bytesReturned, NULL);
+    if (!ok) {
+        fprintf(stderr, "IOCTL_KBDLAYER_SET_CONFIG failed. Error: %lu\n", GetLastError());
+        return false;
+    }
+    return true;
+}

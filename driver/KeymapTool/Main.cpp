@@ -98,6 +98,14 @@ int CmdCapture(IoctlClient* client, ULONG uniqId, ULONG timeoutMs) {
     return 0;
 }
 
+int CmdSetConfig(IoctlClient* client, ULONG uniqId, ULONG tapTermMs) {
+    if (!client->SetConfig(uniqId, tapTermMs)) return 1;
+    printf("SET_CONFIG ok. UniqId=%08X TapTermMs=%lu%s\n", uniqId,
+           tapTermMs != 0 ? tapTermMs : 200UL,
+           tapTermMs == 0 ? " (reset to default)" : "");
+    return 0;
+}
+
 // info.jsonを使うキャリブレーション: --calibrate <UniqIdHex> <info.json> <out-profile.json> [layoutName]
 int CmdCalibrate(IoctlClient* client, ULONG uniqId, const std::string& infoJsonPath,
                   const std::string& outProfilePath, const std::string& layoutName) {
@@ -270,6 +278,9 @@ void PrintUsage() {
         "  KeymapTool.exe --apply-simple <UniqIdHex> <keymap.json> <profile.json>\n"
         "      Same, but matches keymap.json's flat per-layer arrays to the profile by\n"
         "      enumeration order (paired with --calibrate-simple).\n"
+        "  KeymapTool.exe --set-config <UniqIdHex> <TapTermMs>\n"
+        "      Set the Mod-Tap/Layer-Tap tap-vs-hold threshold in milliseconds\n"
+        "      (0 resets to the driver default, 200ms).\n"
         "\n"
         "  UniqIdHex is the value shown by --list (e.g. A1B20000).\n");
 }
@@ -307,6 +318,13 @@ int main(int argc, char** argv) {
         ULONG uniqId;
         if (argc < 3 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
         return CmdSetEnabled(&client, uniqId, strcmp(cmd, "--on") == 0);
+    }
+
+    if (strcmp(cmd, "--set-config") == 0) {
+        ULONG uniqId;
+        if (argc < 4 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
+        ULONG tapTermMs = (ULONG)strtoul(argv[3], nullptr, 10);
+        return CmdSetConfig(&client, uniqId, tapTermMs);
     }
 
     if (strcmp(cmd, "--capture") == 0) {

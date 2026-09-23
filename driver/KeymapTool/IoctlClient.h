@@ -43,6 +43,10 @@ public:
     // 戻り値: true=IOCTL自体は成功（*outTimedOutで実際に捕捉できたか判定）。
     bool CaptureNextKey(ULONG uniqId, ULONG timeoutMs, USHORT* outScanCode16, bool* outTimedOut);
 
+    // Phase 2: Mod-Tap/Layer-TapのTapTermMs（タップ/ホールド判定閾値、ミリ秒）を設定する。
+    // tapTermMs=0はドライバ側既定値(KBDLAYER_DEFAULT_TAP_TERM_MS=200ms)にリセットする。
+    bool SetConfig(ULONG uniqId, ULONG tapTermMs);
+
     ~IoctlClient() { Close(); }
 
 private:

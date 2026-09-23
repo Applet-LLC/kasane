@@ -314,6 +314,32 @@ HandleSetLayerMapEnabled(
     return SetLayerMapEnabledForDevice(devExt, input->Enabled != 0);
 }
 
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleSetConfig(
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    PKBDLAYER_SET_CONFIG_INPUT input = (PKBDLAYER_SET_CONFIG_INPUT)SystemBuffer;
+    PDEVICE_EXTENSION devExt;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_SET_CONFIG_INPUT)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    return SetTapTermForDevice(devExt, input->TapTermMs);
+}
+
 // キャリブレーションウィザード専用。呼び出し元スレッドをPASSIVE_LEVELでブロックし、
 // 対象デバイスの次の物理キー押下1回分のスキャンコードを返す。
 // devExt->RemoveLockを保持したまま待機することで、待機中にキーボードが
@@ -425,7 +451,9 @@ DispatchControlIoctl(
     case IOCTL_KBDLAYER_CAPTURE_NEXT_KEY:
         status = HandleCaptureNextKey(Irp, irpSp, systemBuffer, &bytesReturned);
         break;
-    // IOCTL_KBDLAYER_SET_CONFIG (Tap-Hold設定) はPhase 2で実装する。
+    case IOCTL_KBDLAYER_SET_CONFIG:
+        status = HandleSetConfig(irpSp, systemBuffer, &bytesReturned);
+        break;
     default:
         status = STATUS_INVALID_DEVICE_REQUEST;
         break;

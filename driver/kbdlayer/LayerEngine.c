@@ -7,6 +7,7 @@
 #include "DeviceExtension.h"
 #include "LayerEngine.h"
 #include "..\\common\\regutil.h"
+#include "token.h" // KBDLAYER_TRACE
 
 #ifndef DBG
 #define DbgPrint(...) ((void)0)
@@ -30,6 +31,7 @@
 #define KBDLAYER_SERVICE_NAME L"kbdlayer"
 #define KBDLAYER_MAP_VALUE_NAME L"LayerMap"
 #define KBDLAYER_ENABLED_VALUE_NAME L"Enabled"
+#define KBDLAYER_TAPTERM_VALUE_NAME L"TapTermMs"
 #define KBDLAYER_REGTEMP_POOL_TAG 'tLdK'
 
 // ---------------------------------------------------------------------------
@@ -344,10 +346,12 @@ LayerEngineShouldDropEntry(
         return TRUE; // 出力しない
 
     default:
-        // OSM/MT/LT等はPhase 2以降で実装する。Phase 1のエンジンに来た場合は
+        // MODTAP/LAYERTAPはResolveTapHold（ServiceCallbackからResolveLayerActionより
+        // 前に呼ばれる、Driver.c参照）が先に横取りして処理するため、通常はここに
+        // 到達しない。ここに来るのはOSM（未実装）や、複数件バッチの一部として届いた
+        // ためResolveTapHoldがスキップしたMT/LTキーなど、想定外の経路のみ。
         // 安全側に倒して「何もしない」として扱う（ParseLayerMapBlobで型自体は
-        // 許可しているため、KeymapTool側が未対応アクションを送ってきても
-        // クラッシュしない）。
+        // 許可しているため、KeymapTool側が未対応アクションを送ってきてもクラッシュしない）。
         return TRUE;
     }
 }
@@ -386,6 +390,297 @@ ResolveLayerAction(
     newEnd = CompactInputDataArray(devExt, InputDataStart, InputDataEnd, LayerEngineShouldDropEntry, NULL);
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
     return newEnd;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2: Mod-Tap(MT)/Layer-Tap(LT) -- Hold On Other Key Press方式
+//
+// phase2-spikeブランチでの実機検証（該当コミット群参照）を踏まえた実装。
+// 検証済み: 1回のServiceCallback呼び出し内でOriginalClassServiceを2回呼ぶ
+// パターン（他キー押下によるホールド確定）はkbdclass.sysで安全に動作する。
+// 未検証: HoldDpc（タイムアウト経路）からのOriginalClassService自発呼び出し。
+// これはMODTAPがタイムアウトで確定したときにのみ発生する（LAYERTAPのタイムアウト
+// 確定はActiveLayerMaskのビット操作のみで、OriginalClassServiceを呼ばない）。
+// 実機テストではこの経路を重点的に確認すること。
+// ---------------------------------------------------------------------------
+
+// QMKのMOD_LCTL等に対応するビット番号（KeymapTool側のKeycodeTable.cppの
+// ModifierBitTableと同じ割り当て）から、Enc16形式のスキャンコードへの変換表。
+static const USHORT s_ModifierScanCodes[8] = {
+    /* 0: LCTL */ 0x001D,
+    /* 1: LSFT */ 0x002A,
+    /* 2: LALT */ 0x0038,
+    /* 3: LGUI */ 0xE05B,
+    /* 4: RCTL */ 0xE01D,
+    /* 5: RSFT */ 0x0036,
+    /* 6: RALT */ 0xE038,
+    /* 7: RGUI */ 0xE05C,
+};
+
+// 1件のKEYBOARD_INPUT_DATAを単独でOriginalClassServiceへ送る。devExt->EngineLockを
+// 保持していない状態で呼ぶこと。SystemArgument3には実IRPに紐づかない自発呼び出し
+// である旨、書き込み可能なダミー領域を渡す（書き込まれる値そのものに意味は無い）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+SendSyntheticEvent(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ USHORT MakeCode,
+    _In_ USHORT Flags
+    )
+{
+    KEYBOARD_INPUT_DATA ev;
+    ULONG dummyConsumed = 0;
+
+    RtlZeroMemory(&ev, sizeof(ev));
+    ev.MakeCode = MakeCode;
+    ev.Flags = Flags;
+    ev.ExtraInformation = devExt->DeviceId & 0xFFFF0000UL;
+
+    devExt->OriginalClassService(
+        devExt->OriginalClassDeviceObject,
+        &ev,
+        &ev + 1,
+        &dummyConsumed);
+}
+
+// Enc16形式のスキャンコードをデコードし、BreakBit（KEY_MAKEまたはKEY_BREAK）を
+// 合成して単独イベントとして送る。devExt->EngineLockを保持していない状態で
+// 呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+SendDecodedEvent(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ USHORT EncodedScanCode,
+    _In_ USHORT BreakBit
+    )
+{
+    USHORT makeCode;
+    USHORT flags = BreakBit;
+
+    DecodeScancode16(EncodedScanCode, &makeCode, &flags);
+    SendSyntheticEvent(devExt, makeCode, flags);
+}
+
+// actionがMODTAPなら、対応する修飾キーのmake/breakイベントを合成して送る
+// （LAYERTAPの場合は何もしない -- ActiveLayerMaskのビット操作だけで完結し、
+// キーイベントの合成は不要なため）。devExt->EngineLockを保持していない状態で
+// 呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+EmitModTapEventIfApplicable(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKBDLAYER_ACTION Action,
+    _In_ USHORT BreakBit
+    )
+{
+    if (Action->Type == KBDLAYER_ACTION_MODTAP && Action->Param1 < RTL_NUMBER_OF(s_ModifierScanCodes)) {
+        SendDecodedEvent(devExt, s_ModifierScanCodes[Action->Param1], BreakBit);
+    }
+}
+
+// devExt->EngineLock保持中に呼ぶこと。ホールド確定処理のうちロックが必要な部分
+// （PendingActionのコピー・LAYERTAPならActiveLayerMaskのビットセット・
+// PendingActive/HoldConfirmedの更新）だけを行う。MODTAPの合成イベント送出は
+// EmitModTapEventIfApplicableでロック解放後に呼び出し元が行うこと
+// （OriginalClassServiceをEngineLock保持中に呼ばない、という既存の規律を踏襲）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+ConfirmHoldLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _Out_ PKBDLAYER_ACTION OutAction
+    )
+{
+    *OutAction = devExt->PendingAction;
+    if (OutAction->Type == KBDLAYER_ACTION_LAYERTAP && OutAction->Param1 < KBDLAYER_MAX_LAYERS) {
+        devExt->ActiveLayerMask |= (1UL << OutAction->Param1);
+    }
+    devExt->PendingActive = FALSE;
+    devExt->HoldConfirmed = TRUE;
+}
+
+// HoldTimerの満了で起動されるDPC（タイムアウト経路。他キー押下による割り込みが
+// 無いままTapTermMsが経過した場合にホールド確定する）。DISPATCH_LEVELで実行される。
+// *** phase2-spikeブランチで未検証の経路。実機テストで重点的に確認すること ***
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+HoldTapDpcRoutine(
+    _In_ PKDPC Dpc,
+    _In_opt_ PVOID DeferredContext,
+    _In_opt_ PVOID SystemArgument1,
+    _In_opt_ PVOID SystemArgument2
+    )
+{
+    PDEVICE_EXTENSION devExt = (PDEVICE_EXTENSION)DeferredContext;
+    KIRQL oldIrql;
+    KBDLAYER_ACTION action;
+    USHORT pendingScanCode = 0;
+    BOOLEAN shouldConfirm;
+
+    UNREFERENCED_PARAMETER(Dpc);
+    UNREFERENCED_PARAMETER(SystemArgument1);
+    UNREFERENCED_PARAMETER(SystemArgument2);
+
+    if (devExt == NULL) {
+        return;
+    }
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    // PendingActiveがFALSEなら、ServiceCallback側（他キー押下によるホールド確定、
+    // またはタップ確定としての解放）が既にこのサイクルを終えている
+    // （KeCancelTimerとこのDPCのキューイングが競合した場合に起こりうる）。
+    // その場合は何もしない。ServiceCallback経由とDPC経由の競合排他はこの
+    // EngineLockで行っている。
+    shouldConfirm = devExt->PendingActive;
+    if (shouldConfirm) {
+        pendingScanCode = devExt->PendingScanCode;
+        ConfirmHoldLocked(devExt, &action);
+    }
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    if (shouldConfirm) {
+        KBDLAYER_TRACE("LayerEngine: tap-hold TIMEOUT confirmed sc=0x%X type=%u\n",
+                       pendingScanCode, action.Type);
+        EmitModTapEventIfApplicable(devExt, &action, KEY_MAKE);
+    }
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+ResolveTapHold(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd,
+    _Inout_opt_ PVOID SystemArgument3
+    )
+{
+    PKEYBOARD_INPUT_DATA ev;
+    USHORT scanCode;
+    BOOLEAN isBreak;
+    KIRQL oldIrql;
+
+    // 1件バッチのみを対象とする。複数件バッチ（コアレス）はホットパスの単純さを
+    // 保つため対象外とし、通常のResolveLayerAction側の処理に委ねる（MT/LTキー
+    // 自体が複数件バッチの一部として届いた場合、タップ/ホールド判定は行われず
+    // 通常のKEYアクションと同様に解決される。既知のスコープ限定）。
+    if ((InputDataEnd - InputDataStart) != 1) {
+        return FALSE;
+    }
+
+    ev = InputDataStart;
+    scanCode = EncodeScancode16(ev->MakeCode, ev->Flags);
+    isBreak = (ev->Flags & KEY_BREAK) != 0;
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+
+    if (!devExt->LayerMapEnabled || devExt->LayerMap == NULL) {
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        return FALSE;
+    }
+
+    // --- このイベントが、現在保留中/ホールド中のMT/LTキー自身のものか ---
+    if ((devExt->PendingActive || devExt->HoldConfirmed) && scanCode == devExt->PendingScanCode) {
+        if (!isBreak) {
+            // 押しっぱなし中のオートリピートMAKE。状態を変えず黙って飲み込む
+            // （phase2-spikeで踏み抜いた「オートリピートが確定済み状態を巻き戻す」
+            // バグの教訓）。
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+            if (SystemArgument3 != NULL) {
+                *(PULONG)SystemArgument3 = 1;
+            }
+            return TRUE;
+        }
+
+        // 解放。
+        BOOLEAN wasHoldConfirmed = devExt->HoldConfirmed;
+        BOOLEAN wasPending = devExt->PendingActive;
+        KBDLAYER_ACTION action = devExt->PendingAction;
+
+        devExt->PendingActive = FALSE;
+        devExt->HoldConfirmed = FALSE;
+        if (wasHoldConfirmed && action.Type == KBDLAYER_ACTION_LAYERTAP &&
+            action.Param1 < KBDLAYER_MAX_LAYERS) {
+            devExt->ActiveLayerMask &= ~(1UL << action.Param1);
+        }
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+        // 保留サイクルはここで終わるので、タイマーが未発火ならキャンセルする。
+        // DPCが既にキューされていた場合KeCancelTimerはFALSEを返すが、DPC側は
+        // PendingActiveを見て自分で無害化するので競合しても安全
+        // （HoldTapDpcRoutine参照。EngineLockで直列化している）。
+        KeCancelTimer(&devExt->HoldTimer);
+
+        if (wasHoldConfirmed) {
+            EmitModTapEventIfApplicable(devExt, &action, KEY_BREAK);
+        } else if (wasPending) {
+            // 保留中に他キーが割り込まず、タイムアウトも発火しなかった = タップ確定。
+            SendDecodedEvent(devExt, action.Param2, KEY_MAKE);
+            SendDecodedEvent(devExt, action.Param2, KEY_BREAK);
+        }
+
+        if (SystemArgument3 != NULL) {
+            *(PULONG)SystemArgument3 = 1;
+        }
+        return TRUE;
+    }
+
+    // --- 保留中（未確定）に、別のキーの押下が来た場合 = ホールド確定 ---
+    // 【検証対象】1回のServiceCallback呼び出しの中でOriginalClassServiceを
+    // 最大2回呼ぶ（MODTAPの場合: 修飾キー合成 + 元バッチ転送。LAYERTAPの場合は
+    // ActiveLayerMaskの操作だけなので元バッチ転送の1回のみ）。
+    if (devExt->PendingActive && !devExt->HoldConfirmed && !isBreak) {
+        KBDLAYER_ACTION action;
+
+        ConfirmHoldLocked(devExt, &action);
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+        KeCancelTimer(&devExt->HoldTimer);
+
+        EmitModTapEventIfApplicable(devExt, &action, KEY_MAKE);
+
+        // 続けて元のバッチ（別キーのイベント）をそのままOriginalClassServiceに
+        // 渡す。このキーはレイヤーエンジンでの再解決を経ない生のスキャンコードの
+        // まま転送される（プラン記載の設計通り。既知の制約: 割り込んだキー自身が
+        // 現在アクティブなレイヤーの影響を受けない）。
+        for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
+            p->ExtraInformation = (p->ExtraInformation & 0x0000FFFFUL) | (devExt->DeviceId & 0xFFFF0000UL);
+        }
+        devExt->OriginalClassService(
+            devExt->OriginalClassDeviceObject,
+            InputDataStart,
+            InputDataEnd,
+            SystemArgument3);
+        return TRUE;
+    }
+
+    // --- 現在アイドル（保留中でもホールド中でもない）で、このキー自体が
+    //     MT/LTに解決される押下イベントなら、新しい保留サイクルを開始する ---
+    if (!devExt->PendingActive && !devExt->HoldConfirmed && !isBreak) {
+        PKBDLAYER_KEY_ENTRY keyEntry = FindKeyEntry(devExt->LayerMap, scanCode);
+        if (keyEntry != NULL) {
+            PKBDLAYER_ACTION action = ResolveEffectiveAction(devExt, devExt->LayerMap, keyEntry);
+            if (action != NULL &&
+                (action->Type == KBDLAYER_ACTION_MODTAP || action->Type == KBDLAYER_ACTION_LAYERTAP)) {
+                LARGE_INTEGER dueTime;
+
+                devExt->PendingActive = TRUE;
+                devExt->HoldConfirmed = FALSE;
+                devExt->PendingScanCode = scanCode;
+                devExt->PendingAction = *action;
+                KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+                dueTime.QuadPart = -((LONGLONG)devExt->TapTermMs * 10000LL);
+                KeSetTimer(&devExt->HoldTimer, dueTime, &devExt->HoldDpc);
+
+                if (SystemArgument3 != NULL) {
+                    *(PULONG)SystemArgument3 = 1;
+                }
+                return TRUE;
+            }
+        }
+    }
+
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+    return FALSE;
 }
 
 // ---------------------------------------------------------------------------
@@ -504,6 +799,12 @@ SetLayerMapEnabledForDevice(
         devExt->DefaultLayer = 0;
         devExt->OneShotLayerPending = FALSE;
         devExt->OneShotLayerBit = 0;
+        // Phase 2: MT/LTの保留/ホールド確定状態も同様にリセットする。タイマーが
+        // armされていた場合はキャンセルする（HoldTapDpcRoutineはPendingActiveを
+        // 見てから動くので、キャンセルが競合で失敗しても実害は無い）。
+        devExt->PendingActive = FALSE;
+        devExt->HoldConfirmed = FALSE;
+        KeCancelTimer(&devExt->HoldTimer);
     }
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
@@ -568,7 +869,49 @@ LoadPersistedLayerMapForDevice(
 
     RegReadDwordEx(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_ENABLED_VALUE_NAME, &enabledValue, 0);
     devExt->LayerMapEnabled = (devExt->LayerMap != NULL) && (enabledValue != 0);
+
+    {
+        ULONG tapTermValue = 0;
+        RegReadDwordEx(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPTERM_VALUE_NAME,
+                        &tapTermValue, KBDLAYER_DEFAULT_TAP_TERM_MS);
+        devExt->TapTermMs = (tapTermValue != 0) ? tapTermValue : KBDLAYER_DEFAULT_TAP_TERM_MS;
+    }
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetTapTermForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG TapTermMs
+    )
+{
+    KIRQL oldIrql;
+    ULONG effective = (TapTermMs != 0) ? TapTermMs : KBDLAYER_DEFAULT_TAP_TERM_MS;
+    WCHAR subKeyPath[64];
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    devExt->TapTermMs = effective;
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPTERM_VALUE_NAME, effective);
+
+    return STATUS_SUCCESS;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+InitializeTapHoldState(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    KeInitializeTimer(&devExt->HoldTimer);
+    KeInitializeDpc(&devExt->HoldDpc, HoldTapDpcRoutine, devExt);
     devExt->TapTermMs = KBDLAYER_DEFAULT_TAP_TERM_MS;
+    devExt->PendingActive = FALSE;
+    devExt->HoldConfirmed = FALSE;
+    devExt->PendingScanCode = 0;
+    RtlZeroMemory(&devExt->PendingAction, sizeof(devExt->PendingAction));
 }
 
 // ---------------------------------------------------------------------------
