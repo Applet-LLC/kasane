@@ -77,6 +77,12 @@ const std::unordered_map<std::string, USHORT>& BaseKeyTable() {
         {"KC_RALT", SCE0(0x38)}, {"KC_ALGR", SCE0(0x38)},
         {"KC_RGUI", SCE0(0x5C)}, {"KC_RCMD", SCE0(0x5C)}, {"KC_RWIN", SCE0(0x5C)},
         {"KC_APP", SCE0(0x5D)}, {"KC_APPLICATION", SCE0(0x5D)},
+        // KC_NOをMT(mod,kc)/LT(layer,kc)のタップ時キーコード引数として使えるようにする
+        // プレースホルダー（スキャンコード0x0000）。Resolve()自身は単独トークンとしての
+        // "KC_NO"を最上部で特別扱い(ActionType=NONE)するためここには来ないが、MT/LTの
+        // パースはResolveBaseKeyを直接呼ぶためこのテーブルに載せておく必要がある
+        // （載っていないと"MT(MOD_LCTL,KC_NO)"のようなトークン全体が解決失敗する）。
+        {"KC_NO", SC1(0x00)},
         // ナビゲーションクラスタ
         {"KC_PSCREEN", SCE0(0x37)}, {"KC_PSCR", SCE0(0x37)},
         {"KC_SCROLLLOCK", SC1(0x46)}, {"KC_SCRL", SC1(0x46)},
