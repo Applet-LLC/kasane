@@ -33,6 +33,8 @@
 #define KBDLAYER_ENABLED_VALUE_NAME L"Enabled"
 #define KBDLAYER_TAPTERM_VALUE_NAME L"TapTermMs"
 #define KBDLAYER_MACROS_VALUE_NAME L"Macros"
+#define KBDLAYER_COMBOS_VALUE_NAME L"Combos"
+#define KBDLAYER_COMBOTERM_VALUE_NAME L"ComboTermMs"
 #define KBDLAYER_REGTEMP_POOL_TAG 'tLdK'
 
 // マクロの永続化形式（レジストリ"Macros"値）。KBDLAYER_MAX_MACRO_COUNT個ぶん
@@ -46,6 +48,16 @@ typedef struct _KBDLAYER_MACRO_PERSIST_ENTRY {
 
 #define KBDLAYER_MACRO_PERSIST_BLOB_BYTES \
     (KBDLAYER_MAX_MACRO_COUNT * sizeof(KBDLAYER_MACRO_PERSIST_ENTRY))
+
+// コンボの永続化形式（レジストリ"Combos"値）。マクロと同じ方式で、
+// KBDLAYER_MAX_COMBO_COUNT個ぶん固定サイズで連続して並べる。
+typedef struct _KBDLAYER_COMBO_PERSIST_ENTRY {
+    ULONG Used;
+    KBDLAYER_COMBO_ENTRY Entry;
+} KBDLAYER_COMBO_PERSIST_ENTRY, *PKBDLAYER_COMBO_PERSIST_ENTRY;
+
+#define KBDLAYER_COMBO_PERSIST_BLOB_BYTES \
+    (KBDLAYER_MAX_COMBO_COUNT * sizeof(KBDLAYER_COMBO_PERSIST_ENTRY))
 
 // ---------------------------------------------------------------------------
 // スキャンコードの16bitエンコード/デコード（OS標準Scancode Mapと同じ規約。
@@ -811,6 +823,264 @@ ResolveMacro(
 }
 
 // ---------------------------------------------------------------------------
+// Phase 4: コンボ（2キー限定 v1） -- Phase 2の「保留＋タイマー」機構を再利用
+//
+// common/kbdlayer_ioctl.hに記載のスコープ限定（2キー限定・重複禁止・出力は
+// KEY型のみ・解除はいずれかのメンバー解放時点）を前提にした実装。重複を
+// 禁止しているため、押されたキーがコンボメンバーであれば相方は一意に定まり、
+// Phase 2のPendingActiveと同様に単一の保留スロットで足りる（候補集合を
+// 絞り込むロジックは不要）。
+//
+// 状態は3つの独立フラグで管理する（Phase 2のPendingActive/HoldConfirmedと
+// 同じ「独立フラグ」方式。1つの履歴から推測するのではなく、各状態を明示的に
+// 持つことで遷移の見通しを良くする）:
+//   ComboPendingActive: 最初のメンバー押下中、相方待ち
+//   ComboConfirmed:     コンボ成立済み、出力キー押下中
+//   ComboDraining:      出力は解除済み、もう片方の物理キー解放を待つだけ
+//
+// タイムアウト時（相方が来ないままComboTermMs経過）のリプレイはComboDpcRoutineから
+// 保留していたキーのpressを1回だけ復元送出する（v1の2キー限定により、リプレイが
+// 必要なイベントは常に高々1件で済む。Phase 2で実機検証済みの「DPCからの
+// OriginalClassService自発呼び出し」と同じパターンであり、新規リスクの増加は
+// 単発呼び出しである限り無い）。
+// ---------------------------------------------------------------------------
+
+// devExt->EngineLock保持中に呼ぶこと。押されたキーが（重複禁止のもとで）ちょうど
+// 1つのコンボのメンバーであれば、そのインデックスを返す（無ければ-1）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static LONG
+FindComboIndexForScanCode(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ USHORT ScanCode
+    )
+{
+    for (ULONG i = 0; i < KBDLAYER_MAX_COMBO_COUNT; i++) {
+        if (devExt->ComboUsed[i] &&
+            (devExt->Combos[i].ScanCode1 == ScanCode || devExt->Combos[i].ScanCode2 == ScanCode)) {
+            return (LONG)i;
+        }
+    }
+    return -1;
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static USHORT
+ComboPartnerScanCode(
+    _In_ PKBDLAYER_COMBO_ENTRY Entry,
+    _In_ USHORT ScanCode
+    )
+{
+    return (Entry->ScanCode1 == ScanCode) ? Entry->ScanCode2 : Entry->ScanCode1;
+}
+
+// ComboTimerの満了で起動されるDPC（タイムアウト経路。相方の押下が来ないまま
+// ComboTermMsが経過した場合に不成立とし、保留していたキーのpressを復元送出する）。
+// DISPATCH_LEVELで実行される。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+ComboDpcRoutine(
+    _In_ PKDPC Dpc,
+    _In_opt_ PVOID DeferredContext,
+    _In_opt_ PVOID SystemArgument1,
+    _In_opt_ PVOID SystemArgument2
+    )
+{
+    PDEVICE_EXTENSION devExt = (PDEVICE_EXTENSION)DeferredContext;
+    KIRQL oldIrql;
+    USHORT pendingScanCode = 0;
+    BOOLEAN shouldReplay;
+
+    UNREFERENCED_PARAMETER(Dpc);
+    UNREFERENCED_PARAMETER(SystemArgument1);
+    UNREFERENCED_PARAMETER(SystemArgument2);
+
+    if (devExt == NULL) {
+        return;
+    }
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    // ComboPendingActiveがFALSEなら、ServiceCallback側（相方到着による成立、または
+    // 保留キー自身の解放による不成立）が既にこのサイクルを終えている
+    // （KeCancelTimerとこのDPCのキューイングが競合した場合に起こりうる。Phase 2の
+    // HoldTapDpcRoutineと同じ理屈でEngineLockにより直列化される）。
+    shouldReplay = devExt->ComboPendingActive;
+    if (shouldReplay) {
+        pendingScanCode = devExt->ComboPendingScanCode;
+        devExt->ComboPendingActive = FALSE;
+    }
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    if (shouldReplay) {
+        KBDLAYER_TRACE("LayerEngine: combo TIMEOUT unresolved sc=0x%X, replaying held press\n", pendingScanCode);
+        SendDecodedEvent(devExt, pendingScanCode, KEY_MAKE);
+    }
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+ResolveCombo(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd,
+    _Inout_opt_ PVOID SystemArgument3
+    )
+{
+    PKEYBOARD_INPUT_DATA ev;
+    USHORT scanCode;
+    BOOLEAN isBreak;
+    KIRQL oldIrql;
+
+    // ResolveTapHold/ResolveMacroと同じ理由で1件バッチのみを対象とする。
+    if ((InputDataEnd - InputDataStart) != 1) {
+        return FALSE;
+    }
+
+    ev = InputDataStart;
+    scanCode = EncodeScancode16(ev->MakeCode, ev->Flags);
+    isBreak = (ev->Flags & KEY_BREAK) != 0;
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+
+    if (!devExt->LayerMapEnabled || devExt->LayerMap == NULL) {
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        return FALSE;
+    }
+
+    // --- Confirmed: 出力キー押下中。メンバーのBREAKで出力解除しDrainingへ ---
+    if (devExt->ComboConfirmed) {
+        PKBDLAYER_COMBO_ENTRY entry = &devExt->Combos[devExt->ComboActiveId];
+        BOOLEAN isMember = (scanCode == entry->ScanCode1 || scanCode == entry->ScanCode2);
+
+        if (!isMember) {
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+            return FALSE;
+        }
+        if (!isBreak) {
+            // オートリピート、または既に押されているもう片方の再MAKE。飲み込むだけ。
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+            if (SystemArgument3 != NULL) {
+                *(PULONG)SystemArgument3 = 1;
+            }
+            return TRUE;
+        }
+
+        {
+            KBDLAYER_ACTION outputAction = entry->OutputAction;
+            devExt->ComboConfirmed = FALSE;
+            devExt->ComboDraining = TRUE;
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+            SendDecodedEvent(devExt, outputAction.Param2, KEY_BREAK);
+            if (SystemArgument3 != NULL) {
+                *(PULONG)SystemArgument3 = 1;
+            }
+            return TRUE;
+        }
+    }
+
+    // --- Draining: 出力は解除済み。もう片方のメンバーの解放を無害に飲み込むだけ ---
+    if (devExt->ComboDraining) {
+        PKBDLAYER_COMBO_ENTRY entry = &devExt->Combos[devExt->ComboActiveId];
+        BOOLEAN isMember = (scanCode == entry->ScanCode1 || scanCode == entry->ScanCode2);
+
+        if (!isMember) {
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+            return FALSE;
+        }
+        if (isBreak) {
+            devExt->ComboDraining = FALSE;
+        }
+        // オートリピートMAKEも含め飲み込む（Draining中は何も送出しない）。
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        if (SystemArgument3 != NULL) {
+            *(PULONG)SystemArgument3 = 1;
+        }
+        return TRUE;
+    }
+
+    // --- Pending: 最初のメンバー押下中、相方待ち ---
+    if (devExt->ComboPendingActive) {
+        PKBDLAYER_COMBO_ENTRY entry = &devExt->Combos[devExt->ComboActiveId];
+        USHORT pendingScanCode = devExt->ComboPendingScanCode;
+        USHORT partner = ComboPartnerScanCode(entry, pendingScanCode);
+
+        if (scanCode == pendingScanCode) {
+            if (!isBreak) {
+                // 押しっぱなし中のオートリピートMAKE。状態を変えず黙って飲み込む
+                // （Phase 2のResolveTapHoldと同じ教訓）。
+                KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+                if (SystemArgument3 != NULL) {
+                    *(PULONG)SystemArgument3 = 1;
+                }
+                return TRUE;
+            }
+
+            // 相方が来る前に離した = 不成立。保留していたpress+今回のbreakを
+            // タップとして復元送出する。
+            devExt->ComboPendingActive = FALSE;
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+            KeCancelTimer(&devExt->ComboTimer);
+            SendDecodedEvent(devExt, pendingScanCode, KEY_MAKE);
+            SendDecodedEvent(devExt, pendingScanCode, KEY_BREAK);
+            if (SystemArgument3 != NULL) {
+                *(PULONG)SystemArgument3 = 1;
+            }
+            return TRUE;
+        }
+
+        if (scanCode == partner && !isBreak) {
+            // 相方到着 = コンボ成立。
+            KBDLAYER_ACTION outputAction = entry->OutputAction;
+
+            devExt->ComboPendingActive = FALSE;
+            devExt->ComboConfirmed = TRUE;
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+            KeCancelTimer(&devExt->ComboTimer);
+            SendDecodedEvent(devExt, outputAction.Param2, KEY_MAKE);
+            if (SystemArgument3 != NULL) {
+                *(PULONG)SystemArgument3 = 1;
+            }
+            return TRUE;
+        }
+
+        // --- 無関係キーによる割り込み = 不成立。保留していたpressのみ復元送出し、
+        //     割り込みキー自身は通常経路（呼び出し元でのResolveTapHold以降）に委ねる。
+        devExt->ComboPendingActive = FALSE;
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+        KeCancelTimer(&devExt->ComboTimer);
+        SendDecodedEvent(devExt, pendingScanCode, KEY_MAKE);
+        return FALSE;
+    }
+
+    // --- Idle: このキー自体がコンボメンバーなら新しい保留サイクルを開始する ---
+    if (!isBreak) {
+        LONG idx = FindComboIndexForScanCode(devExt, scanCode);
+        if (idx >= 0) {
+            LARGE_INTEGER dueTime;
+
+            devExt->ComboPendingActive = TRUE;
+            devExt->ComboPendingScanCode = scanCode;
+            devExt->ComboActiveId = (ULONG)idx;
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+            dueTime.QuadPart = -((LONGLONG)devExt->ComboTermMs * 10000LL);
+            KeSetTimer(&devExt->ComboTimer, dueTime, &devExt->ComboDpc);
+
+            if (SystemArgument3 != NULL) {
+                *(PULONG)SystemArgument3 = 1;
+            }
+            return TRUE;
+        }
+    }
+
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+    return FALSE;
+}
+
+// ---------------------------------------------------------------------------
 // IOCTLハンドラから呼ばれる設定関数（PASSIVE_LEVEL）
 // ---------------------------------------------------------------------------
 
@@ -932,6 +1202,13 @@ SetLayerMapEnabledForDevice(
         devExt->PendingActive = FALSE;
         devExt->HoldConfirmed = FALSE;
         KeCancelTimer(&devExt->HoldTimer);
+        // Phase 4: コンボの保留/成立/ドレイン状態も同様にリセットする（タイマーが
+        // armされていた場合はキャンセルする。ComboDpcRoutineはComboPendingActiveを
+        // 見てから動くので、キャンセルが競合で失敗しても実害は無い）。
+        devExt->ComboPendingActive = FALSE;
+        devExt->ComboConfirmed = FALSE;
+        devExt->ComboDraining = FALSE;
+        KeCancelTimer(&devExt->ComboTimer);
     }
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
@@ -964,12 +1241,18 @@ GetLayerMapForDevice(
     return status;
 }
 
-// Phase 3のLayerEngine.c後半で定義されるが、AddDeviceからの「永続化状態を
+// Phase 3/4のLayerEngine.c後半で定義されるが、AddDeviceからの「永続化状態を
 // まとめてロードする」単一の呼び出し(LoadPersistedLayerMapForDevice)に
 // 統合するため、ここから先行して呼び出す。
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static VOID
 LoadPersistedMacrosForDevice(
+    _In_ PDEVICE_EXTENSION devExt
+    );
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static VOID
+LoadPersistedCombosForDevice(
     _In_ PDEVICE_EXTENSION devExt
     );
 
@@ -1014,6 +1297,7 @@ LoadPersistedLayerMapForDevice(
     }
 
     LoadPersistedMacrosForDevice(devExt);
+    LoadPersistedCombosForDevice(devExt);
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
@@ -1038,6 +1322,27 @@ SetTapTermForDevice(
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetComboTermForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG ComboTermMs
+    )
+{
+    KIRQL oldIrql;
+    ULONG effective = (ComboTermMs != 0) ? ComboTermMs : KBDLAYER_DEFAULT_COMBO_TERM_MS;
+    WCHAR subKeyPath[64];
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    devExt->ComboTermMs = effective;
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_COMBOTERM_VALUE_NAME, effective);
+
+    return STATUS_SUCCESS;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
 VOID
 InitializeTapHoldState(
     _In_ PDEVICE_EXTENSION devExt
@@ -1050,6 +1355,24 @@ InitializeTapHoldState(
     devExt->HoldConfirmed = FALSE;
     devExt->PendingScanCode = 0;
     RtlZeroMemory(&devExt->PendingAction, sizeof(devExt->PendingAction));
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+InitializeComboState(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    KeInitializeTimer(&devExt->ComboTimer);
+    KeInitializeDpc(&devExt->ComboDpc, ComboDpcRoutine, devExt);
+    devExt->ComboTermMs = KBDLAYER_DEFAULT_COMBO_TERM_MS;
+    devExt->ComboPendingActive = FALSE;
+    devExt->ComboConfirmed = FALSE;
+    devExt->ComboDraining = FALSE;
+    devExt->ComboPendingScanCode = 0;
+    devExt->ComboActiveId = 0;
+    RtlZeroMemory(devExt->Combos, sizeof(devExt->Combos));
+    RtlZeroMemory(devExt->ComboUsed, sizeof(devExt->ComboUsed));
 }
 
 // ---------------------------------------------------------------------------
@@ -1209,6 +1532,167 @@ LoadPersistedMacrosForDevice(
     // RtlZeroMemory済みのため全マクロ未設定のままで安全。
 
     ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
+}
+
+// ---------------------------------------------------------------------------
+// Phase 4: コンボの設定関数（PASSIVE_LEVEL）
+// ---------------------------------------------------------------------------
+
+// devExt->Combos/ComboUsed全体を1つのblobへシリアライズしてレジストリへ書き込む。
+// ベストエフォート（確保失敗時は何もしない。ライブ状態には影響しない）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static VOID
+PersistAllCombos(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    WCHAR subKeyPath[64];
+    PKBDLAYER_COMBO_PERSIST_ENTRY buffer;
+    KIRQL oldIrql;
+
+    buffer = (PKBDLAYER_COMBO_PERSIST_ENTRY)ExAllocatePool2(
+        POOL_FLAG_PAGED, KBDLAYER_COMBO_PERSIST_BLOB_BYTES, KBDLAYER_REGTEMP_POOL_TAG);
+    if (buffer == NULL) {
+        return;
+    }
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    for (ULONG i = 0; i < KBDLAYER_MAX_COMBO_COUNT; i++) {
+        buffer[i].Used = devExt->ComboUsed[i] ? 1 : 0;
+        buffer[i].Entry = devExt->Combos[i];
+    }
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_COMBOS_VALUE_NAME,
+                    buffer, KBDLAYER_COMBO_PERSIST_BLOB_BYTES);
+
+    ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetComboForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG ComboId,
+    _In_opt_ PKBDLAYER_COMBO_ENTRY Entry
+    )
+{
+    KIRQL oldIrql;
+
+    if (ComboId >= KBDLAYER_MAX_COMBO_COUNT) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    if (Entry != NULL) {
+        if (Entry->ScanCode1 == Entry->ScanCode2) {
+            return STATUS_INVALID_PARAMETER;
+        }
+        if (Entry->OutputAction.Type != KBDLAYER_ACTION_KEY) {
+            // v1制限: 出力はKEYアクションのみ許可（common/kbdlayer_ioctl.h参照）。
+            return STATUS_INVALID_PARAMETER;
+        }
+    }
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+
+    if (Entry != NULL) {
+        // 重複禁止(v1): 自分自身のスロット以外の既存コンボと物理スキャンコードが
+        // 重ならないことを検証する。
+        for (ULONG i = 0; i < KBDLAYER_MAX_COMBO_COUNT; i++) {
+            if (i == ComboId || !devExt->ComboUsed[i]) {
+                continue;
+            }
+            if (devExt->Combos[i].ScanCode1 == Entry->ScanCode1 ||
+                devExt->Combos[i].ScanCode1 == Entry->ScanCode2 ||
+                devExt->Combos[i].ScanCode2 == Entry->ScanCode1 ||
+                devExt->Combos[i].ScanCode2 == Entry->ScanCode2) {
+                KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+                return STATUS_INVALID_PARAMETER;
+            }
+        }
+        devExt->Combos[ComboId] = *Entry;
+        devExt->ComboUsed[ComboId] = TRUE;
+    } else {
+        RtlZeroMemory(&devExt->Combos[ComboId], sizeof(devExt->Combos[ComboId]));
+        devExt->ComboUsed[ComboId] = FALSE;
+    }
+
+    // 設定変更と整合しない状態を残さないよう、ライブのコンボ判定状態は常に
+    // リセットする（SetLayerMapEnabledForDeviceのMT/LTリセットと同じ理屈）。
+    devExt->ComboPendingActive = FALSE;
+    devExt->ComboConfirmed = FALSE;
+    devExt->ComboDraining = FALSE;
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    KeCancelTimer(&devExt->ComboTimer);
+
+    PersistAllCombos(devExt);
+
+    return STATUS_SUCCESS;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+GetComboForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG ComboId,
+    _Out_ PKBDLAYER_COMBO_ENTRY OutEntry,
+    _Out_ PBOOLEAN OutUsed
+    )
+{
+    KIRQL oldIrql;
+
+    if (ComboId >= KBDLAYER_MAX_COMBO_COUNT) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    *OutEntry = devExt->Combos[ComboId];
+    *OutUsed = devExt->ComboUsed[ComboId];
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    return STATUS_SUCCESS;
+}
+
+// AddDeviceから呼ばれる: レジストリの"Combos"/"ComboTermMs"値を読み、
+// devExt->Combos/ComboUsed/ComboTermMsを初期化する（LoadPersistedMacrosForDeviceと
+// 同じ理屈で、devExtがまだg_deviceListに公開されておらずロック無しに直接書き込む）。
+// 失敗時は全コンボ未設定・ComboTermMs=既定値のままでよい（ベストエフォート）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static VOID
+LoadPersistedCombosForDevice(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    WCHAR subKeyPath[64];
+    PKBDLAYER_COMBO_PERSIST_ENTRY buffer;
+    ULONG actualLength = 0;
+    NTSTATUS status;
+    ULONG comboTermValue = 0;
+
+    buffer = (PKBDLAYER_COMBO_PERSIST_ENTRY)ExAllocatePool2(
+        POOL_FLAG_PAGED, KBDLAYER_COMBO_PERSIST_BLOB_BYTES, KBDLAYER_REGTEMP_POOL_TAG);
+    if (buffer != NULL) {
+        BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+        status = RegReadBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_COMBOS_VALUE_NAME,
+                                buffer, KBDLAYER_COMBO_PERSIST_BLOB_BYTES, &actualLength);
+        if (NT_SUCCESS(status) && actualLength == KBDLAYER_COMBO_PERSIST_BLOB_BYTES) {
+            for (ULONG i = 0; i < KBDLAYER_MAX_COMBO_COUNT; i++) {
+                devExt->ComboUsed[i] = (buffer[i].Used != 0);
+                devExt->Combos[i] = buffer[i].Entry;
+            }
+        }
+        // actualLengthが一致しない場合（値が存在しない、または将来の互換性が
+        // 壊れた場合）は何もしない。InitializeComboStateでRtlZeroMemory済みのため
+        // 全コンボ未設定のままで安全。
+        ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
+    }
+
+    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    RegReadDwordEx(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_COMBOTERM_VALUE_NAME,
+                    &comboTermValue, KBDLAYER_DEFAULT_COMBO_TERM_MS);
+    devExt->ComboTermMs = (comboTermValue != 0) ? comboTermValue : KBDLAYER_DEFAULT_COMBO_TERM_MS;
 }
 
 // ---------------------------------------------------------------------------

@@ -195,6 +195,7 @@ NTSTATUS AddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT PhysicalDev
     devExt->LayerMap = NULL;
     devExt->LayerMapEnabled = FALSE;
     InitializeTapHoldState(devExt); // HoldTimer/HoldDpcの初期化含む（Phase 2）
+    InitializeComboState(devExt);   // ComboTimer/ComboDpcの初期化含む（Phase 4）
     KeInitializeEvent(&devExt->CaptureEvent, NotificationEvent, FALSE);
 
     // LicenseTokenをECDSA検証してライセンス状態を決定（PASSIVE_LEVEL）
@@ -430,6 +431,8 @@ NTSTATUS DispatchPnp(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
         // 発火しても安全だが、それでも「devExt解放後にDPCが動く」余地を残さないために
         // 明示的に同期する。
         KeCancelTimer(&devExt->HoldTimer);
+        // Phase 4: ComboTimer/ComboDpcも同じ理由で明示的に無害化する。
+        KeCancelTimer(&devExt->ComboTimer);
         KeFlushQueuedDpcs();
 
         // この時点ではport driver側のREMOVE_DEVICE処理（上のIoCallDriver）が
@@ -528,6 +531,13 @@ VOID ServiceCallback(
     // （ただしキャリブレーションウィザードのCAPTURE_NEXT_KEYはDeviceId確定後
     // にしか呼べないため、この経路には影響しない）。
     if (devExt->DeviceId != 0) {
+        // Phase 4: コンボ（2キー限定v1）。物理キー単位の判定なので、レイヤーや
+        // タップ/ホールドの解釈より先に判定する。対象キーならここで完結する。
+        // 詳細はLayerEngine.cのResolveCombo参照。
+        if (ResolveCombo(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
+            return;
+        }
+
         // Phase 2: Mod-Tap/Layer-Tapのタップ/ホールド判定（Hold On Other Key Press方式）。
         // MT/LTキーの保留・確定・タイムアウトに関わるイベントはここで完結し、通常の
         // ResolveLayerAction以降の処理は行わない。詳細はLayerEngine.cのResolveTapHold参照。
@@ -645,6 +655,8 @@ VOID Unload(IN PDRIVER_OBJECT DriverObject) {
             // Phase 2: DispatchPnpのIRP_MN_REMOVE_DEVICE処理と同じ理由で、
             // devExt解放前にHoldTimer/HoldDpcを確実に無害化する。
             KeCancelTimer(&devExt->HoldTimer);
+            // Phase 4: ComboTimer/ComboDpcも同様。
+            KeCancelTimer(&devExt->ComboTimer);
             KeFlushQueuedDpcs();
 
             if (devExt->LayerMap != NULL) {

@@ -99,11 +99,13 @@ int CmdCapture(IoctlClient* client, ULONG uniqId, ULONG timeoutMs) {
     return 0;
 }
 
-int CmdSetConfig(IoctlClient* client, ULONG uniqId, ULONG tapTermMs) {
-    if (!client->SetConfig(uniqId, tapTermMs)) return 1;
-    printf("SET_CONFIG ok. UniqId=%08X TapTermMs=%lu%s\n", uniqId,
+int CmdSetConfig(IoctlClient* client, ULONG uniqId, ULONG tapTermMs, ULONG comboTermMs) {
+    if (!client->SetConfig(uniqId, tapTermMs, comboTermMs)) return 1;
+    printf("SET_CONFIG ok. UniqId=%08X TapTermMs=%lu%s ComboTermMs=%lu%s\n", uniqId,
            tapTermMs != 0 ? tapTermMs : 200UL,
-           tapTermMs == 0 ? " (reset to default)" : "");
+           tapTermMs == 0 ? " (default)" : "",
+           comboTermMs != 0 ? comboTermMs : 50UL,
+           comboTermMs == 0 ? " (default)" : "");
     return 0;
 }
 
@@ -147,6 +149,70 @@ int CmdGetMacro(IoctlClient* client, ULONG uniqId, ULONG macroId) {
     for (size_t i = 0; i < steps.size(); i++) {
         printf("  [%zu] ScanCode=0x%04X %s\n", i, steps[i].ScanCode,
                steps[i].IsBreak ? "release" : "press");
+    }
+    return 0;
+}
+
+// --set-combo <UniqIdHex> <ComboId> <KC_member1> <KC_member2> <KC_output>
+// v1制限（common/kbdlayer_ioctl.h参照）: メンバーは常に2つ、出力は単純キーのみ。
+// KC_*トークンは、そのキーの標準スキャンコード（Enc16。ほとんどのキーボードで
+// 物理位置と一致する）として解決される。非標準な配列のキーボードでは
+// --captureで実際のスキャンコードを確認した上で、KeymapTool側の対応キーコード名を
+// 使うこと。引数無し（キーコードを1つも渡さない）場合はそのコンボIDをクリアする。
+int CmdSetCombo(IoctlClient* client, ULONG uniqId, ULONG comboId, int argc, char** argv) {
+    if (argc == 0) {
+        if (!client->SetCombo(uniqId, comboId, nullptr)) return 1;
+        printf("SET_COMBO ok. UniqId=%08X ComboId=%lu cleared.\n", uniqId, comboId);
+        return 0;
+    }
+    if (argc != 3) {
+        fprintf(stderr, "--set-combo: expected 2 member keys + 1 output key "
+                "(KC_member1 KC_member2 KC_output), or none to clear\n");
+        return 1;
+    }
+
+    KeycodeMapping member1, member2, output;
+    if (!KeycodeTable::Resolve(argv[0], &member1) || member1.ActionType != KBDLAYER_ACTION_KEY) {
+        fprintf(stderr, "--set-combo: \"%s\" is not a plain key\n", argv[0]);
+        return 1;
+    }
+    if (!KeycodeTable::Resolve(argv[1], &member2) || member2.ActionType != KBDLAYER_ACTION_KEY) {
+        fprintf(stderr, "--set-combo: \"%s\" is not a plain key\n", argv[1]);
+        return 1;
+    }
+    if (member1.Param2 == member2.Param2) {
+        fprintf(stderr, "--set-combo: the two member keys must be different\n");
+        return 1;
+    }
+    if (!KeycodeTable::Resolve(argv[2], &output) || output.ActionType != KBDLAYER_ACTION_KEY) {
+        fprintf(stderr, "--set-combo: output \"%s\" is not a plain key "
+                "(v1 only supports a KC_* output)\n", argv[2]);
+        return 1;
+    }
+
+    KBDLAYER_COMBO_ENTRY entry;
+    entry.ScanCode1 = member1.Param2;
+    entry.ScanCode2 = member2.Param2;
+    entry.OutputAction.Type = KBDLAYER_ACTION_KEY;
+    entry.OutputAction.Param1 = 0;
+    entry.OutputAction.Param2 = output.Param2;
+
+    if (!client->SetCombo(uniqId, comboId, &entry)) return 1;
+    printf("SET_COMBO ok. UniqId=%08X ComboId=%lu: %s + %s -> %s\n",
+           uniqId, comboId, argv[0], argv[1], argv[2]);
+    return 0;
+}
+
+int CmdGetCombo(IoctlClient* client, ULONG uniqId, ULONG comboId) {
+    KBDLAYER_COMBO_ENTRY entry;
+    bool used = false;
+    if (!client->GetCombo(uniqId, comboId, &entry, &used)) return 1;
+
+    if (!used) {
+        printf("UniqId=%08X ComboId=%lu: (not set)\n", uniqId, comboId);
+    } else {
+        printf("UniqId=%08X ComboId=%lu: ScanCode1=0x%04X ScanCode2=0x%04X OutputScanCode=0x%04X\n",
+               uniqId, comboId, entry.ScanCode1, entry.ScanCode2, entry.OutputAction.Param2);
     }
     return 0;
 }
@@ -323,14 +389,22 @@ void PrintUsage() {
         "  KeymapTool.exe --apply-simple <UniqIdHex> <keymap.json> <profile.json>\n"
         "      Same, but matches keymap.json's flat per-layer arrays to the profile by\n"
         "      enumeration order (paired with --calibrate-simple).\n"
-        "  KeymapTool.exe --set-config <UniqIdHex> <TapTermMs>\n"
-        "      Set the Mod-Tap/Layer-Tap tap-vs-hold threshold in milliseconds\n"
-        "      (0 resets to the driver default, 200ms).\n"
+        "  KeymapTool.exe --set-config <UniqIdHex> <TapTermMs> [ComboTermMs]\n"
+        "      Set the Mod-Tap/Layer-Tap tap-vs-hold threshold and the combo match\n"
+        "      window, in milliseconds (0 resets either to its driver default:\n"
+        "      TapTermMs=200ms, ComboTermMs=50ms; ComboTermMs defaults to 0 if omitted).\n"
         "  KeymapTool.exe --set-macro <UniqIdHex> <MacroId> [KC_xxx KC_yyy ...]\n"
         "      Define macro <MacroId> (0-31) as a sequence of key taps, played back\n"
         "      via MACRO(<MacroId>) in a keymap.json. Omit the keycodes to clear it.\n"
         "  KeymapTool.exe --get-macro <UniqIdHex> <MacroId>\n"
         "      Show the raw step list currently stored for a macro (debugging).\n"
+        "  KeymapTool.exe --set-combo <UniqIdHex> <ComboId> [KC_member1 KC_member2 KC_output]\n"
+        "      Define combo <ComboId> (0-15): pressing member1+member2 together within\n"
+        "      ComboTermMs sends KC_output instead. v1 limits: exactly 2 members, plain-key\n"
+        "      output only, and a given key may not belong to more than one combo.\n"
+        "      Omit the keycodes to clear it.\n"
+        "  KeymapTool.exe --get-combo <UniqIdHex> <ComboId>\n"
+        "      Show the current definition of a combo (debugging).\n"
         "\n"
         "  UniqIdHex is the value shown by --list (e.g. A1B20000).\n");
 }
@@ -374,7 +448,22 @@ int main(int argc, char** argv) {
         ULONG uniqId;
         if (argc < 4 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
         ULONG tapTermMs = (ULONG)strtoul(argv[3], nullptr, 10);
-        return CmdSetConfig(&client, uniqId, tapTermMs);
+        ULONG comboTermMs = (argc >= 5) ? (ULONG)strtoul(argv[4], nullptr, 10) : 0;
+        return CmdSetConfig(&client, uniqId, tapTermMs, comboTermMs);
+    }
+
+    if (strcmp(cmd, "--set-combo") == 0) {
+        ULONG uniqId;
+        if (argc < 4 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
+        ULONG comboId = (ULONG)strtoul(argv[3], nullptr, 10);
+        return CmdSetCombo(&client, uniqId, comboId, argc - 4, argv + 4);
+    }
+
+    if (strcmp(cmd, "--get-combo") == 0) {
+        ULONG uniqId;
+        if (argc < 4 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
+        ULONG comboId = (ULONG)strtoul(argv[3], nullptr, 10);
+        return CmdGetCombo(&client, uniqId, comboId);
     }
 
     if (strcmp(cmd, "--set-macro") == 0) {

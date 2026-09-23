@@ -337,7 +337,13 @@ HandleSetConfig(
         return STATUS_NOT_FOUND;
     }
 
-    return SetTapTermForDevice(devExt, input->TapTermMs);
+    {
+        NTSTATUS status = SetTapTermForDevice(devExt, input->TapTermMs);
+        if (!NT_SUCCESS(status)) {
+            return status;
+        }
+        return SetComboTermForDevice(devExt, input->ComboTermMs);
+    }
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
@@ -434,6 +440,82 @@ HandleGetMacro(
 
     out->StepCount = stepCount;
     *BytesReturned = sizeof(KBDLAYER_GET_MACRO_OUTPUT) + stepBytes;
+    return STATUS_SUCCESS;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleSetCombo(
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    PKBDLAYER_SET_COMBO_INPUT input = (PKBDLAYER_SET_COMBO_INPUT)SystemBuffer;
+    PDEVICE_EXTENSION devExt;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_SET_COMBO_INPUT)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    // Entry.OutputAction.Type==NONEはクリアの合図（KeymapTool/IoctlClient.cpp参照）。
+    if (input->Entry.OutputAction.Type == KBDLAYER_ACTION_NONE) {
+        return SetComboForDevice(devExt, input->ComboId, NULL);
+    }
+    return SetComboForDevice(devExt, input->ComboId, &input->Entry);
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleGetCombo(
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    ULONG outputLen = IrpSp->Parameters.DeviceIoControl.OutputBufferLength;
+    PKBDLAYER_GET_COMBO_INPUT input = (PKBDLAYER_GET_COMBO_INPUT)SystemBuffer;
+    PDEVICE_EXTENSION devExt;
+    PKBDLAYER_GET_COMBO_OUTPUT out;
+    KBDLAYER_COMBO_ENTRY entry;
+    BOOLEAN used = FALSE;
+    NTSTATUS status;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_GET_COMBO_INPUT)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (outputLen < sizeof(KBDLAYER_GET_COMBO_OUTPUT)) {
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    status = GetComboForDevice(devExt, input->ComboId, &entry, &used);
+    if (!NT_SUCCESS(status)) {
+        return status;
+    }
+
+    // METHOD_BUFFERED: 入力(input)と出力(out)は同じSystemBufferを共有する
+    // （HandleGetMacroと同じパターン）。
+    out = (PKBDLAYER_GET_COMBO_OUTPUT)SystemBuffer;
+    out->Used = used ? 1 : 0;
+    out->Entry = entry;
+
+    *BytesReturned = sizeof(KBDLAYER_GET_COMBO_OUTPUT);
     return STATUS_SUCCESS;
 }
 
@@ -556,6 +638,12 @@ DispatchControlIoctl(
         break;
     case IOCTL_KBDLAYER_GET_MACRO:
         status = HandleGetMacro(irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_SET_COMBO:
+        status = HandleSetCombo(irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_GET_COMBO:
+        status = HandleGetCombo(irpSp, systemBuffer, &bytesReturned);
         break;
     default:
         status = STATUS_INVALID_DEVICE_REQUEST;

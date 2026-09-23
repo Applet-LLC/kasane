@@ -43,13 +43,18 @@ public:
     // 戻り値: true=IOCTL自体は成功（*outTimedOutで実際に捕捉できたか判定）。
     bool CaptureNextKey(ULONG uniqId, ULONG timeoutMs, USHORT* outScanCode16, bool* outTimedOut);
 
-    // Phase 2: Mod-Tap/Layer-TapのTapTermMs（タップ/ホールド判定閾値、ミリ秒）を設定する。
-    // tapTermMs=0はドライバ側既定値(KBDLAYER_DEFAULT_TAP_TERM_MS=200ms)にリセットする。
-    bool SetConfig(ULONG uniqId, ULONG tapTermMs);
+    // Phase 2/4: TapTermMs（Mod-Tap/Layer-Tap判定閾値）とComboTermMs（コンボ判定閾値、
+    // ミリ秒）を設定する。どちらも0を渡すとドライバ側既定値にリセットする
+    // (TapTermMs=KBDLAYER_DEFAULT_TAP_TERM_MS=200ms, ComboTermMs=KBDLAYER_DEFAULT_COMBO_TERM_MS=50ms)。
+    bool SetConfig(ULONG uniqId, ULONG tapTermMs, ULONG comboTermMs);
 
     // Phase 3: マクロ。stepsが空ならそのmacroIdをクリアする。
     bool SetMacro(ULONG uniqId, ULONG macroId, const std::vector<KBDLAYER_MACRO_STEP>& steps);
     bool GetMacro(ULONG uniqId, ULONG macroId, std::vector<KBDLAYER_MACRO_STEP>* outSteps);
+
+    // Phase 4: コンボ（2キー限定v1）。entry=nullptrはそのcomboIdをクリアする。
+    bool SetCombo(ULONG uniqId, ULONG comboId, const KBDLAYER_COMBO_ENTRY* entry);
+    bool GetCombo(ULONG uniqId, ULONG comboId, KBDLAYER_COMBO_ENTRY* outEntry, bool* outUsed);
 
     ~IoctlClient() { Close(); }
 

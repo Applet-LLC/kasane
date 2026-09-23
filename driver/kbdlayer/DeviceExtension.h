@@ -34,6 +34,7 @@ typedef struct _KBDLAYER_MAP_TABLE {
 #define KBDLAYER_MAP_POOL_TAG 'mLdK'
 
 #define KBDLAYER_DEFAULT_TAP_TERM_MS 200
+#define KBDLAYER_DEFAULT_COMBO_TERM_MS 50
 
 typedef struct _DEVICE_EXTENSION {
     PDEVICE_OBJECT LowerDevice;
@@ -77,6 +78,23 @@ typedef struct _DEVICE_EXTENSION {
     // EngineLock保持中に読み書きすること（LayerMap等と同じ規律）。
     ULONG MacroStepCounts[KBDLAYER_MAX_MACRO_COUNT];
     KBDLAYER_MACRO_STEP Macros[KBDLAYER_MAX_MACRO_COUNT][KBDLAYER_MAX_MACRO_STEPS];
+
+    // --- Phase 4: コンボ ---
+    // v1は2キー限定・重複禁止（common/kbdlayer_ioctl.hのコメント参照）。この
+    // スコープ限定により、保留スロットはPhase 2のPendingActive等と同様に1つで足りる
+    // （Combos[]の中で「どのコンボを待っているか」が一意に定まるため）。
+    // EngineLock保持中に読み書きすること。
+    KBDLAYER_COMBO_ENTRY Combos[KBDLAYER_MAX_COMBO_COUNT];
+    BOOLEAN ComboUsed[KBDLAYER_MAX_COMBO_COUNT];
+
+    KTIMER ComboTimer;             // ComboTermMs後にComboDpcを起動するタイマー
+    KDPC ComboDpc;                 // タイムアウト時に「不成立」処理を行うDPC（ComboDpcRoutine, LayerEngine.c）
+    ULONG ComboTermMs;             // 最初のメンバー押下から相方到着までの許容時間（既定50ms）
+    BOOLEAN ComboPendingActive;    // TRUE = 最初のメンバー押下中、相方待ち
+    BOOLEAN ComboConfirmed;        // TRUE = コンボ成立済み、出力キー押下中
+    BOOLEAN ComboDraining;         // TRUE = 出力は解除済み、もう片方の物理キー解放を待つだけ
+    USHORT ComboPendingScanCode;   // 保留中の最初のメンバーキーの物理スキャンコード（Enc16）
+    ULONG ComboActiveId;           // 保留/成立/ドレイン中のコンボID（Combos[]のインデックス）
 
     // --- キャリブレーションウィザード (IOCTL_KBDLAYER_CAPTURE_NEXT_KEY) 用 ---
     // ServiceCallback（DISPATCH_LEVEL、EngineLock保持中）と、PASSIVE_LEVELで

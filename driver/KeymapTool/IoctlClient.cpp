@@ -3,6 +3,7 @@
 
 #include "IoctlClient.h"
 #include <cstdio>
+#include <cstring>
 
 bool IoctlClient::Open() {
     handle_ = CreateFileW(
@@ -162,10 +163,11 @@ bool IoctlClient::CaptureNextKey(ULONG uniqId, ULONG timeoutMs, USHORT* outScanC
     return true;
 }
 
-bool IoctlClient::SetConfig(ULONG uniqId, ULONG tapTermMs) {
+bool IoctlClient::SetConfig(ULONG uniqId, ULONG tapTermMs, ULONG comboTermMs) {
     KBDLAYER_SET_CONFIG_INPUT input;
     input.Target.UniqId = uniqId;
     input.TapTermMs = tapTermMs;
+    input.ComboTermMs = comboTermMs;
 
     DWORD bytesReturned = 0;
     BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_SET_CONFIG,
@@ -220,5 +222,49 @@ bool IoctlClient::GetMacro(ULONG uniqId, ULONG macroId, std::vector<KBDLAYER_MAC
     const KBDLAYER_GET_MACRO_OUTPUT* header = (const KBDLAYER_GET_MACRO_OUTPUT*)buffer.data();
     const KBDLAYER_MACRO_STEP* steps = (const KBDLAYER_MACRO_STEP*)(buffer.data() + sizeof(KBDLAYER_GET_MACRO_OUTPUT));
     outSteps->assign(steps, steps + header->StepCount);
+    return true;
+}
+
+bool IoctlClient::SetCombo(ULONG uniqId, ULONG comboId, const KBDLAYER_COMBO_ENTRY* entry) {
+    KBDLAYER_SET_COMBO_INPUT input;
+    input.Target.UniqId = uniqId;
+    input.ComboId = comboId;
+    if (entry != nullptr) {
+        input.Entry = *entry;
+    } else {
+        memset(&input.Entry, 0, sizeof(input.Entry));
+        input.Entry.OutputAction.Type = KBDLAYER_ACTION_NONE; // クリアの合図（ControlDevice.c参照）
+    }
+
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_SET_COMBO,
+                              &input, sizeof(input),
+                              NULL, 0,
+                              &bytesReturned, NULL);
+    if (!ok) {
+        fprintf(stderr, "IOCTL_KBDLAYER_SET_COMBO failed. Error: %lu\n", GetLastError());
+        return false;
+    }
+    return true;
+}
+
+bool IoctlClient::GetCombo(ULONG uniqId, ULONG comboId, KBDLAYER_COMBO_ENTRY* outEntry, bool* outUsed) {
+    KBDLAYER_GET_COMBO_INPUT input;
+    input.Target.UniqId = uniqId;
+    input.ComboId = comboId;
+
+    KBDLAYER_GET_COMBO_OUTPUT output;
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_GET_COMBO,
+                              &input, sizeof(input),
+                              &output, sizeof(output),
+                              &bytesReturned, NULL);
+    if (!ok) {
+        fprintf(stderr, "IOCTL_KBDLAYER_GET_COMBO failed. Error: %lu\n", GetLastError());
+        return false;
+    }
+
+    *outEntry = output.Entry;
+    *outUsed = output.Used != 0;
     return true;
 }

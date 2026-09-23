@@ -1,5 +1,87 @@
 # KeymapTool サンプル
 
+## test-keymap-combo.json — Phase 4 (コンボ, v1: 2キー限定) 動作確認用
+
+10キー・1レイヤーで、`KC_A`〜`KC_J`の基本キーのみを配置した最小テストキーマップ
+（`test-keymap-macro.json`と同じ形）。コンボ自体はkeymap.jsonには含まれず、
+`--set-macro`と同じ方式で`--set-combo`により別途デバイスへ登録する。
+
+v1のスコープ限定（`common/kbdlayer_ioctl.h`参照）: メンバーは常に2キー、出力は
+単純キーのみ、同一キーが複数コンボに属することは禁止、出力の解除は2つの
+メンバーキーのどちらかが離された時点で行う。
+
+### 手順
+
+```
+KeymapTool.exe --list
+KeymapTool.exe --calibrate-simple <UniqIdHex> 10 test-profile.json
+REM 案内の1番目・2番目で、物理的な A キー・B キーを押すこと
+REM （--set-comboで使うKC_A/KC_Bの標準スキャンコードと実機の物理位置を一致させるため）
+KeymapTool.exe --apply-simple <UniqIdHex> test-keymap-combo.json test-profile.json
+
+REM コンボ0を「A+B同時押し → Esc」として定義する
+KeymapTool.exe --set-combo <UniqIdHex> 0 KC_A KC_B KC_ESC
+
+KeymapTool.exe --on <UniqIdHex>
+```
+
+ComboTermMs（コンボ判定の許容時間、既定50ms）を変えたい場合:
+```
+KeymapTool.exe --set-config <UniqIdHex> 200 100
+```
+（第2引数がTapTermMs、第3引数がComboTermMs。TapTermMsを変えたくない場合は
+既存の値をそのまま渡すこと。0を渡すとその項目だけ既定値にリセットされる。）
+
+### 確認項目
+
+**成立（タップ）**
+- Aを押してすぐBを押す（ComboTermMs以内） → `Esc`が出力される。`a`や`b`単体の
+  文字は出力されない。
+- A・Bのどちらを先に押しても成立すること。
+
+**成立中の挙動**
+- A+Bで成立させたまま押さえ続ける → オートリピートでEscが連打されたりしない
+  （余分な出力が無いこと）。
+- 成立中にA・B以外のキー（例: 位置2の`c`）を押す → `c`が普段通り出力される
+  （コンボが他のキー処理に干渉しないこと）。
+
+**解除**
+- 成立中にAだけを離す → その時点でEscが解除される（Bがまだ押されていても）。
+- 続けてBを離す → 何も出力されない（ドレイン中の解放は無害に飲み込まれる）。
+- 逆にBを先に離した場合も同様に、その時点でEsc解除・Aの後離しは無音。
+
+**不成立（相方が来る前に離す）**
+- Aだけを押してComboTermMs以内に離す（Bに触れない） → `a`が出力される
+  （保留していたタップが通常のキーとして復元されること）。
+
+**不成立（タイムアウト）** *** DPCからの自発呼び出し経路。実機で重点的に
+確認すること（Phase 2のタイムアウト確定と同じ検証観点） ***
+- Aだけを押したまま、他のキーに一切触れずにComboTermMs（既定50ms、短いので
+  意識して長めに待つこと）以上経過させる → その時点で`a`が出力される。
+- その後Aを離す → 追加の出力は無い（通常のキー解放として処理される）。
+- クラッシュしないこと、余分な文字が出ないことを確認する。
+
+**不成立（無関係キーによる割り込み）**
+- Aを押した直後（Bに触れる前）に、無関係な位置2(`c`)を押す → `a`と`c`の両方が
+  この順で出力される（保留していたAのタップが先に復元され、割り込んだcはそのまま
+  通常処理される）。
+
+**通常キーへの影響なし**
+- 位置2〜9（`c`〜`j`）がコンボと無関係に普段通り動くこと。
+
+- `KeymapTool.exe --get-combo <UniqIdHex> 0` → 登録した内容
+  （ScanCode1/ScanCode2/OutputScanCode）がそのまま返ってくることを確認できる。
+
+### 元に戻す
+
+```
+KeymapTool.exe --set-combo <UniqIdHex> 0
+KeymapTool.exe --off <UniqIdHex>
+KeymapTool.exe --clear <UniqIdHex>
+```
+
+(`--set-combo`にキーコードを1つも渡さないとコンボ0がクリアされる)
+
 ## test-keymap-macro.json — Phase 3 (マクロ) 動作確認用
 
 10キー・1レイヤーで、`MACRO(id)`を確認する最小テストキーマップ。位置0が

@@ -115,6 +115,31 @@ ResolveMacro(
     _Inout_opt_ PVOID SystemArgument3
     );
 
+// Phase 4: コンボ（2キー限定 v1）。Driver.cのServiceCallbackから、
+// ResolveTapHold/ResolveMacroより前に呼ぶこと（物理キー単位の判定を、レイヤーや
+// タップ/ホールドの解釈より先に済ませるため）。単一イベントのバッチのみを対象と
+// する（ResolveTapHold/ResolveMacroと同じ制約）。
+// 戻り値: ResolveTapHoldと同じ意味（TRUE=処理済み、FALSE=対象外）。
+// 割り込みキーによる不成立の場合、保留していたキーのpressだけをこの関数内で
+// 復元送出した上でFALSEを返す（呼び出し元の今回のイベント自体は通常経路に委ねる）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+ResolveCombo(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd,
+    _Inout_opt_ PVOID SystemArgument3
+    );
+
+// AddDeviceから呼ばれる: devExt->ComboTimer/ComboDpcを初期化し、ComboTermMsを
+// 既定値にする（レジストリからの永続化読み込みはLoadPersistedLayerMapForDevice側で
+// 上書きする）。devExtがまだg_deviceListに公開されていない前提。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+InitializeComboState(
+    _In_ PDEVICE_EXTENSION devExt
+    );
+
 // --- IOCTLハンドラ（ControlDevice.c）から呼ばれる、PASSIVE_LEVEL専用 ---
 
 // SET_LAYERMAP: devExt->LayerMapEnabled == FALSE のときだけ成功する
@@ -173,6 +198,15 @@ SetTapTermForDevice(
     _In_ ULONG TapTermMs
     );
 
+// SET_CONFIG (Phase 4分): devExt->ComboTermMsを変更し、レジストリの"ComboTermMs"値へ
+// 永続化する。ComboTermMs=0を渡すと既定値(KBDLAYER_DEFAULT_COMBO_TERM_MS)にリセットする。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetComboTermForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG ComboTermMs
+    );
+
 // SET_MACRO: 指定したMacroIdのステップ列を設定する。StepCount=0はそのマクロIDの
 // クリアを意味する。LayerMapEnabledの状態に関わらず常に成功する（TapTermMsと同じ
 // 理由）。ライブ反映後、レジストリの"Macros"値へ永続化する（全マクロスロットを
@@ -198,6 +232,32 @@ GetMacroForDevice(
     _In_ ULONG OutBufferLength,
     _Out_ PULONG BytesReturned,
     _Out_ PULONG OutStepCount
+    );
+
+// SET_COMBO: 指定したComboIdのメンバー2キー+出力アクションを設定する。
+// Entry=NULLはそのComboIdのクリアを意味する。バリデーション（メンバー2キーが
+// 異なること・出力がKEY型のみ・他のコンボと物理スキャンコードが重複しないこと）は
+// この関数内で行う。ライブ反映後、レジストリの"Combos"値へ永続化する（全コンボ
+// スロットをまとめて1つのblobとして保存する、マクロと同じ方式）。
+// 設定変更と整合しない状態を残さないよう、ライブのコンボ判定状態
+// （ComboPendingActive等）は常にリセットする。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetComboForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG ComboId,
+    _In_opt_ PKBDLAYER_COMBO_ENTRY Entry
+    );
+
+// GET_COMBO: 指定したComboIdの現在の内容(*OutEntry)と使用中かどうか(*OutUsed)を返す。
+// 未設定の場合は*OutUsed=FALSEで成功する（*OutEntryの内容は不定）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+GetComboForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG ComboId,
+    _Out_ PKBDLAYER_COMBO_ENTRY OutEntry,
+    _Out_ PBOOLEAN OutUsed
     );
 
 // AddDeviceから呼ばれる: レジストリの"LayerMap"/"Enabled"を読み、

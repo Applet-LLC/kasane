@@ -141,7 +141,8 @@ typedef struct _KBDLAYER_CAPTURE_NEXT_KEY_OUTPUT {
 // 構造体自体は先に定義しておく）。
 typedef struct _KBDLAYER_SET_CONFIG_INPUT {
     KBDLAYER_TARGET Target;
-    ULONG TapTermMs; // 既定200ms。0を渡すと既定値にリセットする。
+    ULONG TapTermMs;   // 既定200ms。0を渡すと既定値にリセットする。
+    ULONG ComboTermMs; // 既定50ms。0を渡すと既定値にリセットする。(Phase 4: コンボ)
 } KBDLAYER_SET_CONFIG_INPUT, *PKBDLAYER_SET_CONFIG_INPUT;
 
 // --- Phase 3: マクロ ---
@@ -177,6 +178,49 @@ typedef struct _KBDLAYER_GET_MACRO_OUTPUT {
     // 続けて StepCount 個の KBDLAYER_MACRO_STEP
 } KBDLAYER_GET_MACRO_OUTPUT, *PKBDLAYER_GET_MACRO_OUTPUT;
 
+// --- Phase 4: コンボ ---
+//
+// v1のスコープ限定（.plans/...md 検討時の合意事項）:
+//   - メンバーキーは常に2つ（3キー以上の一般化は将来検討）
+//   - 同一の物理スキャンコードが複数のコンボに属することは禁止（Set時に検証）
+//   - 出力アクションはKBDLAYER_ACTION_KEYのみ許可（MO/TG等への拡張は将来検討）
+//   - 出力の解除(release)は、2つのメンバーキーのどちらかが離された時点で行う
+//     （両方が離されるまで待たない）
+// これらの制約により、Phase 2のPendingActive等と同じ「単一保留スロット」の
+// 仕組みをそのまま再利用でき、失敗時のリプレイ（DPCからの自発呼び出しを含む）も
+// 常に1イベント分で済む（詳細はLayerEngine.cのResolveCombo参照）。
+
+#define KBDLAYER_MAX_COMBO_COUNT 16
+
+// コンボ1件分。ScanCode1/ScanCode2は物理スキャンコード(Enc16形式。KeymapTool側では
+// KC_*トークンを標準スキャンコードとして解決したものをそのまま使う想定）。
+typedef struct _KBDLAYER_COMBO_ENTRY {
+    USHORT ScanCode1;
+    USHORT ScanCode2;
+    KBDLAYER_ACTION OutputAction; // v1: Type == KBDLAYER_ACTION_KEY のみ許可
+} KBDLAYER_COMBO_ENTRY, *PKBDLAYER_COMBO_ENTRY;
+
+// IOCTL_KBDLAYER_SET_COMBO の入力バッファ。
+// Entry.OutputAction.Type == KBDLAYER_ACTION_NONE を渡すと、そのComboIdのクリアを意味する。
+typedef struct _KBDLAYER_SET_COMBO_INPUT {
+    KBDLAYER_TARGET Target;
+    ULONG ComboId; // 0 <= ComboId < KBDLAYER_MAX_COMBO_COUNT
+    KBDLAYER_COMBO_ENTRY Entry;
+} KBDLAYER_SET_COMBO_INPUT, *PKBDLAYER_SET_COMBO_INPUT;
+
+// IOCTL_KBDLAYER_GET_COMBO の入力バッファ。
+typedef struct _KBDLAYER_GET_COMBO_INPUT {
+    KBDLAYER_TARGET Target;
+    ULONG ComboId;
+} KBDLAYER_GET_COMBO_INPUT, *PKBDLAYER_GET_COMBO_INPUT;
+
+// IOCTL_KBDLAYER_GET_COMBO の出力バッファ。Used=0の場合、指定ComboIdは未設定
+// （Entryの内容は不定として扱うこと）。
+typedef struct _KBDLAYER_GET_COMBO_OUTPUT {
+    ULONG Used;
+    KBDLAYER_COMBO_ENTRY Entry;
+} KBDLAYER_GET_COMBO_OUTPUT, *PKBDLAYER_GET_COMBO_OUTPUT;
+
 #pragma pack(pop)
 
 // IOCTL_INTERNAL_KEYBOARD_CONNECT 等の既存IOCTLと衝突しないよう、
@@ -202,5 +246,9 @@ typedef struct _KBDLAYER_GET_MACRO_OUTPUT {
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x807, METHOD_BUFFERED, FILE_ANY_ACCESS)
 #define IOCTL_KBDLAYER_GET_MACRO \
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x808, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_KBDLAYER_SET_COMBO \
+    CTL_CODE(FILE_DEVICE_KBDLAYER, 0x809, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_KBDLAYER_GET_COMBO \
+    CTL_CODE(FILE_DEVICE_KBDLAYER, 0x80A, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
 #endif // _KBDLAYER_COMMON_IOCTL_H_
