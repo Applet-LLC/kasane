@@ -99,13 +99,15 @@ int CmdCapture(IoctlClient* client, ULONG uniqId, ULONG timeoutMs) {
     return 0;
 }
 
-int CmdSetConfig(IoctlClient* client, ULONG uniqId, ULONG tapTermMs, ULONG comboTermMs) {
-    if (!client->SetConfig(uniqId, tapTermMs, comboTermMs)) return 1;
-    printf("SET_CONFIG ok. UniqId=%08X TapTermMs=%lu%s ComboTermMs=%lu%s\n", uniqId,
+int CmdSetConfig(IoctlClient* client, ULONG uniqId, ULONG tapTermMs, ULONG comboTermMs, ULONG tapDanceTermMs) {
+    if (!client->SetConfig(uniqId, tapTermMs, comboTermMs, tapDanceTermMs)) return 1;
+    printf("SET_CONFIG ok. UniqId=%08X TapTermMs=%lu%s ComboTermMs=%lu%s TapDanceTermMs=%lu%s\n", uniqId,
            tapTermMs != 0 ? tapTermMs : 200UL,
            tapTermMs == 0 ? " (default)" : "",
            comboTermMs != 0 ? comboTermMs : 50UL,
-           comboTermMs == 0 ? " (default)" : "");
+           comboTermMs == 0 ? " (default)" : "",
+           tapDanceTermMs != 0 ? tapDanceTermMs : 200UL,
+           tapDanceTermMs == 0 ? " (default)" : "");
     return 0;
 }
 
@@ -213,6 +215,79 @@ int CmdGetCombo(IoctlClient* client, ULONG uniqId, ULONG comboId) {
     } else {
         printf("UniqId=%08X ComboId=%lu: ScanCode1=0x%04X ScanCode2=0x%04X OutputScanCode=0x%04X\n",
                uniqId, comboId, entry.ScanCode1, entry.ScanCode2, entry.OutputAction.Param2);
+    }
+    return 0;
+}
+
+// --set-tapdance <UniqIdHex> <TapDanceId> <SingleTap> <SingleHold> <DoubleTap> <TripleTap>
+// v1制限（common/kbdlayer_ioctl.h参照）: タップ回数は3回まで区別。SingleTap/DoubleTap/
+// TripleTapは単純キー(KC_xxx)のみ許可。SingleHoldはKC_xxx（押している間その生キーを
+// 送る）に加え、MT(mod,kc)/LT(layer,kc)トークンも受け付ける（タップ時キーコード引数は
+// 無視される。ホールド時のmod/layer部分だけがSingleHoldActionとして使われる。
+// 例: --set-tapdance <id> KC_ESC "LT(1,KC_NO)" KC_TAB KC_CAPS）。
+// 引数無し（4つとも渡さない）場合はそのタップダンスIDをクリアする。
+int CmdSetTapDance(IoctlClient* client, ULONG uniqId, ULONG tapDanceId, int argc, char** argv) {
+    if (argc == 0) {
+        if (!client->SetTapDance(uniqId, tapDanceId, nullptr)) return 1;
+        printf("SET_TAPDANCE ok. UniqId=%08X TapDanceId=%lu cleared.\n", uniqId, tapDanceId);
+        return 0;
+    }
+    if (argc != 4) {
+        fprintf(stderr, "--set-tapdance: expected 4 actions (SingleTap SingleHold DoubleTap TripleTap), "
+                "or none to clear\n");
+        return 1;
+    }
+
+    KeycodeMapping singleTap, singleHold, doubleTap, tripleTap;
+    if (!KeycodeTable::Resolve(argv[0], &singleTap) || singleTap.ActionType != KBDLAYER_ACTION_KEY) {
+        fprintf(stderr, "--set-tapdance: SingleTap \"%s\" is not a plain key\n", argv[0]);
+        return 1;
+    }
+    if (!KeycodeTable::Resolve(argv[1], &singleHold) ||
+        (singleHold.ActionType != KBDLAYER_ACTION_KEY &&
+         singleHold.ActionType != KBDLAYER_ACTION_MODTAP &&
+         singleHold.ActionType != KBDLAYER_ACTION_LAYERTAP)) {
+        fprintf(stderr, "--set-tapdance: SingleHold \"%s\" must be a plain key, MT(mod,kc), or LT(layer,kc)\n", argv[1]);
+        return 1;
+    }
+    if (!KeycodeTable::Resolve(argv[2], &doubleTap) || doubleTap.ActionType != KBDLAYER_ACTION_KEY) {
+        fprintf(stderr, "--set-tapdance: DoubleTap \"%s\" is not a plain key\n", argv[2]);
+        return 1;
+    }
+    if (!KeycodeTable::Resolve(argv[3], &tripleTap) || tripleTap.ActionType != KBDLAYER_ACTION_KEY) {
+        fprintf(stderr, "--set-tapdance: TripleTap \"%s\" is not a plain key\n", argv[3]);
+        return 1;
+    }
+
+    KBDLAYER_TAPDANCE_ENTRY entry;
+    entry.SingleTapAction = { singleTap.ActionType, singleTap.Param1, singleTap.Param2 };
+    entry.SingleHoldAction = { singleHold.ActionType, singleHold.Param1, singleHold.Param2 };
+    entry.DoubleTapAction = { doubleTap.ActionType, doubleTap.Param1, doubleTap.Param2 };
+    entry.TripleTapAction = { tripleTap.ActionType, tripleTap.Param1, tripleTap.Param2 };
+
+    if (!client->SetTapDance(uniqId, tapDanceId, &entry)) return 1;
+    printf("SET_TAPDANCE ok. UniqId=%08X TapDanceId=%lu: tap=%s hold=%s double=%s triple=%s\n",
+           uniqId, tapDanceId, argv[0], argv[1], argv[2], argv[3]);
+    return 0;
+}
+
+int CmdGetTapDance(IoctlClient* client, ULONG uniqId, ULONG tapDanceId) {
+    KBDLAYER_TAPDANCE_ENTRY entry;
+    bool used = false;
+    if (!client->GetTapDance(uniqId, tapDanceId, &entry, &used)) return 1;
+
+    if (!used) {
+        printf("UniqId=%08X TapDanceId=%lu: (not set)\n", uniqId, tapDanceId);
+    } else {
+        printf("UniqId=%08X TapDanceId=%lu:\n", uniqId, tapDanceId);
+        printf("  SingleTap:  Type=%u Param1=%u Param2=0x%04X\n",
+               entry.SingleTapAction.Type, entry.SingleTapAction.Param1, entry.SingleTapAction.Param2);
+        printf("  SingleHold: Type=%u Param1=%u Param2=0x%04X\n",
+               entry.SingleHoldAction.Type, entry.SingleHoldAction.Param1, entry.SingleHoldAction.Param2);
+        printf("  DoubleTap:  Type=%u Param1=%u Param2=0x%04X\n",
+               entry.DoubleTapAction.Type, entry.DoubleTapAction.Param1, entry.DoubleTapAction.Param2);
+        printf("  TripleTap:  Type=%u Param1=%u Param2=0x%04X\n",
+               entry.TripleTapAction.Type, entry.TripleTapAction.Param1, entry.TripleTapAction.Param2);
     }
     return 0;
 }
@@ -389,10 +464,11 @@ void PrintUsage() {
         "  KeymapTool.exe --apply-simple <UniqIdHex> <keymap.json> <profile.json>\n"
         "      Same, but matches keymap.json's flat per-layer arrays to the profile by\n"
         "      enumeration order (paired with --calibrate-simple).\n"
-        "  KeymapTool.exe --set-config <UniqIdHex> <TapTermMs> [ComboTermMs]\n"
-        "      Set the Mod-Tap/Layer-Tap tap-vs-hold threshold and the combo match\n"
-        "      window, in milliseconds (0 resets either to its driver default:\n"
-        "      TapTermMs=200ms, ComboTermMs=50ms; ComboTermMs defaults to 0 if omitted).\n"
+        "  KeymapTool.exe --set-config <UniqIdHex> <TapTermMs> [ComboTermMs] [TapDanceTermMs]\n"
+        "      Set the Mod-Tap/Layer-Tap tap-vs-hold threshold, the combo match window,\n"
+        "      and the tap-dance threshold, in milliseconds (0 resets any one of them to\n"
+        "      its driver default: TapTermMs=200ms, ComboTermMs=50ms, TapDanceTermMs=200ms;\n"
+        "      an omitted trailing argument defaults to 0).\n"
         "  KeymapTool.exe --set-macro <UniqIdHex> <MacroId> [KC_xxx KC_yyy ...]\n"
         "      Define macro <MacroId> (0-31) as a sequence of key taps, played back\n"
         "      via MACRO(<MacroId>) in a keymap.json. Omit the keycodes to clear it.\n"
@@ -405,6 +481,14 @@ void PrintUsage() {
         "      Omit the keycodes to clear it.\n"
         "  KeymapTool.exe --get-combo <UniqIdHex> <ComboId>\n"
         "      Show the current definition of a combo (debugging).\n"
+        "  KeymapTool.exe --set-tapdance <UniqIdHex> <TapDanceId> [<SingleTap> <SingleHold> <DoubleTap> <TripleTap>]\n"
+        "      Define tap-dance <TapDanceId> (0-15), played back via TAPDANCE(<TapDanceId>)\n"
+        "      in a keymap.json. v1 limits: up to 3 taps are distinguished; SingleTap/\n"
+        "      DoubleTap/TripleTap must be plain keys; SingleHold may be a plain key,\n"
+        "      MT(mod,kc), or LT(layer,kc) (the tap-kc argument in MT/LT is ignored here).\n"
+        "      Omit all 4 actions to clear it.\n"
+        "  KeymapTool.exe --get-tapdance <UniqIdHex> <TapDanceId>\n"
+        "      Show the current definition of a tap-dance (debugging).\n"
         "\n"
         "  UniqIdHex is the value shown by --list (e.g. A1B20000).\n");
 }
@@ -449,7 +533,8 @@ int main(int argc, char** argv) {
         if (argc < 4 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
         ULONG tapTermMs = (ULONG)strtoul(argv[3], nullptr, 10);
         ULONG comboTermMs = (argc >= 5) ? (ULONG)strtoul(argv[4], nullptr, 10) : 0;
-        return CmdSetConfig(&client, uniqId, tapTermMs, comboTermMs);
+        ULONG tapDanceTermMs = (argc >= 6) ? (ULONG)strtoul(argv[5], nullptr, 10) : 0;
+        return CmdSetConfig(&client, uniqId, tapTermMs, comboTermMs, tapDanceTermMs);
     }
 
     if (strcmp(cmd, "--set-combo") == 0) {
@@ -464,6 +549,20 @@ int main(int argc, char** argv) {
         if (argc < 4 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
         ULONG comboId = (ULONG)strtoul(argv[3], nullptr, 10);
         return CmdGetCombo(&client, uniqId, comboId);
+    }
+
+    if (strcmp(cmd, "--set-tapdance") == 0) {
+        ULONG uniqId;
+        if (argc < 4 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
+        ULONG tapDanceId = (ULONG)strtoul(argv[3], nullptr, 10);
+        return CmdSetTapDance(&client, uniqId, tapDanceId, argc - 4, argv + 4);
+    }
+
+    if (strcmp(cmd, "--get-tapdance") == 0) {
+        ULONG uniqId;
+        if (argc < 4 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
+        ULONG tapDanceId = (ULONG)strtoul(argv[3], nullptr, 10);
+        return CmdGetTapDance(&client, uniqId, tapDanceId);
     }
 
     if (strcmp(cmd, "--set-macro") == 0) {

@@ -178,6 +178,17 @@ bool ParseMacroId(const std::string& s, UCHAR* out) {
     return true;
 }
 
+// TAPDANCE(id)のid用。ParseMacroIdと同じ形だが上限がKBDLAYER_MAX_TAPDANCE_COUNT
+// （マクロ数とは無関係な範囲）である点だけが異なる。
+bool ParseTapDanceId(const std::string& s, UCHAR* out) {
+    if (s.empty()) return false;
+    char* end = nullptr;
+    long v = strtol(s.c_str(), &end, 10);
+    if (end != s.c_str() + s.size() || v < 0 || v >= KBDLAYER_MAX_TAPDANCE_COUNT) return false;
+    *out = (UCHAR)v;
+    return true;
+}
+
 } // namespace
 
 bool KeycodeTable::ResolveBaseKey(const std::string& token, USHORT* outScanCode16) {
@@ -279,6 +290,14 @@ bool KeycodeTable::Resolve(const std::string& token, KeycodeMapping* out) {
             if (!ParseMacroId(parts[0], &macroId)) return false;
             out->ActionType = KBDLAYER_ACTION_MACRO;
             out->Param1 = macroId;
+            out->Param2 = 0;
+            return true;
+        }
+        if (name == "TAPDANCE" && parts.size() == 1) {
+            UCHAR tapDanceId;
+            if (!ParseTapDanceId(parts[0], &tapDanceId)) return false;
+            out->ActionType = KBDLAYER_ACTION_TAPDANCE;
+            out->Param1 = tapDanceId;
             out->Param2 = 0;
             return true;
         }

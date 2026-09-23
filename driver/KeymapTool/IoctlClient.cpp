@@ -163,11 +163,12 @@ bool IoctlClient::CaptureNextKey(ULONG uniqId, ULONG timeoutMs, USHORT* outScanC
     return true;
 }
 
-bool IoctlClient::SetConfig(ULONG uniqId, ULONG tapTermMs, ULONG comboTermMs) {
+bool IoctlClient::SetConfig(ULONG uniqId, ULONG tapTermMs, ULONG comboTermMs, ULONG tapDanceTermMs) {
     KBDLAYER_SET_CONFIG_INPUT input;
     input.Target.UniqId = uniqId;
     input.TapTermMs = tapTermMs;
     input.ComboTermMs = comboTermMs;
+    input.TapDanceTermMs = tapDanceTermMs;
 
     DWORD bytesReturned = 0;
     BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_SET_CONFIG,
@@ -261,6 +262,50 @@ bool IoctlClient::GetCombo(ULONG uniqId, ULONG comboId, KBDLAYER_COMBO_ENTRY* ou
                               &bytesReturned, NULL);
     if (!ok) {
         fprintf(stderr, "IOCTL_KBDLAYER_GET_COMBO failed. Error: %lu\n", GetLastError());
+        return false;
+    }
+
+    *outEntry = output.Entry;
+    *outUsed = output.Used != 0;
+    return true;
+}
+
+bool IoctlClient::SetTapDance(ULONG uniqId, ULONG tapDanceId, const KBDLAYER_TAPDANCE_ENTRY* entry) {
+    KBDLAYER_SET_TAPDANCE_INPUT input;
+    input.Target.UniqId = uniqId;
+    input.TapDanceId = tapDanceId;
+    if (entry != nullptr) {
+        input.Entry = *entry;
+    } else {
+        memset(&input.Entry, 0, sizeof(input.Entry));
+        input.Entry.SingleTapAction.Type = KBDLAYER_ACTION_NONE; // クリアの合図（ControlDevice.c参照）
+    }
+
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_SET_TAPDANCE,
+                              &input, sizeof(input),
+                              NULL, 0,
+                              &bytesReturned, NULL);
+    if (!ok) {
+        fprintf(stderr, "IOCTL_KBDLAYER_SET_TAPDANCE failed. Error: %lu\n", GetLastError());
+        return false;
+    }
+    return true;
+}
+
+bool IoctlClient::GetTapDance(ULONG uniqId, ULONG tapDanceId, KBDLAYER_TAPDANCE_ENTRY* outEntry, bool* outUsed) {
+    KBDLAYER_GET_TAPDANCE_INPUT input;
+    input.Target.UniqId = uniqId;
+    input.TapDanceId = tapDanceId;
+
+    KBDLAYER_GET_TAPDANCE_OUTPUT output;
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_GET_TAPDANCE,
+                              &input, sizeof(input),
+                              &output, sizeof(output),
+                              &bytesReturned, NULL);
+    if (!ok) {
+        fprintf(stderr, "IOCTL_KBDLAYER_GET_TAPDANCE failed. Error: %lu\n", GetLastError());
         return false;
     }
 

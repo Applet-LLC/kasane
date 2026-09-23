@@ -35,6 +35,8 @@
 #define KBDLAYER_MACROS_VALUE_NAME L"Macros"
 #define KBDLAYER_COMBOS_VALUE_NAME L"Combos"
 #define KBDLAYER_COMBOTERM_VALUE_NAME L"ComboTermMs"
+#define KBDLAYER_TAPDANCES_VALUE_NAME L"TapDances"
+#define KBDLAYER_TAPDANCETERM_VALUE_NAME L"TapDanceTermMs"
 #define KBDLAYER_REGTEMP_POOL_TAG 'tLdK'
 
 // マクロの永続化形式（レジストリ"Macros"値）。KBDLAYER_MAX_MACRO_COUNT個ぶん
@@ -58,6 +60,16 @@ typedef struct _KBDLAYER_COMBO_PERSIST_ENTRY {
 
 #define KBDLAYER_COMBO_PERSIST_BLOB_BYTES \
     (KBDLAYER_MAX_COMBO_COUNT * sizeof(KBDLAYER_COMBO_PERSIST_ENTRY))
+
+// タップダンスの永続化形式（レジストリ"TapDances"値）。マクロ/コンボと同じ方式で、
+// KBDLAYER_MAX_TAPDANCE_COUNT個ぶん固定サイズで連続して並べる。
+typedef struct _KBDLAYER_TAPDANCE_PERSIST_ENTRY {
+    ULONG Used;
+    KBDLAYER_TAPDANCE_ENTRY Entry;
+} KBDLAYER_TAPDANCE_PERSIST_ENTRY, *PKBDLAYER_TAPDANCE_PERSIST_ENTRY;
+
+#define KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES \
+    (KBDLAYER_MAX_TAPDANCE_COUNT * sizeof(KBDLAYER_TAPDANCE_PERSIST_ENTRY))
 
 // ---------------------------------------------------------------------------
 // スキャンコードの16bitエンコード/デコード（OS標準Scancode Mapと同じ規約。
@@ -148,7 +160,7 @@ ParseLayerMapBlob(
     for (ULONG k = 0; k < header->KeyCount; k++) {
         for (ULONG L = 0; L < header->LayerCount; L++) {
             UCHAR type = entries[k].Actions[L].Type;
-            if (type > KBDLAYER_ACTION_CUSTOM) {
+            if (type > KBDLAYER_ACTION_TAPDANCE) {
                 return STATUS_INVALID_PARAMETER;
             }
         }
@@ -371,11 +383,12 @@ LayerEngineShouldDropEntry(
         return TRUE; // 出力しない
 
     default:
-        // MODTAP/LAYERTAPはResolveTapHold、MACROはResolveMacro（どちらもServiceCallback
-        // からResolveLayerActionより前に呼ばれる、Driver.c参照）が先に横取りして処理する
-        // ため、通常はここに到達しない。ここに来るのはOSM/CUSTOM（未実装、予約のみ）や、
-        // 複数件バッチの一部として届いたためResolveTapHold/ResolveMacroがスキップした
-        // MT/LT/MACROキーなど、想定外の経路のみ。
+        // MODTAP/LAYERTAPはResolveTapHold、MACROはResolveMacro、TAPDANCEはResolveTapDance
+        // （いずれもServiceCallbackからResolveLayerActionより前に呼ばれる、Driver.c参照）が
+        // 先に横取りして処理するため、通常はここに到達しない。ここに来るのはOSM/CUSTOM
+        // （未実装、予約のみ）や、複数件バッチの一部として届いたためResolveTapHold/
+        // ResolveMacro/ResolveTapDanceがスキップしたMT/LT/MACRO/TAPDANCEキーなど、
+        // 想定外の経路のみ。
         // 安全側に倒して「何もしない」として扱う（ParseLayerMapBlobで型自体は
         // 許可しているため、KeymapTool側が未対応アクションを送ってきてもクラッシュしない）。
         return TRUE;
@@ -1081,6 +1094,386 @@ ResolveCombo(
 }
 
 // ---------------------------------------------------------------------------
+// Phase 5: タップダンス（v1: タップ回数3回まで、ホールドは1回目の押下のみ）
+//
+// common/kbdlayer_ioctl.hに記載のスコープ限定を前提にした実装。タップ回数を数える
+// 必要がある分、Phase 2/Phase 4よりも状態が1つ多い。4独立フラグで管理する:
+//   TapDancePendingActive: 保留サイクル進行中（押下中 or 次のタップ待ち）
+//   TapDanceKeyDown:       現在の物理キーが押されたまま（まだ離されていない）
+//   TapDanceHoldConfirmed: SingleHold確定済み、対応する解放待ち
+//   TapDanceDraining:      N-tap(N>1)確定済みだが、押されたままの解放を無音で待つだけ
+//
+// ホールド確定（1回目の押下中のみ）は、Phase 2のHold On Other Key Pressと全く同じ
+// 経路（他キー割り込みでの即時確定・タイムアウトでの確定）を再利用する。2回目以降の
+// 押下中に割り込み/タイムアウトが起きた場合は、対応するHoldアクションが無いため、
+// その時点のタップ回数のタップアクションをその場で確定させる（DoubleHold/TripleHold
+// 相当は非対応、v1のスコープ限定）。
+//
+// 2回目・3回目のタップ待ち中にタイムアウトした場合、DPCからpress+releaseの2イベントを
+// 連続送出する（Phase 2/Phase 4のタイムアウト経路はいずれも1イベントのみだったので、
+// ここが新規のリスク経路。実機で重点的に確認すること）。
+// ---------------------------------------------------------------------------
+
+// TapCount（1〜KBDLAYER_MAX_TAP_COUNT）に対応するタップアクションを返す。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static KBDLAYER_ACTION
+TapActionForCount(
+    _In_ PKBDLAYER_TAPDANCE_ENTRY Entry,
+    _In_ ULONG TapCount
+    )
+{
+    if (TapCount <= 1) {
+        return Entry->SingleTapAction;
+    } else if (TapCount == 2) {
+        return Entry->DoubleTapAction;
+    }
+    return Entry->TripleTapAction; // TapCount >= 3
+}
+
+// devExt->EngineLock保持中に呼ぶこと。SingleHoldActionがLAYERTAPならActiveLayerMaskの
+// ビットをセットする（Phase 2のConfirmHoldLockedと同じ理屈）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+ConfirmTapDanceHoldLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKBDLAYER_ACTION HoldAction
+    )
+{
+    if (HoldAction->Type == KBDLAYER_ACTION_LAYERTAP && HoldAction->Param1 < KBDLAYER_MAX_LAYERS) {
+        devExt->ActiveLayerMask |= (1UL << HoldAction->Param1);
+    }
+    devExt->TapDancePendingActive = FALSE;
+    devExt->TapDanceHoldConfirmed = TRUE;
+}
+
+// devExt->EngineLock保持中に呼ぶこと。SingleHoldActionがLAYERTAPならActiveLayerMaskの
+// ビットをクリアする。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+ReleaseTapDanceHoldLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKBDLAYER_ACTION HoldAction
+    )
+{
+    if (HoldAction->Type == KBDLAYER_ACTION_LAYERTAP && HoldAction->Param1 < KBDLAYER_MAX_LAYERS) {
+        devExt->ActiveLayerMask &= ~(1UL << HoldAction->Param1);
+    }
+    devExt->TapDanceHoldConfirmed = FALSE;
+}
+
+// HoldActionの種別に応じてイベントを合成送出する。KEYならそのキー、MODTAPなら対応する
+// 修飾キーを送る（EmitModTapEventIfApplicableと違いKEYも扱う。TapDanceのSingleHoldは
+// KEY/MODTAP/LAYERTAPの3種を許可するため）。LAYERTAPはActiveLayerMaskの操作のみで
+// 完結し、キーイベントの合成は不要。devExt->EngineLockを保持していない状態で呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+EmitTapDanceHoldEventIfApplicable(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKBDLAYER_ACTION HoldAction,
+    _In_ USHORT BreakBit
+    )
+{
+    if (HoldAction->Type == KBDLAYER_ACTION_MODTAP && HoldAction->Param1 < RTL_NUMBER_OF(s_ModifierScanCodes)) {
+        SendDecodedEvent(devExt, s_ModifierScanCodes[HoldAction->Param1], BreakBit);
+    } else if (HoldAction->Type == KBDLAYER_ACTION_KEY) {
+        SendDecodedEvent(devExt, HoldAction->Param2, BreakBit);
+    }
+}
+
+// TapDanceTimerの満了で起動されるDPC。以下のいずれかの意味を持つ:
+//   - 1回目の押下中にタイムアウト -> SingleHold確定
+//   - 2回目以降の押下中にタイムアウト -> その時点のタップ回数を確定（押されたままの
+//     解放はDrainingで無音に待つ）
+//   - 解放後・次のタップ待ち中にタイムアウト -> その時点のタップ回数を確定
+// DISPATCH_LEVELで実行される。
+// *** 「解放後・次のタップ待ち」の確定はpress+releaseの2イベントを連続送出する、
+//     Phase 2/Phase 4のタイムアウト経路には無い新規パターン。実機で重点的に確認すること ***
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+TapDanceDpcRoutine(
+    _In_ PKDPC Dpc,
+    _In_opt_ PVOID DeferredContext,
+    _In_opt_ PVOID SystemArgument1,
+    _In_opt_ PVOID SystemArgument2
+    )
+{
+    PDEVICE_EXTENSION devExt = (PDEVICE_EXTENSION)DeferredContext;
+    KIRQL oldIrql;
+    BOOLEAN shouldFire = FALSE;
+    BOOLEAN isHoldCase = FALSE;
+    KBDLAYER_ACTION action;
+    USHORT scanCode = 0;
+
+    UNREFERENCED_PARAMETER(Dpc);
+    UNREFERENCED_PARAMETER(SystemArgument1);
+    UNREFERENCED_PARAMETER(SystemArgument2);
+
+    if (devExt == NULL) {
+        return;
+    }
+
+    RtlZeroMemory(&action, sizeof(action));
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    // TapDancePendingActiveがFALSEなら、ServiceCallback側が既にこのサイクルを終えている
+    // （KeCancelTimerとこのDPCのキューイングが競合した場合に起こりうる。Phase 2/Phase 4と
+    // 同じ理屈でEngineLockにより直列化される）。
+    if (devExt->TapDancePendingActive) {
+        PKBDLAYER_TAPDANCE_ENTRY entry = &devExt->TapDances[devExt->TapDanceActiveId];
+        ULONG tapCountSoFar = devExt->TapDanceTapCount;
+        BOOLEAN wasKeyDown = devExt->TapDanceKeyDown;
+
+        shouldFire = TRUE;
+        scanCode = devExt->TapDanceScanCode;
+        isHoldCase = (wasKeyDown && tapCountSoFar == 0);
+
+        if (isHoldCase) {
+            action = entry->SingleHoldAction;
+            ConfirmTapDanceHoldLocked(devExt, &action);
+        } else {
+            ULONG finalCount = wasKeyDown ? (tapCountSoFar + 1) : tapCountSoFar;
+            action = TapActionForCount(entry, finalCount);
+            devExt->TapDancePendingActive = FALSE;
+            if (wasKeyDown) {
+                devExt->TapDanceDraining = TRUE;
+            }
+        }
+    }
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    if (!shouldFire) {
+        return;
+    }
+
+    if (isHoldCase) {
+        KBDLAYER_TRACE("LayerEngine: tapdance TIMEOUT SingleHold confirmed sc=0x%X\n", scanCode);
+        EmitTapDanceHoldEventIfApplicable(devExt, &action, KEY_MAKE);
+    } else {
+        KBDLAYER_TRACE("LayerEngine: tapdance TIMEOUT tap confirmed sc=0x%X type=%u\n", scanCode, action.Type);
+        SendDecodedEvent(devExt, action.Param2, KEY_MAKE);
+        SendDecodedEvent(devExt, action.Param2, KEY_BREAK);
+    }
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+ResolveTapDance(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd,
+    _Inout_opt_ PVOID SystemArgument3
+    )
+{
+    PKEYBOARD_INPUT_DATA ev;
+    USHORT scanCode;
+    BOOLEAN isBreak;
+    KIRQL oldIrql;
+
+    // 他のResolve*と同じ理由で1件バッチのみを対象とする。
+    if ((InputDataEnd - InputDataStart) != 1) {
+        return FALSE;
+    }
+
+    ev = InputDataStart;
+    scanCode = EncodeScancode16(ev->MakeCode, ev->Flags);
+    isBreak = (ev->Flags & KEY_BREAK) != 0;
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+
+    if (!devExt->LayerMapEnabled || devExt->LayerMap == NULL) {
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        return FALSE;
+    }
+
+    // --- HoldConfirmed: SingleHold確定済み、自分自身の解放待ち ---
+    if (devExt->TapDanceHoldConfirmed) {
+        if (scanCode != devExt->TapDanceScanCode) {
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+            return FALSE;
+        }
+        if (!isBreak) {
+            // オートリピート、飲み込むだけ（Phase 2と同じ教訓）。
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+            if (SystemArgument3 != NULL) {
+                *(PULONG)SystemArgument3 = 1;
+            }
+            return TRUE;
+        }
+        {
+            KBDLAYER_ACTION holdAction = devExt->TapDances[devExt->TapDanceActiveId].SingleHoldAction;
+            ReleaseTapDanceHoldLocked(devExt, &holdAction);
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+            EmitTapDanceHoldEventIfApplicable(devExt, &holdAction, KEY_BREAK);
+            if (SystemArgument3 != NULL) {
+                *(PULONG)SystemArgument3 = 1;
+            }
+            return TRUE;
+        }
+    }
+
+    // --- Draining: N-tap(N>1)確定済み、押されたままの物理キーの解放を無音で待つ ---
+    if (devExt->TapDanceDraining) {
+        if (scanCode != devExt->TapDanceScanCode) {
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+            return FALSE;
+        }
+        if (isBreak) {
+            devExt->TapDanceDraining = FALSE;
+        }
+        // オートリピートMAKEも含め飲み込む（Draining中は何も送出しない）。
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        if (SystemArgument3 != NULL) {
+            *(PULONG)SystemArgument3 = 1;
+        }
+        return TRUE;
+    }
+
+    // --- Pending: 保留サイクル進行中 ---
+    if (devExt->TapDancePendingActive) {
+        PKBDLAYER_TAPDANCE_ENTRY entry = &devExt->TapDances[devExt->TapDanceActiveId];
+
+        if (scanCode == devExt->TapDanceScanCode) {
+            if (devExt->TapDanceKeyDown) {
+                if (!isBreak) {
+                    // オートリピート、無視。
+                    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+                    if (SystemArgument3 != NULL) {
+                        *(PULONG)SystemArgument3 = 1;
+                    }
+                    return TRUE;
+                }
+
+                // 解放 = このタップが完了。
+                devExt->TapDanceKeyDown = FALSE;
+                devExt->TapDanceTapCount += 1;
+
+                if (devExt->TapDanceTapCount >= KBDLAYER_MAX_TAP_COUNT) {
+                    // 上限到達、これ以上待たずに即確定。
+                    KBDLAYER_ACTION tapAction = TapActionForCount(entry, devExt->TapDanceTapCount);
+                    devExt->TapDancePendingActive = FALSE;
+                    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+                    KeCancelTimer(&devExt->TapDanceTimer);
+                    SendDecodedEvent(devExt, tapAction.Param2, KEY_MAKE);
+                    SendDecodedEvent(devExt, tapAction.Param2, KEY_BREAK);
+                    if (SystemArgument3 != NULL) {
+                        *(PULONG)SystemArgument3 = 1;
+                    }
+                    return TRUE;
+                }
+
+                // 次のタップが来るか、タイムアウトするかを待つ。
+                KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+                {
+                    LARGE_INTEGER dueTime;
+                    dueTime.QuadPart = -((LONGLONG)devExt->TapDanceTermMs * 10000LL);
+                    KeSetTimer(&devExt->TapDanceTimer, dueTime, &devExt->TapDanceDpc);
+                }
+                if (SystemArgument3 != NULL) {
+                    *(PULONG)SystemArgument3 = 1;
+                }
+                return TRUE;
+            }
+
+            // 次のタップの押下が来た。
+            devExt->TapDanceKeyDown = TRUE;
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+            // 「次タップ待ち」のタイマーを解除し、今回の押下ぶんの
+            // タイムアウト/ホールド監視タイマーを新たにアームする。
+            KeCancelTimer(&devExt->TapDanceTimer);
+            {
+                LARGE_INTEGER dueTime;
+                dueTime.QuadPart = -((LONGLONG)devExt->TapDanceTermMs * 10000LL);
+                KeSetTimer(&devExt->TapDanceTimer, dueTime, &devExt->TapDanceDpc);
+            }
+            if (SystemArgument3 != NULL) {
+                *(PULONG)SystemArgument3 = 1;
+            }
+            return TRUE;
+        }
+
+        // --- 無関係キーによる割り込み ---
+        {
+            ULONG tapCountSoFar = devExt->TapDanceTapCount;
+            BOOLEAN wasKeyDown = devExt->TapDanceKeyDown;
+            BOOLEAN isHoldCase = (wasKeyDown && tapCountSoFar == 0);
+            KBDLAYER_ACTION action;
+
+            if (isHoldCase) {
+                // 1回目の押下中の割り込み = SingleHold確定（Phase 2のHold On Other Key
+                // Pressと同じ規律）。
+                action = entry->SingleHoldAction;
+                ConfirmTapDanceHoldLocked(devExt, &action);
+                KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+                KeCancelTimer(&devExt->TapDanceTimer);
+                EmitTapDanceHoldEventIfApplicable(devExt, &action, KEY_MAKE);
+            } else {
+                // 2回目以降の押下中、または次のタップ待ち中の割り込み = その時点の
+                // タップ回数を確定。押されたままなら解放をDrainingで無音に待つ。
+                ULONG finalCount = wasKeyDown ? (tapCountSoFar + 1) : tapCountSoFar;
+                action = TapActionForCount(entry, finalCount);
+                devExt->TapDancePendingActive = FALSE;
+                if (wasKeyDown) {
+                    devExt->TapDanceDraining = TRUE;
+                }
+                KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+                KeCancelTimer(&devExt->TapDanceTimer);
+                SendDecodedEvent(devExt, action.Param2, KEY_MAKE);
+                SendDecodedEvent(devExt, action.Param2, KEY_BREAK);
+            }
+
+            // 続けて割り込みバッチをそのままOriginalClassServiceに渡す（Phase 2の
+            // ResolveTapHoldと同じ方式。このキーはレイヤーエンジンでの再解決を経ない
+            // 生のスキャンコードのまま転送される、既知の制約も同様）。
+            for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
+                p->ExtraInformation = (p->ExtraInformation & 0x0000FFFFUL) | (devExt->DeviceId & 0xFFFF0000UL);
+            }
+            devExt->OriginalClassService(
+                devExt->OriginalClassDeviceObject,
+                InputDataStart,
+                InputDataEnd,
+                SystemArgument3);
+            return TRUE;
+        }
+    }
+
+    // --- Idle: このキー自体がTAPDANCEアクションに解決される押下イベントなら、
+    //     新しい保留サイクルを開始する ---
+    if (!isBreak) {
+        PKBDLAYER_KEY_ENTRY keyEntry = FindKeyEntry(devExt->LayerMap, scanCode);
+        if (keyEntry != NULL) {
+            PKBDLAYER_ACTION action = ResolveEffectiveAction(devExt, devExt->LayerMap, keyEntry);
+            if (action != NULL && action->Type == KBDLAYER_ACTION_TAPDANCE &&
+                action->Param1 < KBDLAYER_MAX_TAPDANCE_COUNT && devExt->TapDanceUsed[action->Param1]) {
+                LARGE_INTEGER dueTime;
+
+                devExt->TapDancePendingActive = TRUE;
+                devExt->TapDanceKeyDown = TRUE;
+                devExt->TapDanceTapCount = 0;
+                devExt->TapDanceScanCode = scanCode;
+                devExt->TapDanceActiveId = action->Param1;
+                KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+                dueTime.QuadPart = -((LONGLONG)devExt->TapDanceTermMs * 10000LL);
+                KeSetTimer(&devExt->TapDanceTimer, dueTime, &devExt->TapDanceDpc);
+
+                if (SystemArgument3 != NULL) {
+                    *(PULONG)SystemArgument3 = 1;
+                }
+                return TRUE;
+            }
+        }
+    }
+
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+    return FALSE;
+}
+
+// ---------------------------------------------------------------------------
 // IOCTLハンドラから呼ばれる設定関数（PASSIVE_LEVEL）
 // ---------------------------------------------------------------------------
 
@@ -1209,6 +1602,12 @@ SetLayerMapEnabledForDevice(
         devExt->ComboConfirmed = FALSE;
         devExt->ComboDraining = FALSE;
         KeCancelTimer(&devExt->ComboTimer);
+        // Phase 5: タップダンスの保留/確定/ドレイン状態も同様にリセットする。
+        devExt->TapDancePendingActive = FALSE;
+        devExt->TapDanceKeyDown = FALSE;
+        devExt->TapDanceHoldConfirmed = FALSE;
+        devExt->TapDanceDraining = FALSE;
+        KeCancelTimer(&devExt->TapDanceTimer);
     }
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
@@ -1257,6 +1656,12 @@ LoadPersistedCombosForDevice(
     );
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
+static VOID
+LoadPersistedTapDancesForDevice(
+    _In_ PDEVICE_EXTENSION devExt
+    );
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
 VOID
 LoadPersistedLayerMapForDevice(
     _In_ PDEVICE_EXTENSION devExt
@@ -1298,6 +1703,7 @@ LoadPersistedLayerMapForDevice(
 
     LoadPersistedMacrosForDevice(devExt);
     LoadPersistedCombosForDevice(devExt);
+    LoadPersistedTapDancesForDevice(devExt);
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
@@ -1343,6 +1749,27 @@ SetComboTermForDevice(
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetTapDanceTermForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG TapDanceTermMs
+    )
+{
+    KIRQL oldIrql;
+    ULONG effective = (TapDanceTermMs != 0) ? TapDanceTermMs : KBDLAYER_DEFAULT_TAPDANCE_TERM_MS;
+    WCHAR subKeyPath[64];
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    devExt->TapDanceTermMs = effective;
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPDANCETERM_VALUE_NAME, effective);
+
+    return STATUS_SUCCESS;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
 VOID
 InitializeTapHoldState(
     _In_ PDEVICE_EXTENSION devExt
@@ -1373,6 +1800,26 @@ InitializeComboState(
     devExt->ComboActiveId = 0;
     RtlZeroMemory(devExt->Combos, sizeof(devExt->Combos));
     RtlZeroMemory(devExt->ComboUsed, sizeof(devExt->ComboUsed));
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+InitializeTapDanceState(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    KeInitializeTimer(&devExt->TapDanceTimer);
+    KeInitializeDpc(&devExt->TapDanceDpc, TapDanceDpcRoutine, devExt);
+    devExt->TapDanceTermMs = KBDLAYER_DEFAULT_TAPDANCE_TERM_MS;
+    devExt->TapDancePendingActive = FALSE;
+    devExt->TapDanceKeyDown = FALSE;
+    devExt->TapDanceHoldConfirmed = FALSE;
+    devExt->TapDanceDraining = FALSE;
+    devExt->TapDanceScanCode = 0;
+    devExt->TapDanceActiveId = 0;
+    devExt->TapDanceTapCount = 0;
+    RtlZeroMemory(devExt->TapDances, sizeof(devExt->TapDances));
+    RtlZeroMemory(devExt->TapDanceUsed, sizeof(devExt->TapDanceUsed));
 }
 
 // ---------------------------------------------------------------------------
@@ -1693,6 +2140,159 @@ LoadPersistedCombosForDevice(
     RegReadDwordEx(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_COMBOTERM_VALUE_NAME,
                     &comboTermValue, KBDLAYER_DEFAULT_COMBO_TERM_MS);
     devExt->ComboTermMs = (comboTermValue != 0) ? comboTermValue : KBDLAYER_DEFAULT_COMBO_TERM_MS;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5: タップダンスの設定関数（PASSIVE_LEVEL）
+// ---------------------------------------------------------------------------
+
+// devExt->TapDances/TapDanceUsed全体を1つのblobへシリアライズしてレジストリへ書き込む。
+// ベストエフォート（確保失敗時は何もしない。ライブ状態には影響しない）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static VOID
+PersistAllTapDances(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    WCHAR subKeyPath[64];
+    PKBDLAYER_TAPDANCE_PERSIST_ENTRY buffer;
+    KIRQL oldIrql;
+
+    buffer = (PKBDLAYER_TAPDANCE_PERSIST_ENTRY)ExAllocatePool2(
+        POOL_FLAG_PAGED, KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES, KBDLAYER_REGTEMP_POOL_TAG);
+    if (buffer == NULL) {
+        return;
+    }
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    for (ULONG i = 0; i < KBDLAYER_MAX_TAPDANCE_COUNT; i++) {
+        buffer[i].Used = devExt->TapDanceUsed[i] ? 1 : 0;
+        buffer[i].Entry = devExt->TapDances[i];
+    }
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPDANCES_VALUE_NAME,
+                    buffer, KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES);
+
+    ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetTapDanceForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG TapDanceId,
+    _In_opt_ PKBDLAYER_TAPDANCE_ENTRY Entry
+    )
+{
+    KIRQL oldIrql;
+
+    if (TapDanceId >= KBDLAYER_MAX_TAPDANCE_COUNT) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    if (Entry != NULL) {
+        // v1制限: SingleTap/DoubleTap/TripleTapはKEYのみ、SingleHoldはKEY/MODTAP/LAYERTAPの
+        // みを許可する（common/kbdlayer_ioctl.h参照）。
+        if (Entry->SingleTapAction.Type != KBDLAYER_ACTION_KEY ||
+            Entry->DoubleTapAction.Type != KBDLAYER_ACTION_KEY ||
+            Entry->TripleTapAction.Type != KBDLAYER_ACTION_KEY) {
+            return STATUS_INVALID_PARAMETER;
+        }
+        if (Entry->SingleHoldAction.Type != KBDLAYER_ACTION_KEY &&
+            Entry->SingleHoldAction.Type != KBDLAYER_ACTION_MODTAP &&
+            Entry->SingleHoldAction.Type != KBDLAYER_ACTION_LAYERTAP) {
+            return STATUS_INVALID_PARAMETER;
+        }
+    }
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+
+    if (Entry != NULL) {
+        devExt->TapDances[TapDanceId] = *Entry;
+        devExt->TapDanceUsed[TapDanceId] = TRUE;
+    } else {
+        RtlZeroMemory(&devExt->TapDances[TapDanceId], sizeof(devExt->TapDances[TapDanceId]));
+        devExt->TapDanceUsed[TapDanceId] = FALSE;
+    }
+
+    // 設定変更と整合しない状態を残さないよう、ライブのタップダンス判定状態は常に
+    // リセットする（SetComboForDeviceと同じ理屈）。
+    devExt->TapDancePendingActive = FALSE;
+    devExt->TapDanceKeyDown = FALSE;
+    devExt->TapDanceHoldConfirmed = FALSE;
+    devExt->TapDanceDraining = FALSE;
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    KeCancelTimer(&devExt->TapDanceTimer);
+
+    PersistAllTapDances(devExt);
+
+    return STATUS_SUCCESS;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+GetTapDanceForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG TapDanceId,
+    _Out_ PKBDLAYER_TAPDANCE_ENTRY OutEntry,
+    _Out_ PBOOLEAN OutUsed
+    )
+{
+    KIRQL oldIrql;
+
+    if (TapDanceId >= KBDLAYER_MAX_TAPDANCE_COUNT) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    *OutEntry = devExt->TapDances[TapDanceId];
+    *OutUsed = devExt->TapDanceUsed[TapDanceId];
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    return STATUS_SUCCESS;
+}
+
+// AddDeviceから呼ばれる: レジストリの"TapDances"/"TapDanceTermMs"値を読み、
+// devExt->TapDances/TapDanceUsed/TapDanceTermMsを初期化する
+// （LoadPersistedCombosForDeviceと同じ理屈）。失敗時は全タップダンス未設定・
+// TapDanceTermMs=既定値のままでよい（ベストエフォート）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static VOID
+LoadPersistedTapDancesForDevice(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    WCHAR subKeyPath[64];
+    PKBDLAYER_TAPDANCE_PERSIST_ENTRY buffer;
+    ULONG actualLength = 0;
+    NTSTATUS status;
+    ULONG tapDanceTermValue = 0;
+
+    buffer = (PKBDLAYER_TAPDANCE_PERSIST_ENTRY)ExAllocatePool2(
+        POOL_FLAG_PAGED, KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES, KBDLAYER_REGTEMP_POOL_TAG);
+    if (buffer != NULL) {
+        BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+        status = RegReadBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPDANCES_VALUE_NAME,
+                                buffer, KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES, &actualLength);
+        if (NT_SUCCESS(status) && actualLength == KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES) {
+            for (ULONG i = 0; i < KBDLAYER_MAX_TAPDANCE_COUNT; i++) {
+                devExt->TapDanceUsed[i] = (buffer[i].Used != 0);
+                devExt->TapDances[i] = buffer[i].Entry;
+            }
+        }
+        // actualLengthが一致しない場合（値が存在しない、または将来の互換性が
+        // 壊れた場合）は何もしない。InitializeTapDanceStateでRtlZeroMemory済みのため
+        // 全タップダンス未設定のままで安全。
+        ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
+    }
+
+    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    RegReadDwordEx(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPDANCETERM_VALUE_NAME,
+                    &tapDanceTermValue, KBDLAYER_DEFAULT_TAPDANCE_TERM_MS);
+    devExt->TapDanceTermMs = (tapDanceTermValue != 0) ? tapDanceTermValue : KBDLAYER_DEFAULT_TAPDANCE_TERM_MS;
 }
 
 // ---------------------------------------------------------------------------

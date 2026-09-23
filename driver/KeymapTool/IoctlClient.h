@@ -43,10 +43,10 @@ public:
     // 戻り値: true=IOCTL自体は成功（*outTimedOutで実際に捕捉できたか判定）。
     bool CaptureNextKey(ULONG uniqId, ULONG timeoutMs, USHORT* outScanCode16, bool* outTimedOut);
 
-    // Phase 2/4: TapTermMs（Mod-Tap/Layer-Tap判定閾値）とComboTermMs（コンボ判定閾値、
-    // ミリ秒）を設定する。どちらも0を渡すとドライバ側既定値にリセットする
-    // (TapTermMs=KBDLAYER_DEFAULT_TAP_TERM_MS=200ms, ComboTermMs=KBDLAYER_DEFAULT_COMBO_TERM_MS=50ms)。
-    bool SetConfig(ULONG uniqId, ULONG tapTermMs, ULONG comboTermMs);
+    // Phase 2/4/5: TapTermMs（Mod-Tap/Layer-Tap判定閾値）・ComboTermMs（コンボ判定閾値）・
+    // TapDanceTermMs（タップダンス判定閾値、いずれもミリ秒）を設定する。0を渡すとその項目だけ
+    // ドライバ側既定値にリセットする (TapTermMs=200ms, ComboTermMs=50ms, TapDanceTermMs=200ms)。
+    bool SetConfig(ULONG uniqId, ULONG tapTermMs, ULONG comboTermMs, ULONG tapDanceTermMs);
 
     // Phase 3: マクロ。stepsが空ならそのmacroIdをクリアする。
     bool SetMacro(ULONG uniqId, ULONG macroId, const std::vector<KBDLAYER_MACRO_STEP>& steps);
@@ -55,6 +55,10 @@ public:
     // Phase 4: コンボ（2キー限定v1）。entry=nullptrはそのcomboIdをクリアする。
     bool SetCombo(ULONG uniqId, ULONG comboId, const KBDLAYER_COMBO_ENTRY* entry);
     bool GetCombo(ULONG uniqId, ULONG comboId, KBDLAYER_COMBO_ENTRY* outEntry, bool* outUsed);
+
+    // Phase 5: タップダンス（v1: タップ回数3回まで）。entry=nullptrはそのtapDanceIdをクリアする。
+    bool SetTapDance(ULONG uniqId, ULONG tapDanceId, const KBDLAYER_TAPDANCE_ENTRY* entry);
+    bool GetTapDance(ULONG uniqId, ULONG tapDanceId, KBDLAYER_TAPDANCE_ENTRY* outEntry, bool* outUsed);
 
     ~IoctlClient() { Close(); }
 

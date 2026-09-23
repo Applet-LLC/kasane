@@ -1,5 +1,81 @@
 # KeymapTool サンプル
 
+## test-keymap-tapdance.json — Phase 5 (タップダンス, v1: タップ回数3回まで) 動作確認用
+
+10キー・1レイヤーで、位置0に`TAPDANCE(0)`を配置した最小テストキーマップ。タップダンス
+自体はkeymap.jsonには含まれず、`--set-macro`/`--set-combo`と同じ方式で`--set-tapdance`
+により別途デバイスへ登録する。
+
+v1のスコープ限定（`common/kbdlayer_ioctl.h`参照）: タップ回数は3回まで区別
+（SingleTap/SingleHold/DoubleTap/TripleTap）。ホールド判定は1回目の押下にのみ存在し
+（2回目以降を押しっぱなしにしても専用のHoldアクションは無い）、SingleHoldのみ
+KEY/MODTAP/LAYERTAPを許可、他3つはKEYのみ許可。
+
+### 手順
+
+```
+KeymapTool.exe --list
+KeymapTool.exe --calibrate-simple <UniqIdHex> 10 test-profile.json
+KeymapTool.exe --apply-simple <UniqIdHex> test-keymap-tapdance.json test-profile.json
+
+REM タップダンス0を「タップ=Esc、ホールド=Ctrl、ダブルタップ=Tab、トリプルタップ=CapsLock」
+REM として定義する（SingleHoldはMT(mod,kc)を渡せる。タップ時キーコード引数(KC_NO)は
+REM 無視される。ホールド時のmod部分だけが使われる）。
+KeymapTool.exe --set-tapdance <UniqIdHex> 0 KC_ESC "MT(MOD_LCTL,KC_NO)" KC_TAB KC_CAPS
+
+KeymapTool.exe --on <UniqIdHex>
+```
+
+TapDanceTermMs（タップ間・ホールド判定の閾値、既定200ms）を変えたい場合:
+```
+KeymapTool.exe --set-config <UniqIdHex> 200 50 300
+```
+（第2引数がTapTermMs、第3引数がComboTermMs、第4引数がTapDanceTermMs。他を変えたくない
+場合は既存の値をそのまま渡すこと。0を渡すとその項目だけ既定値にリセットされる。）
+
+### 確認項目
+
+**SingleTap**
+- 位置0を単体でタップ（素早く押して離し、そのまま何もしない） → `Esc`が出力される。
+
+**SingleHold（他キー押下によるホールド確定）**
+- 位置0を押しっぱなしで位置1(`b`)を押す → **Ctrl+B**になる（`b`単体は出力されない）。
+- 離した後、Ctrlが張り付かないことを確認する（何度でも連続して繰り返せること）。
+
+**SingleHold（タイムアウトによるホールド確定）**
+- 位置0を押したまま、他のキーに一切触れずにTapDanceTermMs（既定200ms）以上待つ。
+- その状態で位置1を押す → Ctrl+Bになる（タイムアウトの時点で既にホールド確定している）。
+- クラッシュしないこと、離した後に張り付かないことを確認する。
+
+**DoubleTap**
+- 位置0を素早く2回連続でタップ（2回目の押下がTapDanceTermMs以内に来ること） → `Tab`が
+  出力される。`Esc`は出力されない。
+
+**DoubleTap（タイムアウト経由の確定）** *** DPCからpress+releaseの2イベントを連続送出する
+新規経路。実機で重点的に確認すること ***
+- 位置0を1回タップした直後、すぐに2回目を押して素早く離し、そのまま何もせず
+  TapDanceTermMs以上待つ → `Tab`が出力される。
+
+**TripleTap**
+- 位置0を素早く3回連続でタップ → `CapsLock`が出力される（3回目の押下が来た時点で、
+  それ以上待たずに即確定する）。
+
+**通常キーへの影響なし**
+- 位置1〜9（`b`〜`j`）がタップダンスと無関係に普段通り動くこと。
+
+- `KeymapTool.exe --get-tapdance <UniqIdHex> 0` → 登録した4つのアクション
+  （SingleTap/SingleHold/DoubleTap/TripleTap）がそのまま返ってくることを確認できる。
+
+### 元に戻す
+
+```
+KeymapTool.exe --set-tapdance <UniqIdHex> 0
+KeymapTool.exe --off <UniqIdHex>
+KeymapTool.exe --clear <UniqIdHex>
+```
+
+(`--set-tapdance`に4つのアクションを1つも渡さないとタップダンス0がクリアされる)
+
 ## test-keymap-combo.json — Phase 4 (コンボ, v1: 2キー限定) 動作確認用
 
 10キー・1レイヤーで、`KC_A`〜`KC_J`の基本キーのみを配置した最小テストキーマップ

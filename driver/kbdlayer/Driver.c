@@ -194,8 +194,9 @@ NTSTATUS AddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT PhysicalDev
     KeInitializeSpinLock(&devExt->EngineLock);
     devExt->LayerMap = NULL;
     devExt->LayerMapEnabled = FALSE;
-    InitializeTapHoldState(devExt); // HoldTimer/HoldDpcの初期化含む（Phase 2）
-    InitializeComboState(devExt);   // ComboTimer/ComboDpcの初期化含む（Phase 4）
+    InitializeTapHoldState(devExt);  // HoldTimer/HoldDpcの初期化含む（Phase 2）
+    InitializeComboState(devExt);    // ComboTimer/ComboDpcの初期化含む（Phase 4）
+    InitializeTapDanceState(devExt); // TapDanceTimer/TapDanceDpcの初期化含む（Phase 5）
     KeInitializeEvent(&devExt->CaptureEvent, NotificationEvent, FALSE);
 
     // LicenseTokenをECDSA検証してライセンス状態を決定（PASSIVE_LEVEL）
@@ -433,6 +434,8 @@ NTSTATUS DispatchPnp(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
         KeCancelTimer(&devExt->HoldTimer);
         // Phase 4: ComboTimer/ComboDpcも同じ理由で明示的に無害化する。
         KeCancelTimer(&devExt->ComboTimer);
+        // Phase 5: TapDanceTimer/TapDanceDpcも同様。
+        KeCancelTimer(&devExt->TapDanceTimer);
         KeFlushQueuedDpcs();
 
         // この時点ではport driver側のREMOVE_DEVICE処理（上のIoCallDriver）が
@@ -542,6 +545,13 @@ VOID ServiceCallback(
         // MT/LTキーの保留・確定・タイムアウトに関わるイベントはここで完結し、通常の
         // ResolveLayerAction以降の処理は行わない。詳細はLayerEngine.cのResolveTapHold参照。
         if (ResolveTapHold(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
+            return;
+        }
+
+        // Phase 5: タップダンス（v1: タップ回数3回まで）。ResolveTapHoldと同じグループ
+        // （1つの物理キーの振る舞い）として、ResolveMacroの前に判定する。詳細は
+        // LayerEngine.cのResolveTapDance参照。
+        if (ResolveTapDance(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
             return;
         }
 
@@ -657,6 +667,8 @@ VOID Unload(IN PDRIVER_OBJECT DriverObject) {
             KeCancelTimer(&devExt->HoldTimer);
             // Phase 4: ComboTimer/ComboDpcも同様。
             KeCancelTimer(&devExt->ComboTimer);
+            // Phase 5: TapDanceTimer/TapDanceDpcも同様。
+            KeCancelTimer(&devExt->TapDanceTimer);
             KeFlushQueuedDpcs();
 
             if (devExt->LayerMap != NULL) {

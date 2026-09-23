@@ -53,6 +53,7 @@ typedef struct _KBDLAYER_ACTION {
 #define KBDLAYER_ACTION_LAYERTAP      9  // LT(layer,kc): Param1=レイヤー番号, Param2=タップ時スキャンコード (Phase 2)
 #define KBDLAYER_ACTION_MACRO         10 // MACRO(id): Param1=マクロID(0..KBDLAYER_MAX_MACRO_COUNT-1) (Phase 3)
 #define KBDLAYER_ACTION_CUSTOM        11 // 将来の拡張フック点として予約のみ。詳細設計は先送り (Phase 3)
+#define KBDLAYER_ACTION_TAPDANCE      12 // TAPDANCE(id): Param1=タップダンスID(0..KBDLAYER_MAX_TAPDANCE_COUNT-1) (Phase 5)
 
 #define KBDLAYER_MAX_LAYERS 8   // VIA実務上の上限(4)に余裕を持たせる
 #define KBDLAYER_MAX_KEYS   256 // 既存 KBDADDID_MAX_REMAP_ENTRIES を踏襲
@@ -141,8 +142,9 @@ typedef struct _KBDLAYER_CAPTURE_NEXT_KEY_OUTPUT {
 // 構造体自体は先に定義しておく）。
 typedef struct _KBDLAYER_SET_CONFIG_INPUT {
     KBDLAYER_TARGET Target;
-    ULONG TapTermMs;   // 既定200ms。0を渡すと既定値にリセットする。
-    ULONG ComboTermMs; // 既定50ms。0を渡すと既定値にリセットする。(Phase 4: コンボ)
+    ULONG TapTermMs;      // 既定200ms。0を渡すと既定値にリセットする。
+    ULONG ComboTermMs;    // 既定50ms。0を渡すと既定値にリセットする。(Phase 4: コンボ)
+    ULONG TapDanceTermMs; // 既定200ms。0を渡すと既定値にリセットする。(Phase 5: タップダンス)
 } KBDLAYER_SET_CONFIG_INPUT, *PKBDLAYER_SET_CONFIG_INPUT;
 
 // --- Phase 3: マクロ ---
@@ -221,6 +223,54 @@ typedef struct _KBDLAYER_GET_COMBO_OUTPUT {
     KBDLAYER_COMBO_ENTRY Entry;
 } KBDLAYER_GET_COMBO_OUTPUT, *PKBDLAYER_GET_COMBO_OUTPUT;
 
+// --- Phase 5: タップダンス ---
+//
+// v1のスコープ限定（プラン検討時の合意事項）:
+//   - タップ回数は3回まで区別する（SingleTap/DoubleTap/TripleTap）。4回目以降は
+//     3回目と同じ扱い（上限到達時点で即確定）。
+//   - ホールド判定は「1回目の押下」にのみ存在する（SingleHold）。2回目以降を
+//     押しっぱなしにしても専用のHoldアクションは無く、その時点のタップ回数の
+//     タップアクションが確定するだけ（DoubleHold/TripleHold相当は非対応）。
+//   - SingleHoldActionのみ KEY/MODTAP/LAYERTAP を許可する（Phase 2のPendingActionと
+//     同じ扱いを再利用するため）。SingleTap/DoubleTap/TripleTapは KEY のみ許可。
+//   - 他キー割り込みによる確定は、Phase 2のHold On Other Key Pressと同じ規律
+//     （即座に確定し、割り込みバッチは生スキャンコードのまま転送する）を踏襲する。
+// 詳細な状態遷移はLayerEngine.cのResolveTapDance参照。
+#define KBDLAYER_MAX_TAPDANCE_COUNT 16
+#define KBDLAYER_MAX_TAP_COUNT 3 // これ以上は3回タップと同じ扱い
+
+// タップダンス1件分。SingleTapAction.Type == KBDLAYER_ACTION_NONE はそのIDが未設定
+// であることの合図として、Set時に「クリア」を意味する（common実装ではなく
+// ControlDevice.c/LayerEngine.cの規約）。
+typedef struct _KBDLAYER_TAPDANCE_ENTRY {
+    KBDLAYER_ACTION SingleTapAction;  // v1: KEYのみ許可
+    KBDLAYER_ACTION SingleHoldAction; // v1: KEY/MODTAP/LAYERTAPを許可
+    KBDLAYER_ACTION DoubleTapAction;  // v1: KEYのみ許可
+    KBDLAYER_ACTION TripleTapAction;  // v1: KEYのみ許可
+} KBDLAYER_TAPDANCE_ENTRY, *PKBDLAYER_TAPDANCE_ENTRY;
+
+// IOCTL_KBDLAYER_SET_TAPDANCE の入力バッファ。
+// Entry.SingleTapAction.Type == KBDLAYER_ACTION_NONE を渡すと、そのTapDanceIdの
+// クリアを意味する。
+typedef struct _KBDLAYER_SET_TAPDANCE_INPUT {
+    KBDLAYER_TARGET Target;
+    ULONG TapDanceId; // 0 <= TapDanceId < KBDLAYER_MAX_TAPDANCE_COUNT
+    KBDLAYER_TAPDANCE_ENTRY Entry;
+} KBDLAYER_SET_TAPDANCE_INPUT, *PKBDLAYER_SET_TAPDANCE_INPUT;
+
+// IOCTL_KBDLAYER_GET_TAPDANCE の入力バッファ。
+typedef struct _KBDLAYER_GET_TAPDANCE_INPUT {
+    KBDLAYER_TARGET Target;
+    ULONG TapDanceId;
+} KBDLAYER_GET_TAPDANCE_INPUT, *PKBDLAYER_GET_TAPDANCE_INPUT;
+
+// IOCTL_KBDLAYER_GET_TAPDANCE の出力バッファ。Used=0の場合、指定TapDanceIdは未設定
+// （Entryの内容は不定として扱うこと）。
+typedef struct _KBDLAYER_GET_TAPDANCE_OUTPUT {
+    ULONG Used;
+    KBDLAYER_TAPDANCE_ENTRY Entry;
+} KBDLAYER_GET_TAPDANCE_OUTPUT, *PKBDLAYER_GET_TAPDANCE_OUTPUT;
+
 #pragma pack(pop)
 
 // IOCTL_INTERNAL_KEYBOARD_CONNECT 等の既存IOCTLと衝突しないよう、
@@ -250,5 +300,9 @@ typedef struct _KBDLAYER_GET_COMBO_OUTPUT {
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x809, METHOD_BUFFERED, FILE_ANY_ACCESS)
 #define IOCTL_KBDLAYER_GET_COMBO \
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x80A, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_KBDLAYER_SET_TAPDANCE \
+    CTL_CODE(FILE_DEVICE_KBDLAYER, 0x80B, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_KBDLAYER_GET_TAPDANCE \
+    CTL_CODE(FILE_DEVICE_KBDLAYER, 0x80C, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
 #endif // _KBDLAYER_COMMON_IOCTL_H_

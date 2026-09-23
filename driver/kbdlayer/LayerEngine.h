@@ -140,6 +140,32 @@ InitializeComboState(
     _In_ PDEVICE_EXTENSION devExt
     );
 
+// Phase 5: タップダンス（v1: タップ回数3回まで、ホールドは1回目の押下のみ）。
+// Driver.cのServiceCallbackから、ResolveTapHoldの後・ResolveMacroの前に呼ぶこと
+// （TapDanceは1つの物理キーの振る舞いを扱うため、MT/LT・Macroと同じグループに
+// 位置づける）。単一イベントのバッチのみを対象とする（他のResolve*と同じ制約）。
+// 戻り値: ResolveTapHoldと同じ意味（TRUE=処理済み、FALSE=対象外）。
+// 他キー割り込みによる確定の場合、Phase 2のHold On Other Key Pressと同じ方式
+// （確定イベントを合成送出したあと、割り込みバッチをそのまま生スキャンコードで
+// 転送する）を踏襲する。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+ResolveTapDance(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd,
+    _Inout_opt_ PVOID SystemArgument3
+    );
+
+// AddDeviceから呼ばれる: devExt->TapDanceTimer/TapDanceDpcを初期化し、TapDanceTermMsを
+// 既定値にする（レジストリからの永続化読み込みはLoadPersistedLayerMapForDevice側で
+// 上書きする）。devExtがまだg_deviceListに公開されていない前提。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+InitializeTapDanceState(
+    _In_ PDEVICE_EXTENSION devExt
+    );
+
 // --- IOCTLハンドラ（ControlDevice.c）から呼ばれる、PASSIVE_LEVEL専用 ---
 
 // SET_LAYERMAP: devExt->LayerMapEnabled == FALSE のときだけ成功する
@@ -207,6 +233,16 @@ SetComboTermForDevice(
     _In_ ULONG ComboTermMs
     );
 
+// SET_CONFIG (Phase 5分): devExt->TapDanceTermMsを変更し、レジストリの
+// "TapDanceTermMs"値へ永続化する。TapDanceTermMs=0を渡すと既定値
+// (KBDLAYER_DEFAULT_TAPDANCE_TERM_MS)にリセットする。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetTapDanceTermForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG TapDanceTermMs
+    );
+
 // SET_MACRO: 指定したMacroIdのステップ列を設定する。StepCount=0はそのマクロIDの
 // クリアを意味する。LayerMapEnabledの状態に関わらず常に成功する（TapTermMsと同じ
 // 理由）。ライブ反映後、レジストリの"Macros"値へ永続化する（全マクロスロットを
@@ -257,6 +293,31 @@ GetComboForDevice(
     _In_ PDEVICE_EXTENSION devExt,
     _In_ ULONG ComboId,
     _Out_ PKBDLAYER_COMBO_ENTRY OutEntry,
+    _Out_ PBOOLEAN OutUsed
+    );
+
+// SET_TAPDANCE: 指定したTapDanceIdのSingleTap/SingleHold/DoubleTap/TripleTapアクションを
+// 設定する。Entry=NULLはそのTapDanceIdのクリアを意味する。バリデーション
+// （SingleTap/DoubleTap/TripleTapはKEY型のみ・SingleHoldはKEY/MODTAP/LAYERTAPのみ）は
+// この関数内で行う。ライブ反映後、レジストリの"TapDances"値へ永続化する（全スロットを
+// まとめて1つのblobとして保存する、Macro/Comboと同じ方式）。設定変更と整合しない
+// 状態を残さないよう、ライブのタップダンス判定状態は常にリセットする。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetTapDanceForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG TapDanceId,
+    _In_opt_ PKBDLAYER_TAPDANCE_ENTRY Entry
+    );
+
+// GET_TAPDANCE: 指定したTapDanceIdの現在の内容(*OutEntry)と使用中かどうか(*OutUsed)を返す。
+// 未設定の場合は*OutUsed=FALSEで成功する（*OutEntryの内容は不定）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+GetTapDanceForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG TapDanceId,
+    _Out_ PKBDLAYER_TAPDANCE_ENTRY OutEntry,
     _Out_ PBOOLEAN OutUsed
     );
 

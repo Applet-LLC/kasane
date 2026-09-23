@@ -35,6 +35,7 @@ typedef struct _KBDLAYER_MAP_TABLE {
 
 #define KBDLAYER_DEFAULT_TAP_TERM_MS 200
 #define KBDLAYER_DEFAULT_COMBO_TERM_MS 50
+#define KBDLAYER_DEFAULT_TAPDANCE_TERM_MS 200
 
 typedef struct _DEVICE_EXTENSION {
     PDEVICE_OBJECT LowerDevice;
@@ -95,6 +96,25 @@ typedef struct _DEVICE_EXTENSION {
     BOOLEAN ComboDraining;         // TRUE = 出力は解除済み、もう片方の物理キー解放を待つだけ
     USHORT ComboPendingScanCode;   // 保留中の最初のメンバーキーの物理スキャンコード（Enc16）
     ULONG ComboActiveId;           // 保留/成立/ドレイン中のコンボID（Combos[]のインデックス）
+
+    // --- Phase 5: タップダンス ---
+    // v1は3回までのタップ区別・ホールドは1回目の押下のみ（common/kbdlayer_ioctl.hの
+    // コメント参照）。TapDanceは1つの物理キーの振る舞いを表すため、Phase 1〜3と同じく
+    // KBDLAYER_ACTION_TAPDANCE(id)としてレイヤーアクション表に埋め込み、実体はここに
+    // 別テーブルとして持つ（Macroと同じ方式）。EngineLock保持中に読み書きすること。
+    KBDLAYER_TAPDANCE_ENTRY TapDances[KBDLAYER_MAX_TAPDANCE_COUNT];
+    BOOLEAN TapDanceUsed[KBDLAYER_MAX_TAPDANCE_COUNT];
+
+    KTIMER TapDanceTimer;            // TapDanceTermMs後にTapDanceDpcを起動するタイマー
+    KDPC TapDanceDpc;                // タイムアウト時に確定処理を行うDPC（TapDanceDpcRoutine, LayerEngine.c）
+    ULONG TapDanceTermMs;            // タップ間・ホールド判定の閾値（既定200ms）
+    BOOLEAN TapDancePendingActive;   // TRUE = 保留サイクル進行中（押下中 or 次のタップ待ち）
+    BOOLEAN TapDanceKeyDown;         // TRUE = 現在の物理キーが押されたまま（まだ離されていない）
+    BOOLEAN TapDanceHoldConfirmed;   // TRUE = SingleHold確定済み、対応する解放待ち
+    BOOLEAN TapDanceDraining;        // TRUE = N-tap(N>1)確定済みだが、押されたままの解放を無音で待つだけ
+    USHORT TapDanceScanCode;         // 対象の物理キーのスキャンコード（Enc16）
+    ULONG TapDanceActiveId;          // 対象のタップダンスID（TapDances[]のインデックス）
+    ULONG TapDanceTapCount;          // これまでに完了した（press+release）タップの回数
 
     // --- キャリブレーションウィザード (IOCTL_KBDLAYER_CAPTURE_NEXT_KEY) 用 ---
     // ServiceCallback（DISPATCH_LEVEL、EngineLock保持中）と、PASSIVE_LEVELで

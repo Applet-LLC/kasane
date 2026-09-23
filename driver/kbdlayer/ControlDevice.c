@@ -342,7 +342,11 @@ HandleSetConfig(
         if (!NT_SUCCESS(status)) {
             return status;
         }
-        return SetComboTermForDevice(devExt, input->ComboTermMs);
+        status = SetComboTermForDevice(devExt, input->ComboTermMs);
+        if (!NT_SUCCESS(status)) {
+            return status;
+        }
+        return SetTapDanceTermForDevice(devExt, input->TapDanceTermMs);
     }
 }
 
@@ -519,6 +523,82 @@ HandleGetCombo(
     return STATUS_SUCCESS;
 }
 
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleSetTapDance(
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    PKBDLAYER_SET_TAPDANCE_INPUT input = (PKBDLAYER_SET_TAPDANCE_INPUT)SystemBuffer;
+    PDEVICE_EXTENSION devExt;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_SET_TAPDANCE_INPUT)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    // Entry.SingleTapAction.Type==NONEはクリアの合図（KeymapTool/IoctlClient.cpp参照）。
+    if (input->Entry.SingleTapAction.Type == KBDLAYER_ACTION_NONE) {
+        return SetTapDanceForDevice(devExt, input->TapDanceId, NULL);
+    }
+    return SetTapDanceForDevice(devExt, input->TapDanceId, &input->Entry);
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleGetTapDance(
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    ULONG outputLen = IrpSp->Parameters.DeviceIoControl.OutputBufferLength;
+    PKBDLAYER_GET_TAPDANCE_INPUT input = (PKBDLAYER_GET_TAPDANCE_INPUT)SystemBuffer;
+    PDEVICE_EXTENSION devExt;
+    PKBDLAYER_GET_TAPDANCE_OUTPUT out;
+    KBDLAYER_TAPDANCE_ENTRY entry;
+    BOOLEAN used = FALSE;
+    NTSTATUS status;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_GET_TAPDANCE_INPUT)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (outputLen < sizeof(KBDLAYER_GET_TAPDANCE_OUTPUT)) {
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    status = GetTapDanceForDevice(devExt, input->TapDanceId, &entry, &used);
+    if (!NT_SUCCESS(status)) {
+        return status;
+    }
+
+    // METHOD_BUFFERED: 入力(input)と出力(out)は同じSystemBufferを共有する
+    // （HandleGetComboと同じパターン）。
+    out = (PKBDLAYER_GET_TAPDANCE_OUTPUT)SystemBuffer;
+    out->Used = used ? 1 : 0;
+    out->Entry = entry;
+
+    *BytesReturned = sizeof(KBDLAYER_GET_TAPDANCE_OUTPUT);
+    return STATUS_SUCCESS;
+}
+
 // キャリブレーションウィザード専用。呼び出し元スレッドをPASSIVE_LEVELでブロックし、
 // 対象デバイスの次の物理キー押下1回分のスキャンコードを返す。
 // devExt->RemoveLockを保持したまま待機することで、待機中にキーボードが
@@ -644,6 +724,12 @@ DispatchControlIoctl(
         break;
     case IOCTL_KBDLAYER_GET_COMBO:
         status = HandleGetCombo(irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_SET_TAPDANCE:
+        status = HandleSetTapDance(irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_GET_TAPDANCE:
+        status = HandleGetTapDance(irpSp, systemBuffer, &bytesReturned);
         break;
     default:
         status = STATUS_INVALID_DEVICE_REQUEST;
