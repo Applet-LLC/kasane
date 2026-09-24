@@ -200,17 +200,34 @@ int wmain(int argc, wchar_t* argv[])
     return result ? 0 : 1;
 }
 
-// このマシンの*ネイティブ*なプロセッサアーキテクチャを返す（呼び出し元プロセス自身が
-// エミュレーション下で動いていても、GetNativeSystemInfo は実機の値を返す）。
+// このマシンの*ネイティブ*なプロセッサアーキテクチャを返す。
+// GetNativeSystemInfo/GetSystemInfo は使えない: ARM64ホスト上でx64エミュレーション下にある
+// プロセスから呼ぶと、エミュレーション先のPROCESSOR_ARCHITECTURE_AMD64を返す（実機検証済み。
+// これが原因でx64版がARM64ホストを検出できず、RelaunchViaArm64Companionへリレーされないまま
+// NTamd64.Servicesでのサービス登録がERROR_IN_WOW64(0xE0000235)で失敗していた）。
+// IsWow64Process2 の nativeMachine はエミュレーション下でも実機の値を返す
+// （Windows 10 1709以降。IsSupportedWindowsEnvironmentの下限1903より前なので常に使える）。
 DWORD GetNativeProcessorArchitecture()
 {
-    SYSTEM_INFO systemInfo{};
-    GetNativeSystemInfo(&systemInfo);
-    return systemInfo.wProcessorArchitecture;
+    USHORT processMachine = IMAGE_FILE_MACHINE_UNKNOWN;
+    USHORT nativeMachine = IMAGE_FILE_MACHINE_UNKNOWN;
+    if (IsWow64Process2(GetCurrentProcess(), &processMachine, &nativeMachine)) {
+        switch (nativeMachine) {
+        case IMAGE_FILE_MACHINE_ARM64:
+            return PROCESSOR_ARCHITECTURE_ARM64;
+        case IMAGE_FILE_MACHINE_AMD64:
+            return PROCESSOR_ARCHITECTURE_AMD64;
+        case IMAGE_FILE_MACHINE_I386:
+            return PROCESSOR_ARCHITECTURE_INTEL;
+        default:
+            return PROCESSOR_ARCHITECTURE_UNKNOWN;
+        }
+    }
+    return PROCESSOR_ARCHITECTURE_UNKNOWN;
 }
 
 // このマシンのネイティブアーキテクチャがARM64かどうか（IsSupportedWindowsEnvironmentと同じ
-// GetNativeSystemInfoベースの判定）。RelaunchViaArm64Companionでのリレー判定、および
+// IsWow64Process2ベースの判定）。RelaunchViaArm64Companionでのリレー判定、および
 // InstallDriverでのINFセクション選択・パス解決に使う。
 bool IsNativeArm64()
 {
@@ -263,7 +280,7 @@ int RelaunchViaArm64Companion(int argc, wchar_t* argv[])
 }
 #endif
 
-// ネイティブアーキテクチャ（エミュレーション下でも実機の値を返す GetNativeSystemInfo を使う）が
+// ネイティブアーキテクチャ（エミュレーション下でも実機の値を返す IsWow64Process2 を使う）が
 // x64 または ARM64 であり、かつ CurrentBuildNumber が Windows 10 1903（18362）以上であることを
 // 確認する。レジストリ読み取りに失敗した場合も fail closed で false を返す。
 bool IsSupportedWindowsEnvironment()

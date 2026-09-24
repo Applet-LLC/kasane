@@ -142,7 +142,7 @@
 
     <!--
       KBDDRIVERDIR配下をx64\/arm64\の2階層に分けている。ARM64ネイティブのkbdlayer.sysをx64版と
-      同居させ、DriverManager.exe（実行時にGetNativeSystemInfoでホストの実アーキを判定する
+      同居させ、DriverManager.exe（実行時にIsWow64Process2でホストの実アーキを判定する
       ArchSubdirName()ヘルパーを使う）が正しい方のINF/SYS/CATを選んでインストールできるようにする。
     -->
     <Directory Id="TARGETDIR" Name="SourceDir">
