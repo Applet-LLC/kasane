@@ -1,5 +1,12 @@
 # KeymapTool サンプル
 
+インストールからキーの入れ替えまでを通しで行う利用者向けの手順は
+[docs/TUTORIAL-CLI.md](../../../docs/TUTORIAL-CLI.md) を参照。そこで使うキーマップは
+`tutorial-jis109-eisu-lctrl.json`（JIS: 英数⇔左Ctrl）、`tutorial-us104-caps-lctrl.json`
+（US: CapsLock⇔左Ctrl）、`tutorial-swap-2key.json`（JIS/US共通の2キー版）、
+`tutorial-10key-numbers.json`（テンキー単体: NumLockに関係なく常に数字）。
+キー順はそれぞれ`test-keymap-jis.json`/`test-keymap-us104.json`/`test-keymap-10key.json`と同じ。
+
 ## test-keymap-tapdance.json — Phase 5 (タップダンス, v1: タップ回数3回まで) 動作確認用
 
 10キー・1レイヤーで、位置0に`TAPDANCE(0)`を配置した最小テストキーマップ。タップダンス
@@ -282,55 +289,78 @@ KeymapTool.exe --clear <UniqIdHex>
 物理レイアウトに依存しない（US/JISどちらの実機にも共通して存在する基本的な英数字キーだけを
 使っている）。実サイズのキーボード全体を通しで確認したい場合はこちらを使う。
 
+キーの並び順は、どちらも [keyboard-layout-editor.com](https://www.keyboard-layout-editor.com/)
+（KLE）のプリセット（US版は「ANSI 104」、JIS版は「JP 109」）と同じ。上の段から順に、
+各段の中では左から右へ（メイン部 → ナビゲーションキー群 → 同じ段のテンキー）並んでいる。
+
 - **test-keymap-us104.json**: 標準的な US ANSI 104キー配列。全キーがレイヤー0では
   「そのキー本来の動作」になっている（素通し確認用）。レイヤー1はほぼ透過だが、
-  右Alt位置(71番目)だけ `MO(1)` に差し替えてレイヤー切替キーとして使い、数字キー列を
-  F1〜F10に、QキーをEscに一時的に変える小さなデモを仕込んである（レイヤー切替が
-  実際に効くことを目視確認するため）。
-- **test-keymap-jis.json**: 上記104キーの並びに、JIS配列固有の6キー
-  （半角/全角=`KC_ZKHK`、ろ=`KC_RO`、かな=`KC_KANA`、¥=`KC_JYEN`、変換=`KC_HENK`、
-  無変換=`KC_MHEN`）を105〜110番目として追加したもの。
+  右Alt位置(96番目)だけ `MO(1)` に差し替えてレイヤー切替キーとして使い、数字キー列
+  (18〜27番目)をF1〜F10に、Qキー(39番目)をEscに一時的に変える小さなデモを仕込んである
+  （レイヤー切替が実際に効くことを目視確認するため）。
+- **test-keymap-jis.json**: 標準的な JIS 109キー配列。US 104キーに、JIS配列固有の5キー
+  （¥=`KC_JYEN`、ろ=`KC_RO`、無変換=`KC_MHEN`、変換=`KC_HENK`、かな=`KC_KANA`）を
+  加えたもの。レイヤー1のデモはUS版と同じ内容（右Alt=101番目が`MO(1)`、数字キー列=18〜27番目、
+  Q=40番目）。
 
-  **「109キー」の数え方についての注記**: 一般に言う「日本語109キーボード」は、US 104キーに
-  対して物理キー5個の追加（一部のJIS専用キーがUS配列のキーと同じ物理位置を共有するため）
-  という数え方が広く使われている。このテストキーマップは、どのキーがどの物理位置と共有される
-  かを機種ごとに正確に特定するのが難しいため、安全側に倒して6キー全てを独立したスロット
-  として並べており、結果として110スロットになっている。お使いの実機のキー数が109個しかなく
-  1つのキーで2つの役割を兼ねている場合は、キャリブレーション時にその物理キーを2回（重複する
-  スロットの分だけ）押せばよい（同じスキャンコードが2つのスロットに記録されるだけで、動作上は
-  問題ない）。
+  **`KC_ZKHK`が無い理由**: JIS配列の「半角/全角」キー（17番目）は、機種によらず常に
+  US配列でグレイブ（`` ` ``）がある位置のキーそのものであり、`KC_ZKHK`は本ツールでは
+  `KC_GRAVE`と全く同じスキャンコード`0x29`に解決される（`KeycodeTable.cpp`）。両方を並べると
+  キャリブレーションで同じ物理キーを2回押す必要が生じるだけなので、`KC_GRAVE`の1スロットに
+  まとめてあり、スロット数は実機の物理キー数と同じ109になっている。
+
+  **JIS刻印とキーコード名の対応**: キーコード名はUS配列を基準にしているため、JIS配列では
+  刻印とキーコード名が一致しないキーがある（同じ物理位置・同じスキャンコードのキー）。
+  `^`=`KC_EQUAL`、`@`=`KC_LBRACKET`、`[`=`KC_RBRACKET`、`:`=`KC_QUOTE`、
+  `]`（む）=`KC_BSLASH`。レイヤー0では素通しなので、入力される文字は刻印どおり
+  （Windows側のJIS配列設定で解釈される）になる。
 
 ### キャリブレーション時に押すキーの順番
 
-`--calibrate-simple <UniqIdHex> 104 profile.json`（JIS版は`110`）を実行すると、
-以下の順で1つずつ押すよう案内される。この順番は上記2つのJSONファイルの配列順と完全に
-一致させてあるので、案内された順に押していけばよい（キーボードの物理配置を見ながら
-追う必要はない）。
+`--calibrate-simple <UniqIdHex> 104 profile.json`（JIS版は`109`）を実行すると、
+番号付きで1つずつ押すよう案内される。この順番は上記2つのJSONファイルの配列順と完全に
+一致させてあるので、以下の表の順に押していけばよい（キーボードを上の段から、左から右へ
+なぞる順になっている）。
 
-1. Esc
-2. F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12
-3. `（半角/全角・グレイブ）, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0
-4. -, =, Backspace
-5. Tab
-6. Q, W, E, R, T, Y, U, I, O, P
-7. [, ], \
-8. CapsLock
-9. A, S, D, F, G, H, J, K, L
-10. ;, ', Enter
-11. 左Shift
-12. Z, X, C, V, B, N, M
-13. , , . , /, 右Shift
-14. 左Ctrl, 左Win, 左Alt, Space, 右Alt（＝MO(1)）, 右Win, Menu/App, 右Ctrl
-15. PrintScreen, ScrollLock, Pause
-16. Insert, Home, PageUp
-17. Delete, End, PageDown
-18. ↑, ←, ↓, →
-19. NumLock, テンキー/, テンキー*, テンキー-
-20. テンキー7, テンキー8, テンキー9, テンキー+
-21. テンキー4, テンキー5, テンキー6
-22. テンキー1, テンキー2, テンキー3, テンキーEnter
-23. テンキー0, テンキー.
-24.（JIS版のみ）半角/全角, ろ, かな, ¥, 変換, 無変換
+**US版（104キー）**
+
+| 番号 | キー |
+|---|---|
+| 1〜16 | Esc, F1〜F12, PrintScreen, ScrollLock, Pause |
+| 17〜30 | `` ` ``, 1〜0, -, =, Backspace |
+| 31〜33 | Insert, Home, PageUp |
+| 34〜37 | NumLock, テンキー/, テンキー*, テンキー- |
+| 38〜51 | Tab, Q〜P, [, ], \ |
+| 52〜54 | Delete, End, PageDown |
+| 55〜58 | テンキー7, テンキー8, テンキー9, テンキー+ |
+| 59〜71 | CapsLock, A〜L, ;, ', Enter |
+| 72〜74 | テンキー4, テンキー5, テンキー6 |
+| 75〜86 | 左Shift, Z〜M, `,`, `.`, /, 右Shift |
+| 87 | ↑ |
+| 88〜91 | テンキー1, テンキー2, テンキー3, テンキーEnter |
+| 92〜99 | 左Ctrl, 左Win, 左Alt, Space, 右Alt（＝MO(1)）, 右Win, Menu/App, 右Ctrl |
+| 100〜102 | ←, ↓, → |
+| 103〜104 | テンキー0, テンキー. |
+
+**JIS版（109キー）**
+
+| 番号 | キー |
+|---|---|
+| 1〜16 | Esc, F1〜F12, PrintScreen, ScrollLock, Pause |
+| 17〜31 | 半角/全角, 1〜0, -, ^, ¥, BackSpace |
+| 32〜34 | Insert, Home, PageUp |
+| 35〜38 | NumLock, テンキー/, テンキー*, テンキー- |
+| 39〜52 | Tab, Q〜P, @, [, Enter |
+| 53〜55 | Delete, End, PageDown |
+| 56〜59 | テンキー7, テンキー8, テンキー9, テンキー+ |
+| 60〜72 | CapsLock, A〜L, ;, :, ]（む） |
+| 73〜75 | テンキー4, テンキー5, テンキー6 |
+| 76〜88 | 左Shift, Z〜M, `,`, `.`, /, \（ろ）, 右Shift |
+| 89 | ↑ |
+| 90〜93 | テンキー1, テンキー2, テンキー3, テンキーEnter |
+| 94〜104 | 左Ctrl, 左Win, 左Alt, 無変換, Space, 変換, カタカナ/ひらがな, 右Alt（＝MO(1)）, 右Win, Menu/App, 右Ctrl |
+| 105〜107 | ←, ↓, → |
+| 108〜109 | テンキー0, テンキー. |
 
 ### 使い方
 
@@ -341,7 +371,7 @@ KeymapTool.exe --apply-simple <UniqIdHex> test-keymap-us104.json profile-us104.j
 KeymapTool.exe --on <UniqIdHex>
 ```
 
-JIS版はキー数を`110`にして`test-keymap-jis.json`を使う。
+JIS版はキー数を`109`にして`test-keymap-jis.json`を使う。
 
 ### 期待される挙動
 
@@ -349,6 +379,44 @@ JIS版はキー数を`110`にして`test-keymap-jis.json`を使う。
 - 右Altを押しっぱなしで数字キー(1〜0)を押す → F1〜F10が入力される。
 - 右Altを押しっぱなしでQを押す → Escとして動作する。
 - それ以外のキーは右Altを押していても変化しない（透過）。
+
+## test-keymap-10key.json / tutorial-10key-numbers.json — テンキー単体（17キー）用
+
+テンキー単体のキーボード用。キーの並び順はKLEのテンキーのプリセット
+（`temp/keyboard-layout-10key.json`、GUIの`Layouts/kle-10key.json`と同じ）で、上の段から左→右の順。
+
+- **test-keymap-10key.json**: レイヤー0は全キーそのまま（ただし1番目のNumLockは`MO(1)`）。
+  NumLockを押しっぱなしで数字キー1〜9・0を押すと、F1〜F9・F10になるデモ（US/JIS版と同じ趣旨）。
+- **tutorial-10key-numbers.json**: NumLockの状態に関係なく、数字キーと`.`が常に数字・ピリオドを
+  入力するようにしたもの（テンキーの数字を最上段の数字`KC_1`〜`KC_0`に割り当てる。最上段の数字は
+  NumLock OFFでもHome/End/矢印等に化けない）。1レイヤー。[docs/TUTORIAL-CLI.md](../../../docs/TUTORIAL-CLI.md)で使用。
+
+### キャリブレーション時に押すキーの順番
+
+`--calibrate-simple <UniqIdHex> 17 profile.json --suppress`
+
+| 番号 | キー |
+|---|---|
+| 1〜4 | NumLock, /, *, - |
+| 5〜8 | 7, 8, 9, + |
+| 9〜11 | 4, 5, 6 |
+| 12〜15 | 1, 2, 3, Enter |
+| 16〜17 | 0, . |
+
+### 使い方
+
+```
+KeymapTool.exe --calibrate-simple <UniqIdHex> 17 profile-10key.json --suppress
+KeymapTool.exe --apply-simple <UniqIdHex> test-keymap-10key.json profile-10key.json
+KeymapTool.exe --on <UniqIdHex>
+```
+
+### 期待される挙動
+
+- レイヤー0: NumLock以外の全キーがそのまま動く（NumLockキーはレイヤー切替キーになるので、NumLockの
+  ON/OFFは切り替わらない）。
+- NumLockを押しっぱなしで7を押す → F7。0を押す → F10。
+- それ以外のキーはNumLockを押していても変化しない（透過）。
 
 ## test-keymap-simple.json — Phase 1 動作確認用
 
