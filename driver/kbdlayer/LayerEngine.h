@@ -35,13 +35,31 @@
 // MO/TG/DF/OSLのように出力すべきでないエントリを詰めた新しいEndポインタを返す。
 // OFF・未設定時は何もせずInputDataEndをそのまま返す。
 // このタイミングでActiveLayerMask/DefaultLayer/OneShotLayerPendingも更新される。
-// また、devExt->CaptureActive==TRUEの間は最初に見つかった押下イベントの
-// スキャンコードをdevExt->CapturedScanCodeへ記録し、devExt->CaptureEventをセットする
-// （キャリブレーションウィザード用。レイヤーマップの適用有無とは独立に動作する）。
+// （キャリブレーション用のキャプチャ記録はResolveCalibrationが担当する。）
 // IRQL: <= DISPATCH_LEVEL。非ページメモリのみ使用、ブロッキング無し。
 _IRQL_requires_max_(DISPATCH_LEVEL)
 PKEYBOARD_INPUT_DATA
 ResolveLayerAction(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd
+    );
+
+// キャリブレーション（CAPTURE_NEXT_KEY / SET_CAPTURE_SUPPRESS）の処理。
+// Driver.cのServiceCallbackで、ResolveCombo等のどのResolve*よりも先に呼ぶこと
+// （レイヤーマップON中にMT/コンボ等がイベントを横取りしても、キャプチャ記録を
+// 取りこぼさないため）。
+// - devExt->CaptureActive==TRUEなら最初の押下イベントのスキャンコードを記録して
+//   CaptureEventをセットする。E1シーケンス（Pause）の2イベント目と、E0付きの
+//   疑似Shift（E0 2A / E0 36）は記録対象から外す。
+// - devExt->SuppressActive==TRUEなら押下イベントを捨て、それと対になる解放も捨てる
+//   （抑止開始前から押されていたキーの解放は通す）。アイドルタイムアウトの判定もここで行う。
+// 戻り値は捨てた分を詰めた新しいEnd（何も捨てなければInputDataEndのまま。
+// 全件捨てた場合はInputDataStart）。
+// IRQL: <= DISPATCH_LEVEL。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+PKEYBOARD_INPUT_DATA
+ResolveCalibration(
     _In_ PDEVICE_EXTENSION devExt,
     _In_ PKEYBOARD_INPUT_DATA InputDataStart,
     _In_ PKEYBOARD_INPUT_DATA InputDataEnd
@@ -353,6 +371,34 @@ _IRQL_requires_max_(PASSIVE_LEVEL)
 USHORT
 ConsumeCapturedScanCode(
     _In_ PDEVICE_EXTENSION devExt
+    );
+
+// SET_CAPTURE_SUPPRESS: 入力抑止の有効化/解除。OwnerはIOCTLを発行したハンドルの
+// FILE_OBJECT（IRP_MJ_CLEANUP時にReleaseCaptureSuppressForOwnerで一括解除するための鍵）。
+// 別のOwnerが抑止中のデバイスに対する有効化はSTATUS_DEVICE_BUSY、解除は
+// STATUS_ACCESS_DENIED。既に解除済みのデバイスに対する解除は冪等に成功する。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetCaptureSuppressForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ BOOLEAN Enable,
+    _In_ PVOID Owner
+    );
+
+// コントロールデバイスのハンドルがクローズされた（IRP_MJ_CLEANUP）ときに呼ぶ。
+// そのハンドルが有効化した全デバイスの入力抑止を解除する。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+ReleaseCaptureSuppressForOwner(
+    _In_ PVOID Owner
+    );
+
+// GET_CONFIG: TapTermMs/ComboTermMs/TapDanceTermMsの現在の実効値を返す。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+GetConfigForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _Out_ PKBDLAYER_GET_CONFIG_OUTPUT Out
     );
 
 #endif // _KBDLAYER_LAYERENGINE_H_

@@ -122,6 +122,20 @@ typedef struct _DEVICE_EXTENSION {
     BOOLEAN CaptureActive;   // TRUE の間、ServiceCallbackは次の押下イベントのスキャンコードを記録する
     USHORT CapturedScanCode; // 記録されたスキャンコード（Enc16形式）
     KEVENT CaptureEvent;     // 記録完了をIOCTLハンドラへ通知する
+    // TRUE = 直前の押下がE1プレフィックス付き（Pauseの{1D,E1}）だったので、次の押下
+    // （同じシーケンスの2イベント目{45}）はキャプチャ対象から外す。CaptureActiveの
+    // 状態に関わらず次の押下1件で必ず消費する（2イベント目が別バッチ・別のキャプチャ
+    // 待機中に届いても、NumLockや次のスロットとして誤記録しないため）。
+    BOOLEAN CaptureSkipAfterE1;
+
+    // --- キャリブレーション用の入力抑止（IOCTL_KBDLAYER_SET_CAPTURE_SUPPRESS）---
+    // ResolveCalibration（LayerEngine.c）がEngineLock保持中に参照・更新する。
+    BOOLEAN SuppressActive;         // TRUE = 押下イベントをOSへ渡さずに捨てる
+    PVOID SuppressOwner;            // 有効化したハンドルのFILE_OBJECT（比較専用。参照は保持しない）
+    ULONGLONG SuppressLastActivity; // KeQueryInterruptTime()値。アイドルタイムアウト判定用
+    // 抑止中に押下を捨てたキーのビットマップ（解放も対で捨てるため）。
+    // インデックス = MakeCode(下位8bit) + プレフィックス無し:0 / E0:0x100 / E1:0x200。
+    UCHAR SuppressedDown[96];
 } DEVICE_EXTENSION, *PDEVICE_EXTENSION;
 
 #define KBDLAYER_POOL_TAG 'diLk'

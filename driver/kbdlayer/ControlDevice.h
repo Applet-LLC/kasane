@@ -31,6 +31,7 @@ TeardownControlDevice(
 
 _Dispatch_type_(IRP_MJ_CREATE)
 _Dispatch_type_(IRP_MJ_CLOSE)
+_Dispatch_type_(IRP_MJ_CLEANUP)
 DRIVER_DISPATCH DispatchControlCreateClose;
 
 _Dispatch_type_(IRP_MJ_DEVICE_CONTROL)

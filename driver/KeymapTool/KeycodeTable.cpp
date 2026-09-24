@@ -20,6 +20,13 @@ constexpr USHORT SCE0(UCHAR makeCode) { return SC(0xE0, makeCode); }
 // 同様の簡略化（E0,2A/E1,1D等の代表バイトのみを使う）が一般的に行われており、
 // 本ツールもそれに倣う。実運用上ほぼ使われないキーであるため、正確なmake/break
 // シーケンスの再現はスコープ外とする。
+// Pauseは実機では{1D,E1}→{45,フラグ無し}の2イベントで届き、キャリブレーション
+// (CAPTURE_NEXT_KEY)は先頭の{1D,E1}を記録するため、KC_PAUSEはE1 1Dとする
+// （E1 45にするとキャプチャ値と食い違い、レイヤー0の素通しでも出力が化ける）。
+// 後続の{45}はNumLockと同じ0x0045として別途解決される点に注意（キャプチャ側では
+// ドライバのResolveCalibrationがE1直後の1件を記録対象から外すので誤記録されない）。
+// PrintScreenの前置きの疑似Shift（E0 2A）も同様にキャプチャ対象外なので、
+// キャリブレーション結果はKC_PSCREENと同じE0 37になる。
 const std::unordered_map<std::string, USHORT>& BaseKeyTable() {
     static const std::unordered_map<std::string, USHORT> table = {
         // 英字
@@ -86,7 +93,7 @@ const std::unordered_map<std::string, USHORT>& BaseKeyTable() {
         // ナビゲーションクラスタ
         {"KC_PSCREEN", SCE0(0x37)}, {"KC_PSCR", SCE0(0x37)},
         {"KC_SCROLLLOCK", SC1(0x46)}, {"KC_SCRL", SC1(0x46)},
-        {"KC_PAUSE", SC(0xE1, 0x45)}, {"KC_PAUS", SC(0xE1, 0x45)}, {"KC_BRK", SC(0xE1, 0x45)},
+        {"KC_PAUSE", SC(0xE1, 0x1D)}, {"KC_PAUS", SC(0xE1, 0x1D)}, {"KC_BRK", SC(0xE1, 0x1D)},
         {"KC_INSERT", SCE0(0x52)}, {"KC_INS", SCE0(0x52)},
         {"KC_HOME", SCE0(0x47)},
         {"KC_PGUP", SCE0(0x49)},

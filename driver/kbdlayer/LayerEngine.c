@@ -408,18 +408,8 @@ ResolveLayerAction(
 
     KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
 
-    // キャリブレーションウィザード: レイヤーマップの適用有無に関わらず、
-    // CaptureActive中は最初に見つかった押下イベントのスキャンコードを記録する。
-    if (devExt->CaptureActive) {
-        for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
-            if (!(p->Flags & KEY_BREAK)) {
-                devExt->CapturedScanCode = EncodeScancode16(p->MakeCode, p->Flags);
-                devExt->CaptureActive = FALSE;
-                KeSetEvent(&devExt->CaptureEvent, IO_NO_INCREMENT, FALSE);
-                break;
-            }
-        }
-    }
+    // キャリブレーションウィザードのキャプチャ記録は、Combo/TapHold等より前に
+    // 動く必要があるためResolveCalibration（ServiceCallbackの先頭）へ移した。
 
     if (!devExt->LayerMapEnabled || devExt->LayerMap == NULL) {
         KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
@@ -2315,11 +2305,210 @@ BeginCaptureNextKey(
         devExt->CaptureActive = TRUE;
         devExt->CapturedScanCode = 0;
         KeClearEvent(&devExt->CaptureEvent);
+        // 入力抑止のアイドルタイムアウトを延長する（キャプチャ待機そのものが
+        // 「キャリブレーション継続中」のアクティビティ）。
+        devExt->SuppressLastActivity = KeQueryInterruptTime();
         status = STATUS_SUCCESS;
     }
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
     return status;
+}
+
+// ---------------------------------------------------------------------------
+// キャリブレーション: キャプチャ記録と入力抑止（ServiceCallbackの先頭）
+// ---------------------------------------------------------------------------
+
+// KeQueryInterruptTime()は100ns単位。
+#define KBDLAYER_SUPPRESS_IDLE_TIMEOUT_100NS \
+    ((ULONGLONG)KBDLAYER_CAPTURE_SUPPRESS_IDLE_TIMEOUT_MS * 10000ULL)
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static ULONG
+SuppressBitIndex(
+    _In_ PKEYBOARD_INPUT_DATA Entry
+    )
+{
+    ULONG index = Entry->MakeCode & 0xFF;
+    if (Entry->Flags & KEY_E1) {
+        index |= 0x200;
+    } else if (Entry->Flags & KEY_E0) {
+        index |= 0x100;
+    }
+    return index;
+}
+
+// PrintScreen等の前置きとして届く疑似Shift（E0 2A / E0 36）。本物の左右Shiftは
+// E0無しの0x2A/0x36なので、E0付きだけを除外すれば実キーとは衝突しない。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static BOOLEAN
+IsFakeShift(
+    _In_ PKEYBOARD_INPUT_DATA Entry
+    )
+{
+    return (Entry->Flags & KEY_E0) &&
+           ((Entry->MakeCode & 0xFF) == 0x2A || (Entry->MakeCode & 0xFF) == 0x36);
+}
+
+// devExt->EngineLock保持中にCompactInputDataArrayから1エントリずつ呼ばれる。
+// キャプチャ記録を行い、抑止中なら捨てるべきエントリにTRUEを返す。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static BOOLEAN
+CalibrationShouldDropEntry(
+    _In_ PDEVICE_EXTENSION devExt,
+    _Inout_ PKEYBOARD_INPUT_DATA Entry,
+    _In_opt_ PVOID Context
+    )
+{
+    BOOLEAN isBreak = (Entry->Flags & KEY_BREAK) != 0;
+
+    UNREFERENCED_PARAMETER(Context);
+
+    if (!isBreak) {
+        // E1シーケンスの2イベント目は、キャプチャ待機の有無に関わらずここで消費する。
+        BOOLEAN skip = devExt->CaptureSkipAfterE1;
+        devExt->CaptureSkipAfterE1 = FALSE;
+
+        if (devExt->CaptureActive && !skip && !IsFakeShift(Entry)) {
+            devExt->CapturedScanCode = EncodeScancode16(Entry->MakeCode, Entry->Flags);
+            devExt->CaptureActive = FALSE;
+            KeSetEvent(&devExt->CaptureEvent, IO_NO_INCREMENT, FALSE);
+        }
+        if (Entry->Flags & KEY_E1) {
+            devExt->CaptureSkipAfterE1 = TRUE;
+        }
+    }
+
+    if (devExt->SuppressActive) {
+        ULONG index = SuppressBitIndex(Entry);
+        UCHAR mask = (UCHAR)(1u << (index & 7));
+        if (!isBreak) {
+            devExt->SuppressedDown[index >> 3] |= mask;
+            return TRUE;
+        }
+        if (devExt->SuppressedDown[index >> 3] & mask) {
+            devExt->SuppressedDown[index >> 3] &= (UCHAR)~mask;
+            return TRUE;
+        }
+        // 抑止開始前から押されていたキーの解放（例: コマンド実行時のEnter）は通す。
+        // 通さないとOS側でそのキーが押しっぱなし扱いになる。
+    }
+    return FALSE;
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+PKEYBOARD_INPUT_DATA
+ResolveCalibration(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd
+    )
+{
+    KIRQL oldIrql;
+    PKEYBOARD_INPUT_DATA newEnd;
+
+    // 通常時（キャリブレーションしていない間）のホットパスを軽く保つため、
+    // ロック無しで先に判定する。BOOLEANの読み取りなので、境界でのレースは
+    // 高々1イベント分の記録・抑止のずれにしかならない。
+    if (!devExt->CaptureActive && !devExt->SuppressActive && !devExt->CaptureSkipAfterE1) {
+        return InputDataEnd;
+    }
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+
+    // アイドルタイムアウト: キャプチャ待機中でもなく、一定時間アクティビティが
+    // 無ければ抑止を解除する（ツールがハングした場合でもキーボードを取り戻せるように）。
+    if (devExt->SuppressActive && !devExt->CaptureActive &&
+        KeQueryInterruptTime() - devExt->SuppressLastActivity > KBDLAYER_SUPPRESS_IDLE_TIMEOUT_100NS) {
+        devExt->SuppressActive = FALSE;
+        devExt->SuppressOwner = NULL;
+        RtlZeroMemory(devExt->SuppressedDown, sizeof(devExt->SuppressedDown));
+        KBDLAYER_TRACE("ResolveCalibration: suppress idle timeout, released DeviceId=0x%08X\n", devExt->DeviceId);
+    }
+
+    newEnd = CompactInputDataArray(devExt, InputDataStart, InputDataEnd, CalibrationShouldDropEntry, NULL);
+
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+    return newEnd;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetCaptureSuppressForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ BOOLEAN Enable,
+    _In_ PVOID Owner
+    )
+{
+    KIRQL oldIrql;
+    NTSTATUS status = STATUS_SUCCESS;
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    if (Enable) {
+        if (devExt->SuppressActive && devExt->SuppressOwner != Owner) {
+            status = STATUS_DEVICE_BUSY;
+        } else {
+            if (!devExt->SuppressActive) {
+                RtlZeroMemory(devExt->SuppressedDown, sizeof(devExt->SuppressedDown));
+            }
+            devExt->SuppressActive = TRUE;
+            devExt->SuppressOwner = Owner;
+            devExt->SuppressLastActivity = KeQueryInterruptTime();
+        }
+    } else {
+        // 既に解除済み（タイムアウト等）なら冪等に成功。他のハンドルの抑止は解除させない。
+        if (devExt->SuppressActive && devExt->SuppressOwner != Owner) {
+            status = STATUS_ACCESS_DENIED;
+        } else {
+            devExt->SuppressActive = FALSE;
+            devExt->SuppressOwner = NULL;
+            RtlZeroMemory(devExt->SuppressedDown, sizeof(devExt->SuppressedDown));
+        }
+    }
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    return status;
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+ReleaseCaptureSuppressForOwner(
+    _In_ PVOID Owner
+    )
+{
+    KIRQL oldIrql;
+    PLIST_ENTRY entry;
+
+    // ロック順序: g_listLock -> EngineLock（逆順で取る箇所は無い）。
+    KeAcquireSpinLock(&g_listLock, &oldIrql);
+    for (entry = g_deviceList.Flink; entry != &g_deviceList; entry = entry->Flink) {
+        PDEVICE_EXTENSION devExt = CONTAINING_RECORD(entry, DEVICE_EXTENSION, ListEntry);
+        KeAcquireSpinLockAtDpcLevel(&devExt->EngineLock);
+        if (devExt->SuppressActive && devExt->SuppressOwner == Owner) {
+            devExt->SuppressActive = FALSE;
+            devExt->SuppressOwner = NULL;
+            RtlZeroMemory(devExt->SuppressedDown, sizeof(devExt->SuppressedDown));
+            KBDLAYER_TRACE("ReleaseCaptureSuppressForOwner: released DeviceId=0x%08X\n", devExt->DeviceId);
+        }
+        KeReleaseSpinLockFromDpcLevel(&devExt->EngineLock);
+    }
+    KeReleaseSpinLock(&g_listLock, oldIrql);
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+GetConfigForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _Out_ PKBDLAYER_GET_CONFIG_OUTPUT Out
+    )
+{
+    KIRQL oldIrql;
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    Out->TapTermMs = devExt->TapTermMs;
+    Out->ComboTermMs = devExt->ComboTermMs;
+    Out->TapDanceTermMs = devExt->TapDanceTermMs;
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)

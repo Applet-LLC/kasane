@@ -47,6 +47,13 @@ public:
     // TapDanceTermMs（タップダンス判定閾値、いずれもミリ秒）を設定する。0を渡すとその項目だけ
     // ドライバ側既定値にリセットする (TapTermMs=200ms, ComboTermMs=50ms, TapDanceTermMs=200ms)。
     bool SetConfig(ULONG uniqId, ULONG tapTermMs, ULONG comboTermMs, ULONG tapDanceTermMs);
+    // 上記3項目の現在の実効値を取得する。
+    bool GetConfig(ULONG uniqId, KBDLAYER_GET_CONFIG_OUTPUT* out);
+
+    // キャリブレーション用の入力抑止（オフモード）。有効中は対象デバイスのキー入力が
+    // Windowsへ届かない。このハンドル（IoctlClient）をCloseすると（プロセス終了・
+    // クラッシュ時を含む）ドライバ側で自動的に解除される。
+    bool SetCaptureSuppress(ULONG uniqId, bool enable);
 
     // Phase 3: マクロ。stepsが空ならそのmacroIdをクリアする。
     bool SetMacro(ULONG uniqId, ULONG macroId, const std::vector<KBDLAYER_MACRO_STEP>& steps);

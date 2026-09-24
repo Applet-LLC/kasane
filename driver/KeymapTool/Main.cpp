@@ -54,6 +54,36 @@ void PrintLayerMapBlob(const unsigned char* blob, size_t blobLength) {
     }
 }
 
+// --suppress指定時、キャプチャ待機の既定タイムアウト（10秒）がこの回数だけ連続したら
+// キャリブレーションを中断する（約60秒。ドライバ側のアイドルタイムアウトと同じ長さ）。
+const int kSuppressMaxConsecutiveTimeouts = 6;
+
+// --suppress（オフモード）: スコープの間だけ対象キーボードの入力をWindowsへ渡さない。
+// デストラクタで解除する。プロセスが異常終了した場合も、コントロールデバイスの
+// ハンドルが閉じられた時点でドライバ側が自動的に解除する（IRP_MJ_CLEANUP）。
+class CaptureSuppressGuard {
+public:
+    CaptureSuppressGuard(IoctlClient* client, ULONG uniqId, bool enable)
+        : client_(client), uniqId_(uniqId), requested_(enable) {}
+    ~CaptureSuppressGuard() {
+        if (active_) client_->SetCaptureSuppress(uniqId_, false);
+    }
+    bool Begin() {
+        if (!requested_) return true;
+        if (!client_->SetCaptureSuppress(uniqId_, true)) return false;
+        active_ = true;
+        printf("--suppress: key presses on this keyboard are NOT sent to Windows until this command ends.\n"
+               "            To abort, close this console window with the mouse, or stop pressing keys\n"
+               "            for about 60 seconds.\n");
+        return true;
+    }
+private:
+    IoctlClient* client_;
+    ULONG uniqId_;
+    bool requested_;
+    bool active_ = false;
+};
+
 int CmdList(IoctlClient* client) {
     std::vector<DeviceListEntry> devices;
     if (!client->ListDevices(&devices)) return 1;
@@ -87,7 +117,10 @@ int CmdSetEnabled(IoctlClient* client, ULONG uniqId, bool enabled) {
     return 0;
 }
 
-int CmdCapture(IoctlClient* client, ULONG uniqId, ULONG timeoutMs) {
+int CmdCapture(IoctlClient* client, ULONG uniqId, ULONG timeoutMs, bool suppress) {
+    CaptureSuppressGuard guard(client, uniqId, suppress);
+    if (!guard.Begin()) return 1;
+
     USHORT scanCode = 0;
     bool timedOut = false;
     if (!client->CaptureNextKey(uniqId, timeoutMs, &scanCode, &timedOut)) return 1;
@@ -108,6 +141,14 @@ int CmdSetConfig(IoctlClient* client, ULONG uniqId, ULONG tapTermMs, ULONG combo
            comboTermMs == 0 ? " (default)" : "",
            tapDanceTermMs != 0 ? tapDanceTermMs : 200UL,
            tapDanceTermMs == 0 ? " (default)" : "");
+    return 0;
+}
+
+int CmdGetConfig(IoctlClient* client, ULONG uniqId) {
+    KBDLAYER_GET_CONFIG_OUTPUT config;
+    if (!client->GetConfig(uniqId, &config)) return 1;
+    printf("UniqId=%08X TapTermMs=%lu ComboTermMs=%lu TapDanceTermMs=%lu\n",
+           uniqId, config.TapTermMs, config.ComboTermMs, config.TapDanceTermMs);
     return 0;
 }
 
@@ -294,7 +335,7 @@ int CmdGetTapDance(IoctlClient* client, ULONG uniqId, ULONG tapDanceId) {
 
 // info.jsonを使うキャリブレーション: --calibrate <UniqIdHex> <info.json> <out-profile.json> [layoutName]
 int CmdCalibrate(IoctlClient* client, ULONG uniqId, const std::string& infoJsonPath,
-                  const std::string& outProfilePath, const std::string& layoutName) {
+                  const std::string& outProfilePath, const std::string& layoutName, bool suppress) {
     std::vector<LayoutKeyPosition> positions;
     int rows = 0, cols = 0;
     std::string error;
@@ -304,8 +345,13 @@ int CmdCalibrate(IoctlClient* client, ULONG uniqId, const std::string& infoJsonP
     }
 
     CalibrationProfile profile;
-    if (!RunCalibrationWizard(client, uniqId, positions, &profile)) {
-        return 1;
+    {
+        CaptureSuppressGuard guard(client, uniqId, suppress);
+        if (!guard.Begin()) return 1;
+        if (!RunCalibrationWizard(client, uniqId, positions, &profile,
+                                  suppress ? kSuppressMaxConsecutiveTimeouts : 0)) {
+            return 1;
+        }
     }
 
     if (!profile.Save(outProfilePath, &error)) {
@@ -319,7 +365,8 @@ int CmdCalibrate(IoctlClient* client, ULONG uniqId, const std::string& infoJsonP
 // info.json無しの簡易モード: 物理キーをkeyCount個、列挙順にそのまま案内する。
 // row/colは使わず、単純にインデックス i を row=0, col=i として保存する
 // （Find(row,col)による後段の突き合わせロジックをそのまま再利用するための表現）。
-int CmdCalibrateSimple(IoctlClient* client, ULONG uniqId, int keyCount, const std::string& outProfilePath) {
+int CmdCalibrateSimple(IoctlClient* client, ULONG uniqId, int keyCount, const std::string& outProfilePath,
+                       bool suppress) {
     std::vector<LayoutKeyPosition> positions(keyCount);
     for (int i = 0; i < keyCount; i++) {
         positions[i].Row = 0;
@@ -327,8 +374,13 @@ int CmdCalibrateSimple(IoctlClient* client, ULONG uniqId, int keyCount, const st
     }
 
     CalibrationProfile profile;
-    if (!RunCalibrationWizard(client, uniqId, positions, &profile)) {
-        return 1;
+    {
+        CaptureSuppressGuard guard(client, uniqId, suppress);
+        if (!guard.Begin()) return 1;
+        if (!RunCalibrationWizard(client, uniqId, positions, &profile,
+                                  suppress ? kSuppressMaxConsecutiveTimeouts : 0)) {
+            return 1;
+        }
     }
 
     std::string error;
@@ -450,14 +502,17 @@ void PrintUsage() {
         "      Remove the layer map (must be OFF first).\n"
         "  KeymapTool.exe --on <UniqIdHex> / --off <UniqIdHex>\n"
         "      Enable/disable the layer map (map contents are kept when OFF).\n"
-        "  KeymapTool.exe --capture <UniqIdHex> [timeoutMs]\n"
+        "  KeymapTool.exe --capture <UniqIdHex> [timeoutMs] [--suppress]\n"
         "      One-shot test of IOCTL_KBDLAYER_CAPTURE_NEXT_KEY.\n"
-        "  KeymapTool.exe --calibrate <UniqIdHex> <info.json> <out-profile.json> [layoutName]\n"
+        "  KeymapTool.exe --calibrate <UniqIdHex> <info.json> <out-profile.json> [layoutName] [--suppress]\n"
         "      Walk every key in info.json's layout, prompting you to press it,\n"
         "      and save the physical scancode mapping to out-profile.json.\n"
-        "  KeymapTool.exe --calibrate-simple <UniqIdHex> <keyCount> <out-profile.json>\n"
+        "  KeymapTool.exe --calibrate-simple <UniqIdHex> <keyCount> <out-profile.json> [--suppress]\n"
         "      Same, but without an info.json: just walks keyCount keys in enumeration order\n"
         "      (for boards with no published info.json).\n"
+        "      --suppress: while calibrating/capturing, key presses on that keyboard are not\n"
+        "      sent to Windows (so Enter, Win, etc. do nothing). Released automatically when\n"
+        "      the command ends, the console is closed, or no key is pressed for ~60 seconds.\n"
         "  KeymapTool.exe --apply <UniqIdHex> <info.json> <keymap.json> <profile.json> [layoutName]\n"
         "      Build a layer map from a VIA-exported keymap.json + info.json + a calibration\n"
         "      profile, and SET it on the device (still requires --on to activate).\n"
@@ -469,6 +524,8 @@ void PrintUsage() {
         "      and the tap-dance threshold, in milliseconds (0 resets any one of them to\n"
         "      its driver default: TapTermMs=200ms, ComboTermMs=50ms, TapDanceTermMs=200ms;\n"
         "      an omitted trailing argument defaults to 0).\n"
+        "  KeymapTool.exe --get-config <UniqIdHex>\n"
+        "      Show the current TapTermMs / ComboTermMs / TapDanceTermMs values.\n"
         "  KeymapTool.exe --set-macro <UniqIdHex> <MacroId> [KC_xxx KC_yyy ...]\n"
         "      Define macro <MacroId> (0-31) as a sequence of key taps, played back\n"
         "      via MACRO(<MacroId>) in a keymap.json. Omit the keycodes to clear it.\n"
@@ -495,7 +552,22 @@ void PrintUsage() {
 
 } // namespace
 
-int main(int argc, char** argv) {
+int main(int rawArgc, char** rawArgv) {
+    // --suppress はどの位置に書いてもよいオプションとして先に取り除き、
+    // 残りを従来通りの位置引数として解釈する。
+    bool suppress = false;
+    std::vector<char*> args;
+    for (int i = 0; i < rawArgc; i++) {
+        if (i > 0 && strcmp(rawArgv[i], "--suppress") == 0) {
+            suppress = true;
+        } else {
+            args.push_back(rawArgv[i]);
+        }
+    }
+    args.push_back(nullptr);
+    int argc = (int)args.size() - 1;
+    char** argv = args.data();
+
     if (argc <= 1) {
         PrintUsage();
         return 1;
@@ -535,6 +607,12 @@ int main(int argc, char** argv) {
         ULONG comboTermMs = (argc >= 5) ? (ULONG)strtoul(argv[4], nullptr, 10) : 0;
         ULONG tapDanceTermMs = (argc >= 6) ? (ULONG)strtoul(argv[5], nullptr, 10) : 0;
         return CmdSetConfig(&client, uniqId, tapTermMs, comboTermMs, tapDanceTermMs);
+    }
+
+    if (strcmp(cmd, "--get-config") == 0) {
+        ULONG uniqId;
+        if (argc < 3 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
+        return CmdGetConfig(&client, uniqId);
     }
 
     if (strcmp(cmd, "--set-combo") == 0) {
@@ -583,14 +661,14 @@ int main(int argc, char** argv) {
         ULONG uniqId;
         if (argc < 3 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
         ULONG timeoutMs = (argc >= 4) ? (ULONG)strtoul(argv[3], nullptr, 10) : 0;
-        return CmdCapture(&client, uniqId, timeoutMs);
+        return CmdCapture(&client, uniqId, timeoutMs, suppress);
     }
 
     if (strcmp(cmd, "--calibrate") == 0) {
         ULONG uniqId;
         if (argc < 5 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
         std::string layoutName = (argc >= 6) ? argv[5] : std::string();
-        return CmdCalibrate(&client, uniqId, argv[3], argv[4], layoutName);
+        return CmdCalibrate(&client, uniqId, argv[3], argv[4], layoutName, suppress);
     }
 
     if (strcmp(cmd, "--calibrate-simple") == 0) {
@@ -598,7 +676,7 @@ int main(int argc, char** argv) {
         if (argc < 5 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
         int keyCount = atoi(argv[3]);
         if (keyCount <= 0) { PrintUsage(); return 1; }
-        return CmdCalibrateSimple(&client, uniqId, keyCount, argv[4]);
+        return CmdCalibrateSimple(&client, uniqId, keyCount, argv[4], suppress);
     }
 
     if (strcmp(cmd, "--apply") == 0) {
