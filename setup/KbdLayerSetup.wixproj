@@ -24,7 +24,7 @@
     <HarvestDirectoryAutogenerateGuids>true</HarvestDirectoryAutogenerateGuids>
     <HarvestDirectoryGenerateGuidsNow>false</HarvestDirectoryGenerateGuidsNow>
     <DefineSolutionProperties>false</DefineSolutionProperties>
-    <DefineConstants>StagingKbdDriverX64=$(MSBuildProjectDirectory)\staging\drivers\kbdlayer\x64;StagingKbdDriverArm64=$(MSBuildProjectDirectory)\staging\drivers\kbdlayer\arm64;StagingSymbol=$(MSBuildProjectDirectory)\staging\Symbol;StagingLicenseSvc=$(MSBuildProjectDirectory)\staging\app\license-svc;StagingLicenseGui=$(MSBuildProjectDirectory)\staging\app\license-gui;MSBuildProjectDirectory=$(MSBuildProjectDirectory);ProductLanguage=$(ProductLanguage);LicenseRtfFile=$(LicenseRtfFile)</DefineConstants>
+    <DefineConstants>StagingKbdDriverX64=$(MSBuildProjectDirectory)\staging\drivers\kbdlayer\x64;StagingKbdDriverArm64=$(MSBuildProjectDirectory)\staging\drivers\kbdlayer\arm64;StagingSymbol=$(MSBuildProjectDirectory)\staging\Symbol;StagingLicenseSvc=$(MSBuildProjectDirectory)\staging\app\license-svc;StagingLicenseGui=$(MSBuildProjectDirectory)\staging\app\license-gui;StagingKeymapGui=$(MSBuildProjectDirectory)\staging\app\keymap-gui;StagingSamples=$(MSBuildProjectDirectory)\staging\samples;MSBuildProjectDirectory=$(MSBuildProjectDirectory);ProductLanguage=$(ProductLanguage);LicenseRtfFile=$(LicenseRtfFile)</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
@@ -79,6 +79,20 @@
       <ComponentGroupName>CG_Symbol</ComponentGroupName>
       <SuppressRootDirectory>true</SuppressRootDirectory>
       <PreprocessorVariable>var.StagingSymbol</PreprocessorVariable>
+    </HarvestDirectory>
+    <!-- キーマップ編集GUI（exe + Layouts\*.json）。Layoutsサブフォルダごと収穫する。 -->
+    <HarvestDirectory Include="$(MSBuildProjectDirectory)\staging\app\keymap-gui">
+      <DirectoryRefId>KEYMAPGUIDIR</DirectoryRefId>
+      <ComponentGroupName>CG_KeymapGui</ComponentGroupName>
+      <SuppressRootDirectory>true</SuppressRootDirectory>
+      <PreprocessorVariable>var.StagingKeymapGui</PreprocessorVariable>
+    </HarvestDirectory>
+    <!-- KeymapToolのサンプルキーマップ（チュートリアル用を含む） -->
+    <HarvestDirectory Include="$(MSBuildProjectDirectory)\staging\samples">
+      <DirectoryRefId>SAMPLESDIR</DirectoryRefId>
+      <ComponentGroupName>CG_Samples</ComponentGroupName>
+      <SuppressRootDirectory>true</SuppressRootDirectory>
+      <PreprocessorVariable>var.StagingSamples</PreprocessorVariable>
     </HarvestDirectory>
   </ItemGroup>
 

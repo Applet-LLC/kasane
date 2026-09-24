@@ -70,8 +70,12 @@ function Stage-DotNetPublish {
         [Parameter(Mandatory = $true)][string]$DestDir
     )
 
-    # publish 出力ディレクトリ候補
+    # publish 出力ディレクトリ候補。Platform=x64 で publish した場合は bin\x64\Release\...、
+    # 手動で Platform 指定なしに publish した場合は bin\Release\... になるため、x64 側を優先して両方を見る。
     $publishDir = Join-Path $RepoRoot "$ProjectName\bin\x64\Release\net8.0-windows\win-x64\publish"
+    if (-not (Test-Path -LiteralPath $publishDir)) {
+        $publishDir = Join-Path $RepoRoot "$ProjectName\bin\Release\net8.0-windows\win-x64\publish"
+    }
     $fallbackExe = Join-Path $RepoRoot "x64\Release\$ExeFileName"
 
     if (Test-Path -LiteralPath $publishDir) {
@@ -389,6 +393,26 @@ Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kbdlayer-license-svc" `
 Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kbdlayer-license-gui" `
     -ExeFileName "kbdlayer-license-gui.exe" `
     -DestDir (Join-Path $stagingRoot "app/license-gui")
+
+# kbdlayer-keymap-gui: キーマップ編集GUI（.NET 8 WPF）。Stage-DotNetPublish は publish 出力の
+# 直下のファイルしかコピーしないので、KLEレイアウト（Layouts\*.json）はソースから別途コピーする
+# （publish時にもCopyToOutputDirectoryで同じファイルが出力されるが、ソースを正とする）。
+$keymapGuiStaging = Join-Path $stagingRoot "app/keymap-gui"
+Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kbdlayer-keymap-gui" `
+    -ExeFileName "kbdlayer-keymap-gui.exe" `
+    -DestDir $keymapGuiStaging
+New-Item -ItemType Directory -Path (Join-Path $keymapGuiStaging "Layouts") -Force | Out-Null
+Copy-Item -Path (Join-Path $repoRoot "kbdlayer-keymap-gui/Layouts/*.json") -Destination (Join-Path $keymapGuiStaging "Layouts") -Force
+Write-Host "[kbdlayer-keymap-gui] staged layouts: $((Get-ChildItem (Join-Path $keymapGuiStaging 'Layouts')).Name -join ', ')"
+
+# KeymapToolのサンプルキーマップ（docs/TUTORIAL-CLI.md で使う tutorial-*.json、動作確認用 test-keymap-*.json、
+# README.md）。samples/temp/ は作業用の参照資料なので含めない。
+$samplesStaging = Join-Path $stagingRoot "samples"
+New-Item -ItemType Directory -Path $samplesStaging -Force | Out-Null
+Get-ChildItem -LiteralPath (Join-Path $repoRoot "driver/KeymapTool/samples") -File |
+    Where-Object { $_.Extension -in @('.json', '.md') } |
+    ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $samplesStaging -Force }
+Write-Host "[samples] staged: $((Get-ChildItem $samplesStaging).Count) files"
 
 # kbdlayer-license-launcher: ユーザーが最初に実行する WinForms ランチャー（kbdaddid-license-launcher
 # / Install-kbdaddidLicense.exe と同じ方針）。ここで staging/launcher に置いておくことで、

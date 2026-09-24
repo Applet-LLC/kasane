@@ -65,6 +65,7 @@ DRIVER_INITIALIZE DriverEntry;
 DRIVER_ADD_DEVICE AddDevice;
 _Dispatch_type_(IRP_MJ_CREATE)
 _Dispatch_type_(IRP_MJ_CLOSE)
+_Dispatch_type_(IRP_MJ_CLEANUP)
 _Dispatch_type_(IRP_MJ_CREATE_NAMED_PIPE)
 DRIVER_DISPATCH DispatchPass;
 _Dispatch_type_(IRP_MJ_READ) DRIVER_DISPATCH DispatchRead;
@@ -362,8 +363,8 @@ NTSTATUS AddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT PhysicalDev
 NTSTATUS DispatchPass(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
     PDEVICE_EXTENSION devExt;
 
-    // コントロールデバイス（\\.\KbdLayerControl）宛のIRP_MJ_CREATE/CLOSE/
-    // CREATE_NAMED_PIPEはここで捕捉する。コントロールデバイスにはLowerDeviceも
+    // コントロールデバイス（\\.\KbdLayerControl）宛のIRP_MJ_CREATE/CLOSE/CLEANUP/
+    // CREATE_NAMED_PIPEはここで捕捉する（CLEANUPでは入力抑止の自動解除を行う）。コントロールデバイスにはLowerDeviceも
     // DEVICE_EXTENSIONも存在しないため、以降のフィルタFDO用処理に進んではならない。
     if (DeviceObject == g_ControlDeviceObject) {
         return DispatchControlCreateClose(DeviceObject, Irp);
@@ -534,32 +535,48 @@ VOID ServiceCallback(
     // （ただしキャリブレーションウィザードのCAPTURE_NEXT_KEYはDeviceId確定後
     // にしか呼べないため、この経路には影響しない）。
     if (devExt->DeviceId != 0) {
+        // キャリブレーション（キャプチャ記録・入力抑止）。キャプチャを取りこぼさない
+        // よう、どのResolve*よりも先に処理する。抑止中に捨てたイベントはここで配列から
+        // 取り除かれる。詳細はLayerEngine.cのResolveCalibration参照。
+        {
+            PKEYBOARD_INPUT_DATA calEnd = ResolveCalibration(devExt, InputDataStart, InputDataEnd);
+            if (calEnd != InputDataEnd) {
+                compacted = TRUE;
+                InputDataEnd = calEnd;
+                if (InputDataEnd == InputDataStart) {
+                    // 全件を捨てた。kbdclassは呼ばず、元の件数を消費済みとして報告する
+                    // （ResolveMacro等がイベントを飲み込むときと同じ作法）。
+                    goto consumed;
+                }
+            }
+        }
+
         // Phase 4: コンボ（2キー限定v1）。物理キー単位の判定なので、レイヤーや
         // タップ/ホールドの解釈より先に判定する。対象キーならここで完結する。
         // 詳細はLayerEngine.cのResolveCombo参照。
         if (ResolveCombo(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
-            return;
+            goto consumed;
         }
 
         // Phase 2: Mod-Tap/Layer-Tapのタップ/ホールド判定（Hold On Other Key Press方式）。
         // MT/LTキーの保留・確定・タイムアウトに関わるイベントはここで完結し、通常の
         // ResolveLayerAction以降の処理は行わない。詳細はLayerEngine.cのResolveTapHold参照。
         if (ResolveTapHold(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
-            return;
+            goto consumed;
         }
 
         // Phase 5: タップダンス（v1: タップ回数3回まで）。ResolveTapHoldと同じグループ
         // （1つの物理キーの振る舞い）として、ResolveMacroの前に判定する。詳細は
         // LayerEngine.cのResolveTapDance参照。
         if (ResolveTapDance(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
-            return;
+            goto consumed;
         }
 
         // Phase 3: マクロ(MACRO(id))。ResolveTapHoldと同じく、対象キーならここで
         // 完結し通常のResolveLayerAction以降の処理は行わない。詳細はLayerEngine.cの
         // ResolveMacro参照。
         if (ResolveMacro(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
-            return;
+            goto consumed;
         }
 
         PKEYBOARD_INPUT_DATA newEnd = ResolveLayerAction(devExt, InputDataStart, InputDataEnd);
@@ -592,6 +609,9 @@ VOID ServiceCallback(
     // （kbdaddid/RemapTable.cで踏み抜いた落とし穴と同種の対策）。
     // 何も詰めていない場合はkbdclass自身の報告（バックプレッシャー等）をそのまま
     // 活かすため、ここで上書きしない。
+    // Resolve*がバッチを処理済みとして戻った場合も、先にResolveCalibrationが配列を
+    // 詰めていれば、Resolve*が報告した（詰めた後の）件数を元の件数で上書きする。
+consumed:
     if (compacted && SystemArgument3 != NULL) {
         *(PULONG)SystemArgument3 = originalCount;
     }

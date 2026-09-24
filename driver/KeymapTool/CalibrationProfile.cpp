@@ -72,8 +72,11 @@ bool RunCalibrationWizard(
     IoctlClient* client,
     ULONG uniqId,
     const std::vector<LayoutKeyPosition>& positions,
-    CalibrationProfile* outProfile)
+    CalibrationProfile* outProfile,
+    int maxConsecutiveTimeouts)
 {
+    int consecutiveTimeouts = 0;
+
     outProfile->Keys.clear();
     outProfile->Keys.reserve(positions.size());
 
@@ -93,10 +96,16 @@ bool RunCalibrationWizard(
                 return false;
             }
             if (timedOut) {
+                consecutiveTimeouts++;
+                if (maxConsecutiveTimeouts > 0 && consecutiveTimeouts >= maxConsecutiveTimeouts) {
+                    printf("\nNo key pressed for too long; calibration aborted (nothing was saved).\n");
+                    return false;
+                }
                 printf("\n  (no key detected within timeout, retrying) ");
                 fflush(stdout);
                 continue;
             }
+            consecutiveTimeouts = 0;
             printf("captured scancode 0x%04X\n", scanCode);
             CalibratedKey k;
             k.Row = pos.Row;

@@ -1,0 +1,8 @@
+{
+  "notes": "Tutorial keymap (docs/TUTORIAL-CLI.md, 'shortcut' section): swaps just 2 keys, for either US or JIS boards. Calibrate with --calibrate-simple <UniqIdHex> 2, pressing (1) CapsLock (on JIS: the 'Caps Lock / 英数' key), then (2) Left Ctrl. Position 0 (CapsLock / Eisu) = KC_LCTRL, position 1 (Left Ctrl) = KC_CAPSLOCK. Keys that are not in the layer map pass through unchanged, so there is no need to calibrate the whole keyboard for a simple swap.",
+  "layout": [
+    [
+      "KC_LCTRL", "KC_CAPSLOCK"
+    ]
+  ]
+}

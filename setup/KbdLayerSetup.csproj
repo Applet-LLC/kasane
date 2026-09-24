@@ -14,6 +14,7 @@
     <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)\..\kbdlayer-license-svc\kbdlayer-license-svc.csproj&quot; -c Release -r win-x64 /p:PublishSingleFile=true /p:UseAppHost=true --nologo" />
     <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)\..\kbdlayer-license-gui\kbdlayer-license-gui.csproj&quot; -c Release -r win-x64 /p:PublishSingleFile=true /p:UseAppHost=true --nologo" />
     <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)\..\kbdlayer-license-launcher\kbdlayer-license-launcher.csproj&quot; -c Release -r win-x64 /p:PublishSingleFile=true /p:UseAppHost=true --nologo" />
+    <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)\..\kbdlayer-keymap-gui\kbdlayer-keymap-gui.csproj&quot; -c Release -r win-x64 /p:PublishSingleFile=true /p:UseAppHost=true --nologo" />
     <!-- Step 2: stage drivers + apps -->
     <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Prepare-Staging.ps1&quot;" />
     <!-- Step 3: EV code sign staging -->

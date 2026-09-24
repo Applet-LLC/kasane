@@ -182,6 +182,40 @@ bool IoctlClient::SetConfig(ULONG uniqId, ULONG tapTermMs, ULONG comboTermMs, UL
     return true;
 }
 
+bool IoctlClient::GetConfig(ULONG uniqId, KBDLAYER_GET_CONFIG_OUTPUT* out) {
+    KBDLAYER_TARGET input;
+    input.UniqId = uniqId;
+
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_GET_CONFIG,
+                              &input, sizeof(input),
+                              out, sizeof(*out),
+                              &bytesReturned, NULL);
+    if (!ok) {
+        fprintf(stderr, "IOCTL_KBDLAYER_GET_CONFIG failed. Error: %lu\n", GetLastError());
+        return false;
+    }
+    return true;
+}
+
+bool IoctlClient::SetCaptureSuppress(ULONG uniqId, bool enable) {
+    KBDLAYER_SET_CAPTURE_SUPPRESS_INPUT input;
+    input.Target.UniqId = uniqId;
+    input.Enable = enable ? 1 : 0;
+
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_SET_CAPTURE_SUPPRESS,
+                              &input, sizeof(input),
+                              NULL, 0,
+                              &bytesReturned, NULL);
+    if (!ok) {
+        fprintf(stderr, "IOCTL_KBDLAYER_SET_CAPTURE_SUPPRESS failed. Error: %lu "
+                "(another tool may already be suppressing this keyboard)\n", GetLastError());
+        return false;
+    }
+    return true;
+}
+
 bool IoctlClient::SetMacro(ULONG uniqId, ULONG macroId, const std::vector<KBDLAYER_MACRO_STEP>& steps) {
     std::vector<unsigned char> input(sizeof(KBDLAYER_SET_MACRO_INPUT) + steps.size() * sizeof(KBDLAYER_MACRO_STEP));
     KBDLAYER_SET_MACRO_INPUT* header = (KBDLAYER_SET_MACRO_INPUT*)input.data();

@@ -1,0 +1,12 @@
+{
+  "notes": "Tutorial keymap (docs/TUTORIAL-CLI.md / TUTORIAL-GUI.md): standalone 17-key numeric keypad that always types digits regardless of NumLock. Same key order as test-keymap-10key.json; calibrate with --calibrate-simple <UniqIdHex> 17. Single layer. The numpad digit keys and the decimal point are mapped to the main-block digits (KC_1..KC_0) and KC_DOT, which the OS does not reinterpret as Home/End/arrows when NumLock is off. Every other key is native pass-through.",
+  "layout": [
+    [
+      "KC_NUMLOCK", "KC_KP_SLASH", "KC_KP_ASTERISK", "KC_KP_MINUS",
+      "KC_7", "KC_8", "KC_9", "KC_KP_PLUS",
+      "KC_4", "KC_5", "KC_6",
+      "KC_1", "KC_2", "KC_3", "KC_KP_ENTER",
+      "KC_0", "KC_DOT"
+    ]
+  ]
+}

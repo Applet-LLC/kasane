@@ -1,0 +1,38 @@
+[
+  [
+    "Num Lock\n\n\n\nKC_NUMLOCK",
+    "_/\n\n\n\nKC_KP_SLASH",
+    "_*\n\n\n\nKC_KP_ASTERISK",
+    "_-\n\n\n\nKC_KP_MINUS"
+  ],
+  [
+    "_7\nHome\n\n\nKC_KP_7",
+    "_8\n↑\n\n\nKC_KP_8",
+    "_9\nPgUp\n\n\nKC_KP_9",
+    {
+      "h": 2
+    },
+    "_+\n\n\n\nKC_KP_PLUS"
+  ],
+  [
+    "_4\n←\n\n\nKC_KP_4",
+    "_5\n\n\n\nKC_KP_5",
+    "_6\n→\n\n\nKC_KP_6"
+  ],
+  [
+    "_1\nEnd\n\n\nKC_KP_1",
+    "_2\n↓\n\n\nKC_KP_2",
+    "_3\nPgDn\n\n\nKC_KP_3",
+    {
+      "h": 2
+    },
+    "_Enter\n\n\n\nKC_KP_ENTER"
+  ],
+  [
+    {
+      "w": 2
+    },
+    "_0\nIns\n\n\nKC_KP_0",
+    "_.\nDel\n\n\nKC_KP_DOT"
+  ]
+]

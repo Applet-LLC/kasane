@@ -142,7 +142,7 @@
 
     <!--
       KBDDRIVERDIR配下をx64\/arm64\の2階層に分けている。ARM64ネイティブのkbdlayer.sysをx64版と
-      同居させ、DriverManager.exe（実行時にGetNativeSystemInfoでホストの実アーキを判定する
+      同居させ、DriverManager.exe（実行時にIsWow64Process2でホストの実アーキを判定する
       ArchSubdirName()ヘルパーを使う）が正しい方のINF/SYS/CATを選んでインストールできるようにする。
     -->
     <Directory Id="TARGETDIR" Name="SourceDir">
@@ -155,6 +155,8 @@
           <Directory Id="SYMBOLDIR" Name="Symbol" />
           <Directory Id="LICENSESVCDDIR" Name="license-svc" />
           <Directory Id="LICENSEGUIDIR" Name="license-gui" />
+          <Directory Id="KEYMAPGUIDIR" Name="keymap-gui" />
+          <Directory Id="SAMPLESDIR" Name="samples" />
         </Directory>
       </Directory>
       <Directory Id="ProgramMenuFolder">
@@ -187,6 +189,16 @@
     <Feature Id="F_LicenseGui" Title="License Manager" Level="1" Absent="disallow">
       <ComponentRef Id="CMP_LicenseGuiExe" />
       <ComponentRef Id="CMP_RunOnceLicenseGui" />
+    </Feature>
+
+    <!--
+      F_KeymapGui: キーマップ編集GUI（kbdlayer-keymap-gui.exe + Layouts\*.json）と、
+      KeymapTool用のサンプルキーマップ（samples\）。どちらもHarvestDirectoryで自動収穫
+      （KbdLayerSetup.wixproj）。スタートメニューのショートカットはCMP_Shortcuts側にある。
+    -->
+    <Feature Id="F_KeymapGui" Title="Keymap Editor" Level="1" Absent="disallow">
+      <ComponentGroupRef Id="CG_KeymapGui" />
+      <ComponentGroupRef Id="CG_Samples" />
     </Feature>
 
     <!-- DriverTools: DriverManager.exe（ドライバインストール用ツール）+ KeymapTool.exe（keymap.json適用/キャリブレーション用CLI） -->
@@ -271,6 +283,10 @@
         <Shortcut Id="ShortcutLicenseGui" Name="LayerDriver License Manager"
                   Target="[LICENSEGUIDIR]kbdlayer-license-gui.exe"
                   WorkingDirectory="LICENSEGUIDIR"
+                  Icon="ICO_App" />
+        <Shortcut Id="ShortcutKeymapGui" Name="LayerDriver Keymap Editor"
+                  Target="[KEYMAPGUIDIR]kbdlayer-keymap-gui.exe"
+                  WorkingDirectory="KEYMAPGUIDIR"
                   Icon="ICO_App" />
         <RemoveFolder Id="PROGRAMMENUFOLDER" On="uninstall" />
         <RegistryValue Root="HKCU" Key="Software\kbdlayer-license" Name="Installed"
