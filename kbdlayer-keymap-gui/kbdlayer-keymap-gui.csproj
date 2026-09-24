@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>KbdLayerKeymapGui</RootNamespace>
+    <AssemblyName>kbdlayer-keymap-gui</AssemblyName>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <!-- single-file publish: dotnet publish -c Release -r win-x64 /p:PublishSingleFile=true -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <StartupObject>KbdLayerKeymapGui.App</StartupObject>
+    <Platforms>AnyCPU;x64</Platforms>
+    <ApplicationIcon>..\kbdlayer-license-gui\Resources\app.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Window.Icon のパック参照解決用。アイコンはライセンス管理GUIと共通。 -->
+    <Resource Include="..\kbdlayer-license-gui\Resources\app.ico" Link="Resources\app.ico" />
+    <!-- KLEレイアウト（凡例インデックス4に既定キーコードを埋め込んだもの）。exeの隣の
+         Layouts\ に配置され、実行時にそこから読み込む（ユーザーが独自のKLEを追加できるように
+         埋め込みリソースにはしない）。 -->
+    <Content Include="Layouts\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
