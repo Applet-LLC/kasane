@@ -1026,6 +1026,74 @@ ComboPartnerScanCode(
     return (Entry->ScanCode1 == ScanCode) ? Entry->ScanCode2 : Entry->ScanCode1;
 }
 
+// devExt->EngineLock保持中に呼ぶこと。保留を始める時点（= 押下時点）のレイヤーで、
+// コンボ不成立時に復元する押下の内容を決めておく。
+// - KEYアクション → その出力キー（例: 物理AをKC_Zにしていればz）
+// - KC_NO・全レイヤー透過 → 何も送らない
+// - それ以外（MO/MT/LT/マクロ等）、またはレイヤーマップに無いキー → 生のスキャンコード
+//   （KEY以外のアクションを後から通常経路で再現することはしない。既知の制約）
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+ResolveComboRestoreLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ USHORT ScanCode
+    )
+{
+    PKBDLAYER_KEY_ENTRY keyEntry = (devExt->LayerMap != NULL) ? FindKeyEntry(devExt->LayerMap, ScanCode) : NULL;
+
+    devExt->ComboPendingRestore = KBDLAYER_HELD_RAW;
+    RtlZeroMemory(&devExt->ComboPendingAction, sizeof(devExt->ComboPendingAction));
+    if (keyEntry != NULL) {
+        PKBDLAYER_ACTION action = ResolveEffectiveAction(devExt, devExt->LayerMap, keyEntry);
+        if (action == NULL || action->Type == KBDLAYER_ACTION_NONE) {
+            devExt->ComboPendingRestore = KBDLAYER_HELD_SWALLOWED;
+        } else if (action->Type == KBDLAYER_ACTION_KEY) {
+            devExt->ComboPendingRestore = KBDLAYER_HELD_ACTION;
+            devExt->ComboPendingAction = *action;
+        }
+    }
+}
+
+// devExt->EngineLock保持中に呼ぶこと。コンボ不成立時に復元する押下のスキャンコード
+// （Enc16、0 = 何も送らない）を返す。StillDown = 保留キーがまだ押されている
+// （タイムアウト・割り込み）なら、その解放も同じキーになるようHeldKeysに記録する。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static USHORT
+TakeComboRestoreLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ USHORT PendingScanCode,
+    _In_ BOOLEAN StillDown
+    )
+{
+    UCHAR restore = devExt->ComboPendingRestore;
+    KBDLAYER_ACTION action = devExt->ComboPendingAction;
+    USHORT out;
+
+    switch (restore) {
+    case KBDLAYER_HELD_ACTION:
+        out = action.Param2;
+        // 通常経路のKEYアクションと同じく、OSL(layer)のワンショットを消費する。
+        if (devExt->OneShotLayerPending) {
+            devExt->ActiveLayerMask &= ~devExt->OneShotLayerBit;
+            devExt->OneShotLayerPending = FALSE;
+        }
+        break;
+    case KBDLAYER_HELD_SWALLOWED:
+        out = 0;
+        break;
+    default:
+        restore = KBDLAYER_HELD_RAW;
+        out = PendingScanCode;
+        break;
+    }
+
+    if (StillDown && HeldKeyFor(devExt, PendingScanCode)->State == KBDLAYER_HELD_NONE) {
+        SetHeldKeyLocked(devExt, PendingScanCode, restore,
+                         restore == KBDLAYER_HELD_ACTION ? &action : NULL);
+    }
+    return out;
+}
+
 // ComboTimerの満了で起動されるDPC（タイムアウト経路。相方の押下が来ないまま
 // ComboTermMsが経過した場合に不成立とし、保留していたキーのpressを復元送出する）。
 // DISPATCH_LEVELで実行される。
@@ -1041,6 +1109,7 @@ ComboDpcRoutine(
     PDEVICE_EXTENSION devExt = (PDEVICE_EXTENSION)DeferredContext;
     KIRQL oldIrql;
     USHORT pendingScanCode = 0;
+    USHORT restoreScanCode = 0;
     BOOLEAN shouldReplay;
 
     UNREFERENCED_PARAMETER(Dpc);
@@ -1060,16 +1129,17 @@ ComboDpcRoutine(
     if (shouldReplay) {
         pendingScanCode = devExt->ComboPendingScanCode;
         devExt->ComboPendingActive = FALSE;
-        // 復元する押下は生のスキャンコードなので、その解放も生のまま転送させる。
-        if (HeldKeyFor(devExt, pendingScanCode)->State == KBDLAYER_HELD_NONE) {
-            SetHeldKeyLocked(devExt, pendingScanCode, KBDLAYER_HELD_RAW, NULL);
-        }
+        // 押下時点のレイヤーで解決した内容で復元し、解放も同じキーになるよう記録する。
+        restoreScanCode = TakeComboRestoreLocked(devExt, pendingScanCode, TRUE);
     }
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
     if (shouldReplay) {
-        KBDLAYER_TRACE("LayerEngine: combo TIMEOUT unresolved sc=0x%X, replaying held press\n", pendingScanCode);
-        SendDecodedEvent(devExt, pendingScanCode, KEY_MAKE);
+        KBDLAYER_TRACE("LayerEngine: combo TIMEOUT unresolved sc=0x%X, replaying held press as 0x%X\n",
+                       pendingScanCode, restoreScanCode);
+        if (restoreScanCode != 0) {
+            SendDecodedEvent(devExt, restoreScanCode, KEY_MAKE);
+        }
     }
 }
 
@@ -1173,17 +1243,24 @@ ResolveCombo(
             }
 
             // 相方が来る前に離した = 不成立。保留していたpress+今回のbreakを
-            // タップとして復元送出する。
-            devExt->ComboPendingActive = FALSE;
-            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+            // タップとして復元送出する（押下時点のレイヤーで解決した内容で）。
+            {
+                USHORT restoreScanCode;
 
-            KeCancelTimer(&devExt->ComboTimer);
-            SendDecodedEvent(devExt, pendingScanCode, KEY_MAKE);
-            SendDecodedEvent(devExt, pendingScanCode, KEY_BREAK);
-            if (SystemArgument3 != NULL) {
-                *(PULONG)SystemArgument3 = 1;
+                devExt->ComboPendingActive = FALSE;
+                restoreScanCode = TakeComboRestoreLocked(devExt, pendingScanCode, FALSE);
+                KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+                KeCancelTimer(&devExt->ComboTimer);
+                if (restoreScanCode != 0) {
+                    SendDecodedEvent(devExt, restoreScanCode, KEY_MAKE);
+                    SendDecodedEvent(devExt, restoreScanCode, KEY_BREAK);
+                }
+                if (SystemArgument3 != NULL) {
+                    *(PULONG)SystemArgument3 = 1;
+                }
+                return TRUE;
             }
-            return TRUE;
         }
 
         if (scanCode == partner && !isBreak) {
@@ -1204,16 +1281,20 @@ ResolveCombo(
 
         // --- 無関係キーによる割り込み = 不成立。保留していたpressのみ復元送出し、
         //     割り込みキー自身は通常経路（呼び出し元でのResolveTapHold以降）に委ねる。
-        devExt->ComboPendingActive = FALSE;
-        // 復元する押下は生のスキャンコードなので、その解放も生のまま転送させる。
-        if (HeldKeyFor(devExt, pendingScanCode)->State == KBDLAYER_HELD_NONE) {
-            SetHeldKeyLocked(devExt, pendingScanCode, KBDLAYER_HELD_RAW, NULL);
-        }
-        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        {
+            USHORT restoreScanCode;
 
-        KeCancelTimer(&devExt->ComboTimer);
-        SendDecodedEvent(devExt, pendingScanCode, KEY_MAKE);
-        return FALSE;
+            devExt->ComboPendingActive = FALSE;
+            // 押下時点のレイヤーで解決した内容で復元し、解放も同じキーになるよう記録する。
+            restoreScanCode = TakeComboRestoreLocked(devExt, pendingScanCode, TRUE);
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+            KeCancelTimer(&devExt->ComboTimer);
+            if (restoreScanCode != 0) {
+                SendDecodedEvent(devExt, restoreScanCode, KEY_MAKE);
+            }
+            return FALSE;
+        }
     }
 
     // --- Idle: このキー自体がコンボメンバーなら新しい保留サイクルを開始する
@@ -1226,6 +1307,8 @@ ResolveCombo(
             devExt->ComboPendingActive = TRUE;
             devExt->ComboPendingScanCode = scanCode;
             devExt->ComboActiveId = (ULONG)idx;
+            // 不成立になったときの復元内容は、押下時点のレイヤーで決めておく。
+            ResolveComboRestoreLocked(devExt, scanCode);
             KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
             dueTime.QuadPart = -((LONGLONG)devExt->ComboTermMs * 10000LL);

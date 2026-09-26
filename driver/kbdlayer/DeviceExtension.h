@@ -119,6 +119,11 @@ typedef struct _DEVICE_EXTENSION {
     BOOLEAN ComboConfirmed;        // TRUE = コンボ成立済み、出力キー押下中
     BOOLEAN ComboDraining;         // TRUE = 出力は解除済み、もう片方の物理キー解放を待つだけ
     USHORT ComboPendingScanCode;   // 保留中の最初のメンバーキーの物理スキャンコード（Enc16）
+    // コンボ不成立時に復元する押下の内容。保留を始めた時点（押下時点）のレイヤーで解決しておく。
+    // KBDLAYER_HELD_ACTION = ComboPendingActionのKEY出力を送る / KBDLAYER_HELD_RAW = 生のスキャンコード
+    // （KEY以外のアクションのとき） / KBDLAYER_HELD_SWALLOWED = 何も送らない（KC_NO・全レイヤー透過）。
+    UCHAR ComboPendingRestore;
+    KBDLAYER_ACTION ComboPendingAction;
     ULONG ComboActiveId;           // 保留/成立/ドレイン中のコンボID（Combos[]のインデックス）
 
     // --- Phase 5: タップダンス ---
