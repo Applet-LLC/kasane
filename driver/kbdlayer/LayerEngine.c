@@ -3144,6 +3144,43 @@ NicolaCollectLocked(
     }
 }
 
+// devExt->EngineLock保持中に、NicolaCoreResetの直前に呼ぶこと。NICOLAが押下を飲み込み、
+// まだ押されたままの物理キー（文字・親指）をHeldKeysにSWALLOWEDとして記録する。
+// 判定を打ち切ると保留中のキーはその場で確定送出（タップ）されるが、物理キーの解放は
+// 後から届き、そのときNICOLAは無効なので素通しになって孤立した解放がOSに届く。
+// 記録しておけば、その解放はResolveLayerActionで捨てられる。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+NicolaSwallowOwnedKeysLocked(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    const UCHAR* owned = devExt->NicolaState.OwnedDown;
+
+    for (ULONG byteIndex = 0; byteIndex < sizeof(devExt->NicolaState.OwnedDown); byteIndex++) {
+        if (owned[byteIndex] == 0) {
+            continue;
+        }
+        for (ULONG bit = 0; bit < 8; bit++) {
+            ULONG index = byteIndex * 8 + bit;
+            USHORT scanCode;
+            if (!(owned[byteIndex] & (1u << bit))) {
+                continue;
+            }
+            // NicolaCore.cのOwnedIndexの逆変換（下位8bit + E0:0x100 / E1:0x200）。
+            scanCode = (USHORT)(index & 0xFF);
+            if (index & 0x200) {
+                scanCode |= 0xE100;
+            } else if (index & 0x100) {
+                scanCode |= 0xE000;
+            }
+            if (HeldKeyFor(devExt, scanCode)->State == KBDLAYER_HELD_NONE) {
+                SetHeldKeyLocked(devExt, scanCode, KBDLAYER_HELD_SWALLOWED, NULL);
+            }
+        }
+    }
+}
+
 // EngineLockを保持していない状態で、DISPATCH_LEVELで呼ぶこと。
 _IRQL_requires_max_(DISPATCH_LEVEL)
 static VOID
@@ -3305,6 +3342,8 @@ NicolaSyncActivation(
     devExt->NicolaWasActive = active;
     if (!active) {
         // 保留中の判定を確定させ、押下送出済みの単独打鍵キーを解放してから初期化する。
+        // まだ押されている物理キーの解放は、後から届いたときに捨てる。
+        NicolaSwallowOwnedKeysLocked(devExt);
         NicolaCoreReset(&devExt->NicolaState, &result);
         NicolaCollectLocked(devExt->NicolaTable, &result, &emit);
     }
@@ -3531,6 +3570,8 @@ SetNicolaForDevice(
     KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
     // 進行中の判定は差し替え前の設定で確定させてから捨てる。新しい設定で判定が有効なら、
     // 次のキーイベントでNicolaSyncActivationがOnEnterKeyを送る。
+    // まだ押されている物理キーの解放は、後から届いたときに捨てる。
+    NicolaSwallowOwnedKeysLocked(devExt);
     NicolaCoreReset(&devExt->NicolaState, &result);
     NicolaCollectLocked(devExt->NicolaTable, &result, &emit);
     oldTable = devExt->NicolaTable;
