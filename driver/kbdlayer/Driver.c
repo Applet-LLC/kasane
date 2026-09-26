@@ -76,6 +76,9 @@ DRIVER_UNLOAD Unload;
 NTSTATUS ReadComplete(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp, IN PVOID Context);
 VOID ServiceCallback(PVOID NormalContext, PVOID SystemArgument1,
                      PVOID SystemArgument2, PVOID SystemArgument3);
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static BOOLEAN ResolveAndForward(_In_ PDEVICE_EXTENSION devExt, _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+                                 _In_ PKEYBOARD_INPUT_DATA InputDataEnd, _Inout_opt_ PVOID SystemArgument3);
 
 // g_listLockを保護しつつg_deviceListを走査し、DeviceIdが一致する
 // DEVICE_EXTENSIONを返す（見つからなければNULL）。宣言はDeviceExtension.h。
@@ -198,6 +201,7 @@ NTSTATUS AddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT PhysicalDev
     InitializeTapHoldState(devExt);  // HoldTimer/HoldDpcの初期化含む（Phase 2）
     InitializeComboState(devExt);    // ComboTimer/ComboDpcの初期化含む（Phase 4）
     InitializeTapDanceState(devExt); // TapDanceTimer/TapDanceDpcの初期化含む（Phase 5）
+    InitializeNicolaState(devExt);   // NicolaTimer/NicolaDpcの初期化含む（Phase 6）
     KeInitializeEvent(&devExt->CaptureEvent, NotificationEvent, FALSE);
 
     // LicenseTokenをECDSA検証してライセンス状態を決定（PASSIVE_LEVEL）
@@ -437,6 +441,8 @@ NTSTATUS DispatchPnp(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
         KeCancelTimer(&devExt->ComboTimer);
         // Phase 5: TapDanceTimer/TapDanceDpcも同様。
         KeCancelTimer(&devExt->TapDanceTimer);
+        // Phase 6: NicolaTimer/NicolaDpcも同様。
+        KeCancelTimer(&devExt->NicolaTimer);
         KeFlushQueuedDpcs();
 
         // この時点ではport driver側のREMOVE_DEVICE処理（上のIoCallDriver）が
@@ -446,6 +452,7 @@ NTSTATUS DispatchPnp(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
             ExFreePoolWithTag(devExt->LayerMap, KBDLAYER_MAP_POOL_TAG);
             devExt->LayerMap = NULL;
         }
+        FreeNicolaForDevice(devExt);
 
         IoDetachDevice(devExt->LowerDevice);
         IoDeleteDevice(DeviceObject);
@@ -551,46 +558,27 @@ VOID ServiceCallback(
             }
         }
 
-        // Phase 4: コンボ（2キー限定v1）。物理キー単位の判定なので、レイヤーや
-        // タップ/ホールドの解釈より先に判定する。対象キーならここで完結する。
-        // 詳細はLayerEngine.cのResolveCombo参照。
-        if (ResolveCombo(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
-            goto consumed;
-        }
+        // Phase 6: NICOLAの修飾キー追跡。バッチ分割やどのResolve*よりも前に全件を見せる。
+        NicolaObserveBatch(devExt, InputDataStart, InputDataEnd);
 
-        // Phase 2: Mod-Tap/Layer-Tapのタップ/ホールド判定（Hold On Other Key Press方式）。
-        // MT/LTキーの保留・確定・タイムアウトに関わるイベントはここで完結し、通常の
-        // ResolveLayerAction以降の処理は行わない。詳細はLayerEngine.cのResolveTapHold参照。
-        if (ResolveTapHold(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
-            goto consumed;
-        }
-
-        // Phase 5: タップダンス（v1: タップ回数3回まで）。ResolveTapHoldと同じグループ
-        // （1つの物理キーの振る舞い）として、ResolveMacroの前に判定する。詳細は
-        // LayerEngine.cのResolveTapDance参照。
-        if (ResolveTapDance(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
-            goto consumed;
-        }
-
-        // Phase 3: マクロ(MACRO(id))。ResolveTapHoldと同じく、対象キーならここで
-        // 完結し通常のResolveLayerAction以降の処理は行わない。詳細はLayerEngine.cの
-        // ResolveMacro参照。
-        if (ResolveMacro(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
-            goto consumed;
-        }
-
-        PKEYBOARD_INPUT_DATA newEnd = ResolveLayerAction(devExt, InputDataStart, InputDataEnd);
-        if (newEnd != InputDataEnd) {
+        // Phase 6: NICOLA判定が有効な間は、複数件バッチを1件ずつに分けて流す。
+        // USBキーボードでは親指キーと文字キーの同時押しが1つのレポート（=1バッチ）で
+        // 届きうるが、各Resolve*は1件バッチしか扱わないため。
+        if ((InputDataEnd - InputDataStart) > 1 && NicolaIsActive(devExt)) {
+            for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
+                KEYBOARD_INPUT_DATA single = *p;
+                ULONG dummyConsumed = 0;
+                ResolveAndForward(devExt, &single, &single + 1, &dummyConsumed);
+            }
+            // port driverには元の件数をすべて消費したと報告する（下のconsumedの説明参照）。
             compacted = TRUE;
-            InputDataEnd = newEnd;
+            goto consumed;
         }
 
-        for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
-            p->ExtraInformation =
-                (p->ExtraInformation & 0x0000FFFFUL) | (devExt->DeviceId & 0xFFFF0000UL);
-            KBDLAYER_TRACE("ServiceCallback DeviceId=0x%08X -> ExtraInfo=0x%08X sc=0x%X flags=0x%X\n",
-                           devExt->DeviceId, p->ExtraInformation, p->MakeCode, p->Flags);
+        if (ResolveAndForward(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
+            compacted = TRUE;
         }
+        goto consumed;
     } else {
         KBDLAYER_TRACE("ServiceCallback DeviceId=0 (skip) sc=0x%X flags=0x%X\n",
                        InputDataStart->MakeCode, InputDataStart->Flags);
@@ -615,6 +603,81 @@ consumed:
     if (compacted && SystemArgument3 != NULL) {
         *(PULONG)SystemArgument3 = originalCount;
     }
+
+    // Phase 6: このバッチでレイヤー状態が変わり、NICOLA判定の有効/無効が切り替わったなら
+    // OnEnterKey/OnExitKey（IMEオン/オフ等）を送る。
+    if (devExt->DeviceId != 0) {
+        NicolaSyncActivation(devExt);
+    }
+}
+
+// ServiceCallbackのうち、キャリブレーション後の「Resolve*の連鎖 → kbdclassへ転送」部分。
+// 戻り値: ResolveLayerActionが配列を詰めた（port driverへは元の件数を報告すべき）ならTRUE。
+// Resolve*のいずれかがバッチを処理済みにした場合は転送せずFALSEを返す
+// （そのResolve*がSystemArgument3へ消費件数を書き込み済み）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static BOOLEAN
+ResolveAndForward(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd,
+    _Inout_opt_ PVOID SystemArgument3)
+{
+    BOOLEAN compacted = FALSE;
+
+    // Phase 6: NICOLA（親指シフト）。判定が有効な間、文字キー・親指キーは物理キー単位で
+    // ここが先に受け取る（コンボ等より優先）。詳細はLayerEngine.cのResolveNicola参照。
+    if (ResolveNicola(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
+        return FALSE;
+    }
+
+    // Phase 4: コンボ（2キー限定v1）。物理キー単位の判定なので、レイヤーや
+    // タップ/ホールドの解釈より先に判定する。対象キーならここで完結する。
+    // 詳細はLayerEngine.cのResolveCombo参照。
+    if (ResolveCombo(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
+        return FALSE;
+    }
+
+    // Phase 2: Mod-Tap/Layer-Tapのタップ/ホールド判定（Hold On Other Key Press方式）。
+    // MT/LTキーの保留・確定・タイムアウトに関わるイベントはここで完結し、通常の
+    // ResolveLayerAction以降の処理は行わない。詳細はLayerEngine.cのResolveTapHold参照。
+    if (ResolveTapHold(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
+        return FALSE;
+    }
+
+    // Phase 5: タップダンス（v1: タップ回数3回まで）。ResolveTapHoldと同じグループ
+    // （1つの物理キーの振る舞い）として、ResolveMacroの前に判定する。詳細は
+    // LayerEngine.cのResolveTapDance参照。
+    if (ResolveTapDance(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
+        return FALSE;
+    }
+
+    // Phase 3: マクロ(MACRO(id))。ResolveTapHoldと同じく、対象キーならここで
+    // 完結し通常のResolveLayerAction以降の処理は行わない。詳細はLayerEngine.cの
+    // ResolveMacro参照。
+    if (ResolveMacro(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
+        return FALSE;
+    }
+
+    PKEYBOARD_INPUT_DATA newEnd = ResolveLayerAction(devExt, InputDataStart, InputDataEnd);
+    if (newEnd != InputDataEnd) {
+        compacted = TRUE;
+        InputDataEnd = newEnd;
+    }
+
+    for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
+        p->ExtraInformation =
+            (p->ExtraInformation & 0x0000FFFFUL) | (devExt->DeviceId & 0xFFFF0000UL);
+        KBDLAYER_TRACE("ServiceCallback DeviceId=0x%08X -> ExtraInfo=0x%08X sc=0x%X flags=0x%X\n",
+                       devExt->DeviceId, p->ExtraInformation, p->MakeCode, p->Flags);
+    }
+
+    devExt->OriginalClassService(
+        devExt->OriginalClassDeviceObject,
+        InputDataStart,
+        InputDataEnd,
+        SystemArgument3);
+    return compacted;
 }
 
 _IRQL_requires_max_(DISPATCH_LEVEL)
@@ -689,12 +752,15 @@ VOID Unload(IN PDRIVER_OBJECT DriverObject) {
             KeCancelTimer(&devExt->ComboTimer);
             // Phase 5: TapDanceTimer/TapDanceDpcも同様。
             KeCancelTimer(&devExt->TapDanceTimer);
+            // Phase 6: NicolaTimer/NicolaDpcも同様。
+            KeCancelTimer(&devExt->NicolaTimer);
             KeFlushQueuedDpcs();
 
             if (devExt->LayerMap != NULL) {
                 ExFreePoolWithTag(devExt->LayerMap, KBDLAYER_MAP_POOL_TAG);
                 devExt->LayerMap = NULL;
             }
+            FreeNicolaForDevice(devExt);
 
             IoDetachDevice(devExt->LowerDevice);
             IoDeleteDevice(deviceObject);

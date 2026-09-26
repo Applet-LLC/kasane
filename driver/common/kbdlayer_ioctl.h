@@ -294,6 +294,84 @@ typedef struct _KBDLAYER_GET_TAPDANCE_OUTPUT {
     KBDLAYER_TAPDANCE_ENTRY Entry;
 } KBDLAYER_GET_TAPDANCE_OUTPUT, *PKBDLAYER_GET_TAPDANCE_OUTPUT;
 
+// --- Phase 6: NICOLA（親指シフト） ---
+//
+// NICOLA配列規格書（http://nicola.sunicom.co.jp/spec/kikaku.htm）の同時打鍵判定を
+// カーネル内で行う。カーネルは「かな」を一切知らない: 物理キー × 3プレーン
+// （単独 / 親指左 / 親指右）ごとに、送出するスキャンコード列（マクロと同じ
+// KBDLAYER_MACRO_STEP）を持つだけ。ローマ字列にするかJISかな入力のキーにするかは
+// KeymapTool側がこの表を組み立てる段階で決める。
+//
+// 判定はHeader.Layerのレイヤーがアクティブ（ActiveLayerMask|DefaultLayerビット）な
+// 間だけ行う。判定アルゴリズムの詳細はkbdlayer/NicolaCore.c参照。
+
+#define KBDLAYER_NICOLA_MAX_KEYS    64
+#define KBDLAYER_NICOLA_MAX_STEPS   12 // 1文字あたり。ローマ字"xtsu"+Shift程度まで収まる
+#define KBDLAYER_NICOLA_PLANE_COUNT 3
+
+// Planes[]のインデックス
+#define KBDLAYER_NICOLA_PLANE_NONE        0 // 単独打鍵
+#define KBDLAYER_NICOLA_PLANE_THUMB_LEFT  1 // 親指左キーとの同時打鍵
+#define KBDLAYER_NICOLA_PLANE_THUMB_RIGHT 2 // 親指右キーとの同時打鍵
+
+#define KBDLAYER_NICOLA_VERSION 1
+
+// KBDLAYER_NICOLA_HEADER.Flags
+// 規格6.1「緩慢な打鍵操作」: 親指キー押下中はタイムアウトせず、押している間の
+// 文字キーを常にシフトする（連続シフト）。親指キーの単独打鍵は、文字キーと組まずに
+// 離したときにだけ確定する。
+#define KBDLAYER_NICOLA_FLAG_CONTINUOUS_SHIFT 0x00000001
+
+#define KBDLAYER_NICOLA_DEFAULT_SIMUL_TERM_MS     100 // 規格5.2: 実験的に50〜200msが妥当
+#define KBDLAYER_NICOLA_DEFAULT_OVERLAP_RATIO_PCT 100 // 規格5.5.2の n (=1.0)
+
+typedef struct _KBDLAYER_NICOLA_OUTPUT {
+    UCHAR StepCount; // 0 = 何も送出しない
+    UCHAR Reserved[3];
+    KBDLAYER_MACRO_STEP Steps[KBDLAYER_NICOLA_MAX_STEPS];
+} KBDLAYER_NICOLA_OUTPUT, *PKBDLAYER_NICOLA_OUTPUT;
+
+typedef struct _KBDLAYER_NICOLA_KEY_ENTRY {
+    USHORT SourceScanCode; // 物理スキャンコード（Enc16）
+    USHORT Reserved;
+    KBDLAYER_NICOLA_OUTPUT Planes[KBDLAYER_NICOLA_PLANE_COUNT];
+} KBDLAYER_NICOLA_KEY_ENTRY, *PKBDLAYER_NICOLA_KEY_ENTRY;
+
+// ワイヤー/レジストリ形式のブロブヘッダ。続けて KeyCount 個の KBDLAYER_NICOLA_KEY_ENTRY。
+typedef struct _KBDLAYER_NICOLA_HEADER {
+    ULONG  Version;             // KBDLAYER_NICOLA_VERSION
+    ULONG  Enabled;             // 0 = 設定は保持したまま判定しない
+    ULONG  Layer;               // このレイヤーがアクティブな間だけ判定する
+    USHORT ThumbLeftScanCode;   // 親指左キーの物理スキャンコード（Enc16）
+    USHORT ThumbRightScanCode;  // 親指右キーの物理スキャンコード（Enc16）
+    USHORT ThumbLeftTapKey;     // 親指左の単独打鍵で送るキー（Enc16、0 = 何も送らない）
+    USHORT ThumbRightTapKey;    // 親指右の単独打鍵で送るキー（Enc16、0 = 何も送らない）
+    USHORT OnEnterKey;          // 判定が有効になったときに1回タップするキー（IMEオン等、0 = なし）
+    USHORT OnExitKey;           // 判定が無効になったときに1回タップするキー（IMEオフ等、0 = なし）
+    ULONG  SimulTermMs;         // 同時打鍵判定時間。0 = 既定値
+    ULONG  OverlapRatioPercent; // 規格5.5.2の n を百分率で。0 = 既定値
+    ULONG  MinOverlapMs;        // 規格5.5.2: 重なりがこれ未満なら逐次打鍵とみなす（0 = 無効）
+    ULONG  Flags;               // KBDLAYER_NICOLA_FLAG_*
+    ULONG  KeyCount;            // 続く KBDLAYER_NICOLA_KEY_ENTRY の数（<= KBDLAYER_NICOLA_MAX_KEYS）
+} KBDLAYER_NICOLA_HEADER, *PKBDLAYER_NICOLA_HEADER;
+
+#define KBDLAYER_MAX_NICOLA_BLOB_BYTES \
+    (sizeof(KBDLAYER_NICOLA_HEADER) + (KBDLAYER_NICOLA_MAX_KEYS * sizeof(KBDLAYER_NICOLA_KEY_ENTRY)))
+
+// IOCTL_KBDLAYER_SET_NICOLA の入力バッファ。BlobLength=0 は設定のクリアを意味する。
+typedef struct _KBDLAYER_SET_NICOLA_INPUT {
+    KBDLAYER_TARGET Target;
+    ULONG BlobLength;
+    // 続けて BlobLength バイトの KBDLAYER_NICOLA_HEADER + entries
+} KBDLAYER_SET_NICOLA_INPUT, *PKBDLAYER_SET_NICOLA_INPUT;
+
+// IOCTL_KBDLAYER_GET_NICOLA の入力は KBDLAYER_TARGET のみ。
+// 出力は SET で渡したのと同じバイト列。未設定なら BlobLength=0 で成功する。
+typedef struct _KBDLAYER_GET_NICOLA_OUTPUT {
+    ULONG BlobLength;
+    // 続けて BlobLength バイトの KBDLAYER_NICOLA_HEADER + entries
+} KBDLAYER_GET_NICOLA_OUTPUT, *PKBDLAYER_GET_NICOLA_OUTPUT;
+
 #pragma pack(pop)
 
 // IOCTL_INTERNAL_KEYBOARD_CONNECT 等の既存IOCTLと衝突しないよう、
@@ -331,5 +409,9 @@ typedef struct _KBDLAYER_GET_TAPDANCE_OUTPUT {
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x80D, METHOD_BUFFERED, FILE_ANY_ACCESS)
 #define IOCTL_KBDLAYER_GET_CONFIG \
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x80E, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_KBDLAYER_SET_NICOLA \
+    CTL_CODE(FILE_DEVICE_KBDLAYER, 0x80F, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_KBDLAYER_GET_NICOLA \
+    CTL_CODE(FILE_DEVICE_KBDLAYER, 0x810, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
 #endif // _KBDLAYER_COMMON_IOCTL_H_

@@ -67,6 +67,10 @@ public:
     bool SetTapDance(ULONG uniqId, ULONG tapDanceId, const KBDLAYER_TAPDANCE_ENTRY* entry);
     bool GetTapDance(ULONG uniqId, ULONG tapDanceId, KBDLAYER_TAPDANCE_ENTRY* outEntry, bool* outUsed);
 
+    // Phase 6: NICOLA。blobが空なら設定をクリアする。
+    bool SetNicola(ULONG uniqId, const std::vector<unsigned char>& blob);
+    bool GetNicola(ULONG uniqId, std::vector<unsigned char>* outBlob);
+
     ~IoctlClient() { Close(); }
 
 private:

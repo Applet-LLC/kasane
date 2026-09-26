@@ -145,6 +145,7 @@ Platform.
     <ClCompile Include="token.c" />
     <ClCompile Include="LayerEngine.c" />
     <ClCompile Include="ControlDevice.c" />
+    <ClCompile Include="NicolaCore.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\devprop.h" />
@@ -157,6 +158,7 @@ Platform.
     <ClInclude Include="DeviceExtension.h" />
     <ClInclude Include="LayerEngine.h" />
     <ClInclude Include="ControlDevice.h" />
+    <ClInclude Include="NicolaCore.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

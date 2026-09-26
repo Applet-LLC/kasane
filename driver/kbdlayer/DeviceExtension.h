@@ -21,6 +21,7 @@
 #include <wdm.h>
 #include <kbdmou.h>
 #include "..\\common\\kbdlayer_ioctl.h"
+#include "NicolaCore.h"
 
 // カーネル内部専用の可変長レイヤーマップテーブル（1回のプール割り当てで確保する）。
 // ワイヤー/レジストリ形式（KBDLAYER_MAP_HEADER, common/kbdlayer_ioctl.h）と
@@ -32,6 +33,24 @@ typedef struct _KBDLAYER_MAP_TABLE {
 } KBDLAYER_MAP_TABLE, *PKBDLAYER_MAP_TABLE;
 
 #define KBDLAYER_MAP_POOL_TAG 'mLdK'
+#define KBDLAYER_NICOLA_POOL_TAG 'nLdK'
+
+// 押下中の物理キーごとの「押下（make）をどう処理したか」の記録（QMKのsource layers
+// cache相当）。解放（break）とオートリピートは、その時点のレイヤー状態で解決し直さず、
+// この記録どおりに処理する。押している間にレイヤーが変わっても、押下と解放が別のキーに
+// ならないようにするため（詳細はLayerEngine.cのLayerEngineShouldDropEntry参照）。
+#define KBDLAYER_HELD_NONE      0 // 記録なし（押されていない、またはレイヤーエンジンを通らなかった）
+#define KBDLAYER_HELD_RAW       1 // 押下を生のスキャンコードのまま転送した
+#define KBDLAYER_HELD_ACTION    2 // 押下をActionで処理した（レイヤーマップで解決した結果）
+#define KBDLAYER_HELD_SWALLOWED 3 // 押下を飲み込んだ（マクロ実行等）。解放も飲み込む
+
+// インデックス = MakeCode(下位8bit) + プレフィックス無し:0 / E0:0x100 / E1:0x200。
+#define KBDLAYER_HELD_KEY_SLOTS 0x300
+
+typedef struct _KBDLAYER_HELD_KEY {
+    UCHAR State;            // KBDLAYER_HELD_*
+    KBDLAYER_ACTION Action; // State==KBDLAYER_HELD_ACTIONのときの、押下時に使ったアクション
+} KBDLAYER_HELD_KEY, *PKBDLAYER_HELD_KEY;
 
 #define KBDLAYER_DEFAULT_TAP_TERM_MS 200
 #define KBDLAYER_DEFAULT_COMBO_TERM_MS 50
@@ -56,6 +75,11 @@ typedef struct _DEVICE_EXTENSION {
     ULONG DefaultLayer;                 // DF(layer)で変更される基底レイヤー（常時ON扱い）
     BOOLEAN OneShotLayerPending;        // OSL(layer)発動中、次のKEYアクション解決でOFFに戻す
     ULONG OneShotLayerBit;              // OneShotLayerPending==TRUE時に、解除すべきビット
+    // 押下中キーの処理記録（KBDLAYER_HELD_*）。レイヤーマップのOFF・差し替え・CLEAR後も
+    // 保持し、記録のあるキーの解放は記録どおりに処理する（押しっぱなしを残さないため）。
+    // アクションそのものを持つので、マップが無くなっても解放を変換できる。
+    KBDLAYER_HELD_KEY HeldKeys[KBDLAYER_HELD_KEY_SLOTS];
+    ULONG HeldKeyCount;                 // State!=NONEの記録数（0ならOFF中の走査を省く）
 
     // --- Phase 2 (Tap-Hold: MT/LT) ---
     //
@@ -115,6 +139,18 @@ typedef struct _DEVICE_EXTENSION {
     USHORT TapDanceScanCode;         // 対象の物理キーのスキャンコード（Enc16）
     ULONG TapDanceActiveId;          // 対象のタップダンスID（TapDances[]のインデックス）
     ULONG TapDanceTapCount;          // これまでに完了した（press+release）タップの回数
+
+    // --- Phase 6: NICOLA（親指シフト） ---
+    // 判定アルゴリズム本体はNicolaCore.c（カーネル非依存）。ここにはその状態と、
+    // 設定（ワイヤー形式のblobをそのままNonPagedに複製したもの）を持つ。
+    // EngineLock保持中に読み書きすること。
+    PKBDLAYER_NICOLA_HEADER NicolaTable; // NULL = 未設定。続けてKeyCount個のエントリ
+    ULONG NicolaTableBytes;              // NicolaTableのバイト数（GET/永続化用）
+    NICOLA_CORE_STATE NicolaState;
+    KTIMER NicolaTimer;                  // NicolaState.Deadlineで満了するタイマー
+    KDPC NicolaDpc;                      // タイムアウト時の確定処理（NicolaDpcRoutine, LayerEngine.c）
+    BOOLEAN NicolaWasActive;             // 直前に判定が有効だったか（OnEnter/OnExitキーの送出判定用）
+    UCHAR NicolaModifierDown;            // 押されている物理修飾キー（s_ModifierScanCodesのビット）。押下中は判定を迂回する
 
     // --- キャリブレーションウィザード (IOCTL_KBDLAYER_CAPTURE_NEXT_KEY) 用 ---
     // ServiceCallback（DISPATCH_LEVEL、EngineLock保持中）と、PASSIVE_LEVELで

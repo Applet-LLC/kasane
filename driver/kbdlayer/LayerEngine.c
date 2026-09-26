@@ -37,6 +37,7 @@
 #define KBDLAYER_COMBOTERM_VALUE_NAME L"ComboTermMs"
 #define KBDLAYER_TAPDANCES_VALUE_NAME L"TapDances"
 #define KBDLAYER_TAPDANCETERM_VALUE_NAME L"TapDanceTermMs"
+#define KBDLAYER_NICOLA_VALUE_NAME L"Nicola"
 #define KBDLAYER_REGTEMP_POOL_TAG 'tLdK'
 
 // マクロの永続化形式（レジストリ"Macros"値）。KBDLAYER_MAX_MACRO_COUNT個ぶん
@@ -276,6 +277,72 @@ FindKeyEntry(
     return NULL;
 }
 
+// ---------------------------------------------------------------------------
+// 押下中キーの処理記録（devExt->HeldKeys。DeviceExtension.hのKBDLAYER_HELD_*参照）
+// いずれもdevExt->EngineLock保持中に呼ぶこと。
+// ---------------------------------------------------------------------------
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static PKBDLAYER_HELD_KEY
+HeldKeyFor(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ USHORT ScanCode16
+    )
+{
+    ULONG index = ScanCode16 & 0xFF;
+    UCHAR prefix = (UCHAR)(ScanCode16 >> 8);
+    if (prefix == 0xE1) {
+        index |= 0x200;
+    } else if (prefix == 0xE0) {
+        index |= 0x100;
+    }
+    return &devExt->HeldKeys[index];
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+SetHeldKeyLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ USHORT ScanCode16,
+    _In_ UCHAR State,
+    _In_opt_ const KBDLAYER_ACTION* Action
+    )
+{
+    PKBDLAYER_HELD_KEY held = HeldKeyFor(devExt, ScanCode16);
+
+    if (held->State == KBDLAYER_HELD_NONE && State != KBDLAYER_HELD_NONE) {
+        devExt->HeldKeyCount++;
+    } else if (held->State != KBDLAYER_HELD_NONE && State == KBDLAYER_HELD_NONE && devExt->HeldKeyCount > 0) {
+        devExt->HeldKeyCount--;
+    }
+    held->State = State;
+    if (Action != NULL) {
+        held->Action = *Action;
+    } else {
+        RtlZeroMemory(&held->Action, sizeof(held->Action));
+    }
+}
+
+// 生のまま転送するバッチ（MT/LTのホールド確定・タップダンスの割り込み）の押下を
+// RAWとして記録する。こうしておくと、その解放も通常経路で生のまま転送される。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+RecordRawMakesLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd
+    )
+{
+    for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
+        if (!(p->Flags & KEY_BREAK)) {
+            USHORT sc = EncodeScancode16(p->MakeCode, p->Flags);
+            if (HeldKeyFor(devExt, sc)->State == KBDLAYER_HELD_NONE) {
+                SetHeldKeyLocked(devExt, sc, KBDLAYER_HELD_RAW, NULL);
+            }
+        }
+    }
+}
+
 // [レイヤー解決規則] ActiveLayerMask(+DefaultLayerビット)の中で最も高いレイヤー
 // 番号から順に、KBDLAYER_ACTION_TRANSPARENT でないアクションを探す
 // （QMKの「上位レイヤー優先、透過ならフォールスルー」と同じ規則）。
@@ -303,6 +370,14 @@ ResolveEffectiveAction(
 
 // devExt->EngineLock保持中に呼ばれる前提。CompactInputDataArrayのコールバックとして
 // 1エントリずつ処理し、MO/TG/DF/OSLの副作用（ActiveLayerMask等の更新）もここで行う。
+//
+// [押下と解放の対応] 押下（make）はその時点のレイヤー状態で解決し、使ったアクションを
+// devExt->HeldKeysに記録する。解放（break）とオートリピートの再makeは、その時点の
+// レイヤー状態で解決し直さず、記録したアクションを使う（QMKのsource layers cache相当）。
+// こうしないと、押している間にMOを離す・OSLを消費する・TG/DFで切り替えるなどして
+// レイヤーが変わったとき、押下と解放が別のキーとしてOSに届き、押下したキーが
+// 押しっぱなしのまま残る。記録はレイヤーマップのOFF・差し替え・CLEAR後も有効
+// （ContextがNULLでない = マップ無効中の呼び出しで、記録のあるキーだけを処理する）。
 _IRQL_requires_max_(DISPATCH_LEVEL)
 static BOOLEAN
 LayerEngineShouldDropEntry(
@@ -312,31 +387,62 @@ LayerEngineShouldDropEntry(
     )
 {
     PKBDLAYER_MAP_TABLE table = devExt->LayerMap; // EngineLock保持中に呼ばれる前提
+    BOOLEAN heldOnly = (Context != NULL);
     PKBDLAYER_KEY_ENTRY keyEntry;
+    PKBDLAYER_HELD_KEY held;
+    KBDLAYER_ACTION recorded;
     PKBDLAYER_ACTION action;
     USHORT src;
     BOOLEAN isBreak;
 
-    UNREFERENCED_PARAMETER(Context);
-
-    if (table == NULL) {
-        return FALSE;
-    }
-
     src = EncodeScancode16(Entry->MakeCode, Entry->Flags);
     isBreak = (Entry->Flags & KEY_BREAK) != 0;
+    held = HeldKeyFor(devExt, src);
+
+    if (held->State != KBDLAYER_HELD_NONE) {
+        // 押下時の記録どおりに処理する（解放なら記録を消す）。
+        UCHAR state = held->State;
+        recorded = held->Action;
+        if (isBreak) {
+            SetHeldKeyLocked(devExt, src, KBDLAYER_HELD_NONE, NULL);
+        }
+        if (state == KBDLAYER_HELD_RAW) {
+            return FALSE; // 生のまま転送する
+        }
+        if (state == KBDLAYER_HELD_SWALLOWED) {
+            return TRUE;
+        }
+        action = &recorded;
+        goto apply;
+    }
+
+    if (heldOnly || table == NULL) {
+        return FALSE;
+    }
 
     keyEntry = FindKeyEntry(table, src);
     if (keyEntry == NULL) {
         // レイヤーマップで管理されていない物理キー（Fnキー・電源キー等）はそのまま素通しする。
+        // 押している間にマップが差し替えられても解放を生のまま通せるよう、記録しておく。
+        if (!isBreak) {
+            SetHeldKeyLocked(devExt, src, KBDLAYER_HELD_RAW, NULL);
+        }
         return FALSE;
     }
 
     action = ResolveEffectiveAction(devExt, table, keyEntry);
     if (action == NULL) {
-        return TRUE; // 全レイヤーで透過 = 実質KC_NO。出力しない。
+        // 全レイヤーで透過 = 実質KC_NO。出力しない（解放も対で出力しない）。
+        if (!isBreak) {
+            SetHeldKeyLocked(devExt, src, KBDLAYER_HELD_SWALLOWED, NULL);
+        }
+        return TRUE;
+    }
+    if (!isBreak) {
+        SetHeldKeyLocked(devExt, src, KBDLAYER_HELD_ACTION, action);
     }
 
+apply:
     switch (action->Type) {
     case KBDLAYER_ACTION_NONE:
         return TRUE; // 出力しない
@@ -412,8 +518,16 @@ ResolveLayerAction(
     // 動く必要があるためResolveCalibration（ServiceCallbackの先頭）へ移した。
 
     if (!devExt->LayerMapEnabled || devExt->LayerMap == NULL) {
+        // マップが無効・未設定でも、有効だった間に押されたキーの解放だけは記録どおりに
+        // 処理する（押しっぱなしを残さないため）。記録が無ければ何もしない。
+        if (devExt->HeldKeyCount == 0) {
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+            return InputDataEnd;
+        }
+        newEnd = CompactInputDataArray(devExt, InputDataStart, InputDataEnd,
+                                       LayerEngineShouldDropEntry, (PVOID)devExt /* heldOnly */);
         KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
-        return InputDataEnd;
+        return newEnd;
     }
 
     newEnd = CompactInputDataArray(devExt, InputDataStart, InputDataEnd, LayerEngineShouldDropEntry, NULL);
@@ -658,13 +772,26 @@ ResolveTapHold(
     // ActiveLayerMaskの操作だけなので元バッチ転送の1回のみ）。
     if (devExt->PendingActive && !devExt->HoldConfirmed && !isBreak) {
         KBDLAYER_ACTION action;
+        BOOLEAN alreadyHeld = (HeldKeyFor(devExt, scanCode)->State != KBDLAYER_HELD_NONE);
 
         ConfirmHoldLocked(devExt, &action);
+        if (!alreadyHeld) {
+            // 生のまま転送する押下を記録し、その解放も生のまま転送されるようにする
+            // （記録が無いと、解放がホールド確定後のレイヤーで解決されて別のキーになり、
+            // 押下したキーが押しっぱなしになる）。
+            RecordRawMakesLocked(devExt, InputDataStart, InputDataEnd);
+        }
         KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
         KeCancelTimer(&devExt->HoldTimer);
 
         EmitModTapEventIfApplicable(devExt, &action, KEY_MAKE);
+
+        if (alreadyHeld) {
+            // MT/LTより前から押されていたキーのオートリピート。押下時の記録どおりに
+            // 処理させるため、通常経路（ResolveLayerAction）に委ねる。
+            return FALSE;
+        }
 
         // 続けて元のバッチ（別キーのイベント）をそのままOriginalClassServiceに
         // 渡す。このキーはレイヤーエンジンでの再解決を経ない生のスキャンコードの
@@ -683,7 +810,9 @@ ResolveTapHold(
 
     // --- 現在アイドル（保留中でもホールド中でもない）で、このキー自体が
     //     MT/LTに解決される押下イベントなら、新しい保留サイクルを開始する ---
-    if (!devExt->PendingActive && !devExt->HoldConfirmed && !isBreak) {
+    // （押下時の記録があるキーのオートリピートは、押下時の処理を続けるだけなので対象外）
+    if (!devExt->PendingActive && !devExt->HoldConfirmed && !isBreak &&
+        HeldKeyFor(devExt, scanCode)->State == KBDLAYER_HELD_NONE) {
         PKBDLAYER_KEY_ENTRY keyEntry = FindKeyEntry(devExt->LayerMap, scanCode);
         if (keyEntry != NULL) {
             PKBDLAYER_ACTION action = ResolveEffectiveAction(devExt, devExt->LayerMap, keyEntry);
@@ -736,6 +865,8 @@ ResolveMacro(
     KIRQL oldIrql;
     PKBDLAYER_KEY_ENTRY keyEntry;
     PKBDLAYER_ACTION action;
+    PKBDLAYER_HELD_KEY held;
+    KBDLAYER_ACTION recordedMacro;
     ULONG macroId;
     ULONG stepCount;
     KBDLAYER_MACRO_STEP localSteps[KBDLAYER_MAX_MACRO_STEPS];
@@ -754,6 +885,21 @@ ResolveMacro(
     if (!devExt->LayerMapEnabled || devExt->LayerMap == NULL) {
         KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
         return FALSE;
+    }
+
+    // 押下時の記録があるキー（解放・オートリピート）は、その時点のレイヤーで解決し直さず
+    // 記録どおりに処理する（LayerEngineShouldDropEntry参照）。例外として、マクロとして
+    // 押下したキーのオートリピートは、記録したマクロをもう一度実行する（従来どおりの挙動）。
+    // マクロキーの解放は、LayerEngineShouldDropEntryが記録どおりに飲み込む。
+    held = HeldKeyFor(devExt, scanCode);
+    if (held->State != KBDLAYER_HELD_NONE) {
+        if (isBreak || held->State != KBDLAYER_HELD_ACTION || held->Action.Type != KBDLAYER_ACTION_MACRO) {
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+            return FALSE;
+        }
+        recordedMacro = held->Action;
+        action = &recordedMacro;
+        goto run;
     }
 
     keyEntry = FindKeyEntry(devExt->LayerMap, scanCode);
@@ -782,6 +928,10 @@ ResolveMacro(
         return TRUE;
     }
 
+    // このキーの解放はレイヤーが変わっても飲み込み、オートリピートは同じマクロを実行する。
+    SetHeldKeyLocked(devExt, scanCode, KBDLAYER_HELD_ACTION, action);
+
+run:
     // KEYアクションと同様、マクロの実行も「実際に何かを送出する行為」なので
     // OSL(layer)発動中の一発消費として扱う（LayerEngineShouldDropEntryのKEYケースと
     // 同じ規則）。
@@ -910,6 +1060,10 @@ ComboDpcRoutine(
     if (shouldReplay) {
         pendingScanCode = devExt->ComboPendingScanCode;
         devExt->ComboPendingActive = FALSE;
+        // 復元する押下は生のスキャンコードなので、その解放も生のまま転送させる。
+        if (HeldKeyFor(devExt, pendingScanCode)->State == KBDLAYER_HELD_NONE) {
+            SetHeldKeyLocked(devExt, pendingScanCode, KBDLAYER_HELD_RAW, NULL);
+        }
     }
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
@@ -1051,6 +1205,10 @@ ResolveCombo(
         // --- 無関係キーによる割り込み = 不成立。保留していたpressのみ復元送出し、
         //     割り込みキー自身は通常経路（呼び出し元でのResolveTapHold以降）に委ねる。
         devExt->ComboPendingActive = FALSE;
+        // 復元する押下は生のスキャンコードなので、その解放も生のまま転送させる。
+        if (HeldKeyFor(devExt, pendingScanCode)->State == KBDLAYER_HELD_NONE) {
+            SetHeldKeyLocked(devExt, pendingScanCode, KBDLAYER_HELD_RAW, NULL);
+        }
         KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
         KeCancelTimer(&devExt->ComboTimer);
@@ -1058,8 +1216,9 @@ ResolveCombo(
         return FALSE;
     }
 
-    // --- Idle: このキー自体がコンボメンバーなら新しい保留サイクルを開始する ---
-    if (!isBreak) {
+    // --- Idle: このキー自体がコンボメンバーなら新しい保留サイクルを開始する
+    //     （押下時の記録があるキーのオートリピートは対象外） ---
+    if (!isBreak && HeldKeyFor(devExt, scanCode)->State == KBDLAYER_HELD_NONE) {
         LONG idx = FindComboIndexForScanCode(devExt, scanCode);
         if (idx >= 0) {
             LARGE_INTEGER dueTime;
@@ -1389,7 +1548,15 @@ ResolveTapDance(
             ULONG tapCountSoFar = devExt->TapDanceTapCount;
             BOOLEAN wasKeyDown = devExt->TapDanceKeyDown;
             BOOLEAN isHoldCase = (wasKeyDown && tapCountSoFar == 0);
+            // 押下時の記録があるキー（タップダンスより前から押されていたキーの解放・
+            // オートリピート）は、生のまま転送せず通常経路で記録どおりに処理させる。
+            // 記録が無い押下は、解放も生のまま転送されるようRAWとして記録する。
+            BOOLEAN alreadyHeld = (HeldKeyFor(devExt, scanCode)->State != KBDLAYER_HELD_NONE);
             KBDLAYER_ACTION action;
+
+            if (!alreadyHeld) {
+                RecordRawMakesLocked(devExt, InputDataStart, InputDataEnd);
+            }
 
             if (isHoldCase) {
                 // 1回目の押下中の割り込み = SingleHold確定（Phase 2のHold On Other Key
@@ -1416,6 +1583,10 @@ ResolveTapDance(
                 SendDecodedEvent(devExt, action.Param2, KEY_BREAK);
             }
 
+            if (alreadyHeld) {
+                return FALSE;
+            }
+
             // 続けて割り込みバッチをそのままOriginalClassServiceに渡す（Phase 2の
             // ResolveTapHoldと同じ方式。このキーはレイヤーエンジンでの再解決を経ない
             // 生のスキャンコードのまま転送される、既知の制約も同様）。
@@ -1432,8 +1603,8 @@ ResolveTapDance(
     }
 
     // --- Idle: このキー自体がTAPDANCEアクションに解決される押下イベントなら、
-    //     新しい保留サイクルを開始する ---
-    if (!isBreak) {
+    //     新しい保留サイクルを開始する（押下時の記録があるキーのオートリピートは対象外） ---
+    if (!isBreak && HeldKeyFor(devExt, scanCode)->State == KBDLAYER_HELD_NONE) {
         PKBDLAYER_KEY_ENTRY keyEntry = FindKeyEntry(devExt->LayerMap, scanCode);
         if (keyEntry != NULL) {
             PKBDLAYER_ACTION action = ResolveEffectiveAction(devExt, devExt->LayerMap, keyEntry);
@@ -1652,6 +1823,12 @@ LoadPersistedTapDancesForDevice(
     );
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
+static VOID
+LoadPersistedNicolaForDevice(
+    _In_ PDEVICE_EXTENSION devExt
+    );
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
 VOID
 LoadPersistedLayerMapForDevice(
     _In_ PDEVICE_EXTENSION devExt
@@ -1694,6 +1871,7 @@ LoadPersistedLayerMapForDevice(
     LoadPersistedMacrosForDevice(devExt);
     LoadPersistedCombosForDevice(devExt);
     LoadPersistedTapDancesForDevice(devExt);
+    LoadPersistedNicolaForDevice(devExt);
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
@@ -2538,4 +2716,646 @@ ConsumeCapturedScanCode(
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
     return scanCode;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 6: NICOLA（親指シフト）
+//
+// 同時打鍵の判定はNicolaCore.c（カーネル非依存の状態機械）が行い、ここでは
+//   - 物理キーの分類（文字キー / 親指左右 / 対象外）
+//   - EngineLockによる直列化と、判定結果 → スキャンコード列への変換
+//   - タイマー（NicolaState.Deadline）の張り直し
+//   - ロック解放後の送出
+// だけを担う。送出はマクロと同じくSendDecodedEventでkbdclassへ直接渡すため、
+// 文字キーの出力はレイヤーマップを経由しない（NICOLAは物理位置で配列を決めるため）。
+// ---------------------------------------------------------------------------
+
+// 1回の判定で送出しうるステップ数の上限（出力件数 × 1文字の最大ステップ数）。
+#define NICOLA_MAX_EMIT_STEPS (NICOLA_CORE_MAX_OUTPUTS * KBDLAYER_NICOLA_MAX_STEPS)
+
+typedef struct _NICOLA_EMIT {
+    ULONG StepCount;
+    BOOLEAN Pass; // 今回の生イベントを通常経路へ流す
+    KBDLAYER_MACRO_STEP Steps[NICOLA_MAX_EMIT_STEPS];
+} NICOLA_EMIT, *PNICOLA_EMIT;
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static PKBDLAYER_NICOLA_KEY_ENTRY
+NicolaEntries(
+    _In_ PKBDLAYER_NICOLA_HEADER Table
+    )
+{
+    return (PKBDLAYER_NICOLA_KEY_ENTRY)((PUCHAR)Table + sizeof(KBDLAYER_NICOLA_HEADER));
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static PKBDLAYER_NICOLA_KEY_ENTRY
+FindNicolaEntry(
+    _In_ PKBDLAYER_NICOLA_HEADER Table,
+    _In_ USHORT ScanCode
+    )
+{
+    PKBDLAYER_NICOLA_KEY_ENTRY entries = NicolaEntries(Table);
+    for (ULONG i = 0; i < Table->KeyCount; i++) {
+        if (entries[i].SourceScanCode == ScanCode) {
+            return &entries[i];
+        }
+    }
+    return NULL;
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+NicolaParamsFromTable(
+    _In_ PKBDLAYER_NICOLA_HEADER Table,
+    _Out_ PNICOLA_CORE_PARAMS Params
+    )
+{
+    Params->SimulTermMs = (Table->SimulTermMs != 0) ? Table->SimulTermMs : KBDLAYER_NICOLA_DEFAULT_SIMUL_TERM_MS;
+    Params->OverlapRatioPercent = (Table->OverlapRatioPercent != 0)
+        ? Table->OverlapRatioPercent : KBDLAYER_NICOLA_DEFAULT_OVERLAP_RATIO_PCT;
+    Params->MinOverlapMs = Table->MinOverlapMs;
+    Params->Flags = Table->Flags;
+}
+
+// 判定用の時刻（ms）。KeQueryInterruptTimeはクロック割り込み単位（既定15.6ms）でしか
+// 進まず、数十msの時間差を比べる同時打鍵判定には粗すぎるため、高精度版を使う。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static ULONGLONG
+NicolaNowMs(
+    VOID
+    )
+{
+    ULONG64 qpc;
+    return KeQueryInterruptTimePrecise(&qpc) / 10000ULL;
+}
+
+// devExt->EngineLock保持中に呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static BOOLEAN
+NicolaIsActiveLocked(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    PKBDLAYER_NICOLA_HEADER table = devExt->NicolaTable;
+    ULONG effectiveMask;
+
+    if (table == NULL || !table->Enabled || !devExt->LayerMapEnabled || devExt->LayerMap == NULL) {
+        return FALSE;
+    }
+    effectiveMask = devExt->ActiveLayerMask | (1UL << devExt->DefaultLayer);
+    return (effectiveMask & (1UL << table->Layer)) != 0;
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+NicolaAppendStep(
+    _Inout_ PNICOLA_EMIT Emit,
+    _In_ USHORT ScanCode,
+    _In_ UCHAR IsBreak
+    )
+{
+    if (ScanCode != 0 && Emit->StepCount < NICOLA_MAX_EMIT_STEPS) {
+        Emit->Steps[Emit->StepCount].ScanCode = ScanCode;
+        Emit->Steps[Emit->StepCount].IsBreak = IsBreak;
+        Emit->Steps[Emit->StepCount].Reserved = 0;
+        Emit->StepCount++;
+    }
+}
+
+// devExt->EngineLock保持中に呼ぶこと。判定結果を送出するスキャンコード列に変換する。
+// Tableは判定に使った設定（SetNicolaForDeviceでは差し替え前の設定）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+NicolaCollectLocked(
+    _In_opt_ PKBDLAYER_NICOLA_HEADER Table,
+    _In_ const NICOLA_CORE_RESULT* Result,
+    _Inout_ PNICOLA_EMIT Emit
+    )
+{
+    for (ULONG i = 0; i < Result->Count; i++) {
+        const NICOLA_CORE_OUTPUT* item = &Result->Items[i];
+
+        switch (item->Type) {
+        case NICOLA_OUT_CHAR:
+            if (Table != NULL && item->Arg < KBDLAYER_NICOLA_PLANE_COUNT) {
+                PKBDLAYER_NICOLA_KEY_ENTRY entry = FindNicolaEntry(Table, item->ScanCode);
+                if (entry != NULL) {
+                    PKBDLAYER_NICOLA_OUTPUT out = &entry->Planes[item->Arg];
+                    ULONG count = min(out->StepCount, KBDLAYER_NICOLA_MAX_STEPS);
+                    for (ULONG s = 0; s < count; s++) {
+                        NicolaAppendStep(Emit, out->Steps[s].ScanCode, out->Steps[s].IsBreak);
+                    }
+                }
+            }
+            break;
+
+        case NICOLA_OUT_TAP_MAKE:
+        case NICOLA_OUT_TAP_BREAK:
+            if (Table != NULL) {
+                USHORT tapKey = (item->Arg == NICOLA_SIDE_LEFT) ? Table->ThumbLeftTapKey : Table->ThumbRightTapKey;
+                NicolaAppendStep(Emit, tapKey, item->Type == NICOLA_OUT_TAP_BREAK ? 1 : 0);
+            }
+            break;
+
+        case NICOLA_OUT_PASS:
+            Emit->Pass = TRUE;
+            break;
+
+        default:
+            break;
+        }
+    }
+}
+
+// EngineLockを保持していない状態で、DISPATCH_LEVELで呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+NicolaSend(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ const NICOLA_EMIT* Emit
+    )
+{
+    if (devExt->OriginalClassService == NULL) {
+        return; // まだkbdclassに接続されていない（IOCTL経路からの呼び出しで起こりうる）
+    }
+    for (ULONG i = 0; i < Emit->StepCount; i++) {
+        SendDecodedEvent(devExt, Emit->Steps[i].ScanCode, Emit->Steps[i].IsBreak ? KEY_BREAK : KEY_MAKE);
+    }
+}
+
+// EngineLockを保持していない状態で呼ぶこと。Deadline=0ならタイマーを止める。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+NicolaArmTimer(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONGLONG DeadlineMs,
+    _In_ ULONGLONG NowMs
+    )
+{
+    LARGE_INTEGER dueTime;
+    ULONGLONG delayMs;
+
+    if (DeadlineMs == 0) {
+        KeCancelTimer(&devExt->NicolaTimer);
+        return;
+    }
+    delayMs = (DeadlineMs > NowMs) ? (DeadlineMs - NowMs) : 1;
+    dueTime.QuadPart = -((LONGLONG)delayMs * 10000LL);
+    KeSetTimer(&devExt->NicolaTimer, dueTime, &devExt->NicolaDpc);
+}
+
+// NicolaTimerの満了で起動されるDPC。保留中の判定を期限切れとして確定させる。
+// ServiceCallbackとの競合はEngineLockで直列化し、NicolaCoreOnTimeoutは期限前に
+// 呼ばれても何もしない（KeSetTimerの張り直しと満了が競合した場合）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+NicolaDpcRoutine(
+    _In_ PKDPC Dpc,
+    _In_opt_ PVOID DeferredContext,
+    _In_opt_ PVOID SystemArgument1,
+    _In_opt_ PVOID SystemArgument2
+    )
+{
+    PDEVICE_EXTENSION devExt = (PDEVICE_EXTENSION)DeferredContext;
+    KIRQL oldIrql;
+    NICOLA_CORE_PARAMS params;
+    NICOLA_CORE_RESULT result;
+    NICOLA_EMIT emit;
+    ULONGLONG now;
+
+    UNREFERENCED_PARAMETER(Dpc);
+    UNREFERENCED_PARAMETER(SystemArgument1);
+    UNREFERENCED_PARAMETER(SystemArgument2);
+
+    if (devExt == NULL) {
+        return;
+    }
+
+    emit.StepCount = 0;
+    emit.Pass = FALSE;
+    now = NicolaNowMs();
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    if (!NicolaIsActiveLocked(devExt)) {
+        // 無効化はNicolaSyncActivationが状態ごと片付ける。
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        return;
+    }
+    NicolaParamsFromTable(devExt->NicolaTable, &params);
+    NicolaCoreOnTimeout(&devExt->NicolaState, &params, now, &result);
+    NicolaCollectLocked(devExt->NicolaTable, &result, &emit);
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    if (result.Deadline != 0) {
+        NicolaArmTimer(devExt, result.Deadline, now);
+    }
+    if (emit.StepCount > 0) {
+        KBDLAYER_TRACE("LayerEngine: nicola TIMEOUT emit steps=%lu\n", emit.StepCount);
+    }
+    NicolaSend(devExt, &emit);
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+NicolaIsActive(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    KIRQL oldIrql;
+    BOOLEAN active;
+
+    if (devExt->NicolaTable == NULL) {
+        return FALSE; // 未設定時のホットパスはロックを取らない
+    }
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    active = NicolaIsActiveLocked(devExt);
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+    return active;
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+NicolaObserveBatch(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd
+    )
+{
+    KIRQL oldIrql;
+
+    for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
+        USHORT scanCode = EncodeScancode16(p->MakeCode, p->Flags);
+        for (ULONG bit = 0; bit < RTL_NUMBER_OF(s_ModifierScanCodes); bit++) {
+            if (s_ModifierScanCodes[bit] == scanCode) {
+                KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+                if (p->Flags & KEY_BREAK) {
+                    devExt->NicolaModifierDown &= (UCHAR)~(1u << bit);
+                } else {
+                    devExt->NicolaModifierDown |= (UCHAR)(1u << bit);
+                }
+                KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+                break;
+            }
+        }
+    }
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+NicolaSyncActivation(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    KIRQL oldIrql;
+    BOOLEAN active;
+    USHORT tapKey = 0;
+    NICOLA_CORE_RESULT result;
+    NICOLA_EMIT emit;
+
+    if (devExt->NicolaTable == NULL && !devExt->NicolaWasActive) {
+        return; // 未設定時のホットパスはロックを取らない
+    }
+
+    emit.StepCount = 0;
+    emit.Pass = FALSE;
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    active = NicolaIsActiveLocked(devExt);
+    if (active == devExt->NicolaWasActive) {
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        return;
+    }
+    devExt->NicolaWasActive = active;
+    if (!active) {
+        // 保留中の判定を確定させ、押下送出済みの単独打鍵キーを解放してから初期化する。
+        NicolaCoreReset(&devExt->NicolaState, &result);
+        NicolaCollectLocked(devExt->NicolaTable, &result, &emit);
+    }
+    if (devExt->NicolaTable != NULL) {
+        tapKey = active ? devExt->NicolaTable->OnEnterKey : devExt->NicolaTable->OnExitKey;
+    }
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    if (!active) {
+        KeCancelTimer(&devExt->NicolaTimer);
+    }
+    KBDLAYER_TRACE("LayerEngine: nicola %s steps=%lu tapKey=0x%X\n",
+                   active ? "ENTER" : "EXIT", emit.StepCount, tapKey);
+    NicolaAppendStep(&emit, tapKey, 0);
+    NicolaAppendStep(&emit, tapKey, 1);
+    NicolaSend(devExt, &emit);
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+ResolveNicola(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd,
+    _Inout_opt_ PVOID SystemArgument3
+    )
+{
+    PKEYBOARD_INPUT_DATA ev;
+    USHORT scanCode;
+    BOOLEAN isBreak;
+    KIRQL oldIrql;
+    PKBDLAYER_NICOLA_HEADER table;
+    NICOLA_KEY_KIND kind;
+    NICOLA_CORE_PARAMS params;
+    NICOLA_CORE_RESULT result;
+    NICOLA_EMIT emit;
+    ULONGLONG now;
+
+    // 他のResolve*と同じく1件バッチのみ。判定有効中の複数件バッチはServiceCallbackが
+    // 1件ずつに分けてから呼ぶ（USBキーボードでは親指キーと文字キーの同時押しが
+    // 1つのレポート = 1バッチで届きうるため、素通しにはできない）。
+    if ((InputDataEnd - InputDataStart) != 1) {
+        return FALSE;
+    }
+    if (devExt->NicolaTable == NULL && !devExt->NicolaWasActive) {
+        return FALSE; // 未設定時のホットパスはロックを取らない
+    }
+
+    NicolaSyncActivation(devExt);
+
+    ev = InputDataStart;
+    scanCode = EncodeScancode16(ev->MakeCode, ev->Flags);
+    isBreak = (ev->Flags & KEY_BREAK) != 0;
+    emit.StepCount = 0;
+    emit.Pass = FALSE;
+    now = NicolaNowMs();
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+
+    if (!NicolaIsActiveLocked(devExt)) {
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        return FALSE;
+    }
+    table = devExt->NicolaTable;
+    if (table == NULL) {
+        // NicolaIsActiveLockedがTRUEならNULLではないが、静的解析（C28182）向けに明示する。
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        return FALSE;
+    }
+
+    if (scanCode == table->ThumbLeftScanCode) {
+        kind = NICOLA_KEY_THUMB_LEFT;
+    } else if (scanCode == table->ThumbRightScanCode) {
+        kind = NICOLA_KEY_THUMB_RIGHT;
+    } else if (FindNicolaEntry(table, scanCode) != NULL) {
+        kind = NICOLA_KEY_CHAR;
+    } else {
+        kind = NICOLA_KEY_OTHER;
+    }
+    // Ctrl/Alt/Win/Shift押下中はショートカット等を壊さないよう判定を迂回する
+    // （物理キーの状態で見る。NicolaObserveBatch参照）。
+    if (kind != NICOLA_KEY_OTHER && devExt->NicolaModifierDown != 0) {
+        kind = NICOLA_KEY_OTHER;
+    }
+
+    NicolaParamsFromTable(table, &params);
+    NicolaCoreOnKey(&devExt->NicolaState, &params, kind, scanCode, isBreak, now, &result);
+    NicolaCollectLocked(table, &result, &emit);
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    NicolaArmTimer(devExt, result.Deadline, now);
+    NicolaSend(devExt, &emit);
+
+    if (emit.Pass) {
+        return FALSE;
+    }
+    if (SystemArgument3 != NULL) {
+        *(PULONG)SystemArgument3 = 1;
+    }
+    return TRUE;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+InitializeNicolaState(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    KeInitializeTimer(&devExt->NicolaTimer);
+    KeInitializeDpc(&devExt->NicolaDpc, NicolaDpcRoutine, devExt);
+    NicolaCoreInit(&devExt->NicolaState);
+    devExt->NicolaTable = NULL;
+    devExt->NicolaTableBytes = 0;
+    devExt->NicolaWasActive = FALSE;
+    devExt->NicolaModifierDown = 0;
+}
+
+// NICOLA設定blobの形式を検証する（SET_NICOLAとレジストリからの読み込みの両方で使う）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+ValidateNicolaBlob(
+    _In_reads_bytes_(BlobLength) PVOID Blob,
+    _In_ ULONG BlobLength
+    )
+{
+    PKBDLAYER_NICOLA_HEADER header = (PKBDLAYER_NICOLA_HEADER)Blob;
+    PKBDLAYER_NICOLA_KEY_ENTRY entries;
+
+    if (Blob == NULL || BlobLength < sizeof(KBDLAYER_NICOLA_HEADER)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (header->Version != KBDLAYER_NICOLA_VERSION ||
+        header->KeyCount > KBDLAYER_NICOLA_MAX_KEYS ||
+        BlobLength != sizeof(KBDLAYER_NICOLA_HEADER) + header->KeyCount * sizeof(KBDLAYER_NICOLA_KEY_ENTRY)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (header->Layer >= KBDLAYER_MAX_LAYERS) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (header->ThumbLeftScanCode == 0 || header->ThumbRightScanCode == 0 ||
+        header->ThumbLeftScanCode == header->ThumbRightScanCode) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    // 極端な値は設定ミスとして弾く（判定時間は規格上50〜200msが妥当とされる）。
+    if (header->SimulTermMs > 1000 || header->OverlapRatioPercent > 1000 || header->MinOverlapMs > 1000) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    entries = NicolaEntries(header);
+    for (ULONG i = 0; i < header->KeyCount; i++) {
+        USHORT sc = entries[i].SourceScanCode;
+        if (sc == 0 || sc == header->ThumbLeftScanCode || sc == header->ThumbRightScanCode) {
+            return STATUS_INVALID_PARAMETER;
+        }
+        for (ULONG j = 0; j < i; j++) {
+            if (entries[j].SourceScanCode == sc) {
+                return STATUS_INVALID_PARAMETER;
+            }
+        }
+        for (ULONG p = 0; p < KBDLAYER_NICOLA_PLANE_COUNT; p++) {
+            if (entries[i].Planes[p].StepCount > KBDLAYER_NICOLA_MAX_STEPS) {
+                return STATUS_INVALID_PARAMETER;
+            }
+        }
+    }
+    return STATUS_SUCCESS;
+}
+
+// 検証済みのblobをNonPagedへ複製する。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+CopyNicolaBlob(
+    _In_reads_bytes_(BlobLength) PVOID Blob,
+    _In_ ULONG BlobLength,
+    _Outptr_ PKBDLAYER_NICOLA_HEADER* OutTable
+    )
+{
+    PKBDLAYER_NICOLA_HEADER table;
+    NTSTATUS status;
+
+    *OutTable = NULL;
+    status = ValidateNicolaBlob(Blob, BlobLength);
+    if (!NT_SUCCESS(status)) {
+        return status;
+    }
+    table = (PKBDLAYER_NICOLA_HEADER)ExAllocatePool2(POOL_FLAG_NON_PAGED, BlobLength, KBDLAYER_NICOLA_POOL_TAG);
+    if (table == NULL) {
+        return STATUS_INSUFFICIENT_RESOURCES;
+    }
+    RtlCopyMemory(table, Blob, BlobLength);
+    *OutTable = table;
+    return STATUS_SUCCESS;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetNicolaForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_reads_bytes_opt_(BlobLength) PVOID Blob,
+    _In_ ULONG BlobLength
+    )
+{
+    PKBDLAYER_NICOLA_HEADER newTable = NULL;
+    PKBDLAYER_NICOLA_HEADER oldTable;
+    NICOLA_CORE_RESULT result;
+    NICOLA_EMIT emit;
+    KIRQL oldIrql;
+    WCHAR subKeyPath[64];
+    NTSTATUS status;
+
+    if (BlobLength > 0) {
+        if (Blob == NULL) {
+            return STATUS_INVALID_PARAMETER;
+        }
+        status = CopyNicolaBlob(Blob, BlobLength, &newTable);
+        if (!NT_SUCCESS(status)) {
+            return status;
+        }
+    }
+
+    emit.StepCount = 0;
+    emit.Pass = FALSE;
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    // 進行中の判定は差し替え前の設定で確定させてから捨てる。新しい設定で判定が有効なら、
+    // 次のキーイベントでNicolaSyncActivationがOnEnterKeyを送る。
+    NicolaCoreReset(&devExt->NicolaState, &result);
+    NicolaCollectLocked(devExt->NicolaTable, &result, &emit);
+    oldTable = devExt->NicolaTable;
+    devExt->NicolaTable = newTable;
+    devExt->NicolaTableBytes = BlobLength;
+    devExt->NicolaWasActive = FALSE;
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    KeCancelTimer(&devExt->NicolaTimer);
+
+    if (emit.StepCount > 0) {
+        // kbdclassのサービスコールバックはport driverからDISPATCH_LEVELで呼ばれる前提なので、
+        // PASSIVE_LEVELのIOCTL経路から送るときも同じIRQLに上げる。
+        KIRQL irql;
+        KeRaiseIrql(DISPATCH_LEVEL, &irql);
+        NicolaSend(devExt, &emit);
+        KeLowerIrql(irql);
+    }
+
+    // ServiceCallback/DPCはEngineLock保持中にしかNicolaTableを読まないので、差し替え後の
+    // 旧テーブルはここで安全に解放できる。
+    if (oldTable != NULL) {
+        ExFreePoolWithTag(oldTable, KBDLAYER_NICOLA_POOL_TAG);
+    }
+
+    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_NICOLA_VALUE_NAME,
+                    BlobLength > 0 ? Blob : NULL, BlobLength);
+
+    return STATUS_SUCCESS;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+GetNicolaForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _Out_writes_bytes_to_opt_(OutBufferLength, *BytesReturned) PVOID OutBuffer,
+    _In_ ULONG OutBufferLength,
+    _Out_ PULONG BytesReturned
+    )
+{
+    KIRQL oldIrql;
+    ULONG required;
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    required = (devExt->NicolaTable != NULL) ? devExt->NicolaTableBytes : 0;
+    *BytesReturned = required;
+    if (required > 0) {
+        if (OutBuffer == NULL || OutBufferLength < required) {
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+            return STATUS_BUFFER_TOO_SMALL;
+        }
+        RtlCopyMemory(OutBuffer, devExt->NicolaTable, required);
+    }
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    return STATUS_SUCCESS;
+}
+
+// AddDeviceから呼ばれる: レジストリの"Nicola"値を読み、devExt->NicolaTableを初期化する
+// （LoadPersistedCombosForDeviceと同じ理屈でロック無しに直接書き込む）。
+// 失敗時は未設定のままでよい（ベストエフォート）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static VOID
+LoadPersistedNicolaForDevice(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    WCHAR subKeyPath[64];
+    PVOID buffer;
+    ULONG actualLength = 0;
+    NTSTATUS status;
+
+    buffer = ExAllocatePool2(POOL_FLAG_PAGED, KBDLAYER_MAX_NICOLA_BLOB_BYTES, KBDLAYER_REGTEMP_POOL_TAG);
+    if (buffer == NULL) {
+        return;
+    }
+
+    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    status = RegReadBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_NICOLA_VALUE_NAME,
+                            buffer, KBDLAYER_MAX_NICOLA_BLOB_BYTES, &actualLength);
+    if (NT_SUCCESS(status) && actualLength > 0) {
+        PKBDLAYER_NICOLA_HEADER table = NULL;
+        if (NT_SUCCESS(CopyNicolaBlob(buffer, actualLength, &table))) {
+            devExt->NicolaTable = table;
+            devExt->NicolaTableBytes = actualLength;
+        }
+    }
+
+    ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+FreeNicolaForDevice(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    if (devExt->NicolaTable != NULL) {
+        ExFreePoolWithTag(devExt->NicolaTable, KBDLAYER_NICOLA_POOL_TAG);
+        devExt->NicolaTable = NULL;
+        devExt->NicolaTableBytes = 0;
+    }
 }

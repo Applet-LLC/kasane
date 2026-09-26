@@ -184,7 +184,85 @@ InitializeTapDanceState(
     _In_ PDEVICE_EXTENSION devExt
     );
 
+// Phase 6: NICOLA（親指シフト）の同時打鍵判定。Driver.cのServiceCallbackから、
+// ResolveComboより前に呼ぶこと（判定が有効な間、文字キー・親指キーは物理キー単位で
+// ここが先に受け取る）。単一イベントのバッチのみを対象とする。判定が有効なときの
+// 複数件バッチは、呼び出し元が1件ずつに分けてから渡すこと（NicolaIsActive参照）。
+// 戻り値: ResolveTapHoldと同じ意味（TRUE=処理済み、FALSE=対象外）。
+// 対象外のキーが保留中の判定に割り込んだ場合は、保留分を確定送出した上でFALSEを返す
+// （今回のイベント自体は通常経路に委ねる）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+ResolveNicola(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd,
+    _Inout_opt_ PVOID SystemArgument3
+    );
+
+// ServiceCallbackで、どのResolve*よりも前にバッチ全体を見せる。物理修飾キーの
+// 押下状態を追跡する（修飾キー押下中はNICOLA判定を迂回するため）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+NicolaObserveBatch(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd
+    );
+
+// NICOLA判定が現在有効か（設定あり・Enabled・レイヤーマップON・対象レイヤーがアクティブ）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+NicolaIsActive(
+    _In_ PDEVICE_EXTENSION devExt
+    );
+
+// 判定の有効/無効が前回から変わっていれば、OnEnterKey/OnExitKeyを送出し、無効化時は
+// 保留中の判定を確定させてから状態を初期化する。レイヤー状態を変えうる処理の後
+// （ServiceCallbackの末尾）と、ResolveNicolaの先頭で呼ぶ。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+NicolaSyncActivation(
+    _In_ PDEVICE_EXTENSION devExt
+    );
+
+// AddDeviceから呼ばれる: devExt->NicolaTimer/NicolaDpcとNicolaStateを初期化する。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+InitializeNicolaState(
+    _In_ PDEVICE_EXTENSION devExt
+    );
+
 // --- IOCTLハンドラ（ControlDevice.c）から呼ばれる、PASSIVE_LEVEL専用 ---
+
+// SET_NICOLA: NICOLA設定blob（KBDLAYER_NICOLA_HEADER + entries）を検証して差し替える。
+// Blob=NULL/BlobLength=0 は設定のクリア。LayerMapEnabledの状態に関わらず成功する。
+// 進行中の判定は確定させてから破棄し、ライブ反映後にレジストリの"Nicola"値へ永続化する。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetNicolaForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_reads_bytes_opt_(BlobLength) PVOID Blob,
+    _In_ ULONG BlobLength
+    );
+
+// GET_NICOLA: SETで渡したのと同じblobを返す。未設定なら *BytesReturned=0 で成功する。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+GetNicolaForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _Out_writes_bytes_to_opt_(OutBufferLength, *BytesReturned) PVOID OutBuffer,
+    _In_ ULONG OutBufferLength,
+    _Out_ PULONG BytesReturned
+    );
+
+// デバイス削除・アンロード時: NicolaTableを解放する（タイマーのキャンセルと
+// KeFlushQueuedDpcsは呼び出し元で済ませておくこと）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+FreeNicolaForDevice(
+    _In_ PDEVICE_EXTENSION devExt
+    );
 
 // SET_LAYERMAP: devExt->LayerMapEnabled == FALSE のときだけ成功する
 // （ONの間はSTATUS_INVALID_DEVICE_STATE）。成功してもLayerMapEnabledは変更しない。

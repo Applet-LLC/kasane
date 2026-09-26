@@ -748,6 +748,96 @@ HandleGetConfig(
     return STATUS_SUCCESS;
 }
 
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleSetNicola(
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    PKBDLAYER_SET_NICOLA_INPUT input = (PKBDLAYER_SET_NICOLA_INPUT)SystemBuffer;
+    PDEVICE_EXTENSION devExt;
+    ULONG blobLength;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_SET_NICOLA_INPUT)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    // BlobLength=0 はクリア。それ以外の形式検証はSetNicolaForDevice側で行う。
+    blobLength = input->BlobLength;
+    if (blobLength > KBDLAYER_MAX_NICOLA_BLOB_BYTES) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (inputLen < sizeof(KBDLAYER_SET_NICOLA_INPUT) + blobLength) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    return SetNicolaForDevice(
+        devExt,
+        blobLength > 0 ? (PUCHAR)SystemBuffer + sizeof(KBDLAYER_SET_NICOLA_INPUT) : NULL,
+        blobLength);
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleGetNicola(
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    ULONG outputLen = IrpSp->Parameters.DeviceIoControl.OutputBufferLength;
+    PKBDLAYER_TARGET target = (PKBDLAYER_TARGET)SystemBuffer;
+    PDEVICE_EXTENSION devExt;
+    PKBDLAYER_GET_NICOLA_OUTPUT out;
+    ULONG blobBytes = 0;
+    NTSTATUS status;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_TARGET)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (outputLen < sizeof(KBDLAYER_GET_NICOLA_OUTPUT)) {
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+
+    devExt = FindDeviceExtensionByUniqId(target->UniqId);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    // METHOD_BUFFERED: HandleGetLayerMapと同じく、読み終えたtargetの上に出力を書く。
+    out = (PKBDLAYER_GET_NICOLA_OUTPUT)SystemBuffer;
+    status = GetNicolaForDevice(
+        devExt,
+        (PUCHAR)out + sizeof(KBDLAYER_GET_NICOLA_OUTPUT),
+        outputLen - sizeof(KBDLAYER_GET_NICOLA_OUTPUT),
+        &blobBytes);
+
+    if (status == STATUS_BUFFER_TOO_SMALL) {
+        *BytesReturned = sizeof(KBDLAYER_GET_NICOLA_OUTPUT) + blobBytes;
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+    if (!NT_SUCCESS(status)) {
+        return status;
+    }
+
+    out->BlobLength = blobBytes;
+    *BytesReturned = sizeof(KBDLAYER_GET_NICOLA_OUTPUT) + blobBytes;
+    return STATUS_SUCCESS;
+}
+
 NTSTATUS
 DispatchControlIoctl(
     IN PDEVICE_OBJECT DeviceObject,
@@ -807,6 +897,12 @@ DispatchControlIoctl(
         break;
     case IOCTL_KBDLAYER_GET_CONFIG:
         status = HandleGetConfig(irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_SET_NICOLA:
+        status = HandleSetNicola(irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_GET_NICOLA:
+        status = HandleGetNicola(irpSp, systemBuffer, &bytesReturned);
         break;
     default:
         status = STATUS_INVALID_DEVICE_REQUEST;

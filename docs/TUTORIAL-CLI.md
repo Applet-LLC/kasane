@@ -381,6 +381,42 @@ KeymapTool --on <ID>
 
 ---
 
+## 親指シフト（NICOLA）を使う
+
+NICOLA配列（親指シフト）での入力に切り替えられます。サンプル `nicola.json` と
+`test-keymap-nicola-toggle.json` を作業フォルダにコピーしてください。
+
+1. **IMEの入力方式を決める。** `nicola.json` の `"output"` を、IMEがローマ字入力なら `"romaji"`（既定）、
+   かな入力なら `"jis-kana"` にします。
+2. **親指キーを決める。** 既定は親指左=無変換・親指右=変換で、単独で押したときは無変換/変換として働きます。
+   変えたいときは `"thumbLeft"`/`"thumbRight"`（親指キー）と `"thumbLeftTap"`/`"thumbRightTap"`（単独で押したときに
+   送るキー）を書き換えます。例えば親指左をスペースにするなら両方 `KC_SPC` にします。
+3. **切り替えキーを1つ決めてキャリブレーションする。** 押すたびにNICOLAのON/OFFを切り替えるキー
+   （例: カタカナひらがな）を1回押します。
+
+```powershell
+KeymapTool --dump-nicola nicola.json
+KeymapTool --calibrate-simple <ID> 1 nicola-profile.json --suppress
+KeymapTool --apply-simple <ID> test-keymap-nicola-toggle.json nicola-profile.json
+KeymapTool --set-nicola <ID> nicola.json
+KeymapTool --on <ID>
+```
+
+`--dump-nicola` は、ドライバに送らずに各キーの出力を表示します（IMEの方式で打てない文字は警告が出ます）。
+
+IMEをオンにしてから切り替えキーを押すと親指シフトになり、もう一度押すと元に戻ります。
+ON/OFFに合わせてIMEもオン/オフしたい場合は、`"onEnter"`/`"onExit"` に、使っているIMEの設定で
+IMEオン/オフに割り当てたキー（例: `KC_HENK`/`KC_MHEN`）を指定します。
+判定の細かい調整（同時打鍵判定時間など）は `samples/README.md` の NICOLA の節を参照してください。
+
+やめるときは次を実行します。
+
+```powershell
+KeymapTool --clear-nicola <ID>
+```
+
+---
+
 ## うまくいかないとき
 
 | 症状 | 原因と対処 |
