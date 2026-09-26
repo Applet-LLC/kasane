@@ -2923,6 +2923,11 @@ ResolveNicola(
         return FALSE;
     }
     table = devExt->NicolaTable;
+    if (table == NULL) {
+        // NicolaIsActiveLockedがTRUEならNULLではないが、静的解析（C28182）向けに明示する。
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        return FALSE;
+    }
 
     if (scanCode == table->ThumbLeftScanCode) {
         kind = NICOLA_KEY_THUMB_LEFT;
@@ -3065,6 +3070,9 @@ SetNicolaForDevice(
     NTSTATUS status;
 
     if (BlobLength > 0) {
+        if (Blob == NULL) {
+            return STATUS_INVALID_PARAMETER;
+        }
         status = CopyNicolaBlob(Blob, BlobLength, &newTable);
         if (!NT_SUCCESS(status)) {
             return status;
