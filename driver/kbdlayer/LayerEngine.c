@@ -277,6 +277,72 @@ FindKeyEntry(
     return NULL;
 }
 
+// ---------------------------------------------------------------------------
+// 押下中キーの処理記録（devExt->HeldKeys。DeviceExtension.hのKBDLAYER_HELD_*参照）
+// いずれもdevExt->EngineLock保持中に呼ぶこと。
+// ---------------------------------------------------------------------------
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static PKBDLAYER_HELD_KEY
+HeldKeyFor(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ USHORT ScanCode16
+    )
+{
+    ULONG index = ScanCode16 & 0xFF;
+    UCHAR prefix = (UCHAR)(ScanCode16 >> 8);
+    if (prefix == 0xE1) {
+        index |= 0x200;
+    } else if (prefix == 0xE0) {
+        index |= 0x100;
+    }
+    return &devExt->HeldKeys[index];
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+SetHeldKeyLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ USHORT ScanCode16,
+    _In_ UCHAR State,
+    _In_opt_ const KBDLAYER_ACTION* Action
+    )
+{
+    PKBDLAYER_HELD_KEY held = HeldKeyFor(devExt, ScanCode16);
+
+    if (held->State == KBDLAYER_HELD_NONE && State != KBDLAYER_HELD_NONE) {
+        devExt->HeldKeyCount++;
+    } else if (held->State != KBDLAYER_HELD_NONE && State == KBDLAYER_HELD_NONE && devExt->HeldKeyCount > 0) {
+        devExt->HeldKeyCount--;
+    }
+    held->State = State;
+    if (Action != NULL) {
+        held->Action = *Action;
+    } else {
+        RtlZeroMemory(&held->Action, sizeof(held->Action));
+    }
+}
+
+// 生のまま転送するバッチ（MT/LTのホールド確定・タップダンスの割り込み）の押下を
+// RAWとして記録する。こうしておくと、その解放も通常経路で生のまま転送される。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+RecordRawMakesLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd
+    )
+{
+    for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
+        if (!(p->Flags & KEY_BREAK)) {
+            USHORT sc = EncodeScancode16(p->MakeCode, p->Flags);
+            if (HeldKeyFor(devExt, sc)->State == KBDLAYER_HELD_NONE) {
+                SetHeldKeyLocked(devExt, sc, KBDLAYER_HELD_RAW, NULL);
+            }
+        }
+    }
+}
+
 // [レイヤー解決規則] ActiveLayerMask(+DefaultLayerビット)の中で最も高いレイヤー
 // 番号から順に、KBDLAYER_ACTION_TRANSPARENT でないアクションを探す
 // （QMKの「上位レイヤー優先、透過ならフォールスルー」と同じ規則）。
@@ -304,6 +370,14 @@ ResolveEffectiveAction(
 
 // devExt->EngineLock保持中に呼ばれる前提。CompactInputDataArrayのコールバックとして
 // 1エントリずつ処理し、MO/TG/DF/OSLの副作用（ActiveLayerMask等の更新）もここで行う。
+//
+// [押下と解放の対応] 押下（make）はその時点のレイヤー状態で解決し、使ったアクションを
+// devExt->HeldKeysに記録する。解放（break）とオートリピートの再makeは、その時点の
+// レイヤー状態で解決し直さず、記録したアクションを使う（QMKのsource layers cache相当）。
+// こうしないと、押している間にMOを離す・OSLを消費する・TG/DFで切り替えるなどして
+// レイヤーが変わったとき、押下と解放が別のキーとしてOSに届き、押下したキーが
+// 押しっぱなしのまま残る。記録はレイヤーマップのOFF・差し替え・CLEAR後も有効
+// （ContextがNULLでない = マップ無効中の呼び出しで、記録のあるキーだけを処理する）。
 _IRQL_requires_max_(DISPATCH_LEVEL)
 static BOOLEAN
 LayerEngineShouldDropEntry(
@@ -313,31 +387,62 @@ LayerEngineShouldDropEntry(
     )
 {
     PKBDLAYER_MAP_TABLE table = devExt->LayerMap; // EngineLock保持中に呼ばれる前提
+    BOOLEAN heldOnly = (Context != NULL);
     PKBDLAYER_KEY_ENTRY keyEntry;
+    PKBDLAYER_HELD_KEY held;
+    KBDLAYER_ACTION recorded;
     PKBDLAYER_ACTION action;
     USHORT src;
     BOOLEAN isBreak;
 
-    UNREFERENCED_PARAMETER(Context);
-
-    if (table == NULL) {
-        return FALSE;
-    }
-
     src = EncodeScancode16(Entry->MakeCode, Entry->Flags);
     isBreak = (Entry->Flags & KEY_BREAK) != 0;
+    held = HeldKeyFor(devExt, src);
+
+    if (held->State != KBDLAYER_HELD_NONE) {
+        // 押下時の記録どおりに処理する（解放なら記録を消す）。
+        UCHAR state = held->State;
+        recorded = held->Action;
+        if (isBreak) {
+            SetHeldKeyLocked(devExt, src, KBDLAYER_HELD_NONE, NULL);
+        }
+        if (state == KBDLAYER_HELD_RAW) {
+            return FALSE; // 生のまま転送する
+        }
+        if (state == KBDLAYER_HELD_SWALLOWED) {
+            return TRUE;
+        }
+        action = &recorded;
+        goto apply;
+    }
+
+    if (heldOnly || table == NULL) {
+        return FALSE;
+    }
 
     keyEntry = FindKeyEntry(table, src);
     if (keyEntry == NULL) {
         // レイヤーマップで管理されていない物理キー（Fnキー・電源キー等）はそのまま素通しする。
+        // 押している間にマップが差し替えられても解放を生のまま通せるよう、記録しておく。
+        if (!isBreak) {
+            SetHeldKeyLocked(devExt, src, KBDLAYER_HELD_RAW, NULL);
+        }
         return FALSE;
     }
 
     action = ResolveEffectiveAction(devExt, table, keyEntry);
     if (action == NULL) {
-        return TRUE; // 全レイヤーで透過 = 実質KC_NO。出力しない。
+        // 全レイヤーで透過 = 実質KC_NO。出力しない（解放も対で出力しない）。
+        if (!isBreak) {
+            SetHeldKeyLocked(devExt, src, KBDLAYER_HELD_SWALLOWED, NULL);
+        }
+        return TRUE;
+    }
+    if (!isBreak) {
+        SetHeldKeyLocked(devExt, src, KBDLAYER_HELD_ACTION, action);
     }
 
+apply:
     switch (action->Type) {
     case KBDLAYER_ACTION_NONE:
         return TRUE; // 出力しない
@@ -413,8 +518,16 @@ ResolveLayerAction(
     // 動く必要があるためResolveCalibration（ServiceCallbackの先頭）へ移した。
 
     if (!devExt->LayerMapEnabled || devExt->LayerMap == NULL) {
+        // マップが無効・未設定でも、有効だった間に押されたキーの解放だけは記録どおりに
+        // 処理する（押しっぱなしを残さないため）。記録が無ければ何もしない。
+        if (devExt->HeldKeyCount == 0) {
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+            return InputDataEnd;
+        }
+        newEnd = CompactInputDataArray(devExt, InputDataStart, InputDataEnd,
+                                       LayerEngineShouldDropEntry, (PVOID)devExt /* heldOnly */);
         KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
-        return InputDataEnd;
+        return newEnd;
     }
 
     newEnd = CompactInputDataArray(devExt, InputDataStart, InputDataEnd, LayerEngineShouldDropEntry, NULL);
@@ -659,13 +772,26 @@ ResolveTapHold(
     // ActiveLayerMaskの操作だけなので元バッチ転送の1回のみ）。
     if (devExt->PendingActive && !devExt->HoldConfirmed && !isBreak) {
         KBDLAYER_ACTION action;
+        BOOLEAN alreadyHeld = (HeldKeyFor(devExt, scanCode)->State != KBDLAYER_HELD_NONE);
 
         ConfirmHoldLocked(devExt, &action);
+        if (!alreadyHeld) {
+            // 生のまま転送する押下を記録し、その解放も生のまま転送されるようにする
+            // （記録が無いと、解放がホールド確定後のレイヤーで解決されて別のキーになり、
+            // 押下したキーが押しっぱなしになる）。
+            RecordRawMakesLocked(devExt, InputDataStart, InputDataEnd);
+        }
         KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
         KeCancelTimer(&devExt->HoldTimer);
 
         EmitModTapEventIfApplicable(devExt, &action, KEY_MAKE);
+
+        if (alreadyHeld) {
+            // MT/LTより前から押されていたキーのオートリピート。押下時の記録どおりに
+            // 処理させるため、通常経路（ResolveLayerAction）に委ねる。
+            return FALSE;
+        }
 
         // 続けて元のバッチ（別キーのイベント）をそのままOriginalClassServiceに
         // 渡す。このキーはレイヤーエンジンでの再解決を経ない生のスキャンコードの
@@ -684,7 +810,9 @@ ResolveTapHold(
 
     // --- 現在アイドル（保留中でもホールド中でもない）で、このキー自体が
     //     MT/LTに解決される押下イベントなら、新しい保留サイクルを開始する ---
-    if (!devExt->PendingActive && !devExt->HoldConfirmed && !isBreak) {
+    // （押下時の記録があるキーのオートリピートは、押下時の処理を続けるだけなので対象外）
+    if (!devExt->PendingActive && !devExt->HoldConfirmed && !isBreak &&
+        HeldKeyFor(devExt, scanCode)->State == KBDLAYER_HELD_NONE) {
         PKBDLAYER_KEY_ENTRY keyEntry = FindKeyEntry(devExt->LayerMap, scanCode);
         if (keyEntry != NULL) {
             PKBDLAYER_ACTION action = ResolveEffectiveAction(devExt, devExt->LayerMap, keyEntry);
@@ -737,6 +865,8 @@ ResolveMacro(
     KIRQL oldIrql;
     PKBDLAYER_KEY_ENTRY keyEntry;
     PKBDLAYER_ACTION action;
+    PKBDLAYER_HELD_KEY held;
+    KBDLAYER_ACTION recordedMacro;
     ULONG macroId;
     ULONG stepCount;
     KBDLAYER_MACRO_STEP localSteps[KBDLAYER_MAX_MACRO_STEPS];
@@ -755,6 +885,21 @@ ResolveMacro(
     if (!devExt->LayerMapEnabled || devExt->LayerMap == NULL) {
         KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
         return FALSE;
+    }
+
+    // 押下時の記録があるキー（解放・オートリピート）は、その時点のレイヤーで解決し直さず
+    // 記録どおりに処理する（LayerEngineShouldDropEntry参照）。例外として、マクロとして
+    // 押下したキーのオートリピートは、記録したマクロをもう一度実行する（従来どおりの挙動）。
+    // マクロキーの解放は、LayerEngineShouldDropEntryが記録どおりに飲み込む。
+    held = HeldKeyFor(devExt, scanCode);
+    if (held->State != KBDLAYER_HELD_NONE) {
+        if (isBreak || held->State != KBDLAYER_HELD_ACTION || held->Action.Type != KBDLAYER_ACTION_MACRO) {
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+            return FALSE;
+        }
+        recordedMacro = held->Action;
+        action = &recordedMacro;
+        goto run;
     }
 
     keyEntry = FindKeyEntry(devExt->LayerMap, scanCode);
@@ -783,6 +928,10 @@ ResolveMacro(
         return TRUE;
     }
 
+    // このキーの解放はレイヤーが変わっても飲み込み、オートリピートは同じマクロを実行する。
+    SetHeldKeyLocked(devExt, scanCode, KBDLAYER_HELD_ACTION, action);
+
+run:
     // KEYアクションと同様、マクロの実行も「実際に何かを送出する行為」なので
     // OSL(layer)発動中の一発消費として扱う（LayerEngineShouldDropEntryのKEYケースと
     // 同じ規則）。
@@ -911,6 +1060,10 @@ ComboDpcRoutine(
     if (shouldReplay) {
         pendingScanCode = devExt->ComboPendingScanCode;
         devExt->ComboPendingActive = FALSE;
+        // 復元する押下は生のスキャンコードなので、その解放も生のまま転送させる。
+        if (HeldKeyFor(devExt, pendingScanCode)->State == KBDLAYER_HELD_NONE) {
+            SetHeldKeyLocked(devExt, pendingScanCode, KBDLAYER_HELD_RAW, NULL);
+        }
     }
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
@@ -1052,6 +1205,10 @@ ResolveCombo(
         // --- 無関係キーによる割り込み = 不成立。保留していたpressのみ復元送出し、
         //     割り込みキー自身は通常経路（呼び出し元でのResolveTapHold以降）に委ねる。
         devExt->ComboPendingActive = FALSE;
+        // 復元する押下は生のスキャンコードなので、その解放も生のまま転送させる。
+        if (HeldKeyFor(devExt, pendingScanCode)->State == KBDLAYER_HELD_NONE) {
+            SetHeldKeyLocked(devExt, pendingScanCode, KBDLAYER_HELD_RAW, NULL);
+        }
         KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
         KeCancelTimer(&devExt->ComboTimer);
@@ -1059,8 +1216,9 @@ ResolveCombo(
         return FALSE;
     }
 
-    // --- Idle: このキー自体がコンボメンバーなら新しい保留サイクルを開始する ---
-    if (!isBreak) {
+    // --- Idle: このキー自体がコンボメンバーなら新しい保留サイクルを開始する
+    //     （押下時の記録があるキーのオートリピートは対象外） ---
+    if (!isBreak && HeldKeyFor(devExt, scanCode)->State == KBDLAYER_HELD_NONE) {
         LONG idx = FindComboIndexForScanCode(devExt, scanCode);
         if (idx >= 0) {
             LARGE_INTEGER dueTime;
@@ -1390,7 +1548,15 @@ ResolveTapDance(
             ULONG tapCountSoFar = devExt->TapDanceTapCount;
             BOOLEAN wasKeyDown = devExt->TapDanceKeyDown;
             BOOLEAN isHoldCase = (wasKeyDown && tapCountSoFar == 0);
+            // 押下時の記録があるキー（タップダンスより前から押されていたキーの解放・
+            // オートリピート）は、生のまま転送せず通常経路で記録どおりに処理させる。
+            // 記録が無い押下は、解放も生のまま転送されるようRAWとして記録する。
+            BOOLEAN alreadyHeld = (HeldKeyFor(devExt, scanCode)->State != KBDLAYER_HELD_NONE);
             KBDLAYER_ACTION action;
+
+            if (!alreadyHeld) {
+                RecordRawMakesLocked(devExt, InputDataStart, InputDataEnd);
+            }
 
             if (isHoldCase) {
                 // 1回目の押下中の割り込み = SingleHold確定（Phase 2のHold On Other Key
@@ -1417,6 +1583,10 @@ ResolveTapDance(
                 SendDecodedEvent(devExt, action.Param2, KEY_BREAK);
             }
 
+            if (alreadyHeld) {
+                return FALSE;
+            }
+
             // 続けて割り込みバッチをそのままOriginalClassServiceに渡す（Phase 2の
             // ResolveTapHoldと同じ方式。このキーはレイヤーエンジンでの再解決を経ない
             // 生のスキャンコードのまま転送される、既知の制約も同様）。
@@ -1433,8 +1603,8 @@ ResolveTapDance(
     }
 
     // --- Idle: このキー自体がTAPDANCEアクションに解決される押下イベントなら、
-    //     新しい保留サイクルを開始する ---
-    if (!isBreak) {
+    //     新しい保留サイクルを開始する（押下時の記録があるキーのオートリピートは対象外） ---
+    if (!isBreak && HeldKeyFor(devExt, scanCode)->State == KBDLAYER_HELD_NONE) {
         PKBDLAYER_KEY_ENTRY keyEntry = FindKeyEntry(devExt->LayerMap, scanCode);
         if (keyEntry != NULL) {
             PKBDLAYER_ACTION action = ResolveEffectiveAction(devExt, devExt->LayerMap, keyEntry);
