@@ -21,6 +21,7 @@
 #include <wdm.h>
 #include <kbdmou.h>
 #include "..\\common\\kbdlayer_ioctl.h"
+#include "NicolaCore.h"
 
 // カーネル内部専用の可変長レイヤーマップテーブル（1回のプール割り当てで確保する）。
 // ワイヤー/レジストリ形式（KBDLAYER_MAP_HEADER, common/kbdlayer_ioctl.h）と
@@ -32,6 +33,7 @@ typedef struct _KBDLAYER_MAP_TABLE {
 } KBDLAYER_MAP_TABLE, *PKBDLAYER_MAP_TABLE;
 
 #define KBDLAYER_MAP_POOL_TAG 'mLdK'
+#define KBDLAYER_NICOLA_POOL_TAG 'nLdK'
 
 #define KBDLAYER_DEFAULT_TAP_TERM_MS 200
 #define KBDLAYER_DEFAULT_COMBO_TERM_MS 50
@@ -115,6 +117,18 @@ typedef struct _DEVICE_EXTENSION {
     USHORT TapDanceScanCode;         // 対象の物理キーのスキャンコード（Enc16）
     ULONG TapDanceActiveId;          // 対象のタップダンスID（TapDances[]のインデックス）
     ULONG TapDanceTapCount;          // これまでに完了した（press+release）タップの回数
+
+    // --- Phase 6: NICOLA（親指シフト） ---
+    // 判定アルゴリズム本体はNicolaCore.c（カーネル非依存）。ここにはその状態と、
+    // 設定（ワイヤー形式のblobをそのままNonPagedに複製したもの）を持つ。
+    // EngineLock保持中に読み書きすること。
+    PKBDLAYER_NICOLA_HEADER NicolaTable; // NULL = 未設定。続けてKeyCount個のエントリ
+    ULONG NicolaTableBytes;              // NicolaTableのバイト数（GET/永続化用）
+    NICOLA_CORE_STATE NicolaState;
+    KTIMER NicolaTimer;                  // NicolaState.Deadlineで満了するタイマー
+    KDPC NicolaDpc;                      // タイムアウト時の確定処理（NicolaDpcRoutine, LayerEngine.c）
+    BOOLEAN NicolaWasActive;             // 直前に判定が有効だったか（OnEnter/OnExitキーの送出判定用）
+    UCHAR NicolaModifierDown;            // 押されている物理修飾キー（s_ModifierScanCodesのビット）。押下中は判定を迂回する
 
     // --- キャリブレーションウィザード (IOCTL_KBDLAYER_CAPTURE_NEXT_KEY) 用 ---
     // ServiceCallback（DISPATCH_LEVEL、EngineLock保持中）と、PASSIVE_LEVELで

@@ -7,6 +7,58 @@
 `tutorial-10key-numbers.json`（テンキー単体: NumLockに関係なく常に数字）。
 キー順はそれぞれ`test-keymap-jis.json`/`test-keymap-us104.json`/`test-keymap-10key.json`と同じ。
 
+## nicola.json + test-keymap-nicola-toggle.json — Phase 6 (NICOLA 親指シフト) 動作確認用
+
+`nicola.json`はNICOLA配列規格書の図1をそのまま書き起こした設定。キーはJISキーボードの
+物理位置（D01=`KC_Q` … D11=`KC_LBRC`(JISの@) / D12=`KC_RBRC`(JISの[)、C10=`KC_SCLN`、
+B10=`KC_SLSH`）で、各キーは `[単独, 同側の親指, 反対側の親指]`。親指左=無変換、
+親指右=変換で、単独打鍵のときはそれぞれ無変換/変換をそのまま送る。
+
+- `"output"`: `"romaji"`（IMEはローマ字入力のまま）または `"jis-kana"`（IMEをかな入力に
+  切り替えて使う）。ローマ字では単独の ゛/゜ が打てないため、`--dump-nicola`で警告が出て
+  そのプレーンは空になる（濁音・半濁音は反対側の親指で直接打てるので実用上は困らない）。
+- `"layer"`: このレイヤーがアクティブな間だけ親指シフトになる。下の`test-keymap-nicola-toggle.json`は
+  1キーだけのレイヤーマップで、キャリブレーションで押したキーが`TG(1)`（押すたびにレイヤー1を
+  ON/OFF）になる。それ以外のキーはレイヤーマップに載らないので素通しのまま。
+- `"onEnter"`/`"onExit"`: NICOLAのON/OFFに合わせて1回タップするキー（IMEオン/オフ用。
+  使うIMEの設定に合わせて`KC_HENK`/`KC_MHEN`等を指定する。空ならなにもしない）。
+- `"continuousShift": true` で規格6.1の連続シフト（親指キーを押している間は時間によらず
+  シフト）になる。
+- `"simulTermMs"`（同時打鍵判定時間、既定100ms）/`"overlapRatio"`（規格5.5.2のn）/
+  `"minOverlapMs"`（重なりがこれ未満なら逐次打鍵）で判定を調整できる。
+
+### 手順
+
+```
+KeymapTool.exe --dump-nicola nicola.json          REM ドライバに送らず展開結果を確認
+KeymapTool.exe --list
+KeymapTool.exe --calibrate-simple <UniqIdHex> 1 nicola-profile.json   REM 切替に使うキー（例: カタカナひらがな）を1回押す
+KeymapTool.exe --apply-simple <UniqIdHex> test-keymap-nicola-toggle.json nicola-profile.json
+KeymapTool.exe --set-nicola <UniqIdHex> nicola.json
+KeymapTool.exe --on <UniqIdHex>
+```
+
+### 確認項目（メモ帳 + IMEオン、ローマ字入力）
+
+- 切替キーを1回押すとNICOLAがON。もう一度押すとOFF（通常のローマ字入力に戻る）。
+- 単独打鍵: `F`(C04) → け、`K`(C08) → き。
+- 同側シフト: 無変換+`F` → ゅ、変換+`K` → の。
+- 反対側シフト: 変換+`F` → げ、無変換+`K` → ぎ。
+- 前置/後置のどちらでも同じ結果になること（親指を先に押す・文字を先に押す）。
+- 素早い逐次打鍵（`F`を押してすぐ変換を押し、`F`をすぐ離す）で、け＋変換 になること。
+- 親指キーだけを押して離す → 変換/無変換として働くこと。
+- Ctrl+C などが通常どおり効くこと（修飾キー押下中は判定しない）。
+- 文字キーを押し続けるとその文字がリピートすること。
+- `KeymapTool.exe --get-nicola <UniqIdHex>` で設定した内容が返ること。再起動後も残ること。
+
+### 元に戻す
+
+```
+KeymapTool.exe --clear-nicola <UniqIdHex>
+KeymapTool.exe --off <UniqIdHex>
+KeymapTool.exe --clear <UniqIdHex>
+```
+
 ## test-keymap-tapdance.json — Phase 5 (タップダンス, v1: タップ回数3回まで) 動作確認用
 
 10キー・1レイヤーで、位置0に`TAPDANCE(0)`を配置した最小テストキーマップ。タップダンス

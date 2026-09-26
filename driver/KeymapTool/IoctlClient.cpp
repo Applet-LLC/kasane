@@ -347,3 +347,46 @@ bool IoctlClient::GetTapDance(ULONG uniqId, ULONG tapDanceId, KBDLAYER_TAPDANCE_
     *outUsed = output.Used != 0;
     return true;
 }
+
+bool IoctlClient::SetNicola(ULONG uniqId, const std::vector<unsigned char>& blob) {
+    std::vector<unsigned char> input(sizeof(KBDLAYER_SET_NICOLA_INPUT) + blob.size());
+    KBDLAYER_SET_NICOLA_INPUT* header = (KBDLAYER_SET_NICOLA_INPUT*)input.data();
+    header->Target.UniqId = uniqId;
+    header->BlobLength = (ULONG)blob.size();
+    if (!blob.empty()) {
+        memcpy(input.data() + sizeof(KBDLAYER_SET_NICOLA_INPUT), blob.data(), blob.size());
+    }
+
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_SET_NICOLA,
+                              input.data(), (DWORD)input.size(),
+                              NULL, 0,
+                              &bytesReturned, NULL);
+    if (!ok) {
+        fprintf(stderr, "IOCTL_KBDLAYER_SET_NICOLA failed. Error: %lu\n", GetLastError());
+        return false;
+    }
+    return true;
+}
+
+bool IoctlClient::GetNicola(ULONG uniqId, std::vector<unsigned char>* outBlob) {
+    KBDLAYER_TARGET target;
+    target.UniqId = uniqId;
+
+    std::vector<unsigned char> buffer(sizeof(KBDLAYER_GET_NICOLA_OUTPUT) + KBDLAYER_MAX_NICOLA_BLOB_BYTES);
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_GET_NICOLA,
+                              &target, sizeof(target),
+                              buffer.data(), (DWORD)buffer.size(),
+                              &bytesReturned, NULL);
+    if (!ok) {
+        fprintf(stderr, "IOCTL_KBDLAYER_GET_NICOLA failed. Error: %lu\n", GetLastError());
+        return false;
+    }
+
+    const KBDLAYER_GET_NICOLA_OUTPUT* header = (const KBDLAYER_GET_NICOLA_OUTPUT*)buffer.data();
+    outBlob->assign(
+        buffer.begin() + sizeof(KBDLAYER_GET_NICOLA_OUTPUT),
+        buffer.begin() + sizeof(KBDLAYER_GET_NICOLA_OUTPUT) + header->BlobLength);
+    return true;
+}

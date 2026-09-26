@@ -37,6 +37,7 @@
 #define KBDLAYER_COMBOTERM_VALUE_NAME L"ComboTermMs"
 #define KBDLAYER_TAPDANCES_VALUE_NAME L"TapDances"
 #define KBDLAYER_TAPDANCETERM_VALUE_NAME L"TapDanceTermMs"
+#define KBDLAYER_NICOLA_VALUE_NAME L"Nicola"
 #define KBDLAYER_REGTEMP_POOL_TAG 'tLdK'
 
 // マクロの永続化形式（レジストリ"Macros"値）。KBDLAYER_MAX_MACRO_COUNT個ぶん
@@ -1652,6 +1653,12 @@ LoadPersistedTapDancesForDevice(
     );
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
+static VOID
+LoadPersistedNicolaForDevice(
+    _In_ PDEVICE_EXTENSION devExt
+    );
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
 VOID
 LoadPersistedLayerMapForDevice(
     _In_ PDEVICE_EXTENSION devExt
@@ -1694,6 +1701,7 @@ LoadPersistedLayerMapForDevice(
     LoadPersistedMacrosForDevice(devExt);
     LoadPersistedCombosForDevice(devExt);
     LoadPersistedTapDancesForDevice(devExt);
+    LoadPersistedNicolaForDevice(devExt);
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
@@ -2538,4 +2546,638 @@ ConsumeCapturedScanCode(
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
     return scanCode;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 6: NICOLA（親指シフト）
+//
+// 同時打鍵の判定はNicolaCore.c（カーネル非依存の状態機械）が行い、ここでは
+//   - 物理キーの分類（文字キー / 親指左右 / 対象外）
+//   - EngineLockによる直列化と、判定結果 → スキャンコード列への変換
+//   - タイマー（NicolaState.Deadline）の張り直し
+//   - ロック解放後の送出
+// だけを担う。送出はマクロと同じくSendDecodedEventでkbdclassへ直接渡すため、
+// 文字キーの出力はレイヤーマップを経由しない（NICOLAは物理位置で配列を決めるため）。
+// ---------------------------------------------------------------------------
+
+// 1回の判定で送出しうるステップ数の上限（出力件数 × 1文字の最大ステップ数）。
+#define NICOLA_MAX_EMIT_STEPS (NICOLA_CORE_MAX_OUTPUTS * KBDLAYER_NICOLA_MAX_STEPS)
+
+typedef struct _NICOLA_EMIT {
+    ULONG StepCount;
+    BOOLEAN Pass; // 今回の生イベントを通常経路へ流す
+    KBDLAYER_MACRO_STEP Steps[NICOLA_MAX_EMIT_STEPS];
+} NICOLA_EMIT, *PNICOLA_EMIT;
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static PKBDLAYER_NICOLA_KEY_ENTRY
+NicolaEntries(
+    _In_ PKBDLAYER_NICOLA_HEADER Table
+    )
+{
+    return (PKBDLAYER_NICOLA_KEY_ENTRY)((PUCHAR)Table + sizeof(KBDLAYER_NICOLA_HEADER));
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static PKBDLAYER_NICOLA_KEY_ENTRY
+FindNicolaEntry(
+    _In_ PKBDLAYER_NICOLA_HEADER Table,
+    _In_ USHORT ScanCode
+    )
+{
+    PKBDLAYER_NICOLA_KEY_ENTRY entries = NicolaEntries(Table);
+    for (ULONG i = 0; i < Table->KeyCount; i++) {
+        if (entries[i].SourceScanCode == ScanCode) {
+            return &entries[i];
+        }
+    }
+    return NULL;
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+NicolaParamsFromTable(
+    _In_ PKBDLAYER_NICOLA_HEADER Table,
+    _Out_ PNICOLA_CORE_PARAMS Params
+    )
+{
+    Params->SimulTermMs = (Table->SimulTermMs != 0) ? Table->SimulTermMs : KBDLAYER_NICOLA_DEFAULT_SIMUL_TERM_MS;
+    Params->OverlapRatioPercent = (Table->OverlapRatioPercent != 0)
+        ? Table->OverlapRatioPercent : KBDLAYER_NICOLA_DEFAULT_OVERLAP_RATIO_PCT;
+    Params->MinOverlapMs = Table->MinOverlapMs;
+    Params->Flags = Table->Flags;
+}
+
+// 判定用の時刻（ms）。KeQueryInterruptTimeはクロック割り込み単位（既定15.6ms）でしか
+// 進まず、数十msの時間差を比べる同時打鍵判定には粗すぎるため、高精度版を使う。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static ULONGLONG
+NicolaNowMs(
+    VOID
+    )
+{
+    ULONG64 qpc;
+    return KeQueryInterruptTimePrecise(&qpc) / 10000ULL;
+}
+
+// devExt->EngineLock保持中に呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static BOOLEAN
+NicolaIsActiveLocked(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    PKBDLAYER_NICOLA_HEADER table = devExt->NicolaTable;
+    ULONG effectiveMask;
+
+    if (table == NULL || !table->Enabled || !devExt->LayerMapEnabled || devExt->LayerMap == NULL) {
+        return FALSE;
+    }
+    effectiveMask = devExt->ActiveLayerMask | (1UL << devExt->DefaultLayer);
+    return (effectiveMask & (1UL << table->Layer)) != 0;
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+NicolaAppendStep(
+    _Inout_ PNICOLA_EMIT Emit,
+    _In_ USHORT ScanCode,
+    _In_ UCHAR IsBreak
+    )
+{
+    if (ScanCode != 0 && Emit->StepCount < NICOLA_MAX_EMIT_STEPS) {
+        Emit->Steps[Emit->StepCount].ScanCode = ScanCode;
+        Emit->Steps[Emit->StepCount].IsBreak = IsBreak;
+        Emit->Steps[Emit->StepCount].Reserved = 0;
+        Emit->StepCount++;
+    }
+}
+
+// devExt->EngineLock保持中に呼ぶこと。判定結果を送出するスキャンコード列に変換する。
+// Tableは判定に使った設定（SetNicolaForDeviceでは差し替え前の設定）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+NicolaCollectLocked(
+    _In_opt_ PKBDLAYER_NICOLA_HEADER Table,
+    _In_ const NICOLA_CORE_RESULT* Result,
+    _Inout_ PNICOLA_EMIT Emit
+    )
+{
+    for (ULONG i = 0; i < Result->Count; i++) {
+        const NICOLA_CORE_OUTPUT* item = &Result->Items[i];
+
+        switch (item->Type) {
+        case NICOLA_OUT_CHAR:
+            if (Table != NULL && item->Arg < KBDLAYER_NICOLA_PLANE_COUNT) {
+                PKBDLAYER_NICOLA_KEY_ENTRY entry = FindNicolaEntry(Table, item->ScanCode);
+                if (entry != NULL) {
+                    PKBDLAYER_NICOLA_OUTPUT out = &entry->Planes[item->Arg];
+                    ULONG count = min(out->StepCount, KBDLAYER_NICOLA_MAX_STEPS);
+                    for (ULONG s = 0; s < count; s++) {
+                        NicolaAppendStep(Emit, out->Steps[s].ScanCode, out->Steps[s].IsBreak);
+                    }
+                }
+            }
+            break;
+
+        case NICOLA_OUT_TAP_MAKE:
+        case NICOLA_OUT_TAP_BREAK:
+            if (Table != NULL) {
+                USHORT tapKey = (item->Arg == NICOLA_SIDE_LEFT) ? Table->ThumbLeftTapKey : Table->ThumbRightTapKey;
+                NicolaAppendStep(Emit, tapKey, item->Type == NICOLA_OUT_TAP_BREAK ? 1 : 0);
+            }
+            break;
+
+        case NICOLA_OUT_PASS:
+            Emit->Pass = TRUE;
+            break;
+
+        default:
+            break;
+        }
+    }
+}
+
+// EngineLockを保持していない状態で、DISPATCH_LEVELで呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+NicolaSend(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ const NICOLA_EMIT* Emit
+    )
+{
+    if (devExt->OriginalClassService == NULL) {
+        return; // まだkbdclassに接続されていない（IOCTL経路からの呼び出しで起こりうる）
+    }
+    for (ULONG i = 0; i < Emit->StepCount; i++) {
+        SendDecodedEvent(devExt, Emit->Steps[i].ScanCode, Emit->Steps[i].IsBreak ? KEY_BREAK : KEY_MAKE);
+    }
+}
+
+// EngineLockを保持していない状態で呼ぶこと。Deadline=0ならタイマーを止める。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+NicolaArmTimer(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONGLONG DeadlineMs,
+    _In_ ULONGLONG NowMs
+    )
+{
+    LARGE_INTEGER dueTime;
+    ULONGLONG delayMs;
+
+    if (DeadlineMs == 0) {
+        KeCancelTimer(&devExt->NicolaTimer);
+        return;
+    }
+    delayMs = (DeadlineMs > NowMs) ? (DeadlineMs - NowMs) : 1;
+    dueTime.QuadPart = -((LONGLONG)delayMs * 10000LL);
+    KeSetTimer(&devExt->NicolaTimer, dueTime, &devExt->NicolaDpc);
+}
+
+// NicolaTimerの満了で起動されるDPC。保留中の判定を期限切れとして確定させる。
+// ServiceCallbackとの競合はEngineLockで直列化し、NicolaCoreOnTimeoutは期限前に
+// 呼ばれても何もしない（KeSetTimerの張り直しと満了が競合した場合）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+NicolaDpcRoutine(
+    _In_ PKDPC Dpc,
+    _In_opt_ PVOID DeferredContext,
+    _In_opt_ PVOID SystemArgument1,
+    _In_opt_ PVOID SystemArgument2
+    )
+{
+    PDEVICE_EXTENSION devExt = (PDEVICE_EXTENSION)DeferredContext;
+    KIRQL oldIrql;
+    NICOLA_CORE_PARAMS params;
+    NICOLA_CORE_RESULT result;
+    NICOLA_EMIT emit;
+    ULONGLONG now;
+
+    UNREFERENCED_PARAMETER(Dpc);
+    UNREFERENCED_PARAMETER(SystemArgument1);
+    UNREFERENCED_PARAMETER(SystemArgument2);
+
+    if (devExt == NULL) {
+        return;
+    }
+
+    emit.StepCount = 0;
+    emit.Pass = FALSE;
+    now = NicolaNowMs();
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    if (!NicolaIsActiveLocked(devExt)) {
+        // 無効化はNicolaSyncActivationが状態ごと片付ける。
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        return;
+    }
+    NicolaParamsFromTable(devExt->NicolaTable, &params);
+    NicolaCoreOnTimeout(&devExt->NicolaState, &params, now, &result);
+    NicolaCollectLocked(devExt->NicolaTable, &result, &emit);
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    if (result.Deadline != 0) {
+        NicolaArmTimer(devExt, result.Deadline, now);
+    }
+    if (emit.StepCount > 0) {
+        KBDLAYER_TRACE("LayerEngine: nicola TIMEOUT emit steps=%lu\n", emit.StepCount);
+    }
+    NicolaSend(devExt, &emit);
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+NicolaIsActive(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    KIRQL oldIrql;
+    BOOLEAN active;
+
+    if (devExt->NicolaTable == NULL) {
+        return FALSE; // 未設定時のホットパスはロックを取らない
+    }
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    active = NicolaIsActiveLocked(devExt);
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+    return active;
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+NicolaObserveBatch(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd
+    )
+{
+    KIRQL oldIrql;
+
+    for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
+        USHORT scanCode = EncodeScancode16(p->MakeCode, p->Flags);
+        for (ULONG bit = 0; bit < RTL_NUMBER_OF(s_ModifierScanCodes); bit++) {
+            if (s_ModifierScanCodes[bit] == scanCode) {
+                KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+                if (p->Flags & KEY_BREAK) {
+                    devExt->NicolaModifierDown &= (UCHAR)~(1u << bit);
+                } else {
+                    devExt->NicolaModifierDown |= (UCHAR)(1u << bit);
+                }
+                KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+                break;
+            }
+        }
+    }
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+NicolaSyncActivation(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    KIRQL oldIrql;
+    BOOLEAN active;
+    USHORT tapKey = 0;
+    NICOLA_CORE_RESULT result;
+    NICOLA_EMIT emit;
+
+    if (devExt->NicolaTable == NULL && !devExt->NicolaWasActive) {
+        return; // 未設定時のホットパスはロックを取らない
+    }
+
+    emit.StepCount = 0;
+    emit.Pass = FALSE;
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    active = NicolaIsActiveLocked(devExt);
+    if (active == devExt->NicolaWasActive) {
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        return;
+    }
+    devExt->NicolaWasActive = active;
+    if (!active) {
+        // 保留中の判定を確定させ、押下送出済みの単独打鍵キーを解放してから初期化する。
+        NicolaCoreReset(&devExt->NicolaState, &result);
+        NicolaCollectLocked(devExt->NicolaTable, &result, &emit);
+    }
+    if (devExt->NicolaTable != NULL) {
+        tapKey = active ? devExt->NicolaTable->OnEnterKey : devExt->NicolaTable->OnExitKey;
+    }
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    if (!active) {
+        KeCancelTimer(&devExt->NicolaTimer);
+    }
+    KBDLAYER_TRACE("LayerEngine: nicola %s steps=%lu tapKey=0x%X\n",
+                   active ? "ENTER" : "EXIT", emit.StepCount, tapKey);
+    NicolaAppendStep(&emit, tapKey, 0);
+    NicolaAppendStep(&emit, tapKey, 1);
+    NicolaSend(devExt, &emit);
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+ResolveNicola(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd,
+    _Inout_opt_ PVOID SystemArgument3
+    )
+{
+    PKEYBOARD_INPUT_DATA ev;
+    USHORT scanCode;
+    BOOLEAN isBreak;
+    KIRQL oldIrql;
+    PKBDLAYER_NICOLA_HEADER table;
+    NICOLA_KEY_KIND kind;
+    NICOLA_CORE_PARAMS params;
+    NICOLA_CORE_RESULT result;
+    NICOLA_EMIT emit;
+    ULONGLONG now;
+
+    // 他のResolve*と同じく1件バッチのみ。判定有効中の複数件バッチはServiceCallbackが
+    // 1件ずつに分けてから呼ぶ（USBキーボードでは親指キーと文字キーの同時押しが
+    // 1つのレポート = 1バッチで届きうるため、素通しにはできない）。
+    if ((InputDataEnd - InputDataStart) != 1) {
+        return FALSE;
+    }
+    if (devExt->NicolaTable == NULL && !devExt->NicolaWasActive) {
+        return FALSE; // 未設定時のホットパスはロックを取らない
+    }
+
+    NicolaSyncActivation(devExt);
+
+    ev = InputDataStart;
+    scanCode = EncodeScancode16(ev->MakeCode, ev->Flags);
+    isBreak = (ev->Flags & KEY_BREAK) != 0;
+    emit.StepCount = 0;
+    emit.Pass = FALSE;
+    now = NicolaNowMs();
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+
+    if (!NicolaIsActiveLocked(devExt)) {
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        return FALSE;
+    }
+    table = devExt->NicolaTable;
+
+    if (scanCode == table->ThumbLeftScanCode) {
+        kind = NICOLA_KEY_THUMB_LEFT;
+    } else if (scanCode == table->ThumbRightScanCode) {
+        kind = NICOLA_KEY_THUMB_RIGHT;
+    } else if (FindNicolaEntry(table, scanCode) != NULL) {
+        kind = NICOLA_KEY_CHAR;
+    } else {
+        kind = NICOLA_KEY_OTHER;
+    }
+    // Ctrl/Alt/Win/Shift押下中はショートカット等を壊さないよう判定を迂回する
+    // （物理キーの状態で見る。NicolaObserveBatch参照）。
+    if (kind != NICOLA_KEY_OTHER && devExt->NicolaModifierDown != 0) {
+        kind = NICOLA_KEY_OTHER;
+    }
+
+    NicolaParamsFromTable(table, &params);
+    NicolaCoreOnKey(&devExt->NicolaState, &params, kind, scanCode, isBreak, now, &result);
+    NicolaCollectLocked(table, &result, &emit);
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    NicolaArmTimer(devExt, result.Deadline, now);
+    NicolaSend(devExt, &emit);
+
+    if (emit.Pass) {
+        return FALSE;
+    }
+    if (SystemArgument3 != NULL) {
+        *(PULONG)SystemArgument3 = 1;
+    }
+    return TRUE;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+InitializeNicolaState(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    KeInitializeTimer(&devExt->NicolaTimer);
+    KeInitializeDpc(&devExt->NicolaDpc, NicolaDpcRoutine, devExt);
+    NicolaCoreInit(&devExt->NicolaState);
+    devExt->NicolaTable = NULL;
+    devExt->NicolaTableBytes = 0;
+    devExt->NicolaWasActive = FALSE;
+    devExt->NicolaModifierDown = 0;
+}
+
+// NICOLA設定blobの形式を検証する（SET_NICOLAとレジストリからの読み込みの両方で使う）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+ValidateNicolaBlob(
+    _In_reads_bytes_(BlobLength) PVOID Blob,
+    _In_ ULONG BlobLength
+    )
+{
+    PKBDLAYER_NICOLA_HEADER header = (PKBDLAYER_NICOLA_HEADER)Blob;
+    PKBDLAYER_NICOLA_KEY_ENTRY entries;
+
+    if (Blob == NULL || BlobLength < sizeof(KBDLAYER_NICOLA_HEADER)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (header->Version != KBDLAYER_NICOLA_VERSION ||
+        header->KeyCount > KBDLAYER_NICOLA_MAX_KEYS ||
+        BlobLength != sizeof(KBDLAYER_NICOLA_HEADER) + header->KeyCount * sizeof(KBDLAYER_NICOLA_KEY_ENTRY)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (header->Layer >= KBDLAYER_MAX_LAYERS) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (header->ThumbLeftScanCode == 0 || header->ThumbRightScanCode == 0 ||
+        header->ThumbLeftScanCode == header->ThumbRightScanCode) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    // 極端な値は設定ミスとして弾く（判定時間は規格上50〜200msが妥当とされる）。
+    if (header->SimulTermMs > 1000 || header->OverlapRatioPercent > 1000 || header->MinOverlapMs > 1000) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    entries = NicolaEntries(header);
+    for (ULONG i = 0; i < header->KeyCount; i++) {
+        USHORT sc = entries[i].SourceScanCode;
+        if (sc == 0 || sc == header->ThumbLeftScanCode || sc == header->ThumbRightScanCode) {
+            return STATUS_INVALID_PARAMETER;
+        }
+        for (ULONG j = 0; j < i; j++) {
+            if (entries[j].SourceScanCode == sc) {
+                return STATUS_INVALID_PARAMETER;
+            }
+        }
+        for (ULONG p = 0; p < KBDLAYER_NICOLA_PLANE_COUNT; p++) {
+            if (entries[i].Planes[p].StepCount > KBDLAYER_NICOLA_MAX_STEPS) {
+                return STATUS_INVALID_PARAMETER;
+            }
+        }
+    }
+    return STATUS_SUCCESS;
+}
+
+// 検証済みのblobをNonPagedへ複製する。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+CopyNicolaBlob(
+    _In_reads_bytes_(BlobLength) PVOID Blob,
+    _In_ ULONG BlobLength,
+    _Outptr_ PKBDLAYER_NICOLA_HEADER* OutTable
+    )
+{
+    PKBDLAYER_NICOLA_HEADER table;
+    NTSTATUS status;
+
+    *OutTable = NULL;
+    status = ValidateNicolaBlob(Blob, BlobLength);
+    if (!NT_SUCCESS(status)) {
+        return status;
+    }
+    table = (PKBDLAYER_NICOLA_HEADER)ExAllocatePool2(POOL_FLAG_NON_PAGED, BlobLength, KBDLAYER_NICOLA_POOL_TAG);
+    if (table == NULL) {
+        return STATUS_INSUFFICIENT_RESOURCES;
+    }
+    RtlCopyMemory(table, Blob, BlobLength);
+    *OutTable = table;
+    return STATUS_SUCCESS;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetNicolaForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_reads_bytes_opt_(BlobLength) PVOID Blob,
+    _In_ ULONG BlobLength
+    )
+{
+    PKBDLAYER_NICOLA_HEADER newTable = NULL;
+    PKBDLAYER_NICOLA_HEADER oldTable;
+    NICOLA_CORE_RESULT result;
+    NICOLA_EMIT emit;
+    KIRQL oldIrql;
+    WCHAR subKeyPath[64];
+    NTSTATUS status;
+
+    if (BlobLength > 0) {
+        status = CopyNicolaBlob(Blob, BlobLength, &newTable);
+        if (!NT_SUCCESS(status)) {
+            return status;
+        }
+    }
+
+    emit.StepCount = 0;
+    emit.Pass = FALSE;
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    // 進行中の判定は差し替え前の設定で確定させてから捨てる。新しい設定で判定が有効なら、
+    // 次のキーイベントでNicolaSyncActivationがOnEnterKeyを送る。
+    NicolaCoreReset(&devExt->NicolaState, &result);
+    NicolaCollectLocked(devExt->NicolaTable, &result, &emit);
+    oldTable = devExt->NicolaTable;
+    devExt->NicolaTable = newTable;
+    devExt->NicolaTableBytes = BlobLength;
+    devExt->NicolaWasActive = FALSE;
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    KeCancelTimer(&devExt->NicolaTimer);
+
+    if (emit.StepCount > 0) {
+        // kbdclassのサービスコールバックはport driverからDISPATCH_LEVELで呼ばれる前提なので、
+        // PASSIVE_LEVELのIOCTL経路から送るときも同じIRQLに上げる。
+        KIRQL irql;
+        KeRaiseIrql(DISPATCH_LEVEL, &irql);
+        NicolaSend(devExt, &emit);
+        KeLowerIrql(irql);
+    }
+
+    // ServiceCallback/DPCはEngineLock保持中にしかNicolaTableを読まないので、差し替え後の
+    // 旧テーブルはここで安全に解放できる。
+    if (oldTable != NULL) {
+        ExFreePoolWithTag(oldTable, KBDLAYER_NICOLA_POOL_TAG);
+    }
+
+    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_NICOLA_VALUE_NAME,
+                    BlobLength > 0 ? Blob : NULL, BlobLength);
+
+    return STATUS_SUCCESS;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+GetNicolaForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _Out_writes_bytes_to_opt_(OutBufferLength, *BytesReturned) PVOID OutBuffer,
+    _In_ ULONG OutBufferLength,
+    _Out_ PULONG BytesReturned
+    )
+{
+    KIRQL oldIrql;
+    ULONG required;
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    required = (devExt->NicolaTable != NULL) ? devExt->NicolaTableBytes : 0;
+    *BytesReturned = required;
+    if (required > 0) {
+        if (OutBuffer == NULL || OutBufferLength < required) {
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+            return STATUS_BUFFER_TOO_SMALL;
+        }
+        RtlCopyMemory(OutBuffer, devExt->NicolaTable, required);
+    }
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    return STATUS_SUCCESS;
+}
+
+// AddDeviceから呼ばれる: レジストリの"Nicola"値を読み、devExt->NicolaTableを初期化する
+// （LoadPersistedCombosForDeviceと同じ理屈でロック無しに直接書き込む）。
+// 失敗時は未設定のままでよい（ベストエフォート）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static VOID
+LoadPersistedNicolaForDevice(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    WCHAR subKeyPath[64];
+    PVOID buffer;
+    ULONG actualLength = 0;
+    NTSTATUS status;
+
+    buffer = ExAllocatePool2(POOL_FLAG_PAGED, KBDLAYER_MAX_NICOLA_BLOB_BYTES, KBDLAYER_REGTEMP_POOL_TAG);
+    if (buffer == NULL) {
+        return;
+    }
+
+    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    status = RegReadBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_NICOLA_VALUE_NAME,
+                            buffer, KBDLAYER_MAX_NICOLA_BLOB_BYTES, &actualLength);
+    if (NT_SUCCESS(status) && actualLength > 0) {
+        PKBDLAYER_NICOLA_HEADER table = NULL;
+        if (NT_SUCCESS(CopyNicolaBlob(buffer, actualLength, &table))) {
+            devExt->NicolaTable = table;
+            devExt->NicolaTableBytes = actualLength;
+        }
+    }
+
+    ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+FreeNicolaForDevice(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    if (devExt->NicolaTable != NULL) {
+        ExFreePoolWithTag(devExt->NicolaTable, KBDLAYER_NICOLA_POOL_TAG);
+        devExt->NicolaTable = NULL;
+        devExt->NicolaTableBytes = 0;
+    }
 }

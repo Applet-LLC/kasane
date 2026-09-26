@@ -23,6 +23,7 @@
 #include "CalibrationProfile.h"
 #include "BlobBuilder.h"
 #include "KeycodeTable.h"
+#include "NicolaTables.h"
 
 namespace {
 
@@ -333,6 +334,55 @@ int CmdGetTapDance(IoctlClient* client, ULONG uniqId, ULONG tapDanceId) {
     return 0;
 }
 
+// NICOLA設定JSONからblobを組み立てる。警告はstderrへ出すだけで失敗扱いにしない。
+bool BuildNicolaBlobOrReport(const char* jsonPath, std::vector<unsigned char>* blob) {
+    std::vector<std::string> warnings;
+    std::string error;
+    if (!NicolaTables::BuildBlob(jsonPath, blob, &warnings, &error)) {
+        fprintf(stderr, "failed to load NICOLA json: %s\n", error.c_str());
+        return false;
+    }
+    for (const std::string& w : warnings) {
+        fprintf(stderr, "warning: %s\n", w.c_str());
+    }
+    return true;
+}
+
+// --set-nicola <UniqIdHex> <nicola.json>
+int CmdSetNicola(IoctlClient* client, ULONG uniqId, const char* jsonPath) {
+    std::vector<unsigned char> blob;
+    if (!BuildNicolaBlobOrReport(jsonPath, &blob)) return 1;
+    if (!client->SetNicola(uniqId, blob)) return 1;
+
+    const KBDLAYER_NICOLA_HEADER* h = (const KBDLAYER_NICOLA_HEADER*)blob.data();
+    printf("SET_NICOLA ok. UniqId=%08X, %lu keys. Active while layer %lu is on "
+           "(and the layer map is ON).\n", uniqId, h->KeyCount, h->Layer);
+    return 0;
+}
+
+int CmdGetNicola(IoctlClient* client, ULONG uniqId) {
+    std::vector<unsigned char> blob;
+    if (!client->GetNicola(uniqId, &blob)) return 1;
+    printf("UniqId=%08X BlobLength=%zu\n", uniqId, blob.size());
+    NicolaTables::PrintBlob(blob.data(), blob.size());
+    return 0;
+}
+
+int CmdClearNicola(IoctlClient* client, ULONG uniqId) {
+    if (!client->SetNicola(uniqId, std::vector<unsigned char>())) return 1;
+    printf("SET_NICOLA ok. UniqId=%08X cleared.\n", uniqId);
+    return 0;
+}
+
+// --dump-nicola <nicola.json>: ドライバに送らず、展開結果だけを表示する。
+int CmdDumpNicola(const char* jsonPath) {
+    std::vector<unsigned char> blob;
+    if (!BuildNicolaBlobOrReport(jsonPath, &blob)) return 1;
+    printf("BlobLength=%zu (steps: <scancode>v = press, <scancode>^ = release)\n", blob.size());
+    NicolaTables::PrintBlob(blob.data(), blob.size());
+    return 0;
+}
+
 // info.jsonを使うキャリブレーション: --calibrate <UniqIdHex> <info.json> <out-profile.json> [layoutName]
 int CmdCalibrate(IoctlClient* client, ULONG uniqId, const std::string& infoJsonPath,
                   const std::string& outProfilePath, const std::string& layoutName, bool suppress) {
@@ -546,6 +596,13 @@ void PrintUsage() {
         "      Omit all 4 actions to clear it.\n"
         "  KeymapTool.exe --get-tapdance <UniqIdHex> <TapDanceId>\n"
         "      Show the current definition of a tap-dance (debugging).\n"
+        "  KeymapTool.exe --set-nicola <UniqIdHex> <nicola.json>\n"
+        "      Load a NICOLA (thumb-shift) layout, e.g. samples\\nicola.json. Thumb-shift\n"
+        "      input is active only while the json's \"layer\" is on and the layer map is ON.\n"
+        "  KeymapTool.exe --get-nicola <UniqIdHex> / --clear-nicola <UniqIdHex>\n"
+        "      Show / remove the NICOLA layout loaded in the driver.\n"
+        "  KeymapTool.exe --dump-nicola <nicola.json>\n"
+        "      Show what --set-nicola would send, without touching the driver.\n"
         "\n"
         "  UniqIdHex is the value shown by --list (e.g. A1B20000).\n");
 }
@@ -574,6 +631,12 @@ int main(int rawArgc, char** rawArgv) {
     }
 
     const char* cmd = argv[1];
+
+    // ドライバに接続せずに完結するコマンド。
+    if (strcmp(cmd, "--dump-nicola") == 0) {
+        if (argc < 3) { PrintUsage(); return 1; }
+        return CmdDumpNicola(argv[2]);
+    }
 
     IoctlClient client;
     if (!client.Open()) return 1;
@@ -655,6 +718,24 @@ int main(int rawArgc, char** rawArgv) {
         if (argc < 4 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
         ULONG macroId = (ULONG)strtoul(argv[3], nullptr, 10);
         return CmdGetMacro(&client, uniqId, macroId);
+    }
+
+    if (strcmp(cmd, "--set-nicola") == 0) {
+        ULONG uniqId;
+        if (argc < 4 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
+        return CmdSetNicola(&client, uniqId, argv[3]);
+    }
+
+    if (strcmp(cmd, "--get-nicola") == 0) {
+        ULONG uniqId;
+        if (argc < 3 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
+        return CmdGetNicola(&client, uniqId);
+    }
+
+    if (strcmp(cmd, "--clear-nicola") == 0) {
+        ULONG uniqId;
+        if (argc < 3 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
+        return CmdClearNicola(&client, uniqId);
     }
 
     if (strcmp(cmd, "--capture") == 0) {

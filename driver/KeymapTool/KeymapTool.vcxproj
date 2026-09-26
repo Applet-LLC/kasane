@@ -86,6 +86,7 @@
     <ClCompile Include="CalibrationProfile.cpp" />
     <ClCompile Include="IoctlClient.cpp" />
     <ClCompile Include="BlobBuilder.cpp" />
+    <ClCompile Include="NicolaTables.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Json.h" />
@@ -96,6 +97,7 @@
     <ClInclude Include="IoctlClient.h" />
     <ClInclude Include="BlobBuilder.h" />
     <ClInclude Include="FileUtil.h" />
+    <ClInclude Include="NicolaTables.h" />
     <ClInclude Include="..\common\kbdlayer_ioctl.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
