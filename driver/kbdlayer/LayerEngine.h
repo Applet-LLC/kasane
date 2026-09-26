@@ -49,11 +49,12 @@ ResolveLayerAction(
 // Driver.cのServiceCallbackで、ResolveCombo等のどのResolve*よりも先に呼ぶこと
 // （レイヤーマップON中にMT/コンボ等がイベントを横取りしても、キャプチャ記録を
 // 取りこぼさないため）。
-// - devExt->CaptureActive==TRUEなら最初の押下イベントのスキャンコードを記録して
-//   CaptureEventをセットする。E1シーケンス（Pause）の2イベント目と、E0付きの
-//   疑似Shift（E0 2A / E0 36）は記録対象から外す。
+// - devExt->CaptureActive==TRUEなら最初の押下イベントのスキャンコードを記録し、
+//   保留中のCAPTURE_NEXT_KEYのIRPを（ロック解放後に）完了させる。E1シーケンス（Pause）の
+//   2イベント目と、E0付きの疑似Shift（E0 2A / E0 36）は記録対象から外す。
 // - devExt->SuppressActive==TRUEなら押下イベントを捨て、それと対になる解放も捨てる
-//   （抑止開始前から押されていたキーの解放は通す）。アイドルタイムアウトの判定もここで行う。
+//   （抑止開始前から押されていたキーの解放は通す。押下を捨てたキーの解放は、抑止の解除後に
+//   届いても捨てる）。アイドルタイムアウトの判定もここで行う。
 // 戻り値は捨てた分を詰めた新しいEnd（何も捨てなければInputDataEndのまま。
 // 全件捨てた場合はInputDataStart）。
 // IRQL: <= DISPATCH_LEVEL。
@@ -430,25 +431,35 @@ LoadPersistedLayerMapForDevice(
 
 // --- キャリブレーションウィザード（ControlDevice.cのCAPTURE_NEXT_KEYハンドラから） ---
 
-// 捕捉待機を開始する。既に別の捕捉が進行中ならSTATUS_DEVICE_BUSYを返す。
-_IRQL_requires_max_(PASSIVE_LEVEL)
-NTSTATUS
-BeginCaptureNextKey(
-    _In_ PDEVICE_EXTENSION devExt
-    );
-
-// 捕捉待機を中止する（タイムアウト時にControlDevice.cから呼ばれる）。
+// AddDeviceから呼ばれる: CaptureTimer/CaptureDpcを初期化する。
 _IRQL_requires_max_(PASSIVE_LEVEL)
 VOID
-CancelCaptureNextKey(
+InitializeCaptureState(
     _In_ PDEVICE_EXTENSION devExt
     );
 
-// 捕捉されたスキャンコードを取り出す（CaptureEventがシグナルされた後に呼ぶこと）。
+// 捕捉待機を開始し、Irpを保留にする。成功時はSTATUS_PENDINGを返し、以後Irpの完了
+// （出力バッファの書き込み・IoReleaseRemoveLock・IoCompleteRequest）はこのモジュールが
+// 行う。完了のきっかけは、キー到着・TimeoutMsの経過・キャンセル・ハンドルのクローズ
+// （ReleaseCaptureSuppressForOwner）・デバイス削除（AbortCaptureNextKey）のいずれか。
+// 呼び出し元はIoAcquireRemoveLock(&devExt->RemoveLock, Irp)を済ませておくこと。
+// STATUS_PENDING以外（既に別の捕捉が進行中ならSTATUS_DEVICE_BUSY、既にキャンセル済みなら
+// STATUS_CANCELLED）を返したときは、Irpの完了とremove lockの解放は呼び出し元が行う。
 _IRQL_requires_max_(PASSIVE_LEVEL)
-USHORT
-ConsumeCapturedScanCode(
-    _In_ PDEVICE_EXTENSION devExt
+NTSTATUS
+StartCaptureNextKey(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PIRP Irp,
+    _In_ ULONG TimeoutMs
+    );
+
+// 保留中の捕捉があれば、Statusで即座に完了させる（デバイス削除時。DispatchPnpが
+// IoReleaseRemoveLockAndWaitの前に呼ぶ。保留IRPがremove lockを握っているため）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+AbortCaptureNextKey(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ NTSTATUS Status
     );
 
 // SET_CAPTURE_SUPPRESS: 入力抑止の有効化/解除。OwnerはIOCTLを発行したハンドルの
@@ -464,7 +475,8 @@ SetCaptureSuppressForDevice(
     );
 
 // コントロールデバイスのハンドルがクローズされた（IRP_MJ_CLEANUP）ときに呼ぶ。
-// そのハンドルが有効化した全デバイスの入力抑止を解除する。
+// そのハンドルが有効化した全デバイスの入力抑止を解除し、そのハンドルで保留中の
+// CAPTURE_NEXT_KEYをSTATUS_CANCELLEDで完了させる。
 _IRQL_requires_max_(DISPATCH_LEVEL)
 VOID
 ReleaseCaptureSuppressForOwner(

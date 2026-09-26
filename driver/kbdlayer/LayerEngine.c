@@ -2467,30 +2467,198 @@ LoadPersistedTapDancesForDevice(
 // キャリブレーションウィザード
 // ---------------------------------------------------------------------------
 
-_IRQL_requires_max_(PASSIVE_LEVEL)
-NTSTATUS
-BeginCaptureNextKey(
+// CAPTURE_NEXT_KEYの保留IRPを完了させる。EngineLockを保持していない状態で呼ぶこと。
+// IrpはTakeCaptureIrpLocked/キャンセルルーチンで所有権を得たものに限る。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+CompleteCaptureIrp(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PIRP Irp,
+    _In_ NTSTATUS Status,
+    _In_ USHORT ScanCode,
+    _In_ BOOLEAN TimedOut
+    )
+{
+    Irp->IoStatus.Status = Status;
+    Irp->IoStatus.Information = 0;
+    if (NT_SUCCESS(Status)) {
+        // METHOD_BUFFERED。出力バッファ長はStartCaptureNextKeyの呼び出し元で検証済み。
+        PKBDLAYER_CAPTURE_NEXT_KEY_OUTPUT out = (PKBDLAYER_CAPTURE_NEXT_KEY_OUTPUT)Irp->AssociatedIrp.SystemBuffer;
+        out->ScanCode = ScanCode;
+        out->TimedOut = TimedOut ? 1 : 0;
+        Irp->IoStatus.Information = sizeof(KBDLAYER_CAPTURE_NEXT_KEY_OUTPUT);
+    }
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+    IoCompleteRequest(Irp, IO_NO_INCREMENT);
+}
+
+// devExt->EngineLock保持中に呼ぶこと。保留中のIRPの所有権を取り出して捕捉を終える。
+// キャンセルルーチンが既に動き出している場合はNULLを返す（完了はキャンセルルーチンが行う）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static PIRP
+TakeCaptureIrpLocked(
     _In_ PDEVICE_EXTENSION devExt
     )
 {
+    PIRP irp = devExt->CaptureIrp;
+
+    devExt->CaptureActive = FALSE;
+    devExt->CaptureDone = FALSE;
+    if (irp == NULL) {
+        return NULL;
+    }
+    if (IoSetCancelRoutine(irp, NULL) == NULL) {
+        // キャンセルルーチンが所有権を持っている。CaptureIrpはそちらで消す。
+        return NULL;
+    }
+    devExt->CaptureIrp = NULL;
+    return irp;
+}
+
+_Function_class_(DRIVER_CANCEL)
+_Requires_lock_held_(_Global_cancel_spin_lock_)
+_Releases_lock_(_Global_cancel_spin_lock_)
+_IRQL_requires_min_(DISPATCH_LEVEL)
+_IRQL_requires_(DISPATCH_LEVEL)
+static VOID
+CaptureCancelRoutine(
+    _Inout_ PDEVICE_OBJECT DeviceObject,
+    _Inout_ _IRQL_uses_cancel_ PIRP Irp
+    )
+{
+    PDEVICE_EXTENSION devExt = (PDEVICE_EXTENSION)Irp->Tail.Overlay.DriverContext[0];
     KIRQL oldIrql;
-    NTSTATUS status;
+
+    UNREFERENCED_PARAMETER(DeviceObject);
+    IoReleaseCancelSpinLock(Irp->CancelIrql);
 
     KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
-    if (devExt->CaptureActive) {
-        status = STATUS_DEVICE_BUSY;
-    } else {
-        devExt->CaptureActive = TRUE;
-        devExt->CapturedScanCode = 0;
-        KeClearEvent(&devExt->CaptureEvent);
-        // 入力抑止のアイドルタイムアウトを延長する（キャプチャ待機そのものが
-        // 「キャリブレーション継続中」のアクティビティ）。
-        devExt->SuppressLastActivity = KeQueryInterruptTime();
-        status = STATUS_SUCCESS;
+    if (devExt->CaptureIrp == Irp) {
+        devExt->CaptureIrp = NULL;
+        devExt->CaptureActive = FALSE;
+        devExt->CaptureDone = FALSE;
     }
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
-    return status;
+    KBDLAYER_TRACE("CaptureCancelRoutine: cancelled DeviceId=0x%08X\n", devExt->DeviceId);
+    CompleteCaptureIrp(devExt, Irp, STATUS_CANCELLED, 0, FALSE);
+}
+
+// CaptureTimerの満了で起動されるDPC。期限を過ぎていれば捕捉をタイムアウトとして完了させる
+// （期限前なら、直前の捕捉用に張ったタイマーが遅れて届いただけなので何もしない）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+CaptureDpcRoutine(
+    _In_ PKDPC Dpc,
+    _In_opt_ PVOID DeferredContext,
+    _In_opt_ PVOID SystemArgument1,
+    _In_opt_ PVOID SystemArgument2
+    )
+{
+    PDEVICE_EXTENSION devExt = (PDEVICE_EXTENSION)DeferredContext;
+    KIRQL oldIrql;
+    PIRP irp = NULL;
+
+    UNREFERENCED_PARAMETER(Dpc);
+    UNREFERENCED_PARAMETER(SystemArgument1);
+    UNREFERENCED_PARAMETER(SystemArgument2);
+
+    if (devExt == NULL) {
+        return;
+    }
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    if (devExt->CaptureIrp != NULL && !devExt->CaptureDone &&
+        KeQueryInterruptTime() >= devExt->CaptureDeadline) {
+        irp = TakeCaptureIrpLocked(devExt);
+    }
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    if (irp != NULL) {
+        CompleteCaptureIrp(devExt, irp, STATUS_SUCCESS, 0, TRUE);
+    }
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+InitializeCaptureState(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    KeInitializeTimer(&devExt->CaptureTimer);
+    KeInitializeDpc(&devExt->CaptureDpc, CaptureDpcRoutine, devExt);
+    devExt->CaptureActive = FALSE;
+    devExt->CaptureDone = FALSE;
+    devExt->CaptureIrp = NULL;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+StartCaptureNextKey(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PIRP Irp,
+    _In_ ULONG TimeoutMs
+    )
+{
+    KIRQL oldIrql;
+    LARGE_INTEGER dueTime;
+
+    if (TimeoutMs > KBDLAYER_CAPTURE_MAX_TIMEOUT_MS) {
+        TimeoutMs = KBDLAYER_CAPTURE_MAX_TIMEOUT_MS;
+    }
+    Irp->Tail.Overlay.DriverContext[0] = devExt;
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    if (devExt->CaptureActive || devExt->CaptureIrp != NULL) {
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        return STATUS_DEVICE_BUSY;
+    }
+
+    IoSetCancelRoutine(Irp, CaptureCancelRoutine);
+    if (Irp->Cancel && IoSetCancelRoutine(Irp, NULL) != NULL) {
+        // 保留にする前に既にキャンセルされていた。
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        return STATUS_CANCELLED;
+    }
+
+    // 完了させる側（キー到着・DPC・キャンセル）はいずれもEngineLockを取ってから
+    // CaptureIrpを見るので、ここでIoMarkIrpPendingしておけば順序は守られる。
+    IoMarkIrpPending(Irp);
+    devExt->CaptureIrp = Irp;
+    devExt->CaptureActive = TRUE;
+    devExt->CaptureDone = FALSE;
+    devExt->CapturedScanCode = 0;
+    devExt->CaptureDeadline = KeQueryInterruptTime() + (ULONGLONG)TimeoutMs * 10000ULL;
+    // 入力抑止のアイドルタイムアウトを延長する（キャプチャ待機そのものが
+    // 「キャリブレーション継続中」のアクティビティ）。
+    devExt->SuppressLastActivity = KeQueryInterruptTime();
+    // ロック内で張る。前回の捕捉用のタイマーは、ここで張り直されて無効になる
+    // （既にキュー済みのDPCはCaptureDeadlineで見分ける）。
+    dueTime.QuadPart = -((LONGLONG)TimeoutMs * 10000LL);
+    KeSetTimer(&devExt->CaptureTimer, dueTime, &devExt->CaptureDpc);
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    return STATUS_PENDING;
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+AbortCaptureNextKey(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ NTSTATUS Status
+    )
+{
+    KIRQL oldIrql;
+    PIRP irp;
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    irp = TakeCaptureIrpLocked(devExt);
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    KeCancelTimer(&devExt->CaptureTimer);
+    if (irp != NULL) {
+        CompleteCaptureIrp(devExt, irp, Status, 0, FALSE);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -2550,26 +2718,46 @@ CalibrationShouldDropEntry(
         if (devExt->CaptureActive && !skip && !IsFakeShift(Entry)) {
             devExt->CapturedScanCode = EncodeScancode16(Entry->MakeCode, Entry->Flags);
             devExt->CaptureActive = FALSE;
-            KeSetEvent(&devExt->CaptureEvent, IO_NO_INCREMENT, FALSE);
+            // IRPの完了はロック解放後にResolveCalibrationが行う。
+            devExt->CaptureDone = TRUE;
         }
         if (Entry->Flags & KEY_E1) {
             devExt->CaptureSkipAfterE1 = TRUE;
         }
     }
 
-    if (devExt->SuppressActive) {
+    {
         ULONG index = SuppressBitIndex(Entry);
         UCHAR mask = (UCHAR)(1u << (index & 7));
-        if (!isBreak) {
-            devExt->SuppressedDown[index >> 3] |= mask;
+        BOOLEAN wasSuppressed = (devExt->SuppressedDown[index >> 3] & mask) != 0;
+
+        if (isBreak) {
+            // 押下を捨てたキーの解放は、抑止の解除後に届いた場合も1回だけ捨てる
+            // （解除のきっかけになった最後のキャプチャキーの解放がOSに漏れないように）。
+            if (wasSuppressed) {
+                devExt->SuppressedDown[index >> 3] &= (UCHAR)~mask;
+                if (devExt->SuppressedDownCount > 0) {
+                    devExt->SuppressedDownCount--;
+                }
+                return TRUE;
+            }
+            // 抑止開始前から押されていたキーの解放（例: コマンド実行時のEnter）は通す。
+            // 通さないとOS側でそのキーが押しっぱなし扱いになる。
+            return FALSE;
+        }
+
+        if (devExt->SuppressActive) {
+            if (!wasSuppressed) {
+                devExt->SuppressedDown[index >> 3] |= mask;
+                devExt->SuppressedDownCount++;
+            }
             return TRUE;
         }
-        if (devExt->SuppressedDown[index >> 3] & mask) {
-            devExt->SuppressedDown[index >> 3] &= (UCHAR)~mask;
+        if (wasSuppressed) {
+            // 抑止中に押して、解除後も押しっぱなしのキーのオートリピート。押下を捨てた
+            // ままなので、OS側で押下だけが届いた状態にしないよう引き続き捨てる。
             return TRUE;
         }
-        // 抑止開始前から押されていたキーの解放（例: コマンド実行時のEnter）は通す。
-        // 通さないとOS側でそのキーが押しっぱなし扱いになる。
     }
     return FALSE;
 }
@@ -2584,11 +2772,14 @@ ResolveCalibration(
 {
     KIRQL oldIrql;
     PKEYBOARD_INPUT_DATA newEnd;
+    PIRP captureIrp = NULL;
+    USHORT capturedScanCode = 0;
 
     // 通常時（キャリブレーションしていない間）のホットパスを軽く保つため、
-    // ロック無しで先に判定する。BOOLEANの読み取りなので、境界でのレースは
+    // ロック無しで先に判定する。単純な値の読み取りなので、境界でのレースは
     // 高々1イベント分の記録・抑止のずれにしかならない。
-    if (!devExt->CaptureActive && !devExt->SuppressActive && !devExt->CaptureSkipAfterE1) {
+    if (!devExt->CaptureActive && !devExt->SuppressActive && !devExt->CaptureSkipAfterE1 &&
+        devExt->SuppressedDownCount == 0) {
         return InputDataEnd;
     }
 
@@ -2596,17 +2787,27 @@ ResolveCalibration(
 
     // アイドルタイムアウト: キャプチャ待機中でもなく、一定時間アクティビティが
     // 無ければ抑止を解除する（ツールがハングした場合でもキーボードを取り戻せるように）。
+    // SuppressedDownは消さない（押下を捨てたキーの解放を、解除後も捨てるため）。
     if (devExt->SuppressActive && !devExt->CaptureActive &&
         KeQueryInterruptTime() - devExt->SuppressLastActivity > KBDLAYER_SUPPRESS_IDLE_TIMEOUT_100NS) {
         devExt->SuppressActive = FALSE;
         devExt->SuppressOwner = NULL;
-        RtlZeroMemory(devExt->SuppressedDown, sizeof(devExt->SuppressedDown));
         KBDLAYER_TRACE("ResolveCalibration: suppress idle timeout, released DeviceId=0x%08X\n", devExt->DeviceId);
     }
 
     newEnd = CompactInputDataArray(devExt, InputDataStart, InputDataEnd, CalibrationShouldDropEntry, NULL);
 
+    if (devExt->CaptureDone) {
+        capturedScanCode = devExt->CapturedScanCode;
+        captureIrp = TakeCaptureIrpLocked(devExt);
+    }
+
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    if (captureIrp != NULL) {
+        KeCancelTimer(&devExt->CaptureTimer);
+        CompleteCaptureIrp(devExt, captureIrp, STATUS_SUCCESS, capturedScanCode, FALSE);
+    }
     return newEnd;
 }
 
@@ -2626,9 +2827,8 @@ SetCaptureSuppressForDevice(
         if (devExt->SuppressActive && devExt->SuppressOwner != Owner) {
             status = STATUS_DEVICE_BUSY;
         } else {
-            if (!devExt->SuppressActive) {
-                RtlZeroMemory(devExt->SuppressedDown, sizeof(devExt->SuppressedDown));
-            }
+            // SuppressedDownは消さない（前回の抑止で押下を捨て、まだ押されたままのキーの
+            // 解放を捨てるため）。
             devExt->SuppressActive = TRUE;
             devExt->SuppressOwner = Owner;
             devExt->SuppressLastActivity = KeQueryInterruptTime();
@@ -2638,9 +2838,9 @@ SetCaptureSuppressForDevice(
         if (devExt->SuppressActive && devExt->SuppressOwner != Owner) {
             status = STATUS_ACCESS_DENIED;
         } else {
+            // SuppressedDownは消さない（押下を捨てたキーの解放を、解除後も捨てるため）。
             devExt->SuppressActive = FALSE;
             devExt->SuppressOwner = NULL;
-            RtlZeroMemory(devExt->SuppressedDown, sizeof(devExt->SuppressedDown));
         }
     }
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
@@ -2656,6 +2856,9 @@ ReleaseCaptureSuppressForOwner(
 {
     KIRQL oldIrql;
     PLIST_ENTRY entry;
+    LIST_ENTRY toComplete;
+
+    InitializeListHead(&toComplete);
 
     // ロック順序: g_listLock -> EngineLock（逆順で取る箇所は無い）。
     KeAcquireSpinLock(&g_listLock, &oldIrql);
@@ -2663,14 +2866,32 @@ ReleaseCaptureSuppressForOwner(
         PDEVICE_EXTENSION devExt = CONTAINING_RECORD(entry, DEVICE_EXTENSION, ListEntry);
         KeAcquireSpinLockAtDpcLevel(&devExt->EngineLock);
         if (devExt->SuppressActive && devExt->SuppressOwner == Owner) {
+            // SuppressedDownは消さない（押下を捨てたキーの解放を、解除後も捨てるため）。
             devExt->SuppressActive = FALSE;
             devExt->SuppressOwner = NULL;
-            RtlZeroMemory(devExt->SuppressedDown, sizeof(devExt->SuppressedDown));
             KBDLAYER_TRACE("ReleaseCaptureSuppressForOwner: released DeviceId=0x%08X\n", devExt->DeviceId);
+        }
+        // このハンドルで保留中のCAPTURE_NEXT_KEYも終わらせる（別スレッドがハンドルを
+        // 閉じた場合など、スレッド終了によるキャンセルが届かない経路のため）。
+        if (devExt->CaptureIrp != NULL &&
+            IoGetCurrentIrpStackLocation(devExt->CaptureIrp)->FileObject == (PFILE_OBJECT)Owner) {
+            PIRP irp = TakeCaptureIrpLocked(devExt);
+            if (irp != NULL) {
+                // 完了はロック解放後に行う。devExtはIrp->Tail.Overlay.DriverContext[0]から引く。
+                InsertTailList(&toComplete, &irp->Tail.Overlay.ListEntry);
+            }
         }
         KeReleaseSpinLockFromDpcLevel(&devExt->EngineLock);
     }
     KeReleaseSpinLock(&g_listLock, oldIrql);
+
+    while (!IsListEmpty(&toComplete)) {
+        PLIST_ENTRY le = RemoveHeadList(&toComplete);
+        PIRP irp = CONTAINING_RECORD(le, IRP, Tail.Overlay.ListEntry);
+        PDEVICE_EXTENSION devExt = (PDEVICE_EXTENSION)irp->Tail.Overlay.DriverContext[0];
+        KeCancelTimer(&devExt->CaptureTimer);
+        CompleteCaptureIrp(devExt, irp, STATUS_CANCELLED, 0, FALSE);
+    }
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
@@ -2689,34 +2910,6 @@ GetConfigForDevice(
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 }
 
-_IRQL_requires_max_(PASSIVE_LEVEL)
-VOID
-CancelCaptureNextKey(
-    _In_ PDEVICE_EXTENSION devExt
-    )
-{
-    KIRQL oldIrql;
-
-    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
-    devExt->CaptureActive = FALSE;
-    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
-}
-
-_IRQL_requires_max_(PASSIVE_LEVEL)
-USHORT
-ConsumeCapturedScanCode(
-    _In_ PDEVICE_EXTENSION devExt
-    )
-{
-    KIRQL oldIrql;
-    USHORT scanCode;
-
-    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
-    scanCode = devExt->CapturedScanCode;
-    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
-
-    return scanCode;
-}
 
 // ---------------------------------------------------------------------------
 // Phase 6: NICOLA（親指シフト）

@@ -153,11 +153,18 @@ typedef struct _DEVICE_EXTENSION {
     UCHAR NicolaModifierDown;            // 押されている物理修飾キー（s_ModifierScanCodesのビット）。押下中は判定を迂回する
 
     // --- キャリブレーションウィザード (IOCTL_KBDLAYER_CAPTURE_NEXT_KEY) 用 ---
-    // ServiceCallback（DISPATCH_LEVEL、EngineLock保持中）と、PASSIVE_LEVELで
-    // KeWaitForSingleObjectするIOCTLハンドラ（ControlDevice.c）との受け渡しに使う。
+    // CAPTURE_NEXT_KEYのIRPは保留（STATUS_PENDING）にしてCaptureIrpに持ち、
+    // キー到着（ResolveCalibration）・タイムアウト（CaptureDpc）・キャンセル（プロセス終了等）・
+    // ハンドルのクローズ（IRP_MJ_CLEANUP）・デバイス削除のいずれかで完了させる。
+    // 同期待機にしていた頃は、待機中にツールをkillしてもタイムアウトまでIRPが返らず、
+    // その間は入力抑止も解けなかった。EngineLock保持中に読み書きすること。
     BOOLEAN CaptureActive;   // TRUE の間、ServiceCallbackは次の押下イベントのスキャンコードを記録する
+    BOOLEAN CaptureDone;     // TRUE = 記録済み。ResolveCalibrationがロック解放後にIRPを完了させる
     USHORT CapturedScanCode; // 記録されたスキャンコード（Enc16形式）
-    KEVENT CaptureEvent;     // 記録完了をIOCTLハンドラへ通知する
+    PIRP CaptureIrp;         // 保留中のCAPTURE_NEXT_KEYのIRP（NULL = 無し）
+    ULONGLONG CaptureDeadline; // タイムアウト時刻（KeQueryInterruptTime()値）
+    KTIMER CaptureTimer;     // タイムアウト用
+    KDPC CaptureDpc;         // CaptureDpcRoutine（LayerEngine.c）
     // TRUE = 直前の押下がE1プレフィックス付き（Pauseの{1D,E1}）だったので、次の押下
     // （同じシーケンスの2イベント目{45}）はキャプチャ対象から外す。CaptureActiveの
     // 状態に関わらず次の押下1件で必ず消費する（2イベント目が別バッチ・別のキャプチャ
@@ -171,7 +178,10 @@ typedef struct _DEVICE_EXTENSION {
     ULONGLONG SuppressLastActivity; // KeQueryInterruptTime()値。アイドルタイムアウト判定用
     // 抑止中に押下を捨てたキーのビットマップ（解放も対で捨てるため）。
     // インデックス = MakeCode(下位8bit) + プレフィックス無し:0 / E0:0x100 / E1:0x200。
+    // 抑止を解除しても消さない。解除後に届いた解放も1回だけ捨ててビットを落とす
+    // （押下を捨てたキーの解放だけがOSに漏れないようにするため）。
     UCHAR SuppressedDown[96];
+    ULONG SuppressedDownCount;      // SuppressedDownで立っているビットの数（0ならホットパスで素通し）
 } DEVICE_EXTENSION, *PDEVICE_EXTENSION;
 
 #define KBDLAYER_POOL_TAG 'diLk'
