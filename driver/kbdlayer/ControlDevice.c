@@ -181,6 +181,7 @@ HandleListDevices(
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static NTSTATUS
 HandleGetLayerMap(
+    _In_ PIRP Irp,
     _In_ PIO_STACK_LOCATION IrpSp,
     _In_opt_ PVOID SystemBuffer,
     _Out_ PULONG BytesReturned
@@ -204,7 +205,7 @@ HandleGetLayerMap(
         return STATUS_BUFFER_TOO_SMALL;
     }
 
-    devExt = FindDeviceExtensionByUniqId(target->UniqId);
+    devExt = FindDeviceExtensionByUniqId(target->UniqId, Irp);
     if (devExt == NULL) {
         return STATUS_NOT_FOUND;
     }
@@ -223,20 +224,25 @@ HandleGetLayerMap(
 
     if (status == STATUS_BUFFER_TOO_SMALL) {
         *BytesReturned = sizeof(KBDLAYER_GET_MAP_OUTPUT) + blobBytes;
-        return STATUS_BUFFER_TOO_SMALL;
+        goto Done;
     }
     if (!NT_SUCCESS(status)) {
-        return status;
+        goto Done;
     }
 
     out->BlobLength = blobBytes;
     *BytesReturned = sizeof(KBDLAYER_GET_MAP_OUTPUT) + blobBytes;
-    return STATUS_SUCCESS;
+    status = STATUS_SUCCESS;
+
+Done:
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+    return status;
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static NTSTATUS
 HandleSetLayerMap(
+    _In_ PIRP Irp,
     _In_ PIO_STACK_LOCATION IrpSp,
     _In_opt_ PVOID SystemBuffer,
     _Out_ PULONG BytesReturned
@@ -247,6 +253,7 @@ HandleSetLayerMap(
     PDEVICE_EXTENSION devExt;
     PVOID blob;
     ULONG blobLength;
+    NTSTATUS status;
 
     *BytesReturned = 0;
 
@@ -262,18 +269,21 @@ HandleSetLayerMap(
         return STATUS_INVALID_PARAMETER;
     }
 
-    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId);
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId, Irp);
     if (devExt == NULL) {
         return STATUS_NOT_FOUND;
     }
 
     blob = (PUCHAR)SystemBuffer + sizeof(KBDLAYER_SET_MAP_INPUT);
-    return SetLayerMapForDevice(devExt, blob, blobLength);
+    status = SetLayerMapForDevice(devExt, blob, blobLength);
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+    return status;
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static NTSTATUS
 HandleClearLayerMap(
+    _In_ PIRP Irp,
     _In_ PIO_STACK_LOCATION IrpSp,
     _In_opt_ PVOID SystemBuffer,
     _Out_ PULONG BytesReturned
@@ -282,6 +292,7 @@ HandleClearLayerMap(
     ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
     PKBDLAYER_TARGET target = (PKBDLAYER_TARGET)SystemBuffer;
     PDEVICE_EXTENSION devExt;
+    NTSTATUS status;
 
     *BytesReturned = 0;
 
@@ -289,17 +300,20 @@ HandleClearLayerMap(
         return STATUS_INVALID_PARAMETER;
     }
 
-    devExt = FindDeviceExtensionByUniqId(target->UniqId);
+    devExt = FindDeviceExtensionByUniqId(target->UniqId, Irp);
     if (devExt == NULL) {
         return STATUS_NOT_FOUND;
     }
 
-    return ClearLayerMapForDevice(devExt);
+    status = ClearLayerMapForDevice(devExt);
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+    return status;
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static NTSTATUS
 HandleSetLayerMapEnabled(
+    _In_ PIRP Irp,
     _In_ PIO_STACK_LOCATION IrpSp,
     _In_opt_ PVOID SystemBuffer,
     _Out_ PULONG BytesReturned
@@ -308,6 +322,7 @@ HandleSetLayerMapEnabled(
     ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
     PKBDLAYER_SET_ENABLED_INPUT input = (PKBDLAYER_SET_ENABLED_INPUT)SystemBuffer;
     PDEVICE_EXTENSION devExt;
+    NTSTATUS status;
 
     *BytesReturned = 0;
 
@@ -315,17 +330,20 @@ HandleSetLayerMapEnabled(
         return STATUS_INVALID_PARAMETER;
     }
 
-    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId);
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId, Irp);
     if (devExt == NULL) {
         return STATUS_NOT_FOUND;
     }
 
-    return SetLayerMapEnabledForDevice(devExt, input->Enabled != 0);
+    status = SetLayerMapEnabledForDevice(devExt, input->Enabled != 0);
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+    return status;
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static NTSTATUS
 HandleSetConfig(
+    _In_ PIRP Irp,
     _In_ PIO_STACK_LOCATION IrpSp,
     _In_opt_ PVOID SystemBuffer,
     _Out_ PULONG BytesReturned
@@ -334,6 +352,7 @@ HandleSetConfig(
     ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
     PKBDLAYER_SET_CONFIG_INPUT input = (PKBDLAYER_SET_CONFIG_INPUT)SystemBuffer;
     PDEVICE_EXTENSION devExt;
+    NTSTATUS status;
 
     *BytesReturned = 0;
 
@@ -341,27 +360,30 @@ HandleSetConfig(
         return STATUS_INVALID_PARAMETER;
     }
 
-    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId);
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId, Irp);
     if (devExt == NULL) {
         return STATUS_NOT_FOUND;
     }
 
-    {
-        NTSTATUS status = SetTapTermForDevice(devExt, input->TapTermMs);
-        if (!NT_SUCCESS(status)) {
-            return status;
-        }
-        status = SetComboTermForDevice(devExt, input->ComboTermMs);
-        if (!NT_SUCCESS(status)) {
-            return status;
-        }
-        return SetTapDanceTermForDevice(devExt, input->TapDanceTermMs);
+    status = SetTapTermForDevice(devExt, input->TapTermMs);
+    if (!NT_SUCCESS(status)) {
+        goto Done;
     }
+    status = SetComboTermForDevice(devExt, input->ComboTermMs);
+    if (!NT_SUCCESS(status)) {
+        goto Done;
+    }
+    status = SetTapDanceTermForDevice(devExt, input->TapDanceTermMs);
+
+Done:
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+    return status;
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static NTSTATUS
 HandleSetMacro(
+    _In_ PIRP Irp,
     _In_ PIO_STACK_LOCATION IrpSp,
     _In_opt_ PVOID SystemBuffer,
     _Out_ PULONG BytesReturned
@@ -371,6 +393,7 @@ HandleSetMacro(
     PKBDLAYER_SET_MACRO_INPUT input = (PKBDLAYER_SET_MACRO_INPUT)SystemBuffer;
     PDEVICE_EXTENSION devExt;
     PKBDLAYER_MACRO_STEP steps;
+    NTSTATUS status;
 
     *BytesReturned = 0;
 
@@ -385,7 +408,7 @@ HandleSetMacro(
         return STATUS_INVALID_PARAMETER;
     }
 
-    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId);
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId, Irp);
     if (devExt == NULL) {
         return STATUS_NOT_FOUND;
     }
@@ -394,12 +417,15 @@ HandleSetMacro(
         ? (PKBDLAYER_MACRO_STEP)((PUCHAR)SystemBuffer + sizeof(KBDLAYER_SET_MACRO_INPUT))
         : NULL;
 
-    return SetMacroForDevice(devExt, input->MacroId, steps, input->StepCount);
+    status = SetMacroForDevice(devExt, input->MacroId, steps, input->StepCount);
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+    return status;
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static NTSTATUS
 HandleGetMacro(
+    _In_ PIRP Irp,
     _In_ PIO_STACK_LOCATION IrpSp,
     _In_opt_ PVOID SystemBuffer,
     _Out_ PULONG BytesReturned
@@ -424,7 +450,7 @@ HandleGetMacro(
         return STATUS_BUFFER_TOO_SMALL;
     }
 
-    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId);
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId, Irp);
     if (devExt == NULL) {
         return STATUS_NOT_FOUND;
     }
@@ -445,20 +471,25 @@ HandleGetMacro(
 
     if (status == STATUS_BUFFER_TOO_SMALL) {
         *BytesReturned = sizeof(KBDLAYER_GET_MACRO_OUTPUT) + stepBytes;
-        return STATUS_BUFFER_TOO_SMALL;
+        goto Done;
     }
     if (!NT_SUCCESS(status)) {
-        return status;
+        goto Done;
     }
 
     out->StepCount = stepCount;
     *BytesReturned = sizeof(KBDLAYER_GET_MACRO_OUTPUT) + stepBytes;
-    return STATUS_SUCCESS;
+    status = STATUS_SUCCESS;
+
+Done:
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+    return status;
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static NTSTATUS
 HandleSetCombo(
+    _In_ PIRP Irp,
     _In_ PIO_STACK_LOCATION IrpSp,
     _In_opt_ PVOID SystemBuffer,
     _Out_ PULONG BytesReturned
@@ -467,6 +498,7 @@ HandleSetCombo(
     ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
     PKBDLAYER_SET_COMBO_INPUT input = (PKBDLAYER_SET_COMBO_INPUT)SystemBuffer;
     PDEVICE_EXTENSION devExt;
+    NTSTATUS status;
 
     *BytesReturned = 0;
 
@@ -474,21 +506,25 @@ HandleSetCombo(
         return STATUS_INVALID_PARAMETER;
     }
 
-    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId);
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId, Irp);
     if (devExt == NULL) {
         return STATUS_NOT_FOUND;
     }
 
     // Entry.OutputAction.Type==NONEはクリアの合図（KeymapTool/IoctlClient.cpp参照）。
     if (input->Entry.OutputAction.Type == KBDLAYER_ACTION_NONE) {
-        return SetComboForDevice(devExt, input->ComboId, NULL);
+        status = SetComboForDevice(devExt, input->ComboId, NULL);
+    } else {
+        status = SetComboForDevice(devExt, input->ComboId, &input->Entry);
     }
-    return SetComboForDevice(devExt, input->ComboId, &input->Entry);
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+    return status;
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static NTSTATUS
 HandleGetCombo(
+    _In_ PIRP Irp,
     _In_ PIO_STACK_LOCATION IrpSp,
     _In_opt_ PVOID SystemBuffer,
     _Out_ PULONG BytesReturned
@@ -512,12 +548,13 @@ HandleGetCombo(
         return STATUS_BUFFER_TOO_SMALL;
     }
 
-    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId);
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId, Irp);
     if (devExt == NULL) {
         return STATUS_NOT_FOUND;
     }
 
     status = GetComboForDevice(devExt, input->ComboId, &entry, &used);
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
     if (!NT_SUCCESS(status)) {
         return status;
     }
@@ -535,6 +572,7 @@ HandleGetCombo(
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static NTSTATUS
 HandleSetTapDance(
+    _In_ PIRP Irp,
     _In_ PIO_STACK_LOCATION IrpSp,
     _In_opt_ PVOID SystemBuffer,
     _Out_ PULONG BytesReturned
@@ -543,6 +581,7 @@ HandleSetTapDance(
     ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
     PKBDLAYER_SET_TAPDANCE_INPUT input = (PKBDLAYER_SET_TAPDANCE_INPUT)SystemBuffer;
     PDEVICE_EXTENSION devExt;
+    NTSTATUS status;
 
     *BytesReturned = 0;
 
@@ -550,21 +589,25 @@ HandleSetTapDance(
         return STATUS_INVALID_PARAMETER;
     }
 
-    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId);
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId, Irp);
     if (devExt == NULL) {
         return STATUS_NOT_FOUND;
     }
 
     // Entry.SingleTapAction.Type==NONEはクリアの合図（KeymapTool/IoctlClient.cpp参照）。
     if (input->Entry.SingleTapAction.Type == KBDLAYER_ACTION_NONE) {
-        return SetTapDanceForDevice(devExt, input->TapDanceId, NULL);
+        status = SetTapDanceForDevice(devExt, input->TapDanceId, NULL);
+    } else {
+        status = SetTapDanceForDevice(devExt, input->TapDanceId, &input->Entry);
     }
-    return SetTapDanceForDevice(devExt, input->TapDanceId, &input->Entry);
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+    return status;
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static NTSTATUS
 HandleGetTapDance(
+    _In_ PIRP Irp,
     _In_ PIO_STACK_LOCATION IrpSp,
     _In_opt_ PVOID SystemBuffer,
     _Out_ PULONG BytesReturned
@@ -588,12 +631,13 @@ HandleGetTapDance(
         return STATUS_BUFFER_TOO_SMALL;
     }
 
-    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId);
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId, Irp);
     if (devExt == NULL) {
         return STATUS_NOT_FOUND;
     }
 
     status = GetTapDanceForDevice(devExt, input->TapDanceId, &entry, &used);
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
     if (!NT_SUCCESS(status)) {
         return status;
     }
@@ -612,6 +656,7 @@ HandleGetTapDance(
 // スキャンコードを返す。IRPは保留（STATUS_PENDING）にし、キー到着・タイムアウト・
 // キャンセル（プロセス終了等）・ハンドルのクローズ・デバイス削除のいずれかで
 // LayerEngine.c側が完了させる（StartCaptureNextKey参照）。
+// FindDeviceExtensionByUniqIdが取得したremove lockを、そのまま保留IRPに持たせる。
 // 保留中はIRPがdevExt->RemoveLockを保持し続け、完了時に解放する。これで待機中に
 // キーボードが取り外されてもdevExtは解放されない（DispatchPnpのREMOVE_DEVICEは、
 // 先にAbortCaptureNextKeyで保留IRPを完了させてからIoReleaseRemoveLockAndWaitする）。
@@ -642,14 +687,9 @@ HandleCaptureNextKey(
 
     timeoutMs = input->TimeoutMs != 0 ? input->TimeoutMs : KBDLAYER_CAPTURE_DEFAULT_TIMEOUT_MS;
 
-    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId);
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId, Irp);
     if (devExt == NULL) {
         return STATUS_NOT_FOUND;
-    }
-
-    status = IoAcquireRemoveLock(&devExt->RemoveLock, Irp);
-    if (!NT_SUCCESS(status)) {
-        return status;
     }
 
     // STATUS_PENDINGなら、IRPの完了とremove lockの解放はLayerEngine.c側が行う。
@@ -663,6 +703,7 @@ HandleCaptureNextKey(
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static NTSTATUS
 HandleSetCaptureSuppress(
+    _In_ PIRP Irp,
     _In_ PIO_STACK_LOCATION IrpSp,
     _In_opt_ PVOID SystemBuffer,
     _Out_ PULONG BytesReturned
@@ -671,6 +712,7 @@ HandleSetCaptureSuppress(
     ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
     PKBDLAYER_SET_CAPTURE_SUPPRESS_INPUT input = (PKBDLAYER_SET_CAPTURE_SUPPRESS_INPUT)SystemBuffer;
     PDEVICE_EXTENSION devExt;
+    NTSTATUS status;
 
     *BytesReturned = 0;
 
@@ -678,19 +720,22 @@ HandleSetCaptureSuppress(
         return STATUS_INVALID_PARAMETER;
     }
 
-    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId);
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId, Irp);
     if (devExt == NULL) {
         return STATUS_NOT_FOUND;
     }
 
     // 抑止の持ち主はこのハンドル（FILE_OBJECT）。クローズ時のIRP_MJ_CLEANUPで
     // DispatchControlCreateCloseが同じFILE_OBJECTをキーに一括解除する。
-    return SetCaptureSuppressForDevice(devExt, input->Enable != 0, IrpSp->FileObject);
+    status = SetCaptureSuppressForDevice(devExt, input->Enable != 0, IrpSp->FileObject);
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+    return status;
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static NTSTATUS
 HandleGetConfig(
+    _In_ PIRP Irp,
     _In_ PIO_STACK_LOCATION IrpSp,
     _In_opt_ PVOID SystemBuffer,
     _Out_ PULONG BytesReturned
@@ -710,7 +755,7 @@ HandleGetConfig(
         return STATUS_BUFFER_TOO_SMALL;
     }
 
-    devExt = FindDeviceExtensionByUniqId(target->UniqId);
+    devExt = FindDeviceExtensionByUniqId(target->UniqId, Irp);
     if (devExt == NULL) {
         return STATUS_NOT_FOUND;
     }
@@ -718,6 +763,7 @@ HandleGetConfig(
     // METHOD_BUFFERED: 入力(target)と出力は同じSystemBufferを共有する。
     // target->UniqIdは既に読み終えているので、そのまま上書きしてよい。
     GetConfigForDevice(devExt, (PKBDLAYER_GET_CONFIG_OUTPUT)SystemBuffer);
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
     *BytesReturned = sizeof(KBDLAYER_GET_CONFIG_OUTPUT);
     return STATUS_SUCCESS;
 }
@@ -725,6 +771,7 @@ HandleGetConfig(
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static NTSTATUS
 HandleSetNicola(
+    _In_ PIRP Irp,
     _In_ PIO_STACK_LOCATION IrpSp,
     _In_opt_ PVOID SystemBuffer,
     _Out_ PULONG BytesReturned
@@ -734,6 +781,7 @@ HandleSetNicola(
     PKBDLAYER_SET_NICOLA_INPUT input = (PKBDLAYER_SET_NICOLA_INPUT)SystemBuffer;
     PDEVICE_EXTENSION devExt;
     ULONG blobLength;
+    NTSTATUS status;
 
     *BytesReturned = 0;
 
@@ -750,20 +798,23 @@ HandleSetNicola(
         return STATUS_INVALID_PARAMETER;
     }
 
-    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId);
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId, Irp);
     if (devExt == NULL) {
         return STATUS_NOT_FOUND;
     }
 
-    return SetNicolaForDevice(
+    status = SetNicolaForDevice(
         devExt,
         blobLength > 0 ? (PUCHAR)SystemBuffer + sizeof(KBDLAYER_SET_NICOLA_INPUT) : NULL,
         blobLength);
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+    return status;
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static NTSTATUS
 HandleGetNicola(
+    _In_ PIRP Irp,
     _In_ PIO_STACK_LOCATION IrpSp,
     _In_opt_ PVOID SystemBuffer,
     _Out_ PULONG BytesReturned
@@ -786,7 +837,7 @@ HandleGetNicola(
         return STATUS_BUFFER_TOO_SMALL;
     }
 
-    devExt = FindDeviceExtensionByUniqId(target->UniqId);
+    devExt = FindDeviceExtensionByUniqId(target->UniqId, Irp);
     if (devExt == NULL) {
         return STATUS_NOT_FOUND;
     }
@@ -798,6 +849,7 @@ HandleGetNicola(
         (PUCHAR)out + sizeof(KBDLAYER_GET_NICOLA_OUTPUT),
         outputLen - sizeof(KBDLAYER_GET_NICOLA_OUTPUT),
         &blobBytes);
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
 
     if (status == STATUS_BUFFER_TOO_SMALL) {
         *BytesReturned = sizeof(KBDLAYER_GET_NICOLA_OUTPUT) + blobBytes;
@@ -831,16 +883,16 @@ DispatchControlIoctl(
         status = HandleListDevices(irpSp, systemBuffer, &bytesReturned);
         break;
     case IOCTL_KBDLAYER_GET_LAYERMAP:
-        status = HandleGetLayerMap(irpSp, systemBuffer, &bytesReturned);
+        status = HandleGetLayerMap(Irp, irpSp, systemBuffer, &bytesReturned);
         break;
     case IOCTL_KBDLAYER_SET_LAYERMAP:
-        status = HandleSetLayerMap(irpSp, systemBuffer, &bytesReturned);
+        status = HandleSetLayerMap(Irp, irpSp, systemBuffer, &bytesReturned);
         break;
     case IOCTL_KBDLAYER_CLEAR_LAYERMAP:
-        status = HandleClearLayerMap(irpSp, systemBuffer, &bytesReturned);
+        status = HandleClearLayerMap(Irp, irpSp, systemBuffer, &bytesReturned);
         break;
     case IOCTL_KBDLAYER_SET_LAYERMAP_ENABLED:
-        status = HandleSetLayerMapEnabled(irpSp, systemBuffer, &bytesReturned);
+        status = HandleSetLayerMapEnabled(Irp, irpSp, systemBuffer, &bytesReturned);
         break;
     case IOCTL_KBDLAYER_CAPTURE_NEXT_KEY:
         status = HandleCaptureNextKey(Irp, irpSp, systemBuffer, &bytesReturned);
@@ -851,37 +903,37 @@ DispatchControlIoctl(
         }
         break;
     case IOCTL_KBDLAYER_SET_CONFIG:
-        status = HandleSetConfig(irpSp, systemBuffer, &bytesReturned);
+        status = HandleSetConfig(Irp, irpSp, systemBuffer, &bytesReturned);
         break;
     case IOCTL_KBDLAYER_SET_MACRO:
-        status = HandleSetMacro(irpSp, systemBuffer, &bytesReturned);
+        status = HandleSetMacro(Irp, irpSp, systemBuffer, &bytesReturned);
         break;
     case IOCTL_KBDLAYER_GET_MACRO:
-        status = HandleGetMacro(irpSp, systemBuffer, &bytesReturned);
+        status = HandleGetMacro(Irp, irpSp, systemBuffer, &bytesReturned);
         break;
     case IOCTL_KBDLAYER_SET_COMBO:
-        status = HandleSetCombo(irpSp, systemBuffer, &bytesReturned);
+        status = HandleSetCombo(Irp, irpSp, systemBuffer, &bytesReturned);
         break;
     case IOCTL_KBDLAYER_GET_COMBO:
-        status = HandleGetCombo(irpSp, systemBuffer, &bytesReturned);
+        status = HandleGetCombo(Irp, irpSp, systemBuffer, &bytesReturned);
         break;
     case IOCTL_KBDLAYER_SET_TAPDANCE:
-        status = HandleSetTapDance(irpSp, systemBuffer, &bytesReturned);
+        status = HandleSetTapDance(Irp, irpSp, systemBuffer, &bytesReturned);
         break;
     case IOCTL_KBDLAYER_GET_TAPDANCE:
-        status = HandleGetTapDance(irpSp, systemBuffer, &bytesReturned);
+        status = HandleGetTapDance(Irp, irpSp, systemBuffer, &bytesReturned);
         break;
     case IOCTL_KBDLAYER_SET_CAPTURE_SUPPRESS:
-        status = HandleSetCaptureSuppress(irpSp, systemBuffer, &bytesReturned);
+        status = HandleSetCaptureSuppress(Irp, irpSp, systemBuffer, &bytesReturned);
         break;
     case IOCTL_KBDLAYER_GET_CONFIG:
-        status = HandleGetConfig(irpSp, systemBuffer, &bytesReturned);
+        status = HandleGetConfig(Irp, irpSp, systemBuffer, &bytesReturned);
         break;
     case IOCTL_KBDLAYER_SET_NICOLA:
-        status = HandleSetNicola(irpSp, systemBuffer, &bytesReturned);
+        status = HandleSetNicola(Irp, irpSp, systemBuffer, &bytesReturned);
         break;
     case IOCTL_KBDLAYER_GET_NICOLA:
-        status = HandleGetNicola(irpSp, systemBuffer, &bytesReturned);
+        status = HandleGetNicola(Irp, irpSp, systemBuffer, &bytesReturned);
         break;
     default:
         status = STATUS_INVALID_DEVICE_REQUEST;

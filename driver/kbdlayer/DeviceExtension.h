@@ -198,11 +198,14 @@ extern LIST_ENTRY g_deviceList;
 extern KSPIN_LOCK g_listLock;
 
 // g_listLock を保護しつつ g_deviceList を走査し、DeviceId が一致する
-// DEVICE_EXTENSION を返す（見つからなければNULL）。ControlDevice.c から使う。
+// DEVICE_EXTENSION を返す（見つからない・削除中ならNULL）。ControlDevice.c から使う。
+// 返したdevExtのRemoveLockをIrpで取得済みなので、呼び出し元は使い終えたら
+// IoReleaseRemoveLock(&devExt->RemoveLock, Irp) を呼ぶこと。
 _IRQL_requires_max_(DISPATCH_LEVEL)
 PDEVICE_EXTENSION
 FindDeviceExtensionByUniqId(
-    _In_ ULONG UniqId
+    _In_ ULONG UniqId,
+    _In_ PIRP Irp
     );
 
 #endif // _KBDLAYER_DEVICE_EXTENSION_H_
