@@ -29,9 +29,13 @@ struct DeviceListEntry {
 class IoctlClient {
 public:
     // \\.\KbdLayerControl を開く。失敗したらfalseを返しエラーをstderrへ表示する。
+    // 昇格していない場合は読み取り専用で開き（IsReadOnly()==true）、書き込み系の
+    // メソッド（SetLayerMap/ClearLayerMap/CaptureNextKey/SetConfig/SetCaptureSuppress/
+    // SetMacro/SetCombo/SetTapDance/SetNicola）は管理者権限が必要な旨を表示して失敗する。
     bool Open();
     void Close();
     bool IsOpen() const { return handle_ != INVALID_HANDLE_VALUE; }
+    bool IsReadOnly() const { return readOnly_; }
 
     bool ListDevices(std::vector<DeviceListEntry>* out);
     bool GetLayerMap(ULONG uniqId, std::vector<unsigned char>* outBlob);
@@ -74,7 +78,10 @@ public:
     ~IoctlClient() { Close(); }
 
 private:
+    bool RequireWriteAccess(const char* operation);
+
     HANDLE handle_ = INVALID_HANDLE_VALUE;
+    bool readOnly_ = false;
 };
 
 #endif // _KEYMAPTOOL_IOCTLCLIENT_H_

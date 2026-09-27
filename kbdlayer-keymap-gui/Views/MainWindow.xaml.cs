@@ -37,6 +37,10 @@ public partial class MainWindow : Window
 
     private DeviceInfo? SelectedDevice => CmbDevice.SelectedItem as DeviceInfo;
     private bool IsOnline => _client != null && SelectedDevice is { UniqId: not 0 };
+    /// <summary>管理者として実行しておらず、ドライバを読み取り専用で開いている（閲覧専用モード）。</summary>
+    private bool IsReadOnly => _client is { IsReadOnly: true };
+    /// <summary>適用・キャリブレーション（書き込み系IOCTL）を使える。</summary>
+    private bool CanWrite => IsOnline && !IsReadOnly;
 
     // ------------------------------------------------------------------
     // 起動・デバイス一覧
@@ -52,7 +56,34 @@ public partial class MainWindow : Window
         _client = KbdLayerClient.TryOpen(out var error);
         if (_client == null)
             SetStatus($"ドライバに接続できません（{error}）。編集とエクスポートのみ行えます。");
+        if (IsReadOnly)
+        {
+            ReadOnlyBanner.Visibility = Visibility.Visible;
+            BtnIdentify.IsEnabled = false;
+            BtnCalibrateAll.IsEnabled = false;
+        }
         RefreshDevices(null);
+    }
+
+    private void BtnRestartAsAdmin_Click(object sender, RoutedEventArgs e)
+    {
+        if (!ConfirmDiscard()) return;
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = Environment.ProcessPath!,
+                UseShellExecute = true,
+                Verb = "runas",
+            });
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            // ERROR_CANCELLED(1223): UACのダイアログで「いいえ」を選んだ。閲覧専用のまま続ける。
+            if (ex.NativeErrorCode != 1223) SetStatus($"管理者として起動できませんでした: {ex.Message}");
+            return;
+        }
+        Close();
     }
 
     private void RefreshDevices(uint? selectUniqId)
@@ -96,6 +127,7 @@ public partial class MainWindow : Window
     private void BtnIdentify_Click(object sender, RoutedEventArgs e)
     {
         if (_client == null) { SetStatus("ドライバに接続できないため、キーボードを特定できません。"); return; }
+        if (IsReadOnly) { SetStatus("キーボードの特定には管理者権限が必要です（「管理者として再起動」を押してください）。"); return; }
         var devices = ((IEnumerable<DeviceInfo>)CmbDevice.ItemsSource).Where(d => d.UniqId != 0).ToList();
         if (devices.Count == 0) { SetStatus("ドライバが認識しているキーボードがありません。"); return; }
         var dlg = new IdentifyWindow(devices) { Owner = this };
@@ -341,7 +373,7 @@ public partial class MainWindow : Window
         if (_project == null) return;
         var menu = new ContextMenu();
 
-        var measure = new MenuItem { Header = "このキーを実測する...", IsEnabled = IsOnline };
+        var measure = new MenuItem { Header = "このキーを実測する...", IsEnabled = CanWrite };
         measure.Click += (_, _) => RunCalibration(new[] { slot });
         menu.Items.Add(measure);
 
@@ -387,6 +419,11 @@ public partial class MainWindow : Window
         if (!IsOnline || _project == null || _layout == null)
         {
             SetStatus("キャリブレーションには、ドライバが認識しているキーボードを選んでください。");
+            return;
+        }
+        if (IsReadOnly)
+        {
+            SetStatus("キャリブレーションには管理者権限が必要です（「管理者として再起動」を押してください）。");
             return;
         }
         var dlg = new CalibrationWindow(_layout, slots, SelectedDevice!.UniqId) { Owner = this };
@@ -485,7 +522,7 @@ public partial class MainWindow : Window
 
     private void BtnApply_Click(object sender, RoutedEventArgs e)
     {
-        if (!IsOnline || _project == null || _layout == null) return;
+        if (!CanWrite || _project == null || _layout == null) return;
         try
         {
             var warnings = ProjectService.Apply(_client!, _project, _layout);
@@ -549,7 +586,8 @@ public partial class MainWindow : Window
 
     private void UpdateButtons()
     {
-        BtnApply.IsEnabled = IsOnline;
+        BtnApply.IsEnabled = CanWrite;
+        // OFF（SET_LAYERMAP_ENABLED）は読み取り側のIOCTLなので、閲覧専用モードでも使える。
         BtnOff.IsEnabled = IsOnline && SelectedDevice!.Enabled;
         UpdateTitle();
     }

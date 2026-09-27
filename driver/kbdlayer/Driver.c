@@ -82,12 +82,19 @@ static BOOLEAN ResolveAndForward(_In_ PDEVICE_EXTENSION devExt, _In_ PKEYBOARD_I
 
 // g_listLockを保護しつつg_deviceListを走査し、DeviceIdが一致する
 // DEVICE_EXTENSIONを返す（見つからなければNULL）。宣言はDeviceExtension.h。
-// ControlDevice.c / LayerEngine.cのIOCTLハンドラからUniqId指定でデバイスを
-// 引くために使う。
+// ControlDevice.cのIOCTLハンドラからUniqId指定でデバイスを引くために使う。
+//
+// 見つけたdevExtには、g_listLockを保持したままIoAcquireRemoveLock(Irp)を取ってから返す。
+// 呼び出し元はdevExtを使い終えたらIoReleaseRemoveLock(&devExt->RemoveLock, Irp)を
+// 呼ぶこと。これでIOCTL処理中にキーボードが取り外されてもdevExtは解放されない。
+// この順序が安全なのは、DispatchPnpのREMOVE_DEVICEがIoReleaseRemoveLockAndWaitの
+// 後でRemoveEntryListするため（リストに載っている間はdevExtのメモリが有効で、
+// 削除開始後はIoAcquireRemoveLockが失敗する）。削除中のデバイスもNULLを返す。
 _IRQL_requires_max_(DISPATCH_LEVEL)
 PDEVICE_EXTENSION
 FindDeviceExtensionByUniqId(
-    _In_ ULONG UniqId
+    _In_ ULONG UniqId,
+    _In_ PIRP Irp
     )
 {
     KIRQL oldIrql;
@@ -104,7 +111,9 @@ FindDeviceExtensionByUniqId(
     for (entry = g_deviceList.Flink; entry != &g_deviceList; entry = entry->Flink) {
         PDEVICE_EXTENSION devExt = CONTAINING_RECORD(entry, DEVICE_EXTENSION, ListEntry);
         if (devExt->DeviceId == UniqId) {
-            found = devExt;
+            if (NT_SUCCESS(IoAcquireRemoveLock(&devExt->RemoveLock, Irp))) {
+                found = devExt;
+            }
             break;
         }
     }
@@ -195,6 +204,7 @@ NTSTATUS AddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT PhysicalDev
     // レイヤーエンジン用の状態を初期化する。RtlZeroMemory済みなので
     // LayerMap=NULL・LayerMapEnabled=FALSE・ActiveLayerMask=0・DefaultLayer=0は
     // 既定で成立しているが、KSPIN_LOCK/KEVENTは明示的に初期化するのがWDKの作法。
+    KeInitializeSpinLock(&devExt->OutputLock);
     KeInitializeSpinLock(&devExt->EngineLock);
     devExt->LayerMap = NULL;
     devExt->LayerMapEnabled = FALSE;
@@ -417,8 +427,10 @@ NTSTATUS DispatchPnp(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
         AbortCaptureNextKey(devExt, STATUS_DEVICE_REMOVED);
 
         // 以降のIoAcquireRemoveLock呼び出し元(DispatchRead/DispatchInternalIoctl/
-        // ControlDevice.cのCAPTURE_NEXT_KEYハンドラ等)が新規に処理を開始しないように
-        // した上で、既存の処理が抜けるのを待つ。
+        // ControlDevice.cの全IOCTLハンドラ=FindDeviceExtensionByUniqId経由)が新規に
+        // 処理を開始しないようにした上で、既存の処理が抜けるのを待つ。
+        // このあとでリストから外すので、FindDeviceExtensionByUniqIdがリスト上で見つけた
+        // devExtは、IoAcquireRemoveLockが失敗するだけでメモリは有効なまま。
         IoReleaseRemoveLockAndWait(&devExt->RemoveLock, Irp);
 
         // 先に下位(port driver側)へREMOVE_DEVICEをフォワードする。PnPのremoveは
@@ -543,6 +555,11 @@ VOID ServiceCallback(
     PDEVICE_EXTENSION devExt = (PDEVICE_EXTENSION)DeviceObject->DeviceExtension;
     ULONG originalCount = (ULONG)(InputDataEnd - InputDataStart);
     BOOLEAN compacted = FALSE;
+    KIRQL outputIrql;
+
+    // 状態の決定から送出までを、タイマーDPC・IOCTL経路の送出と直列化する
+    // （DeviceExtension.hのOutputLockの説明参照）。出口（関数末尾）まで保持する。
+    KeAcquireSpinLock(&devExt->OutputLock, &outputIrql);
 
     // DeviceIdはユーザーモードから非同期に設定される。0の間は素通し
     // （ただしキャリブレーションウィザードのCAPTURE_NEXT_KEYはDeviceId確定後
@@ -615,6 +632,8 @@ consumed:
     if (devExt->DeviceId != 0) {
         NicolaSyncActivation(devExt);
     }
+
+    KeReleaseSpinLock(&devExt->OutputLock, outputIrql);
 }
 
 // ServiceCallbackのうち、キャリブレーション後の「Resolve*の連鎖 → kbdclassへ転送」部分。

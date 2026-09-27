@@ -40,23 +40,29 @@ public sealed class KbdLayerClient : IDisposable
     public const string ControlDevicePath = @"\\.\KbdLayerControl";
 
     private const uint FILE_DEVICE_KBDLAYER = 0x00008020;
-    private static uint CtlCode(uint function) => (FILE_DEVICE_KBDLAYER << 16) | (function << 2); // METHOD_BUFFERED, FILE_ANY_ACCESS
+    private const uint FILE_READ_ACCESS = 0x0001;
+    private const uint FILE_WRITE_ACCESS = 0x0002;
+    // CTL_CODE(FILE_DEVICE_KBDLAYER, function, METHOD_BUFFERED, access)。
+    // アクセスビットの割り当ては kbdlayer_ioctl.h と一致させること（読み出しとON/OFFはREAD、
+    // 設定の書き換えとキャプチャはWRITE。WRITEは管理者として実行したときだけ使える）。
+    private static uint CtlCode(uint function, uint access) =>
+        (FILE_DEVICE_KBDLAYER << 16) | (access << 14) | (function << 2);
 
-    private static readonly uint IOCTL_LIST_DEVICES = CtlCode(0x800);
-    private static readonly uint IOCTL_GET_LAYERMAP = CtlCode(0x801);
-    private static readonly uint IOCTL_SET_LAYERMAP = CtlCode(0x802);
-    private static readonly uint IOCTL_CLEAR_LAYERMAP = CtlCode(0x803);
-    private static readonly uint IOCTL_SET_LAYERMAP_ENABLED = CtlCode(0x804);
-    private static readonly uint IOCTL_CAPTURE_NEXT_KEY = CtlCode(0x805);
-    private static readonly uint IOCTL_SET_CONFIG = CtlCode(0x806);
-    private static readonly uint IOCTL_SET_MACRO = CtlCode(0x807);
-    private static readonly uint IOCTL_GET_MACRO = CtlCode(0x808);
-    private static readonly uint IOCTL_SET_COMBO = CtlCode(0x809);
-    private static readonly uint IOCTL_GET_COMBO = CtlCode(0x80A);
-    private static readonly uint IOCTL_SET_TAPDANCE = CtlCode(0x80B);
-    private static readonly uint IOCTL_GET_TAPDANCE = CtlCode(0x80C);
-    private static readonly uint IOCTL_SET_CAPTURE_SUPPRESS = CtlCode(0x80D);
-    private static readonly uint IOCTL_GET_CONFIG = CtlCode(0x80E);
+    private static readonly uint IOCTL_LIST_DEVICES = CtlCode(0x800, FILE_READ_ACCESS);
+    private static readonly uint IOCTL_GET_LAYERMAP = CtlCode(0x801, FILE_READ_ACCESS);
+    private static readonly uint IOCTL_SET_LAYERMAP = CtlCode(0x802, FILE_WRITE_ACCESS);
+    private static readonly uint IOCTL_CLEAR_LAYERMAP = CtlCode(0x803, FILE_WRITE_ACCESS);
+    private static readonly uint IOCTL_SET_LAYERMAP_ENABLED = CtlCode(0x804, FILE_READ_ACCESS);
+    private static readonly uint IOCTL_CAPTURE_NEXT_KEY = CtlCode(0x805, FILE_WRITE_ACCESS);
+    private static readonly uint IOCTL_SET_CONFIG = CtlCode(0x806, FILE_WRITE_ACCESS);
+    private static readonly uint IOCTL_SET_MACRO = CtlCode(0x807, FILE_WRITE_ACCESS);
+    private static readonly uint IOCTL_GET_MACRO = CtlCode(0x808, FILE_READ_ACCESS);
+    private static readonly uint IOCTL_SET_COMBO = CtlCode(0x809, FILE_WRITE_ACCESS);
+    private static readonly uint IOCTL_GET_COMBO = CtlCode(0x80A, FILE_READ_ACCESS);
+    private static readonly uint IOCTL_SET_TAPDANCE = CtlCode(0x80B, FILE_WRITE_ACCESS);
+    private static readonly uint IOCTL_GET_TAPDANCE = CtlCode(0x80C, FILE_READ_ACCESS);
+    private static readonly uint IOCTL_SET_CAPTURE_SUPPRESS = CtlCode(0x80D, FILE_WRITE_ACCESS);
+    private static readonly uint IOCTL_GET_CONFIG = CtlCode(0x80E, FILE_READ_ACCESS);
 
     public const int MaxLayers = 8;             // KBDLAYER_MAX_LAYERS
     public const int MaxKeys = 256;             // KBDLAYER_MAX_KEYS
@@ -72,14 +78,36 @@ public sealed class KbdLayerClient : IDisposable
 
     private readonly SafeFileHandle _handle;
 
-    private KbdLayerClient(SafeFileHandle handle) => _handle = handle;
+    /// <summary>
+    /// 読み取り専用で開いている（管理者として実行していない）。一覧・読み出し・ON/OFFは使えるが、
+    /// 設定の書き換え（適用）とキャプチャ（キーボードの特定・キャリブレーション）はドライバに拒否される。
+    /// </summary>
+    public bool IsReadOnly { get; }
 
-    /// <summary>コントロールデバイスを開く。ドライバが無い場合は null を返し、理由を error に入れる。</summary>
+    private KbdLayerClient(SafeFileHandle handle, bool readOnly)
+    {
+        _handle = handle;
+        IsReadOnly = readOnly;
+    }
+
+    /// <summary>
+    /// コントロールデバイスを開く。ドライバが無い場合は null を返し、理由を error に入れる。
+    /// 制御デバイスはEveryoneに読み取りしか許していないので、昇格していなければ読み取り専用で開き直す。
+    /// </summary>
     public static KbdLayerClient? TryOpen(out string? error)
     {
+        bool readOnly = false;
         var h = NativeMethods.CreateFileW(ControlDevicePath,
             NativeMethods.GENERIC_READ | NativeMethods.GENERIC_WRITE, 0, IntPtr.Zero,
             NativeMethods.OPEN_EXISTING, 0, IntPtr.Zero);
+        if (h.IsInvalid && Marshal.GetLastWin32Error() == NativeMethods.ERROR_ACCESS_DENIED)
+        {
+            h.Dispose();
+            h = NativeMethods.CreateFileW(ControlDevicePath,
+                NativeMethods.GENERIC_READ, 0, IntPtr.Zero,
+                NativeMethods.OPEN_EXISTING, 0, IntPtr.Zero);
+            readOnly = true;
+        }
         if (h.IsInvalid)
         {
             error = new Win32Exception(Marshal.GetLastWin32Error()).Message;
@@ -87,7 +115,7 @@ public sealed class KbdLayerClient : IDisposable
             return null;
         }
         error = null;
-        return new KbdLayerClient(h);
+        return new KbdLayerClient(h, readOnly);
     }
 
     public void Dispose() => _handle.Dispose();

@@ -6,6 +6,9 @@
 #include <cstring>
 
 bool IoctlClient::Open() {
+    // 制御デバイスのSDDLはEveryoneにGRだけを与える（ControlDevice.c）。昇格していない
+    // プロセスはGENERIC_WRITEで開けないので、読み取り専用で開き直す。読み取り専用でも
+    // --list/--get/--on/--off 等（FILE_READ_ACCESSのIOCTL）は使える。
     handle_ = CreateFileW(
         KBDLAYER_CONTROL_DEVICE_PATH,
         GENERIC_READ | GENERIC_WRITE,
@@ -14,12 +17,36 @@ bool IoctlClient::Open() {
         OPEN_EXISTING,
         0,
         NULL);
+    readOnly_ = false;
+    if (handle_ == INVALID_HANDLE_VALUE && GetLastError() == ERROR_ACCESS_DENIED) {
+        handle_ = CreateFileW(
+            KBDLAYER_CONTROL_DEVICE_PATH,
+            GENERIC_READ,
+            0,
+            NULL,
+            OPEN_EXISTING,
+            0,
+            NULL);
+        readOnly_ = true;
+    }
     if (handle_ == INVALID_HANDLE_VALUE) {
         fwprintf(stderr, L"Failed to open %ls (kbdlayer.sys installed? control device created?). Error: %lu\n",
                  KBDLAYER_CONTROL_DEVICE_PATH, GetLastError());
         return false;
     }
     return true;
+}
+
+// 書き込み系IOCTL（FILE_WRITE_ACCESS）の前に呼ぶ。読み取り専用で開いている場合は、
+// ドライバへ送っても必ずERROR_ACCESS_DENIEDになるので、理由を表示して失敗させる。
+bool IoctlClient::RequireWriteAccess(const char* operation) {
+    if (!readOnly_) {
+        return true;
+    }
+    fprintf(stderr, "%s requires administrator rights. "
+            "Run KeymapTool from an elevated (Run as administrator) prompt.\n", operation);
+    SetLastError(ERROR_ACCESS_DENIED);
+    return false;
 }
 
 void IoctlClient::Close() {
@@ -88,6 +115,7 @@ bool IoctlClient::GetLayerMap(ULONG uniqId, std::vector<unsigned char>* outBlob)
 }
 
 bool IoctlClient::SetLayerMap(ULONG uniqId, const std::vector<unsigned char>& blob) {
+    if (!RequireWriteAccess("IOCTL_KBDLAYER_SET_LAYERMAP")) return false;
     std::vector<unsigned char> input(sizeof(KBDLAYER_SET_MAP_INPUT) + blob.size());
     KBDLAYER_SET_MAP_INPUT* header = (KBDLAYER_SET_MAP_INPUT*)input.data();
     header->Target.UniqId = uniqId;
@@ -110,6 +138,7 @@ bool IoctlClient::SetLayerMap(ULONG uniqId, const std::vector<unsigned char>& bl
 }
 
 bool IoctlClient::ClearLayerMap(ULONG uniqId) {
+    if (!RequireWriteAccess("IOCTL_KBDLAYER_CLEAR_LAYERMAP")) return false;
     KBDLAYER_TARGET target;
     target.UniqId = uniqId;
     DWORD bytesReturned = 0;
@@ -143,6 +172,7 @@ bool IoctlClient::SetLayerMapEnabled(ULONG uniqId, bool enabled) {
 }
 
 bool IoctlClient::CaptureNextKey(ULONG uniqId, ULONG timeoutMs, USHORT* outScanCode16, bool* outTimedOut) {
+    if (!RequireWriteAccess("IOCTL_KBDLAYER_CAPTURE_NEXT_KEY")) return false;
     KBDLAYER_CAPTURE_NEXT_KEY_INPUT input;
     input.Target.UniqId = uniqId;
     input.TimeoutMs = timeoutMs;
@@ -164,6 +194,7 @@ bool IoctlClient::CaptureNextKey(ULONG uniqId, ULONG timeoutMs, USHORT* outScanC
 }
 
 bool IoctlClient::SetConfig(ULONG uniqId, ULONG tapTermMs, ULONG comboTermMs, ULONG tapDanceTermMs) {
+    if (!RequireWriteAccess("IOCTL_KBDLAYER_SET_CONFIG")) return false;
     KBDLAYER_SET_CONFIG_INPUT input;
     input.Target.UniqId = uniqId;
     input.TapTermMs = tapTermMs;
@@ -199,6 +230,7 @@ bool IoctlClient::GetConfig(ULONG uniqId, KBDLAYER_GET_CONFIG_OUTPUT* out) {
 }
 
 bool IoctlClient::SetCaptureSuppress(ULONG uniqId, bool enable) {
+    if (!RequireWriteAccess("IOCTL_KBDLAYER_SET_CAPTURE_SUPPRESS")) return false;
     KBDLAYER_SET_CAPTURE_SUPPRESS_INPUT input;
     input.Target.UniqId = uniqId;
     input.Enable = enable ? 1 : 0;
@@ -217,6 +249,7 @@ bool IoctlClient::SetCaptureSuppress(ULONG uniqId, bool enable) {
 }
 
 bool IoctlClient::SetMacro(ULONG uniqId, ULONG macroId, const std::vector<KBDLAYER_MACRO_STEP>& steps) {
+    if (!RequireWriteAccess("IOCTL_KBDLAYER_SET_MACRO")) return false;
     std::vector<unsigned char> input(sizeof(KBDLAYER_SET_MACRO_INPUT) + steps.size() * sizeof(KBDLAYER_MACRO_STEP));
     KBDLAYER_SET_MACRO_INPUT* header = (KBDLAYER_SET_MACRO_INPUT*)input.data();
     header->Target.UniqId = uniqId;
@@ -261,6 +294,7 @@ bool IoctlClient::GetMacro(ULONG uniqId, ULONG macroId, std::vector<KBDLAYER_MAC
 }
 
 bool IoctlClient::SetCombo(ULONG uniqId, ULONG comboId, const KBDLAYER_COMBO_ENTRY* entry) {
+    if (!RequireWriteAccess("IOCTL_KBDLAYER_SET_COMBO")) return false;
     KBDLAYER_SET_COMBO_INPUT input;
     input.Target.UniqId = uniqId;
     input.ComboId = comboId;
@@ -305,6 +339,7 @@ bool IoctlClient::GetCombo(ULONG uniqId, ULONG comboId, KBDLAYER_COMBO_ENTRY* ou
 }
 
 bool IoctlClient::SetTapDance(ULONG uniqId, ULONG tapDanceId, const KBDLAYER_TAPDANCE_ENTRY* entry) {
+    if (!RequireWriteAccess("IOCTL_KBDLAYER_SET_TAPDANCE")) return false;
     KBDLAYER_SET_TAPDANCE_INPUT input;
     input.Target.UniqId = uniqId;
     input.TapDanceId = tapDanceId;
@@ -349,6 +384,7 @@ bool IoctlClient::GetTapDance(ULONG uniqId, ULONG tapDanceId, KBDLAYER_TAPDANCE_
 }
 
 bool IoctlClient::SetNicola(ULONG uniqId, const std::vector<unsigned char>& blob) {
+    if (!RequireWriteAccess("IOCTL_KBDLAYER_SET_NICOLA")) return false;
     std::vector<unsigned char> input(sizeof(KBDLAYER_SET_NICOLA_INPUT) + blob.size());
     KBDLAYER_SET_NICOLA_INPUT* header = (KBDLAYER_SET_NICOLA_INPUT*)input.data();
     header->Target.UniqId = uniqId;
