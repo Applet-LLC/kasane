@@ -66,3 +66,6 @@ kbdlayer-license-svc/appsettings.json
 # Perplexity research notes and the original planning doc are kept locally for
 # reference only and must never be committed (explicit user instruction).
 .plans/
+
+# Local agent instructions (points to the private dev-notes checklist); kept local, never committed.
+CLAUDE.md
