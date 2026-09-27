@@ -125,6 +125,9 @@ typedef struct _KBDLAYER_LIST_DEVICES_OUTPUT {
 // IOCTL_KBDLAYER_CAPTURE_NEXT_KEY の入力バッファ（KeymapTool のキャリブレーションウィザード専用）。
 // TimeoutMs: 待機の上限（ミリ秒）。0 は既定値（KeymapTool/ControlDevice.c の
 // KBDLAYER_CAPTURE_DEFAULT_TIMEOUT_MS）を使うことを表す。
+// KBDLAYER_CAPTURE_MAX_TIMEOUT_MS を超える値は、その上限に切り詰める。
+// 待機中にプロセスが終了したりハンドルを閉じたりすると、IRPはSTATUS_CANCELLEDで即座に戻る。
+#define KBDLAYER_CAPTURE_MAX_TIMEOUT_MS 60000
 typedef struct _KBDLAYER_CAPTURE_NEXT_KEY_INPUT {
     KBDLAYER_TARGET Target;
     ULONG TimeoutMs;

@@ -202,7 +202,7 @@ NTSTATUS AddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT PhysicalDev
     InitializeComboState(devExt);    // ComboTimer/ComboDpcの初期化含む（Phase 4）
     InitializeTapDanceState(devExt); // TapDanceTimer/TapDanceDpcの初期化含む（Phase 5）
     InitializeNicolaState(devExt);   // NicolaTimer/NicolaDpcの初期化含む（Phase 6）
-    KeInitializeEvent(&devExt->CaptureEvent, NotificationEvent, FALSE);
+    InitializeCaptureState(devExt);  // CaptureTimer/CaptureDpcの初期化（CAPTURE_NEXT_KEYの保留IRP用）
 
     // LicenseTokenをECDSA検証してライセンス状態を決定（PASSIVE_LEVEL）
     {
@@ -412,6 +412,10 @@ NTSTATUS DispatchPnp(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
     if (irpStack->MinorFunction == IRP_MN_REMOVE_DEVICE) {
         KIRQL oldIrql;
 
+        // 保留中のCAPTURE_NEXT_KEYはremove lockを握ったままなので、先に完了させる
+        // （そうしないと下のIoReleaseRemoveLockAndWaitがタイムアウトまで待たされる）。
+        AbortCaptureNextKey(devExt, STATUS_DEVICE_REMOVED);
+
         // 以降のIoAcquireRemoveLock呼び出し元(DispatchRead/DispatchInternalIoctl/
         // ControlDevice.cのCAPTURE_NEXT_KEYハンドラ等)が新規に処理を開始しないように
         // した上で、既存の処理が抜けるのを待つ。
@@ -443,6 +447,8 @@ NTSTATUS DispatchPnp(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
         KeCancelTimer(&devExt->TapDanceTimer);
         // Phase 6: NicolaTimer/NicolaDpcも同様。
         KeCancelTimer(&devExt->NicolaTimer);
+        // キャリブレーションのCaptureTimer/CaptureDpcも同様。
+        KeCancelTimer(&devExt->CaptureTimer);
         KeFlushQueuedDpcs();
 
         // この時点ではport driver側のREMOVE_DEVICE処理（上のIoCallDriver）が
@@ -754,6 +760,8 @@ VOID Unload(IN PDRIVER_OBJECT DriverObject) {
             KeCancelTimer(&devExt->TapDanceTimer);
             // Phase 6: NicolaTimer/NicolaDpcも同様。
             KeCancelTimer(&devExt->NicolaTimer);
+            // キャリブレーションのCaptureTimer/CaptureDpcも同様。
+            KeCancelTimer(&devExt->CaptureTimer);
             KeFlushQueuedDpcs();
 
             if (devExt->LayerMap != NULL) {

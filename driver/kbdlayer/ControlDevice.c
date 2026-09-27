@@ -608,18 +608,13 @@ HandleGetTapDance(
     return STATUS_SUCCESS;
 }
 
-// キャリブレーションウィザード専用。呼び出し元スレッドをPASSIVE_LEVELでブロックし、
-// 対象デバイスの次の物理キー押下1回分のスキャンコードを返す。
-// devExt->RemoveLockを保持したまま待機することで、待機中にキーボードが
-// サプライズリムーブされてもdevExtが解放されないようにする
-// （Driver.c DispatchPnpのIRP_MN_REMOVE_DEVICE処理はIoReleaseRemoveLockAndWaitで
-// 既存のロック保持者がいなくなるのを待ってからLayerMap解放・devExt解放を行うため、
-// このロックを保持している間はdevExtの寿命が保証される）。
-// トレードオフ: このロックを保持している間（最大TimeoutMs、既定10秒）は
-// DispatchPnpのREMOVE_DEVICE処理もそれだけブロックされる。IRPキャンセル
-// ルーチンによる早期離脱はPhase 1のスコープでは実装しない
-// （キャリブレーション中に対象キーボードを引き抜く操作は通常発生しないため、
-// 実用上の影響は小さいと判断）。
+// キャリブレーションウィザード専用。対象デバイスの次の物理キー押下1回分の
+// スキャンコードを返す。IRPは保留（STATUS_PENDING）にし、キー到着・タイムアウト・
+// キャンセル（プロセス終了等）・ハンドルのクローズ・デバイス削除のいずれかで
+// LayerEngine.c側が完了させる（StartCaptureNextKey参照）。
+// 保留中はIRPがdevExt->RemoveLockを保持し続け、完了時に解放する。これで待機中に
+// キーボードが取り外されてもdevExtは解放されない（DispatchPnpのREMOVE_DEVICEは、
+// 先にAbortCaptureNextKeyで保留IRPを完了させてからIoReleaseRemoveLockAndWaitする）。
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static NTSTATUS
 HandleCaptureNextKey(
@@ -632,12 +627,9 @@ HandleCaptureNextKey(
     ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
     ULONG outputLen = IrpSp->Parameters.DeviceIoControl.OutputBufferLength;
     PKBDLAYER_CAPTURE_NEXT_KEY_INPUT input = (PKBDLAYER_CAPTURE_NEXT_KEY_INPUT)SystemBuffer;
-    PKBDLAYER_CAPTURE_NEXT_KEY_OUTPUT out;
     PDEVICE_EXTENSION devExt;
     NTSTATUS status;
-    NTSTATUS waitStatus;
     ULONG timeoutMs;
-    LARGE_INTEGER timeout;
 
     *BytesReturned = 0;
 
@@ -660,30 +652,12 @@ HandleCaptureNextKey(
         return status;
     }
 
-    status = BeginCaptureNextKey(devExt);
-    if (!NT_SUCCESS(status)) {
+    // STATUS_PENDINGなら、IRPの完了とremove lockの解放はLayerEngine.c側が行う。
+    status = StartCaptureNextKey(devExt, Irp, timeoutMs);
+    if (status != STATUS_PENDING) {
         IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
-        return status;
     }
-
-    // 負の相対時間（100ns単位）。
-    timeout.QuadPart = -((LONGLONG)timeoutMs * 10000LL);
-    waitStatus = KeWaitForSingleObject(&devExt->CaptureEvent, Executive, KernelMode, FALSE, &timeout);
-
-    out = (PKBDLAYER_CAPTURE_NEXT_KEY_OUTPUT)SystemBuffer;
-    if (waitStatus == STATUS_TIMEOUT) {
-        CancelCaptureNextKey(devExt);
-        out->ScanCode = 0;
-        out->TimedOut = 1;
-    } else {
-        out->ScanCode = ConsumeCapturedScanCode(devExt);
-        out->TimedOut = 0;
-    }
-
-    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
-
-    *BytesReturned = sizeof(KBDLAYER_CAPTURE_NEXT_KEY_OUTPUT);
-    return STATUS_SUCCESS;
+    return status;
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
@@ -870,6 +844,11 @@ DispatchControlIoctl(
         break;
     case IOCTL_KBDLAYER_CAPTURE_NEXT_KEY:
         status = HandleCaptureNextKey(Irp, irpSp, systemBuffer, &bytesReturned);
+        if (status == STATUS_PENDING) {
+            // IRPは保留中（LayerEngine.cのStartCaptureNextKeyがIoMarkIrpPending済み）。
+            // ここで完了させてはならない。
+            return STATUS_PENDING;
+        }
         break;
     case IOCTL_KBDLAYER_SET_CONFIG:
         status = HandleSetConfig(irpSp, systemBuffer, &bytesReturned);
