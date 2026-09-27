@@ -2089,8 +2089,13 @@ PersistAllMacros(
     PKBDLAYER_MACRO_PERSIST_ENTRY buffer;
     KIRQL oldIrql;
 
+    // 非ページプールで確保する。下でEngineLockを保持したまま（DISPATCH_LEVELで）書き込むため、
+    // ページプールだとページアウトされていたときにBSOD（0xD1）になる。Driver Verifierの
+    // Force IRQL checkingではIRQLを上げるたびにページ可能メモリが追い出されるので毎回落ちる
+    // （2026-09-27、Verifier下の--set-macroで発生）。RegWriteBinaryに非ページのバッファを
+    // 渡すのは問題ない。
     buffer = (PKBDLAYER_MACRO_PERSIST_ENTRY)ExAllocatePool2(
-        POOL_FLAG_PAGED, KBDLAYER_MACRO_PERSIST_BLOB_BYTES, KBDLAYER_REGTEMP_POOL_TAG);
+        POOL_FLAG_NON_PAGED, KBDLAYER_MACRO_PERSIST_BLOB_BYTES, KBDLAYER_REGTEMP_POOL_TAG);
     if (buffer == NULL) {
         return;
     }
@@ -2248,8 +2253,9 @@ PersistAllCombos(
     PKBDLAYER_COMBO_PERSIST_ENTRY buffer;
     KIRQL oldIrql;
 
+    // 非ページプールで確保する。EngineLockを保持したまま書き込むため（PersistAllMacros参照）。
     buffer = (PKBDLAYER_COMBO_PERSIST_ENTRY)ExAllocatePool2(
-        POOL_FLAG_PAGED, KBDLAYER_COMBO_PERSIST_BLOB_BYTES, KBDLAYER_REGTEMP_POOL_TAG);
+        POOL_FLAG_NON_PAGED, KBDLAYER_COMBO_PERSIST_BLOB_BYTES, KBDLAYER_REGTEMP_POOL_TAG);
     if (buffer == NULL) {
         return;
     }
@@ -2409,8 +2415,9 @@ PersistAllTapDances(
     PKBDLAYER_TAPDANCE_PERSIST_ENTRY buffer;
     KIRQL oldIrql;
 
+    // 非ページプールで確保する。EngineLockを保持したまま書き込むため（PersistAllMacros参照）。
     buffer = (PKBDLAYER_TAPDANCE_PERSIST_ENTRY)ExAllocatePool2(
-        POOL_FLAG_PAGED, KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES, KBDLAYER_REGTEMP_POOL_TAG);
+        POOL_FLAG_NON_PAGED, KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES, KBDLAYER_REGTEMP_POOL_TAG);
     if (buffer == NULL) {
         return;
     }
