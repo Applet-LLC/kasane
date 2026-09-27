@@ -201,11 +201,12 @@ ResolveNicola(
     _Inout_opt_ PVOID SystemArgument3
     );
 
-// ServiceCallbackで、どのResolve*よりも前にバッチ全体を見せる。物理修飾キーの
-// 押下状態を追跡する（修飾キー押下中はNICOLA判定を迂回するため）。
+// kbdclassへバッチを転送する直前に呼ぶ。送る修飾キーの押下状態をdevExt->OutputModifierDownに
+// 反映する（OSへ修飾キーを押下中はNICOLA判定を迂回するため）。合成イベント
+// （SendSyntheticEvent）は内部で同じ追跡をしている。devExt->OutputLock保持中に呼ぶこと。
 _IRQL_requires_max_(DISPATCH_LEVEL)
 VOID
-NicolaObserveBatch(
+TrackOutputModifiers(
     _In_ PDEVICE_EXTENSION devExt,
     _In_ PKEYBOARD_INPUT_DATA InputDataStart,
     _In_ PKEYBOARD_INPUT_DATA InputDataEnd
@@ -225,6 +226,103 @@ _IRQL_requires_max_(DISPATCH_LEVEL)
 VOID
 NicolaSyncActivation(
     _In_ PDEVICE_EXTENSION devExt
+    );
+
+// NicolaSyncActivationと同じだが、SendImeKeys=FALSEならOnEnterKey/OnExitKeyを送らない
+// （アプリ管理レイヤーの変更など、IME側が起点の切り替え用）。devExt->OutputLock保持中に呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+NicolaSyncActivationEx(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ BOOLEAN SendImeKeys
+    );
+
+// --- アプリ管理レイヤーとレイヤー変化の通知 ---
+
+// レイヤー状態（実効マスク・DefaultLayer・マップのON/OFF・NICOLAの有効）が前回から
+// 変わっていればSeqを進め、WAIT_LAYER_CHANGEで待っているIRPを完了させる。
+// レイヤーを変えうる処理の後（ServiceCallbackの末尾、Hold/TapDanceのDPC、各IOCTL）で呼ぶ。
+// EngineLock・OutputLockを保持していない状態で呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+LayerNotifyIfChanged(
+    _In_ PDEVICE_EXTENSION devExt
+    );
+
+// 現在のレイヤー状態を返す（Seqは最新に更新してから返す）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+GetLayerStateForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _Out_ PKBDLAYER_LAYER_STATE Out
+    );
+
+// SET_LAYER_STATE: アプリ管理レイヤーを操作し、Ownerを所有者にする。NICOLAの有効/無効が
+// 切り替わった場合は即座に反映する（Flagsに KBDLAYER_LAYER_STATE_FLAG_NO_NICOLA_KEYS が
+// あればIMEのオン/オフキーを送らない）。Outが非NULLなら変更後の状態を返す。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetAppLayerStateForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG Op,
+    _In_ ULONG Layer,
+    _In_ ULONG Mask,
+    _In_ ULONG Flags,
+    _In_ PVOID Owner,
+    _Out_opt_ PKBDLAYER_LAYER_STATE Out
+    );
+
+// コントロールデバイスのハンドルがクローズされた（IRP_MJ_CLEANUP）ときに呼ぶ。そのハンドルが
+// 所有するアプリ管理レイヤーを全デバイスで下ろす（IMEのオン/オフキーは送らない）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+ReleaseAppLayersForOwner(
+    _In_ PVOID Owner
+    );
+
+// --- WAIT_LAYER_CHANGEの保留IRP（LayerNotify.c） ---
+
+// DriverEntryから呼ぶ。保留IRPのキャンセル安全キューを初期化する。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+InitializeLayerNotify(
+    VOID
+    );
+
+// WAIT_LAYER_CHANGEのIRPを保留にする。成功時はSTATUS_PENDINGを返し、以後の完了
+// （出力の書き込み・IoReleaseRemoveLock・IoCompleteRequest）はLayerNotify.cが行う。
+// 呼び出し元はFindDeviceExtensionByUniqId(…, Irp)でremove lockを取っておくこと（保留中は
+// IRPがそのremove lockを持ち続ける）。STATUS_PENDING以外を返したときは、IRPの完了と
+// remove lockの解放は呼び出し元が行う。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+StartWaitLayerChange(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PIRP Irp,
+    _In_ ULONG LastSeq
+    );
+
+// devExtを待っている保留IRPを、現在の状態で完了させる（LayerNotifyIfChangedから呼ばれる）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+LayerNotifyCompleteWaiters(
+    _In_ PDEVICE_EXTENSION devExt
+    );
+
+// devExtを待っている保留IRPをStatusで完了させる（デバイス削除時。DispatchPnpが
+// IoReleaseRemoveLockAndWaitの前に呼ぶ。保留IRPがremove lockを握っているため）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+LayerNotifyAbortDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ NTSTATUS Status
+    );
+
+// ハンドルのクローズ（IRP_MJ_CLEANUP）時に、そのハンドルの保留IRPをSTATUS_CANCELLEDで完了させる。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+LayerNotifyCleanupOwner(
+    _In_ PFILE_OBJECT FileObject
     );
 
 // AddDeviceから呼ばれる: devExt->NicolaTimer/NicolaDpcとNicolaStateを初期化する。

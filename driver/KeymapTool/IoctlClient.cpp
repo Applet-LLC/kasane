@@ -426,3 +426,64 @@ bool IoctlClient::GetNicola(ULONG uniqId, std::vector<unsigned char>* outBlob) {
         buffer.begin() + sizeof(KBDLAYER_GET_NICOLA_OUTPUT) + header->BlobLength);
     return true;
 }
+
+bool IoctlClient::GetLayerState(ULONG uniqId, KBDLAYER_LAYER_STATE* out) {
+    KBDLAYER_TARGET target;
+    target.UniqId = uniqId;
+
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_GET_LAYER_STATE,
+                              &target, sizeof(target),
+                              out, sizeof(*out),
+                              &bytesReturned, NULL);
+    if (!ok) {
+        fprintf(stderr, "IOCTL_KBDLAYER_GET_LAYER_STATE failed. Error: %lu\n", GetLastError());
+        return false;
+    }
+    return true;
+}
+
+bool IoctlClient::WaitLayerChange(ULONG uniqId, ULONG lastSeq, KBDLAYER_LAYER_STATE* out, bool* outCancelled) {
+    KBDLAYER_WAIT_LAYER_CHANGE_INPUT input;
+    input.Target.UniqId = uniqId;
+    input.LastSeq = lastSeq;
+
+    *outCancelled = false;
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_WAIT_LAYER_CHANGE,
+                              &input, sizeof(input),
+                              out, sizeof(*out),
+                              &bytesReturned, NULL);
+    if (!ok) {
+        DWORD error = GetLastError();
+        // STATUS_CANCELLED / STATUS_DEVICE_REMOVED / STATUS_DELETE_PENDING
+        if (error == ERROR_OPERATION_ABORTED || error == ERROR_DEVICE_REMOVED || error == ERROR_ACCESS_DENIED) {
+            *outCancelled = true;
+        }
+        fprintf(stderr, "IOCTL_KBDLAYER_WAIT_LAYER_CHANGE failed. Error: %lu\n", error);
+        return false;
+    }
+    return true;
+}
+
+bool IoctlClient::SetLayerState(ULONG uniqId, ULONG op, ULONG layer, ULONG mask, ULONG flags,
+                                KBDLAYER_LAYER_STATE* out) {
+    KBDLAYER_SET_LAYER_STATE_INPUT input;
+    input.Target.UniqId = uniqId;
+    input.Op = op;
+    input.Layer = layer;
+    input.Mask = mask;
+    input.Flags = flags;
+
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_SET_LAYER_STATE,
+                              &input, sizeof(input),
+                              out, sizeof(*out),
+                              &bytesReturned, NULL);
+    if (!ok) {
+        fprintf(stderr, "IOCTL_KBDLAYER_SET_LAYER_STATE failed. Error: %lu "
+                "(layer must exist in the layer map)\n", GetLastError());
+        return false;
+    }
+    return true;
+}

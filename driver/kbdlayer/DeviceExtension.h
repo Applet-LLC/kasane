@@ -92,6 +92,24 @@ typedef struct _DEVICE_EXTENSION {
     KBDLAYER_HELD_KEY HeldKeys[KBDLAYER_HELD_KEY_SLOTS];
     ULONG HeldKeyCount;                 // State!=NONEの記録数（0ならOFF中の走査を省く）
 
+    // --- アプリ管理レイヤーとレイヤー変化の通知（common/kbdlayer_ioctl.h参照） ---
+    // EngineLock保持中に読み書きすること。
+    ULONG AppLayerMask;                 // アプリが立てたレイヤー（実効マスクにORで合成する）
+    PVOID AppLayerOwner;                // 最後にSET_LAYER_STATEを呼んだハンドルのFILE_OBJECT（比較専用）
+    ULONG LayerStateSeq;                // レイヤー状態が変わるたびに増える
+    // 最後にSeqを進めた時点の状態（変化の検出用）
+    ULONG LastActiveLayerMask;
+    ULONG LastAppLayerMask;
+    ULONG LastDefaultLayer;
+    BOOLEAN LastLayerMapEnabled;
+    BOOLEAN LastNicolaActive;
+
+    // TRUE = IRP_MN_REMOVE_DEVICEの処理を始めた。以後、IRPの保留（CAPTURE_NEXT_KEY・
+    // WAIT_LAYER_CHANGE）を受け付けない。保留IRPを完了させてからIoReleaseRemoveLockAndWait
+    // するまでの間に新しい保留IRPが入り、削除がその完了まで待たされるのを防ぐ。
+    // EngineLock保持中に読み書きすること。
+    BOOLEAN RemovePending;
+
     // --- Phase 2 (Tap-Hold: MT/LT) ---
     //
     // Hold On Other Key Press方式。phase2-spikeブランチでの実機検証で得た教訓
@@ -175,7 +193,11 @@ typedef struct _DEVICE_EXTENSION {
     KTIMER NicolaTimer;                  // NicolaState.Deadlineで満了するタイマー
     KDPC NicolaDpc;                      // タイムアウト時の確定処理（NicolaDpcRoutine, LayerEngine.c）
     BOOLEAN NicolaWasActive;             // 直前に判定が有効だったか（OnEnter/OnExitキーの送出判定用）
-    UCHAR NicolaModifierDown;            // 押されている物理修飾キー（s_ModifierScanCodesのビット）。押下中は判定を迂回する
+    // OSへ送った修飾キーのうち、押下中のもの（s_ModifierScanCodesのビット）。押下中は
+    // NICOLAの判定を迂回する。物理キーではなく、実際にkbdclassへ送った出力で追跡する
+    // （レイヤーマップでCtrlにしたキーやMTのホールドも含み、逆に物理Ctrlを別のキーに
+    // した場合は含まない）。送出はすべてOutputLock保持中に行うので、OutputLockで保護する。
+    UCHAR OutputModifierDown;
 
     // --- キャリブレーションウィザード (IOCTL_KBDLAYER_CAPTURE_NEXT_KEY) 用 ---
     // CAPTURE_NEXT_KEYのIRPは保留（STATUS_PENDING）にしてCaptureIrpに持ち、

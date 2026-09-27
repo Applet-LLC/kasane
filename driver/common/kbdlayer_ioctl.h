@@ -375,6 +375,69 @@ typedef struct _KBDLAYER_GET_NICOLA_OUTPUT {
     // 続けて BlobLength バイトの KBDLAYER_NICOLA_HEADER + entries
 } KBDLAYER_GET_NICOLA_OUTPUT, *PKBDLAYER_GET_NICOLA_OUTPUT;
 
+// --- レイヤー制御の双方向通知（Raw HID相当） ---
+//
+// アプリからレイヤーを立てる「アプリ管理レイヤー」と、レイヤー状態の取得・変化の通知。
+// 設計の経緯は .plans/layer-notify-and-ime-agent.md（IME連動エージェントがこの上に乗る）。
+//
+// アプリ管理レイヤー（AppLayerMask）は、キーボード側のレイヤー（ActiveLayerMask。MO/TG/OSL/LT）
+// とは別に持ち、実効レイヤー = ActiveLayerMask | AppLayerMask | DefaultLayerビット で合成する。
+// - 最後にSET_LAYER_STATEを呼んだハンドルが所有者になる。そのハンドルが閉じられると
+//   （プロセスのクラッシュを含む）、アプリ管理レイヤーは0に戻る。
+// - キーボードのMOを離す・--off（SET_LAYERMAP_ENABLED=0）では消えない。
+// - ORで合成するので、アプリが立てたレイヤーはキーボードのTGでは消せない。
+// - 永続化しない。
+
+// レイヤー状態のスナップショット。
+typedef struct _KBDLAYER_LAYER_STATE {
+    ULONG Seq;                // レイヤー状態が変わるたびに増える（WAIT_LAYER_CHANGEのLastSeqに渡す）
+    ULONG ActiveLayerMask;    // キーボード側のレイヤー（MO/TG/OSL/LT。DefaultLayerを含まない）
+    ULONG AppLayerMask;       // アプリ管理レイヤー
+    ULONG DefaultLayer;       // DF(layer)で決まる基底レイヤー
+    ULONG EffectiveLayerMask; // ActiveLayerMask | AppLayerMask | (1 << DefaultLayer)
+    ULONG LayerMapEnabled;    // レイヤーマップがONか
+    ULONG NicolaActive;       // NICOLA判定が有効か
+} KBDLAYER_LAYER_STATE, *PKBDLAYER_LAYER_STATE;
+
+// IOCTL_KBDLAYER_GET_LAYER_STATE の入力は KBDLAYER_TARGET のみ。出力は KBDLAYER_LAYER_STATE。
+
+// IOCTL_KBDLAYER_WAIT_LAYER_CHANGE の入力。出力は KBDLAYER_LAYER_STATE。
+// Seq != LastSeq になるまでIRPを保留する（すでに違えば即座に完了する）。
+// 次のいずれかで完了する: レイヤー状態の変化（STATUS_SUCCESS）、キャンセル・ハンドルの
+// クローズ（STATUS_CANCELLED）、キーボードの取り外し（STATUS_DEVICE_REMOVED）。
+// 初回は GET_LAYER_STATE の Seq を LastSeq に渡す。
+typedef struct _KBDLAYER_WAIT_LAYER_CHANGE_INPUT {
+    KBDLAYER_TARGET Target;
+    ULONG LastSeq;
+} KBDLAYER_WAIT_LAYER_CHANGE_INPUT, *PKBDLAYER_WAIT_LAYER_CHANGE_INPUT;
+
+// ドライバ全体で同時に保留できるWAIT_LAYER_CHANGEの数。超えるとSTATUS_INSUFFICIENT_RESOURCES。
+#define KBDLAYER_MAX_PENDING_LAYER_WAITS 64
+
+// KBDLAYER_SET_LAYER_STATE_INPUT.Op
+#define KBDLAYER_LAYER_OP_ON       1 // Layerのビットを立てる
+#define KBDLAYER_LAYER_OP_OFF      2 // Layerのビットを下ろす
+#define KBDLAYER_LAYER_OP_TOGGLE   3 // Layerのビットを反転する
+#define KBDLAYER_LAYER_OP_SET_MASK 4 // AppLayerMask を Mask にする
+
+// KBDLAYER_SET_LAYER_STATE_INPUT.Flags
+// この変更でNICOLA判定のON/OFFが切り替わっても、OnEnterKey/OnExitKeyを送らない
+// （IME連動エージェントのように、IME側の変化を起点にレイヤーを変える場合に使う。
+// IMEのオン/オフキーを送り返すとループするため）。
+#define KBDLAYER_LAYER_STATE_FLAG_NO_NICOLA_KEYS 0x00000001
+
+// IOCTL_KBDLAYER_SET_LAYER_STATE の入力。アプリ管理レイヤーだけを操作する。
+// 出力バッファが KBDLAYER_LAYER_STATE 以上あれば、変更後の状態を返す（任意）。
+// Layer / Mask のビットは、レイヤーマップのLayerCount（未設定ならKBDLAYER_MAX_LAYERS）
+// 未満でなければSTATUS_INVALID_PARAMETER。
+typedef struct _KBDLAYER_SET_LAYER_STATE_INPUT {
+    KBDLAYER_TARGET Target;
+    ULONG Op;    // KBDLAYER_LAYER_OP_*
+    ULONG Layer; // OP_ON / OP_OFF / OP_TOGGLE で使う
+    ULONG Mask;  // OP_SET_MASK で使う
+    ULONG Flags; // KBDLAYER_LAYER_STATE_FLAG_*
+} KBDLAYER_SET_LAYER_STATE_INPUT, *PKBDLAYER_SET_LAYER_STATE_INPUT;
+
 #pragma pack(pop)
 
 // IOCTL_INTERNAL_KEYBOARD_CONNECT 等の既存IOCTLと衝突しないよう、
@@ -427,5 +490,14 @@ typedef struct _KBDLAYER_GET_NICOLA_OUTPUT {
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x80F, METHOD_BUFFERED, FILE_WRITE_ACCESS)
 #define IOCTL_KBDLAYER_GET_NICOLA \
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x810, METHOD_BUFFERED, FILE_READ_ACCESS)
+// レイヤー制御の双方向通知。SET_LAYER_STATEは、SET_LAYERMAP_ENABLED（マップのON/OFF）と
+// 同じく「ユーザー自身の設定の範囲内での切り替え」なのでFILE_READ_ACCESSにする。任意の
+// キー入力の注入にはならず、昇格していないIME連動エージェントからも呼べる。
+#define IOCTL_KBDLAYER_GET_LAYER_STATE \
+    CTL_CODE(FILE_DEVICE_KBDLAYER, 0x811, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_KBDLAYER_WAIT_LAYER_CHANGE \
+    CTL_CODE(FILE_DEVICE_KBDLAYER, 0x812, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_KBDLAYER_SET_LAYER_STATE \
+    CTL_CODE(FILE_DEVICE_KBDLAYER, 0x813, METHOD_BUFFERED, FILE_READ_ACCESS)
 
 #endif // _KBDLAYER_COMMON_IOCTL_H_
