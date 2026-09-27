@@ -9,6 +9,7 @@ internal static class NativeMethods
     public const uint GENERIC_WRITE = 0x40000000;
     public const uint OPEN_EXISTING = 3;
 
+    public const int ERROR_ACCESS_DENIED = 5;
     public const int ERROR_INSUFFICIENT_BUFFER = 122;
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]

@@ -6,12 +6,23 @@
         Icon="/Resources/app.ico"
         Loaded="Window_Loaded" Closing="Window_Closing">
     <DockPanel>
+        <!-- 閲覧専用モード（管理者として実行していない）の案内。ドライバは設定の書き換えと
+             キーのキャプチャを管理者にしか許さない（kbdlayer_ioctl.h のアクセスビット参照）。 -->
+        <Border x:Name="ReadOnlyBanner" DockPanel.Dock="Top" Visibility="Collapsed"
+                Background="#FFF4CE" BorderBrush="#E0C060" BorderThickness="0,0,0,1" Padding="8,6">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="管理者として再起動" Click="BtnRestartAsAdmin_Click" />
+                <TextBlock VerticalAlignment="Center" TextWrapping="Wrap"
+                           Text="閲覧専用モード: 管理者として実行していないため、キーボードへの適用・キャリブレーション・キーボードの特定はできません（編集・保存・エクスポート・OFFはできます）。" />
+            </DockPanel>
+        </Border>
+
         <!-- キーボード（デバイス）とレイアウトの選択 -->
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="8,8,8,4">
             <TextBlock Text="キーボード:" VerticalAlignment="Center" Margin="0,0,4,0" />
             <ComboBox x:Name="CmbDevice" Width="460" DisplayMemberPath="DisplayName"
                       SelectionChanged="CmbDevice_SelectionChanged" />
-            <Button Content="押して特定..." Click="BtnIdentify_Click"
+            <Button x:Name="BtnIdentify" Content="押して特定..." Click="BtnIdentify_Click"
                     ToolTip="キーを1つ押して、どのキーボードかを選びます" />
             <Button Content="一覧を更新" Click="BtnRefreshDevices_Click" />
             <TextBlock Text="レイアウト:" VerticalAlignment="Center" Margin="20,0,4,0" />
@@ -39,7 +50,7 @@
         </StatusBar>
 
         <WrapPanel DockPanel.Dock="Bottom" Margin="8,4,8,8">
-            <Button Content="キャリブレーション（全キー）..." Click="BtnCalibrateAll_Click" />
+            <Button x:Name="BtnCalibrateAll" Content="キャリブレーション（全キー）..." Click="BtnCalibrateAll_Click" />
             <Button Content="マクロ..." Click="BtnMacros_Click" />
             <Button Content="コンボ..." Click="BtnCombos_Click" />
             <Button Content="タップダンス..." Click="BtnTapDances_Click" />

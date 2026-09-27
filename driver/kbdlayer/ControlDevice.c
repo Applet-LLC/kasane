@@ -19,12 +19,16 @@
 
 PDEVICE_OBJECT g_ControlDeviceObject = NULL;
 
-// コントロールデバイスの既定セキュリティ記述子（SDDL）。kbdaddidと同じ方針:
-// - WD (Everyone): GRGWGX (読み取り・書き込み・実行=オープン) を許可
-//   -> KeymapTool（キャリブレーションウィザード含む）を管理者権限なしで実行できるようにする。
+// コントロールデバイスのセキュリティ記述子（SDDL）。
+// - WD (Everyone): GR（読み取り=オープン可）のみ
+//   -> 一覧・設定の読み出し・ON/OFF（FILE_READ_ACCESSのIOCTL）は管理者権限なしで呼べる。
 // - SY (SYSTEM) / BA (Administrators): GA (フルコントロール)
+//   -> 設定の書き換え・キャプチャ（FILE_WRITE_ACCESSのIOCTL）は昇格済みのプロセスだけ。
+// 一般ユーザー権限でキーロガー（CAPTURE_NEXT_KEY）やUIPIを迂回したキー注入
+// （SET_MACRO/SET_LAYERMAP）ができないようにするため（.plans/ioctl-access-control-review.md）。
+// IOCTLごとのアクセスビットは common/kbdlayer_ioctl.h を参照。
 static const UNICODE_STRING g_ControlDeviceSddl =
-    RTL_CONSTANT_STRING(L"D:P(A;;GRGWGX;;;WD)(A;;GA;;;SY)(A;;GA;;;BA)");
+    RTL_CONSTANT_STRING(L"D:P(A;;GR;;;WD)(A;;GA;;;SY)(A;;GA;;;BA)");
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
 NTSTATUS

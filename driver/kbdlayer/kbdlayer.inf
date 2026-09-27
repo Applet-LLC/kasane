@@ -10,7 +10,6 @@ PnpLockdown=1
 
 [DefaultInstall.NTamd64]
 CopyFiles=kbdlayer_Files_Driver
-AddReg=kbdlayer_Service_AddReg
 AddService=kbdlayer,0x00000002,kbdlayer_Service_Install
 
 [DefaultInstall.NTamd64.Filters]
@@ -18,7 +17,6 @@ AddFilter=kbdlayer,, kbdlayer_UpperFilter
 
 [DefaultInstall.NTarm64]
 CopyFiles=kbdlayer_Files_Driver
-AddReg=kbdlayer_Service_AddReg
 AddService=kbdlayer,0x00000002,kbdlayer_Service_Install
 
 [DefaultInstall.NTarm64.Filters]
@@ -36,20 +34,15 @@ DefaultDestDir=13
 [SourceDisksFiles]
 kbdlayer.sys=1
 
-[kbdlayer_Service_AddReg]
-HKR,,Security,,"D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GA;;;WD)(A;;GA;;;AU)"
-
 
 [kbdlayer_Files_Driver]
 kbdlayer.sys
 
 [DefaultInstall.NTamd64.Services]
 AddService=kbdlayer,0x00000002,kbdlayer_Service_Install
-AddReg=kbdlayer_Service_AddReg
 
 [DefaultInstall.NTarm64.Services]
 AddService=kbdlayer,0x00000002,kbdlayer_Service_Install
-AddReg=kbdlayer_Service_AddReg
 
 [kbdlayer_Service_Install]
 DisplayName    = %ServiceName%
