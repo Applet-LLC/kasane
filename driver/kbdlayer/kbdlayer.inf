@@ -12,18 +12,17 @@ PnpLockdown=1
 CopyFiles=kbdlayer_Files_Driver
 AddService=kbdlayer,0x00000002,kbdlayer_Service_Install
 
-[DefaultInstall.NTamd64.Filters]
-AddFilter=kbdlayer,, kbdlayer_UpperFilter
-
 [DefaultInstall.NTarm64]
 CopyFiles=kbdlayer_Files_Driver
 AddService=kbdlayer,0x00000002,kbdlayer_Service_Install
 
-[DefaultInstall.NTarm64.Filters]
-AddFilter=kbdlayer,, kbdlayer_UpperFilter
-
-[kbdlayer_UpperFilter]
-FilterPosition=Upper
+; The upper-filter registration (Keyboard class UpperFilters) is done by DriverManager,
+; which inserts kbdlayer below kbdclass at a fixed position relative to known co-installed
+; filters. This INF used to also have AddFilter ([DefaultInstall.*.Filters],
+; FilterPosition=Upper). When the INF was installed on its own, that added a second
+; registration under Class\{GUID}\Filters, so kbdlayer was attached twice to every keyboard
+; and processed each key twice (found 2026-09-28). Installing this INF alone does not register
+; the filter; use DriverManager (the setup installer) for HLK and other setups as well.
 
 [DestinationDirs]
 DefaultDestDir=13
