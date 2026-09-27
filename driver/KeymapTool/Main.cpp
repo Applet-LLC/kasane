@@ -378,6 +378,8 @@ void PrintLayerState(const KBDLAYER_LAYER_STATE& s) {
     printf("Seq=%lu Effective=0x%02lX (Active=0x%02lX App=0x%02lX Default=%lu) LayerMap=%s NICOLA=%s\n",
            s.Seq, s.EffectiveLayerMask, s.ActiveLayerMask, s.AppLayerMask, s.DefaultLayer,
            s.LayerMapEnabled ? "ON" : "OFF", s.NicolaActive ? "ON" : "OFF");
+    // --watch-layerの出力をファイルへリダイレクトしても、強制終了で行が失われないように。
+    fflush(stdout);
 }
 
 int CmdGetLayerState(IoctlClient* client, ULONG uniqId) {

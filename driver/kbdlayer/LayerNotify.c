@@ -220,7 +220,9 @@ StartWaitLayerChange(
     removing = devExt->RemovePending;
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
     if (removing) {
-        LayerNotifyAbortDevice(devExt, STATUS_DELETE_PENDING);
+        // 削除で終わらせる他の保留IRPと同じSTATUS_DEVICE_REMOVED（Win32: 1617）にする
+        // （STATUS_DELETE_PENDINGはWin32では5になり、アクセス拒否と区別できない）。
+        LayerNotifyAbortDevice(devExt, STATUS_DEVICE_REMOVED);
         return STATUS_PENDING;
     }
 

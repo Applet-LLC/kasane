@@ -456,9 +456,13 @@ bool IoctlClient::WaitLayerChange(ULONG uniqId, ULONG lastSeq, KBDLAYER_LAYER_ST
                               &bytesReturned, NULL);
     if (!ok) {
         DWORD error = GetLastError();
-        // STATUS_CANCELLED / STATUS_DEVICE_REMOVED / STATUS_DELETE_PENDING
-        if (error == ERROR_OPERATION_ABORTED || error == ERROR_DEVICE_REMOVED || error == ERROR_ACCESS_DENIED) {
+        // STATUS_CANCELLED(995) / STATUS_DEVICE_REMOVED(1617: キーボードが取り外された)
+        if (error == ERROR_OPERATION_ABORTED || error == ERROR_DEVICE_REMOVED) {
             *outCancelled = true;
+            fprintf(stderr, "%s\n", error == ERROR_DEVICE_REMOVED
+                        ? "The keyboard was removed."
+                        : "The wait was cancelled.");
+            return false;
         }
         fprintf(stderr, "IOCTL_KBDLAYER_WAIT_LAYER_CHANGE failed. Error: %lu\n", error);
         return false;
