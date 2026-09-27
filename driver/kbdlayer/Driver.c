@@ -204,6 +204,7 @@ NTSTATUS AddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT PhysicalDev
     // レイヤーエンジン用の状態を初期化する。RtlZeroMemory済みなので
     // LayerMap=NULL・LayerMapEnabled=FALSE・ActiveLayerMask=0・DefaultLayer=0は
     // 既定で成立しているが、KSPIN_LOCK/KEVENTは明示的に初期化するのがWDKの作法。
+    KeInitializeSpinLock(&devExt->OutputLock);
     KeInitializeSpinLock(&devExt->EngineLock);
     devExt->LayerMap = NULL;
     devExt->LayerMapEnabled = FALSE;
@@ -554,6 +555,11 @@ VOID ServiceCallback(
     PDEVICE_EXTENSION devExt = (PDEVICE_EXTENSION)DeviceObject->DeviceExtension;
     ULONG originalCount = (ULONG)(InputDataEnd - InputDataStart);
     BOOLEAN compacted = FALSE;
+    KIRQL outputIrql;
+
+    // 状態の決定から送出までを、タイマーDPC・IOCTL経路の送出と直列化する
+    // （DeviceExtension.hのOutputLockの説明参照）。出口（関数末尾）まで保持する。
+    KeAcquireSpinLock(&devExt->OutputLock, &outputIrql);
 
     // DeviceIdはユーザーモードから非同期に設定される。0の間は素通し
     // （ただしキャリブレーションウィザードのCAPTURE_NEXT_KEYはDeviceId確定後
@@ -626,6 +632,8 @@ consumed:
     if (devExt->DeviceId != 0) {
         NicolaSyncActivation(devExt);
     }
+
+    KeReleaseSpinLock(&devExt->OutputLock, outputIrql);
 }
 
 // ServiceCallbackのうち、キャリブレーション後の「Resolve*の連鎖 → kbdclassへ転送」部分。

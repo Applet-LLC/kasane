@@ -560,8 +560,27 @@ static const USHORT s_ModifierScanCodes[8] = {
     /* 7: RGUI */ 0xE05C,
 };
 
+// devExt->EngineLock保持中に呼ぶこと。保留サイクル用タイマー（Hold/Combo/TapDance）の
+// 期限を*Deadlineに記録し、KeSetTimerに渡す相対時間を返す（KeSetTimerはロック解放後に
+// 呼んでよい）。KeSetTimerの呼び出しは記録より後なので、実際の満了は必ず期限以降になる。
+// DPC側は「期限前なら何もしない」ことで、満了済みでキュー待ちだった古いDPCが、その後に
+// 始まった新しいサイクルを即座に確定させるのを防ぐ（CaptureDeadlineと同じ手法）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static LARGE_INTEGER
+TimerDueLocked(
+    _Out_ PULONGLONG Deadline,
+    _In_ ULONG TermMs
+    )
+{
+    LARGE_INTEGER dueTime;
+
+    *Deadline = KeQueryInterruptTime() + (ULONGLONG)TermMs * 10000ULL;
+    dueTime.QuadPart = -((LONGLONG)TermMs * 10000LL);
+    return dueTime;
+}
+
 // 1件のKEYBOARD_INPUT_DATAを単独でOriginalClassServiceへ送る。devExt->EngineLockを
-// 保持していない状態で呼ぶこと。SystemArgument3には実IRPに紐づかない自発呼び出し
+// 保持していない状態で呼ぶこと（devExt->OutputLockは保持していてよい）。SystemArgument3には実IRPに紐づかない自発呼び出し
 // である旨、書き込み可能なダミー領域を渡す（書き込まれる値そのものに意味は無い）。
 _IRQL_requires_max_(DISPATCH_LEVEL)
 static VOID
@@ -667,13 +686,15 @@ HoldTapDpcRoutine(
         return;
     }
 
+    // 状態の決定から送出までをServiceCallbackと直列化する（OutputLockの説明参照）。
+    KeAcquireSpinLockAtDpcLevel(&devExt->OutputLock);
     KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
     // PendingActiveがFALSEなら、ServiceCallback側（他キー押下によるホールド確定、
     // またはタップ確定としての解放）が既にこのサイクルを終えている
     // （KeCancelTimerとこのDPCのキューイングが競合した場合に起こりうる）。
-    // その場合は何もしない。ServiceCallback経由とDPC経由の競合排他はこの
-    // EngineLockで行っている。
-    shouldConfirm = devExt->PendingActive;
+    // 期限前なら、終わったサイクルのDPCが遅れて届いただけで、今のサイクルは
+    // 自分のタイマーで改めて確定する。いずれの場合も何もしない。
+    shouldConfirm = devExt->PendingActive && KeQueryInterruptTime() >= devExt->HoldDeadline;
     if (shouldConfirm) {
         pendingScanCode = devExt->PendingScanCode;
         ConfirmHoldLocked(devExt, &action);
@@ -685,6 +706,7 @@ HoldTapDpcRoutine(
                        pendingScanCode, action.Type);
         EmitModTapEventIfApplicable(devExt, &action, KEY_MAKE);
     }
+    KeReleaseSpinLockFromDpcLevel(&devExt->OutputLock);
 }
 
 _IRQL_requires_max_(DISPATCH_LEVEL)
@@ -824,9 +846,9 @@ ResolveTapHold(
                 devExt->HoldConfirmed = FALSE;
                 devExt->PendingScanCode = scanCode;
                 devExt->PendingAction = *action;
+                dueTime = TimerDueLocked(&devExt->HoldDeadline, devExt->TapTermMs);
                 KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
-                dueTime.QuadPart = -((LONGLONG)devExt->TapTermMs * 10000LL);
                 KeSetTimer(&devExt->HoldTimer, dueTime, &devExt->HoldDpc);
 
                 if (SystemArgument3 != NULL) {
@@ -1120,12 +1142,13 @@ ComboDpcRoutine(
         return;
     }
 
+    // 状態の決定から送出までをServiceCallbackと直列化する（OutputLockの説明参照）。
+    KeAcquireSpinLockAtDpcLevel(&devExt->OutputLock);
     KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
     // ComboPendingActiveがFALSEなら、ServiceCallback側（相方到着による成立、または
-    // 保留キー自身の解放による不成立）が既にこのサイクルを終えている
-    // （KeCancelTimerとこのDPCのキューイングが競合した場合に起こりうる。Phase 2の
-    // HoldTapDpcRoutineと同じ理屈でEngineLockにより直列化される）。
-    shouldReplay = devExt->ComboPendingActive;
+    // 保留キー自身の解放による不成立）が既にこのサイクルを終えている。期限前なら、
+    // 終わったサイクルのDPCが遅れて届いただけ（Phase 2のHoldTapDpcRoutineと同じ理屈）。
+    shouldReplay = devExt->ComboPendingActive && KeQueryInterruptTime() >= devExt->ComboDeadline;
     if (shouldReplay) {
         pendingScanCode = devExt->ComboPendingScanCode;
         devExt->ComboPendingActive = FALSE;
@@ -1141,6 +1164,7 @@ ComboDpcRoutine(
             SendDecodedEvent(devExt, restoreScanCode, KEY_MAKE);
         }
     }
+    KeReleaseSpinLockFromDpcLevel(&devExt->OutputLock);
 }
 
 _IRQL_requires_max_(DISPATCH_LEVEL)
@@ -1195,6 +1219,8 @@ ResolveCombo(
             KBDLAYER_ACTION outputAction = entry->OutputAction;
             devExt->ComboConfirmed = FALSE;
             devExt->ComboDraining = TRUE;
+            devExt->ComboDrainingScanCode =
+                (scanCode == entry->ScanCode1) ? entry->ScanCode2 : entry->ScanCode1;
             KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
             SendDecodedEvent(devExt, outputAction.Param2, KEY_BREAK);
@@ -1309,9 +1335,9 @@ ResolveCombo(
             devExt->ComboActiveId = (ULONG)idx;
             // 不成立になったときの復元内容は、押下時点のレイヤーで決めておく。
             ResolveComboRestoreLocked(devExt, scanCode);
+            dueTime = TimerDueLocked(&devExt->ComboDeadline, devExt->ComboTermMs);
             KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
-            dueTime.QuadPart = -((LONGLONG)devExt->ComboTermMs * 10000LL);
             KeSetTimer(&devExt->ComboTimer, dueTime, &devExt->ComboDpc);
 
             if (SystemArgument3 != NULL) {
@@ -1446,11 +1472,13 @@ TapDanceDpcRoutine(
 
     RtlZeroMemory(&action, sizeof(action));
 
+    // 状態の決定から送出までをServiceCallbackと直列化する（OutputLockの説明参照）。
+    KeAcquireSpinLockAtDpcLevel(&devExt->OutputLock);
     KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
-    // TapDancePendingActiveがFALSEなら、ServiceCallback側が既にこのサイクルを終えている
-    // （KeCancelTimerとこのDPCのキューイングが競合した場合に起こりうる。Phase 2/Phase 4と
-    // 同じ理屈でEngineLockにより直列化される）。
-    if (devExt->TapDancePendingActive) {
+    // TapDancePendingActiveがFALSEなら、ServiceCallback側が既にこのサイクルを終えている。
+    // 期限前なら、張り直す前のタイマー（前のタップの押下中・次のタップ待ち、または
+    // 終わったサイクル）のDPCが遅れて届いただけ（Phase 2/Phase 4と同じ理屈）。
+    if (devExt->TapDancePendingActive && KeQueryInterruptTime() >= devExt->TapDanceDeadline) {
         PKBDLAYER_TAPDANCE_ENTRY entry = &devExt->TapDances[devExt->TapDanceActiveId];
         ULONG tapCountSoFar = devExt->TapDanceTapCount;
         BOOLEAN wasKeyDown = devExt->TapDanceKeyDown;
@@ -1473,18 +1501,17 @@ TapDanceDpcRoutine(
     }
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
-    if (!shouldFire) {
-        return;
+    if (shouldFire) {
+        if (isHoldCase) {
+            KBDLAYER_TRACE("LayerEngine: tapdance TIMEOUT SingleHold confirmed sc=0x%X\n", scanCode);
+            EmitTapDanceHoldEventIfApplicable(devExt, &action, KEY_MAKE);
+        } else {
+            KBDLAYER_TRACE("LayerEngine: tapdance TIMEOUT tap confirmed sc=0x%X type=%u\n", scanCode, action.Type);
+            SendDecodedEvent(devExt, action.Param2, KEY_MAKE);
+            SendDecodedEvent(devExt, action.Param2, KEY_BREAK);
+        }
     }
-
-    if (isHoldCase) {
-        KBDLAYER_TRACE("LayerEngine: tapdance TIMEOUT SingleHold confirmed sc=0x%X\n", scanCode);
-        EmitTapDanceHoldEventIfApplicable(devExt, &action, KEY_MAKE);
-    } else {
-        KBDLAYER_TRACE("LayerEngine: tapdance TIMEOUT tap confirmed sc=0x%X type=%u\n", scanCode, action.Type);
-        SendDecodedEvent(devExt, action.Param2, KEY_MAKE);
-        SendDecodedEvent(devExt, action.Param2, KEY_BREAK);
-    }
+    KeReleaseSpinLockFromDpcLevel(&devExt->OutputLock);
 }
 
 _IRQL_requires_max_(DISPATCH_LEVEL)
@@ -1596,10 +1623,9 @@ ResolveTapDance(
                 }
 
                 // 次のタップが来るか、タイムアウトするかを待つ。
-                KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
                 {
-                    LARGE_INTEGER dueTime;
-                    dueTime.QuadPart = -((LONGLONG)devExt->TapDanceTermMs * 10000LL);
+                    LARGE_INTEGER dueTime = TimerDueLocked(&devExt->TapDanceDeadline, devExt->TapDanceTermMs);
+                    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
                     KeSetTimer(&devExt->TapDanceTimer, dueTime, &devExt->TapDanceDpc);
                 }
                 if (SystemArgument3 != NULL) {
@@ -1610,14 +1636,13 @@ ResolveTapDance(
 
             // 次のタップの押下が来た。
             devExt->TapDanceKeyDown = TRUE;
-            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
-
-            // 「次タップ待ち」のタイマーを解除し、今回の押下ぶんの
-            // タイムアウト/ホールド監視タイマーを新たにアームする。
-            KeCancelTimer(&devExt->TapDanceTimer);
             {
-                LARGE_INTEGER dueTime;
-                dueTime.QuadPart = -((LONGLONG)devExt->TapDanceTermMs * 10000LL);
+                // 「次タップ待ち」のタイマーを解除し、今回の押下ぶんの
+                // タイムアウト/ホールド監視タイマーを新たにアームする（期限を更新するので、
+                // 既にキューされていた「次タップ待ち」のDPCは何もしない）。
+                LARGE_INTEGER dueTime = TimerDueLocked(&devExt->TapDanceDeadline, devExt->TapDanceTermMs);
+                KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+                KeCancelTimer(&devExt->TapDanceTimer);
                 KeSetTimer(&devExt->TapDanceTimer, dueTime, &devExt->TapDanceDpc);
             }
             if (SystemArgument3 != NULL) {
@@ -1700,9 +1725,9 @@ ResolveTapDance(
                 devExt->TapDanceTapCount = 0;
                 devExt->TapDanceScanCode = scanCode;
                 devExt->TapDanceActiveId = action->Param1;
+                dueTime = TimerDueLocked(&devExt->TapDanceDeadline, devExt->TapDanceTermMs);
                 KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
-                dueTime.QuadPart = -((LONGLONG)devExt->TapDanceTermMs * 10000LL);
                 KeSetTimer(&devExt->TapDanceTimer, dueTime, &devExt->TapDanceDpc);
 
                 if (SystemArgument3 != NULL) {
@@ -1715,6 +1740,146 @@ ResolveTapDance(
 
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
     return FALSE;
+}
+
+// ---------------------------------------------------------------------------
+// 設定変更・OFFで判定状態を打ち切るときの後始末
+//
+// 状態フラグを0に戻すだけだと、(1) 送出済みのmake（MTの修飾キー・コンボの出力キー・
+// タップダンスのホールド出力）に対応するbreakが二度と送られず押しっぱなしになり、
+// (2) まだ押されている物理キーの解放が後から素通しでOSに届く（makeの無いbreak）。
+// Abort*Lockedは、送るべきbreakをReleasesに集め、まだ押されている物理キーをHeldKeysに
+// SWALLOWEDとして記録してから状態をリセットする（記録した解放はResolveLayerActionで
+// 捨てられる）。判定前の保留（MTの保留中・コンボの相方待ち・タップダンスの次タップ待ち）は
+// 何も送らずに捨てる。いずれもEngineLock保持中に呼ぶ。集めたbreakは、EngineLockを
+// 放した後、OutputLockを保持したままSendAbortReleasesで送る（SetNicolaForDeviceと同じ形）。
+// ---------------------------------------------------------------------------
+
+#define KBDLAYER_MAX_ABORT_RELEASES 4
+
+typedef struct _KBDLAYER_ABORT_RELEASES {
+    ULONG Count;
+    USHORT ScanCodes[KBDLAYER_MAX_ABORT_RELEASES]; // Enc16
+} KBDLAYER_ABORT_RELEASES, *PKBDLAYER_ABORT_RELEASES;
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+AppendAbortRelease(
+    _Inout_ PKBDLAYER_ABORT_RELEASES Releases,
+    _In_ USHORT ScanCode
+    )
+{
+    if (ScanCode != 0 && Releases->Count < KBDLAYER_MAX_ABORT_RELEASES) {
+        Releases->ScanCodes[Releases->Count++] = ScanCode;
+    }
+}
+
+// まだ押されている物理キーの解放を、後から届いたときに捨てるよう記録する。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+SwallowPhysicalKeyLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ USHORT ScanCode
+    )
+{
+    if (ScanCode != 0 && HeldKeyFor(devExt, ScanCode)->State == KBDLAYER_HELD_NONE) {
+        SetHeldKeyLocked(devExt, ScanCode, KBDLAYER_HELD_SWALLOWED, NULL);
+    }
+}
+
+// Phase 2: MT/LT。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+AbortTapHoldLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _Inout_ PKBDLAYER_ABORT_RELEASES Releases
+    )
+{
+    if (devExt->HoldConfirmed) {
+        KBDLAYER_ACTION action = devExt->PendingAction;
+        if (action.Type == KBDLAYER_ACTION_MODTAP && action.Param1 < RTL_NUMBER_OF(s_ModifierScanCodes)) {
+            AppendAbortRelease(Releases, s_ModifierScanCodes[action.Param1]);
+        } else if (action.Type == KBDLAYER_ACTION_LAYERTAP && action.Param1 < KBDLAYER_MAX_LAYERS) {
+            devExt->ActiveLayerMask &= ~(1UL << action.Param1);
+        }
+        SwallowPhysicalKeyLocked(devExt, devExt->PendingScanCode);
+    } else if (devExt->PendingActive) {
+        SwallowPhysicalKeyLocked(devExt, devExt->PendingScanCode);
+    }
+    devExt->PendingActive = FALSE;
+    devExt->HoldConfirmed = FALSE;
+}
+
+// Phase 4: コンボ。Combos[ComboActiveId]を読むので、SetComboForDeviceではエントリを
+// 書き換える前に呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+AbortComboLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _Inout_ PKBDLAYER_ABORT_RELEASES Releases
+    )
+{
+    PKBDLAYER_COMBO_ENTRY entry = &devExt->Combos[devExt->ComboActiveId];
+
+    if (devExt->ComboConfirmed) {
+        // 成立時は2つのメンバーがどちらも押されたまま（片方の解放でDrainingへ移る）。
+        AppendAbortRelease(Releases, entry->OutputAction.Param2);
+        SwallowPhysicalKeyLocked(devExt, entry->ScanCode1);
+        SwallowPhysicalKeyLocked(devExt, entry->ScanCode2);
+    } else if (devExt->ComboDraining) {
+        SwallowPhysicalKeyLocked(devExt, devExt->ComboDrainingScanCode);
+    } else if (devExt->ComboPendingActive) {
+        SwallowPhysicalKeyLocked(devExt, devExt->ComboPendingScanCode);
+    }
+    devExt->ComboPendingActive = FALSE;
+    devExt->ComboConfirmed = FALSE;
+    devExt->ComboDraining = FALSE;
+}
+
+// Phase 5: タップダンス。TapDances[TapDanceActiveId]を読むので、SetTapDanceForDeviceでは
+// エントリを書き換える前に呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+AbortTapDanceLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _Inout_ PKBDLAYER_ABORT_RELEASES Releases
+    )
+{
+    if (devExt->TapDanceHoldConfirmed) {
+        KBDLAYER_ACTION holdAction = devExt->TapDances[devExt->TapDanceActiveId].SingleHoldAction;
+        if (holdAction.Type == KBDLAYER_ACTION_MODTAP && holdAction.Param1 < RTL_NUMBER_OF(s_ModifierScanCodes)) {
+            AppendAbortRelease(Releases, s_ModifierScanCodes[holdAction.Param1]);
+        } else if (holdAction.Type == KBDLAYER_ACTION_KEY) {
+            AppendAbortRelease(Releases, holdAction.Param2);
+        }
+        ReleaseTapDanceHoldLocked(devExt, &holdAction); // LAYERTAPならレイヤーのビットを落とす
+        SwallowPhysicalKeyLocked(devExt, devExt->TapDanceScanCode);
+    } else if (devExt->TapDanceDraining ||
+               (devExt->TapDancePendingActive && devExt->TapDanceKeyDown)) {
+        SwallowPhysicalKeyLocked(devExt, devExt->TapDanceScanCode);
+    }
+    devExt->TapDancePendingActive = FALSE;
+    devExt->TapDanceKeyDown = FALSE;
+    devExt->TapDanceHoldConfirmed = FALSE;
+    devExt->TapDanceDraining = FALSE;
+}
+
+// Abort*Lockedが集めたbreakを送る。OutputLockを保持し（=DISPATCH_LEVEL）、EngineLockは
+// 保持していない状態で呼ぶこと。
+_IRQL_requires_(DISPATCH_LEVEL)
+static VOID
+SendAbortReleases(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ const KBDLAYER_ABORT_RELEASES* Releases
+    )
+{
+    if (devExt->OriginalClassService == NULL) {
+        return; // まだkbdclassに接続されていない（この場合は送出済みのmakeも無い）
+    }
+    for (ULONG i = 0; i < Releases->Count; i++) {
+        KBDLAYER_TRACE("LayerEngine: abort releases sc=0x%X\n", Releases->ScanCodes[i]);
+        SendDecodedEvent(devExt, Releases->ScanCodes[i], KEY_BREAK);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1815,45 +1980,47 @@ SetLayerMapEnabledForDevice(
     _In_ BOOLEAN Enabled
     )
 {
-    KIRQL oldIrql;
+    KIRQL outputIrql;
     WCHAR subKeyPath[64];
+    KBDLAYER_ABORT_RELEASES releases;
 
-    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    releases.Count = 0;
+
+    // OutputLockはDISPATCH_LEVELに上げるので、以降のEngineLockはAtDpcLevelで取る。
+    KeAcquireSpinLock(&devExt->OutputLock, &outputIrql);
+    KeAcquireSpinLockAtDpcLevel(&devExt->EngineLock);
     if (Enabled) {
         if (devExt->LayerMap == NULL) {
-            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+            KeReleaseSpinLockFromDpcLevel(&devExt->EngineLock);
+            KeReleaseSpinLock(&devExt->OutputLock, outputIrql);
             return STATUS_INVALID_DEVICE_STATE;
         }
         devExt->LayerMapEnabled = TRUE;
     } else {
         devExt->LayerMapEnabled = FALSE;
+        // Phase 2/4/5: 保留/確定/ドレイン中の判定を打ち切る。送出済みのmakeのbreakを集め、
+        // まだ押されている物理キーの解放は後から捨てるよう記録する（Abort*Locked参照）。
+        // タイマーはこの後キャンセルする。DPCはOutputLockを取ってから状態を見るので、
+        // キャンセルが競合で間に合わなくても、リセット後の状態を見て何もしない。
+        AbortTapHoldLocked(devExt, &releases);
+        AbortComboLocked(devExt, &releases);
+        AbortTapDanceLocked(devExt, &releases);
         // 素通しに戻すときはレイヤー状態もリセットする（次にONにしたとき、
         // 直前にどのレイヤーがアクティブだったかに依存させないため）。
         devExt->ActiveLayerMask = 0;
         devExt->DefaultLayer = 0;
         devExt->OneShotLayerPending = FALSE;
         devExt->OneShotLayerBit = 0;
-        // Phase 2: MT/LTの保留/ホールド確定状態も同様にリセットする。タイマーが
-        // armされていた場合はキャンセルする（HoldTapDpcRoutineはPendingActiveを
-        // 見てから動くので、キャンセルが競合で失敗しても実害は無い）。
-        devExt->PendingActive = FALSE;
-        devExt->HoldConfirmed = FALSE;
-        KeCancelTimer(&devExt->HoldTimer);
-        // Phase 4: コンボの保留/成立/ドレイン状態も同様にリセットする（タイマーが
-        // armされていた場合はキャンセルする。ComboDpcRoutineはComboPendingActiveを
-        // 見てから動くので、キャンセルが競合で失敗しても実害は無い）。
-        devExt->ComboPendingActive = FALSE;
-        devExt->ComboConfirmed = FALSE;
-        devExt->ComboDraining = FALSE;
-        KeCancelTimer(&devExt->ComboTimer);
-        // Phase 5: タップダンスの保留/確定/ドレイン状態も同様にリセットする。
-        devExt->TapDancePendingActive = FALSE;
-        devExt->TapDanceKeyDown = FALSE;
-        devExt->TapDanceHoldConfirmed = FALSE;
-        devExt->TapDanceDraining = FALSE;
-        KeCancelTimer(&devExt->TapDanceTimer);
     }
-    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+    KeReleaseSpinLockFromDpcLevel(&devExt->EngineLock);
+
+    if (!Enabled) {
+        KeCancelTimer(&devExt->HoldTimer);
+        KeCancelTimer(&devExt->ComboTimer);
+        KeCancelTimer(&devExt->TapDanceTimer);
+        SendAbortReleases(devExt, &releases);
+    }
+    KeReleaseSpinLock(&devExt->OutputLock, outputIrql);
 
     BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
     RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_ENABLED_VALUE_NAME, Enabled ? 1 : 0);
@@ -2282,7 +2449,8 @@ SetComboForDevice(
     _In_opt_ PKBDLAYER_COMBO_ENTRY Entry
     )
 {
-    KIRQL oldIrql;
+    KIRQL outputIrql;
+    KBDLAYER_ABORT_RELEASES releases;
 
     if (ComboId >= KBDLAYER_MAX_COMBO_COUNT) {
         return STATUS_INVALID_PARAMETER;
@@ -2298,7 +2466,11 @@ SetComboForDevice(
         }
     }
 
-    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    releases.Count = 0;
+
+    // OutputLockはDISPATCH_LEVELに上げるので、以降のEngineLockはAtDpcLevelで取る。
+    KeAcquireSpinLock(&devExt->OutputLock, &outputIrql);
+    KeAcquireSpinLockAtDpcLevel(&devExt->EngineLock);
 
     if (Entry != NULL) {
         // 重複禁止(v1): 自分自身のスロット以外の既存コンボと物理スキャンコードが
@@ -2311,25 +2483,29 @@ SetComboForDevice(
                 devExt->Combos[i].ScanCode1 == Entry->ScanCode2 ||
                 devExt->Combos[i].ScanCode2 == Entry->ScanCode1 ||
                 devExt->Combos[i].ScanCode2 == Entry->ScanCode2) {
-                KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+                KeReleaseSpinLockFromDpcLevel(&devExt->EngineLock);
+                KeReleaseSpinLock(&devExt->OutputLock, outputIrql);
                 return STATUS_INVALID_PARAMETER;
             }
         }
+    }
+
+    // 設定変更と整合しない状態を残さないよう、ライブのコンボ判定状態は常に打ち切る。
+    // 成立中の出力キーのbreakを集めるため、エントリを書き換える前に行う（AbortComboLocked参照）。
+    AbortComboLocked(devExt, &releases);
+
+    if (Entry != NULL) {
         devExt->Combos[ComboId] = *Entry;
         devExt->ComboUsed[ComboId] = TRUE;
     } else {
         RtlZeroMemory(&devExt->Combos[ComboId], sizeof(devExt->Combos[ComboId]));
         devExt->ComboUsed[ComboId] = FALSE;
     }
-
-    // 設定変更と整合しない状態を残さないよう、ライブのコンボ判定状態は常に
-    // リセットする（SetLayerMapEnabledForDeviceのMT/LTリセットと同じ理屈）。
-    devExt->ComboPendingActive = FALSE;
-    devExt->ComboConfirmed = FALSE;
-    devExt->ComboDraining = FALSE;
-    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+    KeReleaseSpinLockFromDpcLevel(&devExt->EngineLock);
 
     KeCancelTimer(&devExt->ComboTimer);
+    SendAbortReleases(devExt, &releases);
+    KeReleaseSpinLock(&devExt->OutputLock, outputIrql);
 
     PersistAllCombos(devExt);
 
@@ -2444,7 +2620,8 @@ SetTapDanceForDevice(
     _In_opt_ PKBDLAYER_TAPDANCE_ENTRY Entry
     )
 {
-    KIRQL oldIrql;
+    KIRQL outputIrql;
+    KBDLAYER_ABORT_RELEASES releases;
 
     if (TapDanceId >= KBDLAYER_MAX_TAPDANCE_COUNT) {
         return STATUS_INVALID_PARAMETER;
@@ -2465,7 +2642,16 @@ SetTapDanceForDevice(
         }
     }
 
-    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    releases.Count = 0;
+
+    // OutputLockはDISPATCH_LEVELに上げるので、以降のEngineLockはAtDpcLevelで取る。
+    KeAcquireSpinLock(&devExt->OutputLock, &outputIrql);
+    KeAcquireSpinLockAtDpcLevel(&devExt->EngineLock);
+
+    // 設定変更と整合しない状態を残さないよう、ライブのタップダンス判定状態は常に打ち切る
+    // （SetComboForDeviceと同じ理屈。ホールド出力のbreakを集めるため、エントリを
+    // 書き換える前に行う）。
+    AbortTapDanceLocked(devExt, &releases);
 
     if (Entry != NULL) {
         devExt->TapDances[TapDanceId] = *Entry;
@@ -2474,16 +2660,11 @@ SetTapDanceForDevice(
         RtlZeroMemory(&devExt->TapDances[TapDanceId], sizeof(devExt->TapDances[TapDanceId]));
         devExt->TapDanceUsed[TapDanceId] = FALSE;
     }
-
-    // 設定変更と整合しない状態を残さないよう、ライブのタップダンス判定状態は常に
-    // リセットする（SetComboForDeviceと同じ理屈）。
-    devExt->TapDancePendingActive = FALSE;
-    devExt->TapDanceKeyDown = FALSE;
-    devExt->TapDanceHoldConfirmed = FALSE;
-    devExt->TapDanceDraining = FALSE;
-    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+    KeReleaseSpinLockFromDpcLevel(&devExt->EngineLock);
 
     KeCancelTimer(&devExt->TapDanceTimer);
+    SendAbortReleases(devExt, &releases);
+    KeReleaseSpinLock(&devExt->OutputLock, outputIrql);
 
     PersistAllTapDances(devExt);
 
@@ -3254,12 +3435,18 @@ NicolaDpcRoutine(
 
     emit.StepCount = 0;
     emit.Pass = FALSE;
+
+    // 状態の決定から送出までをServiceCallbackと直列化する（OutputLockの説明参照）。
+    // 現在時刻もロックを取ってから読む（ServiceCallbackが先に進めた時刻より古い値で
+    // 判定しないため）。
+    KeAcquireSpinLockAtDpcLevel(&devExt->OutputLock);
     now = NicolaNowMs();
 
     KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
     if (!NicolaIsActiveLocked(devExt)) {
         // 無効化はNicolaSyncActivationが状態ごと片付ける。
         KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        KeReleaseSpinLockFromDpcLevel(&devExt->OutputLock);
         return;
     }
     NicolaParamsFromTable(devExt->NicolaTable, &params);
@@ -3274,6 +3461,7 @@ NicolaDpcRoutine(
         KBDLAYER_TRACE("LayerEngine: nicola TIMEOUT emit steps=%lu\n", emit.StepCount);
     }
     NicolaSend(devExt, &emit);
+    KeReleaseSpinLockFromDpcLevel(&devExt->OutputLock);
 }
 
 _IRQL_requires_max_(DISPATCH_LEVEL)
@@ -3557,7 +3745,7 @@ SetNicolaForDevice(
     PKBDLAYER_NICOLA_HEADER oldTable;
     NICOLA_CORE_RESULT result;
     NICOLA_EMIT emit;
-    KIRQL oldIrql;
+    KIRQL outputIrql;
     WCHAR subKeyPath[64];
     NTSTATUS status;
 
@@ -3574,7 +3762,11 @@ SetNicolaForDevice(
     emit.StepCount = 0;
     emit.Pass = FALSE;
 
-    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    // 確定させた保留の送出を、ServiceCallback・NicolaDpcの送出と直列化する（OutputLockの
+    // 説明参照）。OutputLockはDISPATCH_LEVELに上げるので、kbdclassのサービスコールバックを
+    // port driverと同じIRQL（DISPATCH_LEVEL）で呼ぶことにもなる。
+    KeAcquireSpinLock(&devExt->OutputLock, &outputIrql);
+    KeAcquireSpinLockAtDpcLevel(&devExt->EngineLock);
     // 進行中の判定は差し替え前の設定で確定させてから捨てる。新しい設定で判定が有効なら、
     // 次のキーイベントでNicolaSyncActivationがOnEnterKeyを送る。
     // まだ押されている物理キーの解放は、後から届いたときに捨てる。
@@ -3585,18 +3777,11 @@ SetNicolaForDevice(
     devExt->NicolaTable = newTable;
     devExt->NicolaTableBytes = BlobLength;
     devExt->NicolaWasActive = FALSE;
-    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+    KeReleaseSpinLockFromDpcLevel(&devExt->EngineLock);
 
     KeCancelTimer(&devExt->NicolaTimer);
-
-    if (emit.StepCount > 0) {
-        // kbdclassのサービスコールバックはport driverからDISPATCH_LEVELで呼ばれる前提なので、
-        // PASSIVE_LEVELのIOCTL経路から送るときも同じIRQLに上げる。
-        KIRQL irql;
-        KeRaiseIrql(DISPATCH_LEVEL, &irql);
-        NicolaSend(devExt, &emit);
-        KeLowerIrql(irql);
-    }
+    NicolaSend(devExt, &emit);
+    KeReleaseSpinLock(&devExt->OutputLock, outputIrql);
 
     // ServiceCallback/DPCはEngineLock保持中にしかNicolaTableを読まないので、差し替え後の
     // 旧テーブルはここで安全に解放できる。

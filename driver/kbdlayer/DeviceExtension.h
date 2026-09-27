@@ -67,6 +67,17 @@ typedef struct _DEVICE_EXTENSION {
     PSERVICE_CALLBACK_ROUTINE OriginalClassService;
     IO_REMOVE_LOCK RemoveLock;
 
+    // --- 出力の直列化 ---
+    // 「状態の決定（EngineLock内）→ ロック解放 → OriginalClassServiceで送出」を、
+    // CPUをまたいで一続きにするためのロック。ServiceCallback全体・送出するタイマーDPC
+    // （Hold/Combo/TapDance/Nicola）・状態をリセットまたは送出するIOCTL経路が保持する。
+    // これが無いと、例えばMTのホールド確定DPC（Ctrlのmake）と、別CPUで処理されたMTキーの
+    // 解放（Ctrlのbreak）の送出順が逆転し、Ctrlが押しっぱなしになる。
+    // ロック順序は OutputLock → EngineLock の一方向のみ（EngineLock保持中に取らない）。
+    // EngineLockと違い、保持したままOriginalClassServiceを呼んでよい（上位のサービス
+    // コールバックがkbdlayerへ再入することはないため）。
+    KSPIN_LOCK OutputLock;
+
     // --- レイヤーエンジン本体（Phase 1） ---
     KSPIN_LOCK EngineLock;              // LayerMap・レイヤー状態全体を保護
     PKBDLAYER_MAP_TABLE LayerMap;       // NULL = 未設定（素通し）
@@ -95,6 +106,10 @@ typedef struct _DEVICE_EXTENSION {
     USHORT PendingScanCode;       // 保留中/ホールド中のMT/LTキーの物理スキャンコード（Enc16）
     KBDLAYER_ACTION PendingAction; // 保留中/ホールド中のMT/LTアクション本体（Type/Param1/Param2）
     LARGE_INTEGER PendingPressTime; // デバッグ用（現状ロジックはKeSetTimerの相対時間で完結し未使用）
+    // HoldTimerを張ったときの期限（KeQueryInterruptTime()値）。EngineLock内で記録する。
+    // HoldDpcは期限前なら何もしない（満了済みでキュー待ちの古いDPCが、その後に始まった
+    // 新しい保留サイクルを即座にホールド確定させないため。CaptureDeadlineと同じ手法）。
+    ULONGLONG HoldDeadline;
 
     // --- Phase 3: マクロ ---
     // 固定サイズで埋め込み（32 * (4 + 64*4) = 8320バイト程度。動的確保・解放の
@@ -125,6 +140,10 @@ typedef struct _DEVICE_EXTENSION {
     UCHAR ComboPendingRestore;
     KBDLAYER_ACTION ComboPendingAction;
     ULONG ComboActiveId;           // 保留/成立/ドレイン中のコンボID（Combos[]のインデックス）
+    // Draining中に、まだ押されているメンバーの物理スキャンコード（Enc16）。
+    // 設定変更・OFFでDrainingを打ち切るとき、その解放だけを飲み込むために使う。
+    USHORT ComboDrainingScanCode;
+    ULONGLONG ComboDeadline;       // ComboTimerの期限（HoldDeadlineと同じ用途）
 
     // --- Phase 5: タップダンス ---
     // v1は3回までのタップ区別・ホールドは1回目の押下のみ（common/kbdlayer_ioctl.hの
@@ -144,6 +163,7 @@ typedef struct _DEVICE_EXTENSION {
     USHORT TapDanceScanCode;         // 対象の物理キーのスキャンコード（Enc16）
     ULONG TapDanceActiveId;          // 対象のタップダンスID（TapDances[]のインデックス）
     ULONG TapDanceTapCount;          // これまでに完了した（press+release）タップの回数
+    ULONGLONG TapDanceDeadline;      // TapDanceTimerの期限（HoldDeadlineと同じ用途）
 
     // --- Phase 6: NICOLA（親指シフト） ---
     // 判定アルゴリズム本体はNicolaCore.c（カーネル非依存）。ここにはその状態と、
