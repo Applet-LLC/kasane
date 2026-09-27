@@ -8,6 +8,7 @@ builder.Services.AddWindowsService(options =>
 });
 
 builder.Services.AddSingleton<RegistryAccess>();
+builder.Services.AddSingleton<LicenseStateStore>();
 builder.Services.AddSingleton<TokenSigner>();
 builder.Services.AddSingleton<GumroadClient>();
 builder.Services.AddSingleton<LicenseService>();

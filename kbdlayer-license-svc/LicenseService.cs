@@ -12,6 +12,7 @@ public sealed class LicenseService
     private readonly GumroadClient _gumroad;
     private readonly TokenSigner _signer;
     private readonly RegistryAccess _registry;
+    private readonly LicenseStateStore _state;
     private readonly IConfiguration _config;
 
     // インメモリ状態（スレッドセーフのため lock で保護）
@@ -44,15 +45,17 @@ public sealed class LicenseService
         GumroadClient gumroad,
         TokenSigner signer,
         RegistryAccess registry,
+        LicenseStateStore state,
         IConfiguration config)
     {
         _logger = logger;
         _gumroad = gumroad;
         _signer = signer;
         _registry = registry;
+        _state = state;
         _config = config;
 
-        string savedReason = _registry.ReadLastRejectionReason();
+        string savedReason = _state.ReadLastRejectionReason();
         _lastRejectionReason = string.IsNullOrEmpty(savedReason) ? null : savedReason;
     }
 
@@ -75,7 +78,7 @@ public sealed class LicenseService
             // 「未アクティベート」ではなく「再確認待ち」であることを GUI に伝えるために使う。
             bool hasSavedKey = _isActive
                 || !string.IsNullOrEmpty(_licenseKey)
-                || !string.IsNullOrEmpty(_registry.ReadLicenseKey());
+                || !string.IsNullOrEmpty(_state.ReadLicenseKey());
 
             return new LicenseStatus(_isActive, _userEmail, _tokenExpiry, days, maskedKey, _lastRejectionReason, hasSavedKey, _isTrial);
         }
@@ -169,8 +172,8 @@ public sealed class LicenseService
 
         if (string.IsNullOrEmpty(savedKey))
         {
-            savedKey = _registry.ReadLicenseKey();
-            isTrial = _registry.ReadIsTrial();
+            savedKey = _state.ReadLicenseKey();
+            isTrial = _state.ReadIsTrial();
             // トライアルは Gumroad に再確認できないため、サービス再起動直後で in-memory 状態が
             // 無い場合、ドライバ用に保存済みの署名トークン自体から exp を読み取って復元する。
             tokenExpiry = TryDecodeTokenExpiry(_registry.ReadLicenseToken()) ?? default;
@@ -267,13 +270,13 @@ public sealed class LicenseService
         string token = _signer.CreateToken(userId ?? email ?? "unknown", machineGuid, expUnix);
 
         _registry.WriteLicenseToken(token);
-        _registry.WriteLicenseKey(licenseKey);
+        _state.WriteLicenseKey(licenseKey);
         if (!string.IsNullOrEmpty(email))
-            _registry.WriteUserEmail(email);
+            _state.WriteUserEmail(email);
         // 本番キーでアクティベートすれば false で上書きされ、通常の Gumroad 定期再検証が再開される。
-        _registry.WriteIsTrial(isTrial);
+        _state.WriteIsTrial(isTrial);
         // 再アクティベートに成功したので、古い無効化理由は表示され続けないよう消す。
-        _registry.ClearLastRejectionReason();
+        _state.ClearLastRejectionReason();
 
         lock (_lock)
         {
@@ -302,7 +305,7 @@ public sealed class LicenseService
         _registry.ClearLicense();
         if (rejectionReason is not null)
         {
-            _registry.WriteLastRejectionReason(rejectionReason);
+            _state.WriteLastRejectionReason(rejectionReason);
         }
 
         lock (_lock)
