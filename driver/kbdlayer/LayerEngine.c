@@ -2948,9 +2948,10 @@ StartCaptureNextKey(
 
     KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
     if (devExt->RemovePending) {
-        // デバイス削除が始まっている（DeviceExtension.hのRemovePending参照）。
+        // デバイス削除が始まっている（DeviceExtension.hのRemovePending参照）。保留中のIRPを
+        // 削除で終わらせるときと同じSTATUS_DEVICE_REMOVED（Win32: 1617）を返す。
         KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
-        return STATUS_DELETE_PENDING;
+        return STATUS_DEVICE_REMOVED;
     }
     if (devExt->CaptureActive || devExt->CaptureIrp != NULL) {
         KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
@@ -3677,6 +3678,17 @@ ResolveNicola(
     // レイヤーマップでCtrlにしたキーやMTのホールドも対象になり、物理Ctrlを別のキーに
     // した場合は対象外になる。ServiceCallbackはOutputLockを保持しているので、ロック無しで読める。
     if (kind != NICOLA_KEY_OTHER && devExt->OutputModifierDown != 0) {
+        kind = NICOLA_KEY_OTHER;
+    }
+    // MT/LT（とタップダンスの1回目の押下）のタップ/ホールドが判定中に、別のキーの押下が来た
+    // 場合は、NICOLAは横取りせず後段に譲る。通常のキーと同じく「他キー押下でホールド確定」に
+    // なり、MT(Ctrl)を押した直後の文字キーはCtrl+Fになる（譲らないと、NICOLAが先に文字を
+    // 取ってしまい、MTはその後タップとして確定していた）。OTHER扱いにするので、NICOLAの
+    // 保留中の判定は先に確定し、このキーの解放も素通しになる。
+    if (kind != NICOLA_KEY_OTHER && !isBreak &&
+        ((devExt->PendingActive && !devExt->HoldConfirmed && scanCode != devExt->PendingScanCode) ||
+         (devExt->TapDancePendingActive && devExt->TapDanceKeyDown && devExt->TapDanceTapCount == 0 &&
+          scanCode != devExt->TapDanceScanCode))) {
         kind = NICOLA_KEY_OTHER;
     }
 

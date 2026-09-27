@@ -383,7 +383,9 @@ typedef struct _KBDLAYER_GET_NICOLA_OUTPUT {
 // アプリ管理レイヤー（AppLayerMask）は、キーボード側のレイヤー（ActiveLayerMask。MO/TG/OSL/LT）
 // とは別に持ち、実効レイヤー = ActiveLayerMask | AppLayerMask | DefaultLayerビット で合成する。
 // - 最後にSET_LAYER_STATEを呼んだハンドルが所有者になる。そのハンドルが閉じられると
-//   （プロセスのクラッシュを含む）、アプリ管理レイヤーは0に戻る。
+//   （プロセスのクラッシュを含む）、アプリ管理レイヤーは0に戻る。このときは、NICOLAの
+//   ON/OFFが切り替わってもOnEnterKey/OnExitKeyを送らない（SET時のFlagsに関わらず。
+//   持ち主が落ちた時点のIMEの状態は分からず、トグル型のキーだと逆にIMEを反転させるため）。
 // - キーボードのMOを離す・--off（SET_LAYERMAP_ENABLED=0）では消えない。
 // - ORで合成するので、アプリが立てたレイヤーはキーボードのTGでは消せない。
 // - 永続化しない。
