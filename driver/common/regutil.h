@@ -52,7 +52,8 @@ RegReadServiceString(
  - RegReadDwordEx は RegReadDword と同じ「値が無ければ defaultValue を設定して
    常に STATUS_SUCCESS を返す」方式。
  - 書き込み側（RegWriteBinary/RegWriteDword）は、対象のサブキーが存在しなければ
-   ZwCreateKey（REG_OPTION_NON_VOLATILE）で作成する。
+   ZwCreateKey（REG_OPTION_NON_VOLATILE）で作成する。途中の階層（例: "LayerMaps"）が
+   無い場合も、親から順に作成する（ZwCreateKey 単体は最後の1階層しか作らないため）。
 */
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
