@@ -527,6 +527,36 @@ LoadPersistedLayerMapForDevice(
     _In_ PDEVICE_EXTENSION devExt
     );
 
+// AddDeviceから、devExt->InstanceKey/ModelKey/PersistBindingを設定した後・
+// LoadPersistedLayerMapForDeviceの前に呼ぶ: 旧形式のパスから、新しいバインディング先へ
+// 既存の永続化設定を1回だけコピーする（E-2: DeviceIdは一意でない前提で設計する。
+// common/kbdlayer_ioctl.hのコメント参照）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+MigrateLegacyPersistedSettingsIfNeeded(
+    _In_ PDEVICE_EXTENSION devExt
+    );
+
+// GET_DEVICE_SCOPE: devExtのInstanceKey/ModelKey/PersistBindingをそのまま返す。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+GetDeviceScopeForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _Out_ PKBDLAYER_DEVICE_SCOPE OutScope
+    );
+
+// SET_DEVICE_SCOPE: devExt->PersistBindingを切り替える。
+// Model→Instanceのときは、現在Model側にある設定をInstance側へコピーしてから切り替える
+// （設定が消えたように見えないようにするため）。Instance→Modelはビットを書き替えるだけ。
+// NewBindingがKBDLAYER_BINDING_*以外ならSTATUS_INVALID_PARAMETER。InstanceKeyが
+// 取得できていないデバイスをInstanceへ切り替えようとした場合もSTATUS_INVALID_DEVICE_STATE。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetDeviceScopeForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG NewBinding
+    );
+
 // --- キャリブレーションウィザード（ControlDevice.cのCAPTURE_NEXT_KEYハンドラから） ---
 
 // AddDeviceから呼ばれる: CaptureTimer/CaptureDpcを初期化する。

@@ -83,6 +83,13 @@ public:
     // アプリ管理レイヤーの操作。このハンドル（IoctlClient）を閉じると、立てたレイヤーは下ろされる。
     bool SetLayerState(ULONG uniqId, ULONG op, ULONG layer, ULONG mask, ULONG flags, KBDLAYER_LAYER_STATE* out);
 
+    // E-2: DeviceIdは一意でない前提で設計する（common/kbdlayer_ioctl.hのコメント参照）。
+    // GET/SET_DEVICE_SCOPE: このキーボードのレイヤーマップ等を「同型番で共有」
+    // (KBDLAYER_BINDING_MODEL) と「この1台だけ」(KBDLAYER_BINDING_INSTANCE) の
+    // どちらで永続化するか。GET_DEVICE_SCOPEはFILE_READ_ACCESSなので昇格していなくても使える。
+    bool GetDeviceScope(ULONG uniqId, KBDLAYER_DEVICE_SCOPE* out);
+    bool SetDeviceScope(ULONG uniqId, ULONG binding, KBDLAYER_DEVICE_SCOPE* out);
+
     ~IoctlClient() { Close(); }
 
 private:

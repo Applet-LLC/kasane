@@ -58,10 +58,17 @@ typedef struct _KBDLAYER_HELD_KEY {
 
 typedef struct _DEVICE_EXTENSION {
     PDEVICE_OBJECT LowerDevice;
-    ULONG DeviceId;
+    ULONG DeviceId; // アドレッシング用ID（Target.UniqId、ExtraInformation刻印）。DeviceIdModeで決まる。
     LIST_ENTRY ListEntry;
     WCHAR HardwareId[256]; // HardwareId キャッシュ
     ULONG License; // 0 = disabled, 1 = enabled (read at AddDevice)
+
+    // --- 永続化スコープ（E-2: DeviceIdは一意でない前提で設計する） ---
+    // DeviceIdとは独立に、常に両方を計算して持つ（common/kbdlayer_ioctl.hのコメント参照）。
+    // AddDeviceで一度だけ設定し、以後は不変（デバイスの生存期間中）。
+    ULONG InstanceKey;   // DeviceInstanceIdのハッシュ。0 = 取得できなかった
+    ULONG ModelKey;      // HardwareIdのハッシュ。0 = 取得できなかった
+    ULONG PersistBinding; // KBDLAYER_BINDING_*。レイヤーマップ等をどちらのキーで永続化するか
     // ClassService hook: IOCTL_INTERNAL_KEYBOARD_CONNECT で設定
     PDEVICE_OBJECT OriginalClassDeviceObject;
     PSERVICE_CALLBACK_ROUTINE OriginalClassService;

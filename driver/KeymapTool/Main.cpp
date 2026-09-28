@@ -93,6 +93,14 @@ int CmdList(IoctlClient* client) {
     for (const auto& d : devices) {
         printf("  UniqId=%08X HasLayerMap=%d Enabled=%d ActiveLayerMask=0x%02X HardwareId=%ls\n",
                d.UniqId, d.HasLayerMap ? 1 : 0, d.Enabled ? 1 : 0, d.ActiveLayerMask, d.HardwareId.c_str());
+        // E-2: 永続化スコープ（--get-scope/--set-scope参照）。LIST_DEVICESの固定長構造体
+        // （kbdlayer-keymap-guiが独自にオフセット計算している）は変えず、別IOCTLで補う。
+        KBDLAYER_DEVICE_SCOPE scope;
+        if (client->GetDeviceScope(d.UniqId, &scope)) {
+            printf("    InstanceKey=%08X ModelKey=%08X Binding=%s\n",
+                   scope.InstanceKey, scope.ModelKey,
+                   scope.Binding == KBDLAYER_BINDING_INSTANCE ? "instance" : "model");
+        }
     }
     return 0;
 }
@@ -387,6 +395,41 @@ int CmdGetLayerState(IoctlClient* client, ULONG uniqId) {
     if (!client->GetLayerState(uniqId, &state)) return 1;
     printf("UniqId=%08X ", uniqId);
     PrintLayerState(state);
+    return 0;
+}
+
+void PrintDeviceScope(const KBDLAYER_DEVICE_SCOPE& s) {
+    printf("InstanceKey=%08X ModelKey=%08X Binding=%s\n",
+           s.InstanceKey, s.ModelKey,
+           s.Binding == KBDLAYER_BINDING_INSTANCE ? "instance" : "model");
+}
+
+// --get-scope <UniqIdHex>: このキーボードの永続化スコープ（E-2）を表示する。
+int CmdGetScope(IoctlClient* client, ULONG uniqId) {
+    KBDLAYER_DEVICE_SCOPE scope;
+    if (!client->GetDeviceScope(uniqId, &scope)) return 1;
+    printf("UniqId=%08X ", uniqId);
+    PrintDeviceScope(scope);
+    return 0;
+}
+
+// --set-scope <UniqIdHex> model|instance: レイヤーマップ等の永続化先を切り替える。
+// modelへ戻す場合はビットを書き替えるだけ。instanceへ切り替える場合は、現在の設定を
+// この1台専用のコピーへ複製してから切り替える（設定が消えたように見えないため）。
+int CmdSetScope(IoctlClient* client, ULONG uniqId, const char* bindingName) {
+    ULONG binding;
+    if (strcmp(bindingName, "model") == 0) {
+        binding = KBDLAYER_BINDING_MODEL;
+    } else if (strcmp(bindingName, "instance") == 0) {
+        binding = KBDLAYER_BINDING_INSTANCE;
+    } else {
+        fprintf(stderr, "--set-scope: binding must be model / instance\n");
+        return 1;
+    }
+    KBDLAYER_DEVICE_SCOPE scope;
+    if (!client->SetDeviceScope(uniqId, binding, &scope)) return 1;
+    printf("SET_DEVICE_SCOPE ok. UniqId=%08X ", uniqId);
+    PrintDeviceScope(scope);
     return 0;
 }
 
@@ -688,6 +731,13 @@ void PrintUsage() {
         "  KeymapTool.exe --set-layer <UniqIdHex> mask <hexMask> [--no-nicola-keys]\n"
         "      Turn app-managed layers on/off. They stay on until you press Enter (or this\n"
         "      command is killed). --no-nicola-keys: do not send NICOLA's onEnter/onExit keys.\n"
+        "  KeymapTool.exe --get-scope <UniqIdHex>\n"
+        "      Show whether this keyboard's persisted settings (layer map, macros, combos,\n"
+        "      NICOLA, ...) are shared by model (same InstanceKey/ModelKey for every\n"
+        "      keyboard of this model) or bound to this one instance (port).\n"
+        "  KeymapTool.exe --set-scope <UniqIdHex> model|instance\n"
+        "      Switch the persisted-settings scope. Switching from model to instance first\n"
+        "      copies the current settings so nothing appears to disappear.\n"
         "\n"
         "  UniqIdHex is the value shown by --list (e.g. A1B20000).\n");
 }
@@ -834,6 +884,18 @@ int main(int rawArgc, char** rawArgv) {
         if (argc < 5 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
         bool noNicolaKeys = (argc >= 6 && strcmp(argv[5], "--no-nicola-keys") == 0);
         return CmdSetLayer(&client, uniqId, argv[3], argv[4], noNicolaKeys);
+    }
+
+    if (strcmp(cmd, "--get-scope") == 0) {
+        ULONG uniqId;
+        if (argc < 3 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
+        return CmdGetScope(&client, uniqId);
+    }
+
+    if (strcmp(cmd, "--set-scope") == 0) {
+        ULONG uniqId;
+        if (argc < 4 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
+        return CmdSetScope(&client, uniqId, argv[3]);
     }
 
     if (strcmp(cmd, "--clear-nicola") == 0) {

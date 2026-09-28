@@ -440,6 +440,40 @@ typedef struct _KBDLAYER_SET_LAYER_STATE_INPUT {
     ULONG Flags; // KBDLAYER_LAYER_STATE_FLAG_*
 } KBDLAYER_SET_LAYER_STATE_INPUT, *PKBDLAYER_SET_LAYER_STATE_INPUT;
 
+// --- デバイスの永続化スコープ（E-2: DeviceIdは一意でない前提で設計する） ---
+//
+// devExt->DeviceId（Target.UniqIdで指定するアドレッシング用ID。ExtraInformationへの刻印にも
+// 使う）は、従来どおりDeviceIdModeで決まる（0=InstanceId、1=HardwareIdのハッシュ）。
+// これとは別に、ドライバは常に以下の2つを計算して持つ:
+//   - InstanceKey: DeviceInstanceIdのハッシュ。差し込み口ごとに一意。
+//   - ModelKey:    HardwareIdのハッシュ。同型番のキーボードは同じ値になる。
+// レイヤーマップ等の永続化設定（LayerMap/Enabled/TapTermMs/.../Nicola）は、この2つの
+// どちらをキーにレジストリへ保存するかを選べる（KBDLAYER_BINDING_*）。
+//   - Model（既定）: 同型番のキーボードは差し込み口が変わっても同じ設定を共有する。
+//   - Instance:      この1台（この差し込み口）だけの設定にする。
+// 詳細は .plans/device-id-scope.md 参照。
+
+// KBDLAYER_DEVICE_SCOPE.Binding / KBDLAYER_SET_DEVICE_SCOPE_INPUT.Binding
+#define KBDLAYER_BINDING_MODEL    0 // 同型番で共有（既定）
+#define KBDLAYER_BINDING_INSTANCE 1 // この1台（差し込み口）だけ
+
+// IOCTL_KBDLAYER_GET_DEVICE_SCOPE の入力は KBDLAYER_TARGET のみ。出力は KBDLAYER_DEVICE_SCOPE。
+typedef struct _KBDLAYER_DEVICE_SCOPE {
+    ULONG InstanceKey;
+    ULONG ModelKey;
+    ULONG Binding; // KBDLAYER_BINDING_*
+} KBDLAYER_DEVICE_SCOPE, *PKBDLAYER_DEVICE_SCOPE;
+
+// IOCTL_KBDLAYER_SET_DEVICE_SCOPE の入力バッファ。
+// Model→Instanceへ切り替える場合、現在Model側にある設定をInstance側へコピーしてから
+// 切り替える（設定が消えたように見えないようにするため）。Instance→Modelはビットを
+// 書き替えるだけ（Model側の内容は変えない）。出力バッファがKBDLAYER_DEVICE_SCOPE以上
+// あれば、変更後の状態を返す（任意）。
+typedef struct _KBDLAYER_SET_DEVICE_SCOPE_INPUT {
+    KBDLAYER_TARGET Target;
+    ULONG Binding; // KBDLAYER_BINDING_*
+} KBDLAYER_SET_DEVICE_SCOPE_INPUT, *PKBDLAYER_SET_DEVICE_SCOPE_INPUT;
+
 #pragma pack(pop)
 
 // IOCTL_INTERNAL_KEYBOARD_CONNECT 等の既存IOCTLと衝突しないよう、
@@ -501,5 +535,11 @@ typedef struct _KBDLAYER_SET_LAYER_STATE_INPUT {
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x812, METHOD_BUFFERED, FILE_READ_ACCESS)
 #define IOCTL_KBDLAYER_SET_LAYER_STATE \
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x813, METHOD_BUFFERED, FILE_READ_ACCESS)
+// GET_DEVICE_SCOPEは読み出しのみ。SET_DEVICE_SCOPEは永続化設定の保存先を切り替える
+// （Model→Instanceでは設定のコピーも行う）ので、SET_*/CLEARと同じくFILE_WRITE_ACCESS。
+#define IOCTL_KBDLAYER_GET_DEVICE_SCOPE \
+    CTL_CODE(FILE_DEVICE_KBDLAYER, 0x814, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_KBDLAYER_SET_DEVICE_SCOPE \
+    CTL_CODE(FILE_DEVICE_KBDLAYER, 0x815, METHOD_BUFFERED, FILE_WRITE_ACCESS)
 
 #endif // _KBDLAYER_COMMON_IOCTL_H_

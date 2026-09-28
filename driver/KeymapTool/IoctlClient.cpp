@@ -491,3 +491,38 @@ bool IoctlClient::SetLayerState(ULONG uniqId, ULONG op, ULONG layer, ULONG mask,
     }
     return true;
 }
+
+bool IoctlClient::GetDeviceScope(ULONG uniqId, KBDLAYER_DEVICE_SCOPE* out) {
+    KBDLAYER_TARGET target;
+    target.UniqId = uniqId;
+
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_GET_DEVICE_SCOPE,
+                              &target, sizeof(target),
+                              out, sizeof(*out),
+                              &bytesReturned, NULL);
+    if (!ok) {
+        fprintf(stderr, "IOCTL_KBDLAYER_GET_DEVICE_SCOPE failed. Error: %lu\n", GetLastError());
+        return false;
+    }
+    return true;
+}
+
+bool IoctlClient::SetDeviceScope(ULONG uniqId, ULONG binding, KBDLAYER_DEVICE_SCOPE* out) {
+    if (!RequireWriteAccess("IOCTL_KBDLAYER_SET_DEVICE_SCOPE")) return false;
+    KBDLAYER_SET_DEVICE_SCOPE_INPUT input;
+    input.Target.UniqId = uniqId;
+    input.Binding = binding;
+
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_SET_DEVICE_SCOPE,
+                              &input, sizeof(input),
+                              out, sizeof(*out),
+                              &bytesReturned, NULL);
+    if (!ok) {
+        fprintf(stderr, "IOCTL_KBDLAYER_SET_DEVICE_SCOPE failed. Error: %lu "
+                "(instanceへの切替は差し込み口を特定できるデバイスのみ)\n", GetLastError());
+        return false;
+    }
+    return true;
+}

@@ -1947,15 +1947,216 @@ SendAbortReleases(
 // IOCTLハンドラから呼ばれる設定関数（PASSIVE_LEVEL）
 // ---------------------------------------------------------------------------
 
+// devExt->PersistBindingに従って、レイヤーマップ等の永続化先サブキーパスを組み立てる
+// （E-2: DeviceIdは一意でない前提で設計する。common/kbdlayer_ioctl.hのコメント参照）。
+// - Instance: "LayerMaps\I_<InstanceKeyHex>"（この1台＝差し込み口だけ）
+// - Model（既定）: "LayerMaps\M_<ModelKeyHex>"（同型番で共有）
+// - 対応するキーが取得できなかった場合（InstanceKey/ModelKeyが0）は、旧形式
+//   "LayerMaps\<DeviceIdHex>" にフォールバックする（MigrateLegacyPersistedSettingsIfNeededの
+//   移行元と同じ形式でもある）。
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static VOID
 BuildLayerMapsSubKeyPath(
-    _In_ ULONG UniqId,
+    _In_ PDEVICE_EXTENSION devExt,
     _Out_writes_z_(PathLengthInChars) PWCHAR PathBuffer,
     _In_ ULONG PathLengthInChars
     )
 {
-    RtlStringCchPrintfW(PathBuffer, PathLengthInChars, L"LayerMaps\\%08X", UniqId);
+    if (devExt->PersistBinding == KBDLAYER_BINDING_INSTANCE && devExt->InstanceKey != 0) {
+        RtlStringCchPrintfW(PathBuffer, PathLengthInChars, L"LayerMaps\\I_%08X", devExt->InstanceKey);
+    } else if (devExt->ModelKey != 0) {
+        RtlStringCchPrintfW(PathBuffer, PathLengthInChars, L"LayerMaps\\M_%08X", devExt->ModelKey);
+    } else if (devExt->InstanceKey != 0) {
+        // ModelKeyが取れずBinding=Modelのとき、InstanceKeyがあればそちらで代用する
+        // （フォールバックより固有性が高い）。
+        RtlStringCchPrintfW(PathBuffer, PathLengthInChars, L"LayerMaps\\I_%08X", devExt->InstanceKey);
+    } else {
+        RtlStringCchPrintfW(PathBuffer, PathLengthInChars, L"LayerMaps\\%08X", devExt->DeviceId);
+    }
+}
+
+// CheckPersistResultはこの少し下で定義するが、MigrateLegacyPersistedSettingsIfNeededは
+// それより前に使うので前方宣言する。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static VOID
+CheckPersistResult(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PCWSTR ValueName,
+    _In_ NTSTATUS Status
+    );
+
+// 旧形式（"LayerMaps\<DeviceIdHex>"。DeviceIdMode=0ならInstanceKeyと同じ値になる）から
+// 新しいバインディング先へ、既存の永続化設定を1回だけコピーする。AddDeviceから、
+// LoadPersistedLayerMapForDeviceの前に呼ぶ。
+// - 新旧のパスが同じ文字列なら（例: DeviceIdMode=1かつBinding=Model、どちらもModelKey）
+//   何もしない。
+// - 新パスに既に"Migrated"マーカーがあれば何もしない（新パス側の変更を上書きしないため。
+//   Model共有先は複数台が読み書きするので、2台目以降は毎回スキップする）。
+// - 失敗はベストエフォート（個々の値のRegReadBinary/RegWriteBinary等の戻り値は見ない。
+//   移行できなければ単に「初回として設定し直す」のと同じ状態になるだけ）。
+// LayerMap/Enabled/.../Nicola の9種類の値を、srcPathからdstPathへコピーする
+// （MigrateLegacyPersistedSettingsIfNeededとSetDeviceScopeForDeviceで共有）。
+// - 可変長バイナリ（LayerMap/Nicola）は、srcに値があるときだけコピーする。
+// - 固定長バイナリ（Macros/Combos/TapDances）は、期待どおりの長さで読めたときだけコピーする。
+// - DWORD群は、srcに値が無ければ既定値がそのまま書かれるだけなので無条件でコピーする。
+// - 失敗はベストエフォート（個々のRegRead/RegWriteの戻り値はCheckPersistResultでログするのみ）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static VOID
+CopyPersistedSettings(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PCWSTR srcPath,
+    _In_ PCWSTR dstPath
+    )
+{
+    PVOID scratch;
+    ULONG scratchBytes = KBDLAYER_MAX_MAP_BLOB_BYTES;
+    ULONG actualLength;
+
+    if (scratchBytes < KBDLAYER_MACRO_PERSIST_BLOB_BYTES) scratchBytes = KBDLAYER_MACRO_PERSIST_BLOB_BYTES;
+    if (scratchBytes < KBDLAYER_COMBO_PERSIST_BLOB_BYTES) scratchBytes = KBDLAYER_COMBO_PERSIST_BLOB_BYTES;
+    if (scratchBytes < KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES) scratchBytes = KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES;
+    if (scratchBytes < KBDLAYER_MAX_NICOLA_BLOB_BYTES) scratchBytes = KBDLAYER_MAX_NICOLA_BLOB_BYTES;
+
+    scratch = ExAllocatePool2(POOL_FLAG_PAGED, scratchBytes, KBDLAYER_REGTEMP_POOL_TAG);
+    if (scratch == NULL) {
+        return;
+    }
+
+    {
+        static const PCWSTR variableNames[] = { KBDLAYER_MAP_VALUE_NAME, KBDLAYER_NICOLA_VALUE_NAME };
+        for (ULONG i = 0; i < RTL_NUMBER_OF(variableNames); i++) {
+            actualLength = 0;
+            if (NT_SUCCESS(RegReadBinary(KBDLAYER_SERVICE_NAME, srcPath, variableNames[i],
+                                          scratch, scratchBytes, &actualLength)) && actualLength > 0) {
+                CheckPersistResult(devExt, variableNames[i],
+                    RegWriteBinary(KBDLAYER_SERVICE_NAME, dstPath, variableNames[i], scratch, actualLength));
+            }
+        }
+    }
+
+    {
+        static const PCWSTR fixedNames[] = { KBDLAYER_MACROS_VALUE_NAME, KBDLAYER_COMBOS_VALUE_NAME, KBDLAYER_TAPDANCES_VALUE_NAME };
+        static const ULONG fixedSizes[] = { KBDLAYER_MACRO_PERSIST_BLOB_BYTES, KBDLAYER_COMBO_PERSIST_BLOB_BYTES, KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES };
+        for (ULONG i = 0; i < RTL_NUMBER_OF(fixedNames); i++) {
+            actualLength = 0;
+            if (NT_SUCCESS(RegReadBinary(KBDLAYER_SERVICE_NAME, srcPath, fixedNames[i],
+                                          scratch, scratchBytes, &actualLength)) && actualLength == fixedSizes[i]) {
+                CheckPersistResult(devExt, fixedNames[i],
+                    RegWriteBinary(KBDLAYER_SERVICE_NAME, dstPath, fixedNames[i], scratch, fixedSizes[i]));
+            }
+        }
+    }
+
+    ExFreePoolWithTag(scratch, KBDLAYER_REGTEMP_POOL_TAG);
+
+    {
+        ULONG value = 0;
+        RegReadDwordEx(KBDLAYER_SERVICE_NAME, srcPath, KBDLAYER_ENABLED_VALUE_NAME, &value, 0);
+        CheckPersistResult(devExt, KBDLAYER_ENABLED_VALUE_NAME,
+            RegWriteDword(KBDLAYER_SERVICE_NAME, dstPath, KBDLAYER_ENABLED_VALUE_NAME, value));
+
+        RegReadDwordEx(KBDLAYER_SERVICE_NAME, srcPath, KBDLAYER_TAPTERM_VALUE_NAME, &value, KBDLAYER_DEFAULT_TAP_TERM_MS);
+        CheckPersistResult(devExt, KBDLAYER_TAPTERM_VALUE_NAME,
+            RegWriteDword(KBDLAYER_SERVICE_NAME, dstPath, KBDLAYER_TAPTERM_VALUE_NAME, value));
+
+        RegReadDwordEx(KBDLAYER_SERVICE_NAME, srcPath, KBDLAYER_COMBOTERM_VALUE_NAME, &value, KBDLAYER_DEFAULT_COMBO_TERM_MS);
+        CheckPersistResult(devExt, KBDLAYER_COMBOTERM_VALUE_NAME,
+            RegWriteDword(KBDLAYER_SERVICE_NAME, dstPath, KBDLAYER_COMBOTERM_VALUE_NAME, value));
+
+        RegReadDwordEx(KBDLAYER_SERVICE_NAME, srcPath, KBDLAYER_TAPDANCETERM_VALUE_NAME, &value, KBDLAYER_DEFAULT_TAPDANCE_TERM_MS);
+        CheckPersistResult(devExt, KBDLAYER_TAPDANCETERM_VALUE_NAME,
+            RegWriteDword(KBDLAYER_SERVICE_NAME, dstPath, KBDLAYER_TAPDANCETERM_VALUE_NAME, value));
+    }
+
+    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
+               "kbdlayer: copied persisted settings %ws -> %ws for DeviceId=0x%08X\n",
+               srcPath, dstPath, devExt->DeviceId);
+}
+
+// staticにしない: Driver.cのAddDeviceから、LoadPersistedLayerMapForDeviceの前に呼ぶ。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+MigrateLegacyPersistedSettingsIfNeeded(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    WCHAR legacyPath[64];
+    WCHAR newPath[64];
+    ULONG migrated = 0;
+
+    RtlStringCchPrintfW(legacyPath, RTL_NUMBER_OF(legacyPath), L"LayerMaps\\%08X", devExt->DeviceId);
+    BuildLayerMapsSubKeyPath(devExt, newPath, RTL_NUMBER_OF(newPath));
+
+    if (wcscmp(legacyPath, newPath) == 0) {
+        return; // 移行先が旧パスと同じ（DeviceIdMode/Bindingの組み合わせ次第で起きる）
+    }
+
+    RegReadDwordEx(KBDLAYER_SERVICE_NAME, newPath, L"Migrated", &migrated, 0);
+    if (migrated != 0) {
+        return;
+    }
+
+    CopyPersistedSettings(devExt, legacyPath, newPath);
+
+    CheckPersistResult(devExt, L"Migrated",
+        RegWriteDword(KBDLAYER_SERVICE_NAME, newPath, L"Migrated", 1));
+}
+
+// GET_DEVICE_SCOPE の実体。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+GetDeviceScopeForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _Out_ PKBDLAYER_DEVICE_SCOPE OutScope
+    )
+{
+    OutScope->InstanceKey = devExt->InstanceKey;
+    OutScope->ModelKey = devExt->ModelKey;
+    OutScope->Binding = devExt->PersistBinding;
+}
+
+// SET_DEVICE_SCOPE の実体。Model<->Instanceの切替時、現在の保存先の内容を新しい
+// 保存先へコピーしてから devExt->PersistBinding を確定させる（設定が消えたように
+// 見えないようにするため）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetDeviceScopeForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG NewBinding
+    )
+{
+    WCHAR oldPath[64];
+    WCHAR newPath[64];
+    WCHAR instanceKeyHex[16];
+
+    if (NewBinding != KBDLAYER_BINDING_MODEL && NewBinding != KBDLAYER_BINDING_INSTANCE) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (NewBinding == KBDLAYER_BINDING_INSTANCE && devExt->InstanceKey == 0) {
+        // 差し込み口を特定できないデバイスは「この1台だけ」に切り替えられない。
+        return STATUS_INVALID_DEVICE_STATE;
+    }
+    if (devExt->PersistBinding == NewBinding) {
+        return STATUS_SUCCESS;
+    }
+
+    BuildLayerMapsSubKeyPath(devExt, oldPath, RTL_NUMBER_OF(oldPath));
+    devExt->PersistBinding = NewBinding;
+    BuildLayerMapsSubKeyPath(devExt, newPath, RTL_NUMBER_OF(newPath));
+
+    if (wcscmp(oldPath, newPath) != 0) {
+        CopyPersistedSettings(devExt, oldPath, newPath);
+    }
+
+    // Bindingそのものは差し込み口（InstanceKey）に紐づく設定として、
+    // Parameters\DeviceBinding\<InstanceKeyHex> に永続化する。
+    if (devExt->InstanceKey != 0) {
+        RtlStringCchPrintfW(instanceKeyHex, RTL_NUMBER_OF(instanceKeyHex), L"%08X", devExt->InstanceKey);
+        CheckPersistResult(devExt, L"DeviceBinding",
+            RegWriteDword(KBDLAYER_SERVICE_NAME, L"DeviceBinding", instanceKeyHex, NewBinding));
+    }
+
+    return STATUS_SUCCESS;
 }
 
 // 設定の永続化（レジストリへの書き込み）の結果を確認する。ライブの設定は既に反映済みなので
@@ -2019,7 +2220,7 @@ SetLayerMapForDevice(
         ExFreePoolWithTag(oldTable, KBDLAYER_MAP_POOL_TAG);
     }
 
-    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
     CheckPersistResult(devExt, KBDLAYER_MAP_VALUE_NAME,
         RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_MAP_VALUE_NAME, Blob, BlobLength));
 
@@ -2051,7 +2252,7 @@ ClearLayerMapForDevice(
         ExFreePoolWithTag(oldTable, KBDLAYER_MAP_POOL_TAG);
     }
 
-    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
     CheckPersistResult(devExt, KBDLAYER_MAP_VALUE_NAME,
         RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_MAP_VALUE_NAME, NULL, 0));
 
@@ -2108,7 +2309,7 @@ SetLayerMapEnabledForDevice(
     }
     KeReleaseSpinLock(&devExt->OutputLock, outputIrql);
 
-    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
     CheckPersistResult(devExt, KBDLAYER_ENABLED_VALUE_NAME,
         RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_ENABLED_VALUE_NAME, Enabled ? 1 : 0));
 
@@ -2180,7 +2381,7 @@ LoadPersistedLayerMapForDevice(
     NTSTATUS status;
     ULONG enabledValue = 0;
 
-    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
 
     blobBuffer = ExAllocatePool2(POOL_FLAG_PAGED, KBDLAYER_MAX_MAP_BLOB_BYTES, KBDLAYER_REGTEMP_POOL_TAG);
     if (blobBuffer == NULL) {
@@ -2229,7 +2430,7 @@ SetTapTermForDevice(
     devExt->TapTermMs = effective;
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
-    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
     CheckPersistResult(devExt, KBDLAYER_TAPTERM_VALUE_NAME,
         RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPTERM_VALUE_NAME, effective));
 
@@ -2251,7 +2452,7 @@ SetComboTermForDevice(
     devExt->ComboTermMs = effective;
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
-    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
     CheckPersistResult(devExt, KBDLAYER_COMBOTERM_VALUE_NAME,
         RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_COMBOTERM_VALUE_NAME, effective));
 
@@ -2273,7 +2474,7 @@ SetTapDanceTermForDevice(
     devExt->TapDanceTermMs = effective;
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
-    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
     CheckPersistResult(devExt, KBDLAYER_TAPDANCETERM_VALUE_NAME,
         RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPDANCETERM_VALUE_NAME, effective));
 
@@ -2367,7 +2568,7 @@ PersistAllMacros(
     }
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
-    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
     CheckPersistResult(devExt, KBDLAYER_MACROS_VALUE_NAME,
         RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_MACROS_VALUE_NAME,
                         buffer, KBDLAYER_MACRO_PERSIST_BLOB_BYTES));
@@ -2476,7 +2677,7 @@ LoadPersistedMacrosForDevice(
         return;
     }
 
-    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
     status = RegReadBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_MACROS_VALUE_NAME,
                             buffer, KBDLAYER_MACRO_PERSIST_BLOB_BYTES, &actualLength);
     if (NT_SUCCESS(status) && actualLength == KBDLAYER_MACRO_PERSIST_BLOB_BYTES) {
@@ -2528,7 +2729,7 @@ PersistAllCombos(
     }
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
-    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
     CheckPersistResult(devExt, KBDLAYER_COMBOS_VALUE_NAME,
         RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_COMBOS_VALUE_NAME,
                         buffer, KBDLAYER_COMBO_PERSIST_BLOB_BYTES));
@@ -2649,7 +2850,7 @@ LoadPersistedCombosForDevice(
     buffer = (PKBDLAYER_COMBO_PERSIST_ENTRY)ExAllocatePool2(
         POOL_FLAG_PAGED, KBDLAYER_COMBO_PERSIST_BLOB_BYTES, KBDLAYER_REGTEMP_POOL_TAG);
     if (buffer != NULL) {
-        BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+        BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
         status = RegReadBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_COMBOS_VALUE_NAME,
                                 buffer, KBDLAYER_COMBO_PERSIST_BLOB_BYTES, &actualLength);
         if (NT_SUCCESS(status) && actualLength == KBDLAYER_COMBO_PERSIST_BLOB_BYTES) {
@@ -2664,7 +2865,7 @@ LoadPersistedCombosForDevice(
         ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
     }
 
-    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
     RegReadDwordEx(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_COMBOTERM_VALUE_NAME,
                     &comboTermValue, KBDLAYER_DEFAULT_COMBO_TERM_MS);
     devExt->ComboTermMs = (comboTermValue != 0) ? comboTermValue : KBDLAYER_DEFAULT_COMBO_TERM_MS;
@@ -2700,7 +2901,7 @@ PersistAllTapDances(
     }
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
-    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
     CheckPersistResult(devExt, KBDLAYER_TAPDANCES_VALUE_NAME,
         RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPDANCES_VALUE_NAME,
                         buffer, KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES));
@@ -2809,7 +3010,7 @@ LoadPersistedTapDancesForDevice(
     buffer = (PKBDLAYER_TAPDANCE_PERSIST_ENTRY)ExAllocatePool2(
         POOL_FLAG_PAGED, KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES, KBDLAYER_REGTEMP_POOL_TAG);
     if (buffer != NULL) {
-        BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+        BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
         status = RegReadBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPDANCES_VALUE_NAME,
                                 buffer, KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES, &actualLength);
         if (NT_SUCCESS(status) && actualLength == KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES) {
@@ -2824,7 +3025,7 @@ LoadPersistedTapDancesForDevice(
         ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
     }
 
-    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
     RegReadDwordEx(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPDANCETERM_VALUE_NAME,
                     &tapDanceTermValue, KBDLAYER_DEFAULT_TAPDANCE_TERM_MS);
     devExt->TapDanceTermMs = (tapDanceTermValue != 0) ? tapDanceTermValue : KBDLAYER_DEFAULT_TAPDANCE_TERM_MS;
@@ -3886,7 +4087,7 @@ SetNicolaForDevice(
         ExFreePoolWithTag(oldTable, KBDLAYER_NICOLA_POOL_TAG);
     }
 
-    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
     CheckPersistResult(devExt, KBDLAYER_NICOLA_VALUE_NAME,
         RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_NICOLA_VALUE_NAME,
                         BlobLength > 0 ? Blob : NULL, BlobLength));
@@ -3941,7 +4142,7 @@ LoadPersistedNicolaForDevice(
         return;
     }
 
-    BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
     status = RegReadBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_NICOLA_VALUE_NAME,
                             buffer, KBDLAYER_MAX_NICOLA_BLOB_BYTES, &actualLength);
     if (NT_SUCCESS(status) && actualLength > 0) {
