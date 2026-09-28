@@ -1958,6 +1958,26 @@ BuildLayerMapsSubKeyPath(
     RtlStringCchPrintfW(PathBuffer, PathLengthInChars, L"LayerMaps\\%08X", UniqId);
 }
 
+// 設定の永続化（レジストリへの書き込み）の結果を確認する。ライブの設定は既に反映済みなので
+// IOCTLは成功のまま返すが、失敗を黙って握りつぶさずにログする（Release版でもDebugView等で
+// 見えるようDbgPrintExのエラーレベルで出す）。以前は戻り値を全て無視していたため、
+// "LayerMaps"キーが作れずに永続化が一度も成功していないことに気付けなかった
+// （2026-09-28、dev-notesチェックリストD-11）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static VOID
+CheckPersistResult(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PCWSTR ValueName,
+    _In_ NTSTATUS Status
+    )
+{
+    if (!NT_SUCCESS(Status)) {
+        DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
+                   "kbdlayer: failed to persist %ws for DeviceId=0x%08X, status=0x%08X\n",
+                   ValueName, devExt->DeviceId, Status);
+    }
+}
+
 _IRQL_requires_max_(PASSIVE_LEVEL)
 NTSTATUS
 SetLayerMapForDevice(
@@ -2000,7 +2020,8 @@ SetLayerMapForDevice(
     }
 
     BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
-    RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_MAP_VALUE_NAME, Blob, BlobLength);
+    CheckPersistResult(devExt, KBDLAYER_MAP_VALUE_NAME,
+        RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_MAP_VALUE_NAME, Blob, BlobLength));
 
     // レイヤー数が変わるとNICOLAの有効判定などが変わり得るので、待っているアプリへ知らせる。
     LayerNotifyIfChanged(devExt);
@@ -2031,7 +2052,8 @@ ClearLayerMapForDevice(
     }
 
     BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
-    RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_MAP_VALUE_NAME, NULL, 0);
+    CheckPersistResult(devExt, KBDLAYER_MAP_VALUE_NAME,
+        RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_MAP_VALUE_NAME, NULL, 0));
 
     LayerNotifyIfChanged(devExt);
     return STATUS_SUCCESS;
@@ -2087,7 +2109,8 @@ SetLayerMapEnabledForDevice(
     KeReleaseSpinLock(&devExt->OutputLock, outputIrql);
 
     BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
-    RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_ENABLED_VALUE_NAME, Enabled ? 1 : 0);
+    CheckPersistResult(devExt, KBDLAYER_ENABLED_VALUE_NAME,
+        RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_ENABLED_VALUE_NAME, Enabled ? 1 : 0));
 
     // ON/OFF自体と、OFF時のレイヤー状態のリセットを、待っているアプリへ知らせる。
     // （アプリ管理レイヤーはOFFでも消さない。持ち主のアプリが下ろす）
@@ -2207,7 +2230,8 @@ SetTapTermForDevice(
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
     BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
-    RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPTERM_VALUE_NAME, effective);
+    CheckPersistResult(devExt, KBDLAYER_TAPTERM_VALUE_NAME,
+        RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPTERM_VALUE_NAME, effective));
 
     return STATUS_SUCCESS;
 }
@@ -2228,7 +2252,8 @@ SetComboTermForDevice(
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
     BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
-    RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_COMBOTERM_VALUE_NAME, effective);
+    CheckPersistResult(devExt, KBDLAYER_COMBOTERM_VALUE_NAME,
+        RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_COMBOTERM_VALUE_NAME, effective));
 
     return STATUS_SUCCESS;
 }
@@ -2249,7 +2274,8 @@ SetTapDanceTermForDevice(
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
     BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
-    RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPDANCETERM_VALUE_NAME, effective);
+    CheckPersistResult(devExt, KBDLAYER_TAPDANCETERM_VALUE_NAME,
+        RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPDANCETERM_VALUE_NAME, effective));
 
     return STATUS_SUCCESS;
 }
@@ -2342,8 +2368,9 @@ PersistAllMacros(
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
     BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
-    RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_MACROS_VALUE_NAME,
-                    buffer, KBDLAYER_MACRO_PERSIST_BLOB_BYTES);
+    CheckPersistResult(devExt, KBDLAYER_MACROS_VALUE_NAME,
+        RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_MACROS_VALUE_NAME,
+                        buffer, KBDLAYER_MACRO_PERSIST_BLOB_BYTES));
 
     ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
 }
@@ -2502,8 +2529,9 @@ PersistAllCombos(
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
     BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
-    RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_COMBOS_VALUE_NAME,
-                    buffer, KBDLAYER_COMBO_PERSIST_BLOB_BYTES);
+    CheckPersistResult(devExt, KBDLAYER_COMBOS_VALUE_NAME,
+        RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_COMBOS_VALUE_NAME,
+                        buffer, KBDLAYER_COMBO_PERSIST_BLOB_BYTES));
 
     ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
 }
@@ -2673,8 +2701,9 @@ PersistAllTapDances(
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
     BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
-    RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPDANCES_VALUE_NAME,
-                    buffer, KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES);
+    CheckPersistResult(devExt, KBDLAYER_TAPDANCES_VALUE_NAME,
+        RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPDANCES_VALUE_NAME,
+                        buffer, KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES));
 
     ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
 }
@@ -3858,8 +3887,9 @@ SetNicolaForDevice(
     }
 
     BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
-    RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_NICOLA_VALUE_NAME,
-                    BlobLength > 0 ? Blob : NULL, BlobLength);
+    CheckPersistResult(devExt, KBDLAYER_NICOLA_VALUE_NAME,
+        RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_NICOLA_VALUE_NAME,
+                        BlobLength > 0 ? Blob : NULL, BlobLength));
 
     LayerNotifyIfChanged(devExt);
     return STATUS_SUCCESS;

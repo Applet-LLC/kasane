@@ -146,6 +146,77 @@ BuildParametersKeyPath(
 }
 
 /*
+ CreateKeyWithParents - keyPath のキーを作成（または開く）。途中のキーが無ければ親から順に作る。
+ ZwCreateKey は最後の1階層しか作らず、親が無いと STATUS_OBJECT_NAME_NOT_FOUND で失敗する。
+ kbdlayer は "Parameters\LayerMaps\<UniqId>" の2階層を書くが、"LayerMaps" を作る処理が
+ どこにも無かったため、設定の永続化が一度も成功していなかった（2026-09-28、実機で
+ reg query により発見）。
+*/
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+CreateKeyWithParents(
+    _In_ PCWSTR keyPath,
+    _In_ ACCESS_MASK desiredAccess,
+    _Out_ PHANDLE outKey
+);
+
+#if defined(ALLOC_PRAGMA)
+#pragma alloc_text(PAGE, CreateKeyWithParents)
+#endif
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+CreateKeyWithParents(
+    _In_ PCWSTR keyPath,
+    _In_ ACCESS_MASK desiredAccess,
+    _Out_ PHANDLE outKey
+)
+{
+    PAGED_CODE();
+
+    UNICODE_STRING keyName;
+    OBJECT_ATTRIBUTES oa;
+    ULONG disposition = 0;
+    NTSTATUS status;
+    WCHAR prefix[256];
+    size_t length = 0;
+
+    *outKey = NULL;
+
+    RtlInitUnicodeString(&keyName, keyPath);
+    InitializeObjectAttributes(&oa, &keyName, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL, NULL);
+    status = ZwCreateKey(outKey, desiredAccess, &oa, 0, NULL, REG_OPTION_NON_VOLATILE, &disposition);
+    if (status != STATUS_OBJECT_NAME_NOT_FOUND) {
+        return status;
+    }
+
+    // 親が無い。先頭から "\" ごとに区切った各階層を順に作る（既にあるものは開いて閉じるだけ）。
+    // "\Registry" など最上位の階層では作成に失敗するが、既に存在するので無視してよい。
+    if (!NT_SUCCESS(RtlStringCchLengthW(keyPath, RTL_NUMBER_OF(prefix), &length))) {
+        return STATUS_NAME_TOO_LONG;
+    }
+    for (size_t i = 1; i < length; i++) {
+        if (keyPath[i] != L'\\') {
+            continue;
+        }
+        RtlCopyMemory(prefix, keyPath, i * sizeof(WCHAR));
+        prefix[i] = L'\0';
+
+        UNICODE_STRING prefixName;
+        OBJECT_ATTRIBUTES prefixOa;
+        HANDLE parent = NULL;
+        RtlInitUnicodeString(&prefixName, prefix);
+        InitializeObjectAttributes(&prefixOa, &prefixName, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL, NULL);
+        if (NT_SUCCESS(ZwCreateKey(&parent, KEY_CREATE_SUB_KEY, &prefixOa, 0, NULL,
+                                   REG_OPTION_NON_VOLATILE, &disposition))) {
+            ZwClose(parent);
+        }
+    }
+
+    return ZwCreateKey(outKey, desiredAccess, &oa, 0, NULL, REG_OPTION_NON_VOLATILE, &disposition);
+}
+
+/*
  RegReadBinary - REG_BINARY 値をキャラクタバッファへ読み取る。
  - "値が無い" と "読み取り失敗" を呼び出し側が区別できるよう、失敗ステータスを
    そのまま返す（RegReadDword のように default で握りつぶさない）。
@@ -261,7 +332,6 @@ RegWriteBinary(
     OBJECT_ATTRIBUTES oa;
     HANDLE regKey = NULL;
     NTSTATUS status;
-    ULONG disposition = 0;
 
     if (!serviceName || !valueName) {
         return STATUS_INVALID_PARAMETER;
@@ -290,7 +360,8 @@ RegWriteBinary(
         return status;
     }
 
-    status = ZwCreateKey(&regKey, KEY_SET_VALUE, &oa, 0, NULL, REG_OPTION_NON_VOLATILE, &disposition);
+    // サブキー（例: "LayerMaps\<UniqId>"）の途中の階層が無くても作れるようにする。
+    status = CreateKeyWithParents(keyPath, KEY_SET_VALUE, &regKey);
     if (!NT_SUCCESS(status)) {
         return status;
     }
@@ -395,13 +466,10 @@ RegWriteDword(
 {
     PAGED_CODE();
 
-    UNICODE_STRING keyName;
     UNICODE_STRING valueUni;
     WCHAR keyPath[256];
-    OBJECT_ATTRIBUTES oa;
     HANDLE regKey = NULL;
     NTSTATUS status;
-    ULONG disposition = 0;
 
     if (!serviceName || !valueName) {
         return STATUS_INVALID_PARAMETER;
@@ -412,10 +480,8 @@ RegWriteDword(
         return status;
     }
 
-    RtlInitUnicodeString(&keyName, keyPath);
-    InitializeObjectAttributes(&oa, &keyName, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL, NULL);
-
-    status = ZwCreateKey(&regKey, KEY_SET_VALUE, &oa, 0, NULL, REG_OPTION_NON_VOLATILE, &disposition);
+    // サブキー（例: "LayerMaps\<UniqId>"）の途中の階層が無くても作れるようにする。
+    status = CreateKeyWithParents(keyPath, KEY_SET_VALUE, &regKey);
     if (!NT_SUCCESS(status)) {
         return status;
     }
