@@ -38,6 +38,7 @@ bool RemoveDriverStorePackages(const std::wstring& driverName);
 void RemoveLeftoverSystemFiles(const std::wstring& driverName);
 bool ServiceExists(const std::wstring& serviceName);
 int CountUpperFiltersOccurrences(const std::wstring& classGuidString, const std::wstring& driverName);
+static int InfClassFilterRegistrations(const std::wstring& classGuidString, const std::wstring& driverName, bool remove);
 bool UpperFiltersContains(const std::wstring& classGuidString, const std::wstring& driverName);
 bool VerifyUninstalled(const std::wstring& classGuidString, const std::wstring& driverName);
 bool VerifyInstalled(const std::wstring& classGuidString, const std::wstring& driverName);
@@ -555,6 +556,11 @@ bool VerifyUninstalled(const std::wstring& classGuidString, const std::wstring& 
         std::wcerr << L"Verification failed: " << driverName << L" still present in UpperFilters." << std::endl;
         ok = false;
     }
+    if (InfClassFilterRegistrations(classGuidString, driverName, false) != 0) {
+        std::wcerr << L"Verification failed: " << driverName
+                    << L" is still registered as an INF AddFilter class filter (Class\\{GUID}\\Filters)." << std::endl;
+        ok = false;
+    }
     if (ServiceExists(driverName)) {
         std::wcerr << L"Verification failed: service key " << driverName << L" still exists." << std::endl;
         ok = false;
@@ -576,6 +582,13 @@ bool VerifyInstalled(const std::wstring& classGuidString, const std::wstring& dr
     if (count != 1) {
         std::wcerr << L"Verification failed: " << driverName << L" appears " << count
                     << L" time(s) in UpperFilters (expected exactly 1)." << std::endl;
+        ok = false;
+    }
+    // AddFilter による登録が残っていると、UpperFilters と合わせて2段載る（InfClassFilterRegistrations参照）。
+    if (InfClassFilterRegistrations(classGuidString, driverName, false) != 0) {
+        std::wcerr << L"Verification failed: " << driverName
+                    << L" is also registered as an INF AddFilter class filter (Class\\{GUID}\\Filters); "
+                       L"it would be attached twice." << std::endl;
         ok = false;
     }
     if (!ServiceExists(driverName)) {
@@ -923,6 +936,13 @@ bool InstallDriver(const std::wstring& driverName, const std::wstring& classGuid
     // IOCTL_INTERNAL_KEYBOARD_CONNECT sent down by the class driver.
     // nodokad reads from IRP completions and should remain AFTER kbdclass.
     const bool insertBeforeClass = (driverName == L"kbdlayer");
+
+    // 以前の kbdlayer.inf（AddFilter あり）が一度でも INF 単体でインストールされていると、
+    // Class\{GUID}\Filters にも登録が残り、UpperFilters と合わせて2段載ってしまう。
+    // フィルタの登録は UpperFilters（順序表）に一本化するので、こちらは取り除く。
+    // 反映はデバイスの再起動（またはOSの再起動）後。
+    InfClassFilterRegistrations(classGuidString, driverName, true);
+
     std::wcout << L"Updating UpperFilters for " << driverName
                << (insertBeforeClass ? L" (before class driver)..." : L" (after class driver)...") << std::endl;
     if (!ModifyUpperFilters(classGuidString, driverName, true, insertBeforeClass)) {
@@ -995,6 +1015,14 @@ bool UninstallDriver(
     if (!filtersRemoved) {
         std::wcerr << L"Failed to remove " << driverName << L" from UpperFilters after " << maxRetries
                     << L" attempts. Aborting uninstall without touching the service or DriverStore." << std::endl;
+        return false;
+    }
+    // INF の AddFilter による登録（Class\{GUID}\Filters）も先に取り除く。残したままサービスを
+    // 削除すると、UpperFilters と同じく死んだ参照になり、キーボードが全滅し得る。
+    InfClassFilterRegistrations(classGuidString, driverName, true);
+    if (InfClassFilterRegistrations(classGuidString, driverName, false) != 0) {
+        std::wcerr << L"Failed to remove the INF AddFilter registration of " << driverName
+                    << L". Aborting uninstall without touching the service or DriverStore." << std::endl;
         return false;
     }
 
@@ -1218,6 +1246,56 @@ bool ModifyUpperFilters(
 
     RegCloseKey(classKey);
     return anyInstanceSuccess || parentSuccess;
+}
+
+// INF の AddFilter（[DDInstall.Filters]、Windows 10 1903以降）で登録されたクラスフィルタは、
+// UpperFilters 値とは別に Class\{GUID}\Filters\<位置>（例: "*Upper"）の下に、ドライバ名の値として
+// 記録される。UpperFilters 値だけを見ていると気付けないが、PnP はこちらも読んでスタックに載せる。
+// kbdlayer は UpperFilters（DriverManager が順序表で管理）と、以前の kbdlayer.inf の
+// AddFilter（FilterPosition=Upper）の両方で登録されると、1つのキーボードに2段載ってキー入力を
+// 2回処理してしまう（2026-09-28、--list の二重表示の調査で発見）。
+// remove=false なら数えるだけ、true なら見つけた登録を削除する。戻り値は見つけた数。
+static int InfClassFilterRegistrations(const std::wstring& classGuidString, const std::wstring& driverName, bool remove)
+{
+    const std::wstring regPath = L"SYSTEM\\CurrentControlSet\\Control\\Class\\" + classGuidString + L"\\Filters";
+    HKEY filtersKey = nullptr;
+    const REGSAM access = KEY_ENUMERATE_SUB_KEYS | KEY_READ | (remove ? KEY_WRITE : 0);
+    if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, regPath.c_str(), 0, access, &filtersKey) != ERROR_SUCCESS) {
+        return 0; // Filters キーが無い = AddFilter による登録は無い
+    }
+
+    int found = 0;
+    for (DWORD index = 0;; ++index) {
+        wchar_t subName[256] = {};
+        DWORD cch = 255;
+        const LONG enumResult =
+            RegEnumKeyExW(filtersKey, index, subName, &cch, nullptr, nullptr, nullptr, nullptr);
+        if (enumResult == ERROR_NO_MORE_ITEMS) {
+            break;
+        }
+        if (enumResult != ERROR_SUCCESS) {
+            continue;
+        }
+        HKEY levelKey = nullptr;
+        if (RegOpenKeyExW(filtersKey, subName, 0, KEY_READ | (remove ? KEY_SET_VALUE : 0), &levelKey) != ERROR_SUCCESS) {
+            continue;
+        }
+        if (RegQueryValueExW(levelKey, driverName.c_str(), nullptr, nullptr, nullptr, nullptr) == ERROR_SUCCESS) {
+            ++found;
+            if (remove) {
+                const LSTATUS del = RegDeleteValueW(levelKey, driverName.c_str());
+                if (del == ERROR_SUCCESS) {
+                    std::wcout << L"Removed INF AddFilter registration: Filters\\" << subName << L"\\" << driverName << std::endl;
+                } else {
+                    std::wcerr << L"Failed to remove INF AddFilter registration Filters\\" << subName << L"\\"
+                               << driverName << L". Error: " << del << std::endl;
+                }
+            }
+        }
+        RegCloseKey(levelKey);
+    }
+    RegCloseKey(filtersKey);
+    return found;
 }
 
 std::wstring GetExecutablePath()

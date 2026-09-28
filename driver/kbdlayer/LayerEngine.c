@@ -343,7 +343,19 @@ RecordRawMakesLocked(
     }
 }
 
-// [レイヤー解決規則] ActiveLayerMask(+DefaultLayerビット)の中で最も高いレイヤー
+// 実効レイヤーマスク = キーボード側のレイヤー | アプリ管理レイヤー | DefaultLayerビット。
+// レイヤーの解決・NICOLAの有効判定・状態の通知は、すべてこれを使う。
+// devExt->EngineLock保持中に呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static ULONG
+EffectiveLayerMaskLocked(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    return devExt->ActiveLayerMask | devExt->AppLayerMask | (1UL << devExt->DefaultLayer);
+}
+
+// [レイヤー解決規則] 実効レイヤーマスク（EffectiveLayerMaskLocked）の中で最も高いレイヤー
 // 番号から順に、KBDLAYER_ACTION_TRANSPARENT でないアクションを探す
 // （QMKの「上位レイヤー優先、透過ならフォールスルー」と同じ規則）。
 // devExt->EngineLock保持中に呼ばれる前提。
@@ -355,7 +367,7 @@ ResolveEffectiveAction(
     _In_ PKBDLAYER_KEY_ENTRY entry
     )
 {
-    ULONG effectiveMask = devExt->ActiveLayerMask | (1UL << devExt->DefaultLayer);
+    ULONG effectiveMask = EffectiveLayerMaskLocked(devExt);
 
     for (LONG layer = (LONG)table->LayerCount - 1; layer >= 0; layer--) {
         if (!(effectiveMask & (1UL << layer))) {
@@ -560,6 +572,43 @@ static const USHORT s_ModifierScanCodes[8] = {
     /* 7: RGUI */ 0xE05C,
 };
 
+// kbdclassへ送る1イベントが修飾キーなら、devExt->OutputModifierDownを更新する。
+// devExt->OutputLock保持中に呼ぶこと（送出はすべてOutputLock保持中に行う）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+TrackOutputModifierEvent(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ USHORT MakeCode,
+    _In_ USHORT Flags
+    )
+{
+    USHORT scanCode = EncodeScancode16(MakeCode, Flags);
+
+    for (ULONG bit = 0; bit < RTL_NUMBER_OF(s_ModifierScanCodes); bit++) {
+        if (s_ModifierScanCodes[bit] == scanCode) {
+            if (Flags & KEY_BREAK) {
+                devExt->OutputModifierDown &= (UCHAR)~(1u << bit);
+            } else {
+                devExt->OutputModifierDown |= (UCHAR)(1u << bit);
+            }
+            return;
+        }
+    }
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+TrackOutputModifiers(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd
+    )
+{
+    for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
+        TrackOutputModifierEvent(devExt, p->MakeCode, p->Flags);
+    }
+}
+
 // devExt->EngineLock保持中に呼ぶこと。保留サイクル用タイマー（Hold/Combo/TapDance）の
 // 期限を*Deadlineに記録し、KeSetTimerに渡す相対時間を返す（KeSetTimerはロック解放後に
 // 呼んでよい）。KeSetTimerの呼び出しは記録より後なので、実際の満了は必ず期限以降になる。
@@ -598,6 +647,7 @@ SendSyntheticEvent(
     ev.Flags = Flags;
     ev.ExtraInformation = devExt->DeviceId & 0xFFFF0000UL;
 
+    TrackOutputModifierEvent(devExt, MakeCode, Flags);
     devExt->OriginalClassService(
         devExt->OriginalClassDeviceObject,
         &ev,
@@ -707,6 +757,9 @@ HoldTapDpcRoutine(
         EmitModTapEventIfApplicable(devExt, &action, KEY_MAKE);
     }
     KeReleaseSpinLockFromDpcLevel(&devExt->OutputLock);
+
+    // LTのホールド確定やOSLの消費でレイヤーが変わっていれば、待っているアプリへ知らせる。
+    LayerNotifyIfChanged(devExt);
 }
 
 _IRQL_requires_max_(DISPATCH_LEVEL)
@@ -822,6 +875,7 @@ ResolveTapHold(
         for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
             p->ExtraInformation = (p->ExtraInformation & 0x0000FFFFUL) | (devExt->DeviceId & 0xFFFF0000UL);
         }
+        TrackOutputModifiers(devExt, InputDataStart, InputDataEnd);
         devExt->OriginalClassService(
             devExt->OriginalClassDeviceObject,
             InputDataStart,
@@ -1165,6 +1219,9 @@ ComboDpcRoutine(
         }
     }
     KeReleaseSpinLockFromDpcLevel(&devExt->OutputLock);
+
+    // LTのホールド確定やOSLの消費でレイヤーが変わっていれば、待っているアプリへ知らせる。
+    LayerNotifyIfChanged(devExt);
 }
 
 _IRQL_requires_max_(DISPATCH_LEVEL)
@@ -1512,6 +1569,9 @@ TapDanceDpcRoutine(
         }
     }
     KeReleaseSpinLockFromDpcLevel(&devExt->OutputLock);
+
+    // LTのホールド確定やOSLの消費でレイヤーが変わっていれば、待っているアプリへ知らせる。
+    LayerNotifyIfChanged(devExt);
 }
 
 _IRQL_requires_max_(DISPATCH_LEVEL)
@@ -1701,6 +1761,7 @@ ResolveTapDance(
             for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
                 p->ExtraInformation = (p->ExtraInformation & 0x0000FFFFUL) | (devExt->DeviceId & 0xFFFF0000UL);
             }
+            TrackOutputModifiers(devExt, InputDataStart, InputDataEnd);
             devExt->OriginalClassService(
                 devExt->OriginalClassDeviceObject,
                 InputDataStart,
@@ -1897,6 +1958,26 @@ BuildLayerMapsSubKeyPath(
     RtlStringCchPrintfW(PathBuffer, PathLengthInChars, L"LayerMaps\\%08X", UniqId);
 }
 
+// 設定の永続化（レジストリへの書き込み）の結果を確認する。ライブの設定は既に反映済みなので
+// IOCTLは成功のまま返すが、失敗を黙って握りつぶさずにログする（Release版でもDebugView等で
+// 見えるようDbgPrintExのエラーレベルで出す）。以前は戻り値を全て無視していたため、
+// "LayerMaps"キーが作れずに永続化が一度も成功していないことに気付けなかった
+// （2026-09-28、dev-notesチェックリストD-11）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static VOID
+CheckPersistResult(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PCWSTR ValueName,
+    _In_ NTSTATUS Status
+    )
+{
+    if (!NT_SUCCESS(Status)) {
+        DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
+                   "kbdlayer: failed to persist %ws for DeviceId=0x%08X, status=0x%08X\n",
+                   ValueName, devExt->DeviceId, Status);
+    }
+}
+
 _IRQL_requires_max_(PASSIVE_LEVEL)
 NTSTATUS
 SetLayerMapForDevice(
@@ -1939,8 +2020,11 @@ SetLayerMapForDevice(
     }
 
     BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
-    RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_MAP_VALUE_NAME, Blob, BlobLength);
+    CheckPersistResult(devExt, KBDLAYER_MAP_VALUE_NAME,
+        RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_MAP_VALUE_NAME, Blob, BlobLength));
 
+    // レイヤー数が変わるとNICOLAの有効判定などが変わり得るので、待っているアプリへ知らせる。
+    LayerNotifyIfChanged(devExt);
     return STATUS_SUCCESS;
 }
 
@@ -1968,8 +2052,10 @@ ClearLayerMapForDevice(
     }
 
     BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
-    RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_MAP_VALUE_NAME, NULL, 0);
+    CheckPersistResult(devExt, KBDLAYER_MAP_VALUE_NAME,
+        RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_MAP_VALUE_NAME, NULL, 0));
 
+    LayerNotifyIfChanged(devExt);
     return STATUS_SUCCESS;
 }
 
@@ -2023,8 +2109,12 @@ SetLayerMapEnabledForDevice(
     KeReleaseSpinLock(&devExt->OutputLock, outputIrql);
 
     BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
-    RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_ENABLED_VALUE_NAME, Enabled ? 1 : 0);
+    CheckPersistResult(devExt, KBDLAYER_ENABLED_VALUE_NAME,
+        RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_ENABLED_VALUE_NAME, Enabled ? 1 : 0));
 
+    // ON/OFF自体と、OFF時のレイヤー状態のリセットを、待っているアプリへ知らせる。
+    // （アプリ管理レイヤーはOFFでも消さない。持ち主のアプリが下ろす）
+    LayerNotifyIfChanged(devExt);
     return STATUS_SUCCESS;
 }
 
@@ -2140,7 +2230,8 @@ SetTapTermForDevice(
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
     BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
-    RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPTERM_VALUE_NAME, effective);
+    CheckPersistResult(devExt, KBDLAYER_TAPTERM_VALUE_NAME,
+        RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPTERM_VALUE_NAME, effective));
 
     return STATUS_SUCCESS;
 }
@@ -2161,7 +2252,8 @@ SetComboTermForDevice(
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
     BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
-    RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_COMBOTERM_VALUE_NAME, effective);
+    CheckPersistResult(devExt, KBDLAYER_COMBOTERM_VALUE_NAME,
+        RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_COMBOTERM_VALUE_NAME, effective));
 
     return STATUS_SUCCESS;
 }
@@ -2182,7 +2274,8 @@ SetTapDanceTermForDevice(
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
     BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
-    RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPDANCETERM_VALUE_NAME, effective);
+    CheckPersistResult(devExt, KBDLAYER_TAPDANCETERM_VALUE_NAME,
+        RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPDANCETERM_VALUE_NAME, effective));
 
     return STATUS_SUCCESS;
 }
@@ -2275,8 +2368,9 @@ PersistAllMacros(
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
     BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
-    RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_MACROS_VALUE_NAME,
-                    buffer, KBDLAYER_MACRO_PERSIST_BLOB_BYTES);
+    CheckPersistResult(devExt, KBDLAYER_MACROS_VALUE_NAME,
+        RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_MACROS_VALUE_NAME,
+                        buffer, KBDLAYER_MACRO_PERSIST_BLOB_BYTES));
 
     ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
 }
@@ -2435,8 +2529,9 @@ PersistAllCombos(
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
     BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
-    RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_COMBOS_VALUE_NAME,
-                    buffer, KBDLAYER_COMBO_PERSIST_BLOB_BYTES);
+    CheckPersistResult(devExt, KBDLAYER_COMBOS_VALUE_NAME,
+        RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_COMBOS_VALUE_NAME,
+                        buffer, KBDLAYER_COMBO_PERSIST_BLOB_BYTES));
 
     ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
 }
@@ -2606,8 +2701,9 @@ PersistAllTapDances(
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
     BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
-    RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPDANCES_VALUE_NAME,
-                    buffer, KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES);
+    CheckPersistResult(devExt, KBDLAYER_TAPDANCES_VALUE_NAME,
+        RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPDANCES_VALUE_NAME,
+                        buffer, KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES));
 
     ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
 }
@@ -2880,6 +2976,12 @@ StartCaptureNextKey(
     Irp->Tail.Overlay.DriverContext[0] = devExt;
 
     KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    if (devExt->RemovePending) {
+        // デバイス削除が始まっている（DeviceExtension.hのRemovePending参照）。保留中のIRPを
+        // 削除で終わらせるときと同じSTATUS_DEVICE_REMOVED（Win32: 1617）を返す。
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        return STATUS_DEVICE_REMOVED;
+    }
     if (devExt->CaptureActive || devExt->CaptureIrp != NULL) {
         KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
         return STATUS_DEVICE_BUSY;
@@ -3262,13 +3364,11 @@ NicolaIsActiveLocked(
     )
 {
     PKBDLAYER_NICOLA_HEADER table = devExt->NicolaTable;
-    ULONG effectiveMask;
 
     if (table == NULL || !table->Enabled || !devExt->LayerMapEnabled || devExt->LayerMap == NULL) {
         return FALSE;
     }
-    effectiveMask = devExt->ActiveLayerMask | (1UL << devExt->DefaultLayer);
-    return (effectiveMask & (1UL << table->Layer)) != 0;
+    return (EffectiveLayerMaskLocked(devExt) & (1UL << table->Layer)) != 0;
 }
 
 _IRQL_requires_max_(DISPATCH_LEVEL)
@@ -3484,35 +3584,18 @@ NicolaIsActive(
 
 _IRQL_requires_max_(DISPATCH_LEVEL)
 VOID
-NicolaObserveBatch(
-    _In_ PDEVICE_EXTENSION devExt,
-    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
-    _In_ PKEYBOARD_INPUT_DATA InputDataEnd
+NicolaSyncActivation(
+    _In_ PDEVICE_EXTENSION devExt
     )
 {
-    KIRQL oldIrql;
-
-    for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
-        USHORT scanCode = EncodeScancode16(p->MakeCode, p->Flags);
-        for (ULONG bit = 0; bit < RTL_NUMBER_OF(s_ModifierScanCodes); bit++) {
-            if (s_ModifierScanCodes[bit] == scanCode) {
-                KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
-                if (p->Flags & KEY_BREAK) {
-                    devExt->NicolaModifierDown &= (UCHAR)~(1u << bit);
-                } else {
-                    devExt->NicolaModifierDown |= (UCHAR)(1u << bit);
-                }
-                KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
-                break;
-            }
-        }
-    }
+    NicolaSyncActivationEx(devExt, TRUE);
 }
 
 _IRQL_requires_max_(DISPATCH_LEVEL)
 VOID
-NicolaSyncActivation(
-    _In_ PDEVICE_EXTENSION devExt
+NicolaSyncActivationEx(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ BOOLEAN SendImeKeys
     )
 {
     KIRQL oldIrql;
@@ -3542,7 +3625,8 @@ NicolaSyncActivation(
         NicolaCoreReset(&devExt->NicolaState, &result);
         NicolaCollectLocked(devExt->NicolaTable, &result, &emit);
     }
-    if (devExt->NicolaTable != NULL) {
+    // アプリ（IME連動エージェント等）が起点の切り替えでは、IMEのオン/オフキーを送らない。
+    if (devExt->NicolaTable != NULL && SendImeKeys) {
         tapKey = active ? devExt->NicolaTable->OnEnterKey : devExt->NicolaTable->OnExitKey;
     }
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
@@ -3618,9 +3702,22 @@ ResolveNicola(
     } else {
         kind = NICOLA_KEY_OTHER;
     }
-    // Ctrl/Alt/Win/Shift押下中はショートカット等を壊さないよう判定を迂回する
-    // （物理キーの状態で見る。NicolaObserveBatch参照）。
-    if (kind != NICOLA_KEY_OTHER && devExt->NicolaModifierDown != 0) {
+    // Ctrl/Alt/Win/ShiftをOSへ押下中はショートカット等を壊さないよう判定を迂回する。
+    // 物理キーではなく、実際に送った出力で見る（TrackOutputModifierEvent参照）。
+    // レイヤーマップでCtrlにしたキーやMTのホールドも対象になり、物理Ctrlを別のキーに
+    // した場合は対象外になる。ServiceCallbackはOutputLockを保持しているので、ロック無しで読める。
+    if (kind != NICOLA_KEY_OTHER && devExt->OutputModifierDown != 0) {
+        kind = NICOLA_KEY_OTHER;
+    }
+    // MT/LT（とタップダンスの1回目の押下）のタップ/ホールドが判定中に、別のキーの押下が来た
+    // 場合は、NICOLAは横取りせず後段に譲る。通常のキーと同じく「他キー押下でホールド確定」に
+    // なり、MT(Ctrl)を押した直後の文字キーはCtrl+Fになる（譲らないと、NICOLAが先に文字を
+    // 取ってしまい、MTはその後タップとして確定していた）。OTHER扱いにするので、NICOLAの
+    // 保留中の判定は先に確定し、このキーの解放も素通しになる。
+    if (kind != NICOLA_KEY_OTHER && !isBreak &&
+        ((devExt->PendingActive && !devExt->HoldConfirmed && scanCode != devExt->PendingScanCode) ||
+         (devExt->TapDancePendingActive && devExt->TapDanceKeyDown && devExt->TapDanceTapCount == 0 &&
+          scanCode != devExt->TapDanceScanCode))) {
         kind = NICOLA_KEY_OTHER;
     }
 
@@ -3653,7 +3750,7 @@ InitializeNicolaState(
     devExt->NicolaTable = NULL;
     devExt->NicolaTableBytes = 0;
     devExt->NicolaWasActive = FALSE;
-    devExt->NicolaModifierDown = 0;
+    devExt->OutputModifierDown = 0;
 }
 
 // NICOLA設定blobの形式を検証する（SET_NICOLAとレジストリからの読み込みの両方で使う）。
@@ -3790,9 +3887,11 @@ SetNicolaForDevice(
     }
 
     BuildLayerMapsSubKeyPath(devExt->DeviceId, subKeyPath, RTL_NUMBER_OF(subKeyPath));
-    RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_NICOLA_VALUE_NAME,
-                    BlobLength > 0 ? Blob : NULL, BlobLength);
+    CheckPersistResult(devExt, KBDLAYER_NICOLA_VALUE_NAME,
+        RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_NICOLA_VALUE_NAME,
+                        BlobLength > 0 ? Blob : NULL, BlobLength));
 
+    LayerNotifyIfChanged(devExt);
     return STATUS_SUCCESS;
 }
 
@@ -3866,5 +3965,236 @@ FreeNicolaForDevice(
         ExFreePoolWithTag(devExt->NicolaTable, KBDLAYER_NICOLA_POOL_TAG);
         devExt->NicolaTable = NULL;
         devExt->NicolaTableBytes = 0;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// アプリ管理レイヤーとレイヤー変化の通知（common/kbdlayer_ioctl.h参照）
+//
+// レイヤー状態 = 実効マスクを決める3要素（ActiveLayerMask・AppLayerMask・DefaultLayer）と、
+// レイヤーマップのON/OFF・NICOLA判定の有効。これが前回から変わっていればSeqを進める。
+// 変化を起こす処理はばらばら（MO/TG/OSL/LT・各DPC・IOCTL）なので、個々の箇所で
+// 通知するのではなく、それらの後でLayerNotifyIfChangedを呼んで差分で検出する。
+// 保留IRPの管理はLayerNotify.c。
+// ---------------------------------------------------------------------------
+
+// devExt->EngineLock保持中に呼ぶこと。状態が前回から変わっていればSeqを進めてTRUEを返す。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static BOOLEAN
+RefreshLayerStateLocked(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    BOOLEAN enabled = devExt->LayerMapEnabled && devExt->LayerMap != NULL;
+    BOOLEAN nicola = NicolaIsActiveLocked(devExt);
+
+    if (devExt->LastActiveLayerMask == devExt->ActiveLayerMask &&
+        devExt->LastAppLayerMask == devExt->AppLayerMask &&
+        devExt->LastDefaultLayer == devExt->DefaultLayer &&
+        devExt->LastLayerMapEnabled == enabled &&
+        devExt->LastNicolaActive == nicola) {
+        return FALSE;
+    }
+    devExt->LastActiveLayerMask = devExt->ActiveLayerMask;
+    devExt->LastAppLayerMask = devExt->AppLayerMask;
+    devExt->LastDefaultLayer = devExt->DefaultLayer;
+    devExt->LastLayerMapEnabled = enabled;
+    devExt->LastNicolaActive = nicola;
+    devExt->LayerStateSeq++;
+    return TRUE;
+}
+
+// devExt->EngineLock保持中に呼ぶこと（RefreshLayerStateLockedの直後に呼ぶ）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+FillLayerStateLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _Out_ PKBDLAYER_LAYER_STATE Out
+    )
+{
+    Out->Seq = devExt->LayerStateSeq;
+    Out->ActiveLayerMask = devExt->ActiveLayerMask;
+    Out->AppLayerMask = devExt->AppLayerMask;
+    Out->DefaultLayer = devExt->DefaultLayer;
+    Out->EffectiveLayerMask = EffectiveLayerMaskLocked(devExt);
+    Out->LayerMapEnabled = devExt->LastLayerMapEnabled ? 1 : 0;
+    Out->NicolaActive = devExt->LastNicolaActive ? 1 : 0;
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+LayerNotifyIfChanged(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    KIRQL oldIrql;
+    BOOLEAN changed;
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    changed = RefreshLayerStateLocked(devExt);
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    if (changed) {
+        LayerNotifyCompleteWaiters(devExt);
+    }
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+GetLayerStateForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _Out_ PKBDLAYER_LAYER_STATE Out
+    )
+{
+    KIRQL oldIrql;
+    BOOLEAN changed;
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    changed = RefreshLayerStateLocked(devExt);
+    FillLayerStateLocked(devExt, Out);
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    if (changed) {
+        // 取得のついでに変化を見つけた場合も、待っているIRPへ知らせる。
+        LayerNotifyCompleteWaiters(devExt);
+    }
+}
+
+// アプリ管理レイヤーを変えた後の後始末（PASSIVE_LEVELから呼ぶ）。NICOLAの有効/無効を
+// 反映し（IMEのオン/オフキーはSendImeKeysのときだけ送る）、待っているIRPへ通知する。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static VOID
+ApplyAppLayerChange(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ BOOLEAN SendImeKeys
+    )
+{
+    KIRQL outputIrql;
+
+    // NICOLAの確定送出・IMEキーの送出を、ServiceCallback・DPCの送出と直列化する
+    // （OutputLockの説明参照）。OutputLockはDISPATCH_LEVELに上げるので、kbdclassの
+    // サービスコールバックをport driverと同じIRQLで呼べる。
+    KeAcquireSpinLock(&devExt->OutputLock, &outputIrql);
+    NicolaSyncActivationEx(devExt, SendImeKeys);
+    KeReleaseSpinLock(&devExt->OutputLock, outputIrql);
+
+    LayerNotifyIfChanged(devExt);
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetAppLayerStateForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG Op,
+    _In_ ULONG Layer,
+    _In_ ULONG Mask,
+    _In_ ULONG Flags,
+    _In_ PVOID Owner,
+    _Out_opt_ PKBDLAYER_LAYER_STATE Out
+    )
+{
+    KIRQL oldIrql;
+    ULONG layerCount;
+    ULONG validMask;
+    ULONG newMask;
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+
+    // 立てられるのは、レイヤーマップにあるレイヤーだけ（未設定なら上限まで）。
+    layerCount = (devExt->LayerMap != NULL) ? devExt->LayerMap->LayerCount : KBDLAYER_MAX_LAYERS;
+    validMask = (layerCount >= 32) ? 0xFFFFFFFFUL : ((1UL << layerCount) - 1);
+
+    newMask = devExt->AppLayerMask;
+    switch (Op) {
+    case KBDLAYER_LAYER_OP_ON:
+    case KBDLAYER_LAYER_OP_OFF:
+    case KBDLAYER_LAYER_OP_TOGGLE:
+        if (Layer >= layerCount) {
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+            return STATUS_INVALID_PARAMETER;
+        }
+        if (Op == KBDLAYER_LAYER_OP_ON) {
+            newMask |= (1UL << Layer);
+        } else if (Op == KBDLAYER_LAYER_OP_OFF) {
+            newMask &= ~(1UL << Layer);
+        } else {
+            newMask ^= (1UL << Layer);
+        }
+        break;
+    case KBDLAYER_LAYER_OP_SET_MASK:
+        if (Mask & ~validMask) {
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+            return STATUS_INVALID_PARAMETER;
+        }
+        newMask = Mask;
+        break;
+    default:
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    devExt->AppLayerMask = newMask;
+    // 最後に変更したハンドルが所有者になる（乗っ取り可）。全部下ろしたら所有者なし。
+    devExt->AppLayerOwner = (newMask != 0) ? Owner : NULL;
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    KBDLAYER_TRACE("SetAppLayerStateForDevice: DeviceId=0x%08X op=%lu AppLayerMask=0x%X\n",
+                   devExt->DeviceId, Op, newMask);
+
+    ApplyAppLayerChange(devExt, (Flags & KBDLAYER_LAYER_STATE_FLAG_NO_NICOLA_KEYS) == 0);
+
+    if (Out != NULL) {
+        GetLayerStateForDevice(devExt, Out);
+    }
+    return STATUS_SUCCESS;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+ReleaseAppLayersForOwner(
+    _In_ PVOID Owner
+    )
+{
+    // 所有するデバイスを1台ずつ探し、g_listLock内でremove lockを取ってからロック外で後始末する
+    // （後始末ではkbdclassへの送出もあるので、g_listLockを持ったままにはしない）。
+    // 見つけた時点で所有者を外すので、同じデバイスを二度処理することはない。
+    for (;;) {
+        KIRQL oldIrql;
+        PLIST_ENTRY entry;
+        PDEVICE_EXTENSION found = NULL;
+
+        KeAcquireSpinLock(&g_listLock, &oldIrql);
+        for (entry = g_deviceList.Flink; entry != &g_deviceList; entry = entry->Flink) {
+            PDEVICE_EXTENSION devExt = CONTAINING_RECORD(entry, DEVICE_EXTENSION, ListEntry);
+            BOOLEAN owned;
+
+            KeAcquireSpinLockAtDpcLevel(&devExt->EngineLock);
+            owned = (devExt->AppLayerOwner == Owner);
+            if (owned) {
+                devExt->AppLayerOwner = NULL;
+                devExt->AppLayerMask = 0;
+            }
+            KeReleaseSpinLockFromDpcLevel(&devExt->EngineLock);
+
+            if (owned) {
+                if (NT_SUCCESS(IoAcquireRemoveLock(&devExt->RemoveLock, Owner))) {
+                    found = devExt;
+                }
+                // 削除中なら後始末は不要（デバイスごと消える）。次を探す。
+                if (found != NULL) {
+                    break;
+                }
+            }
+        }
+        KeReleaseSpinLock(&g_listLock, oldIrql);
+
+        if (found == NULL) {
+            break;
+        }
+
+        KBDLAYER_TRACE("ReleaseAppLayersForOwner: released DeviceId=0x%08X\n", found->DeviceId);
+        // 持ち主のアプリが消えただけなので、IMEのオン/オフキーは送らない。
+        ApplyAppLayerChange(found, FALSE);
+        IoReleaseRemoveLock(&found->RemoveLock, Owner);
     }
 }

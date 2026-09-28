@@ -75,6 +75,14 @@ public:
     bool SetNicola(ULONG uniqId, const std::vector<unsigned char>& blob);
     bool GetNicola(ULONG uniqId, std::vector<unsigned char>* outBlob);
 
+    // レイヤー制御の双方向通知。いずれもFILE_READ_ACCESSなので、昇格していなくても使える。
+    bool GetLayerState(ULONG uniqId, KBDLAYER_LAYER_STATE* out);
+    // レイヤー状態のSeqがlastSeqと変わるまで待つ（同期呼び出しなので、このスレッドは戻るまで止まる）。
+    // *outCancelled = キャンセル・デバイスの取り外しで戻った。
+    bool WaitLayerChange(ULONG uniqId, ULONG lastSeq, KBDLAYER_LAYER_STATE* out, bool* outCancelled);
+    // アプリ管理レイヤーの操作。このハンドル（IoctlClient）を閉じると、立てたレイヤーは下ろされる。
+    bool SetLayerState(ULONG uniqId, ULONG op, ULONG layer, ULONG mask, ULONG flags, KBDLAYER_LAYER_STATE* out);
+
     ~IoctlClient() { Close(); }
 
 private:

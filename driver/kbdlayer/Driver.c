@@ -130,6 +130,7 @@ NTSTATUS DriverEntry(IN PDRIVER_OBJECT DriverObject, IN PUNICODE_STRING Registry
 
     InitializeListHead(&g_deviceList);
     KeInitializeSpinLock(&g_listLock);
+    InitializeLayerNotify(); // WAIT_LAYER_CHANGEの保留IRPのキュー（LayerNotify.c）
 
     DriverObject->DriverExtension->AddDevice = AddDevice;
     DriverObject->DriverUnload = Unload;
@@ -424,7 +425,13 @@ NTSTATUS DispatchPnp(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
 
         // 保留中のCAPTURE_NEXT_KEYはremove lockを握ったままなので、先に完了させる
         // （そうしないと下のIoReleaseRemoveLockAndWaitがタイムアウトまで待たされる）。
+        // 以後の保留を受け付けないようにしてから（RemovePendingの説明参照）、保留中のIRPを完了させる。
+        KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+        devExt->RemovePending = TRUE;
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
         AbortCaptureNextKey(devExt, STATUS_DEVICE_REMOVED);
+        // WAIT_LAYER_CHANGEの保留IRPも同じ理由で先に完了させる。
+        LayerNotifyAbortDevice(devExt, STATUS_DEVICE_REMOVED);
 
         // 以降のIoAcquireRemoveLock呼び出し元(DispatchRead/DispatchInternalIoctl/
         // ControlDevice.cの全IOCTLハンドラ=FindDeviceExtensionByUniqId経由)が新規に
@@ -581,9 +588,6 @@ VOID ServiceCallback(
             }
         }
 
-        // Phase 6: NICOLAの修飾キー追跡。バッチ分割やどのResolve*よりも前に全件を見せる。
-        NicolaObserveBatch(devExt, InputDataStart, InputDataEnd);
-
         // Phase 6: NICOLA判定が有効な間は、複数件バッチを1件ずつに分けて流す。
         // USBキーボードでは親指キーと文字キーの同時押しが1つのレポート（=1バッチ）で
         // 届きうるが、各Resolve*は1件バッチしか扱わないため。
@@ -634,6 +638,12 @@ consumed:
     }
 
     KeReleaseSpinLock(&devExt->OutputLock, outputIrql);
+
+    // このバッチでレイヤー状態（MO/TG/OSL/LT/DF・NICOLAの有効）が変わっていれば、
+    // WAIT_LAYER_CHANGEで待っているアプリへ知らせる（IRPの完了はOutputLockの外で行う）。
+    if (devExt->DeviceId != 0) {
+        LayerNotifyIfChanged(devExt);
+    }
 }
 
 // ServiceCallbackのうち、キャリブレーション後の「Resolve*の連鎖 → kbdclassへ転送」部分。
@@ -697,6 +707,8 @@ ResolveAndForward(
                        devExt->DeviceId, p->ExtraInformation, p->MakeCode, p->Flags);
     }
 
+    // OSへ送る修飾キーの押下状態を記録する（NICOLAが修飾キー押下中の判定を迂回するため）。
+    TrackOutputModifiers(devExt, InputDataStart, InputDataEnd);
     devExt->OriginalClassService(
         devExt->OriginalClassDeviceObject,
         InputDataStart,

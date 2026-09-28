@@ -53,7 +53,12 @@ KeymapTool.exe --on <UniqIdHex>
 - 前置/後置のどちらでも同じ結果になること（親指を先に押す・文字を先に押す）。
 - 素早い逐次打鍵（`F`を押してすぐ変換を押し、`F`をすぐ離す）で、け＋変換 になること。
 - 親指キーだけを押して離す → 変換/無変換として働くこと。
-- Ctrl+C などが通常どおり効くこと（修飾キー押下中は判定しない）。
+- Ctrl+C などが通常どおり効くこと（OSへ修飾キーを押下中は判定しない）。レイヤーマップで
+  CapsLockなどをCtrlにしている場合や、MT(Ctrl)をホールドしている場合も同じ。逆に、物理Ctrlを
+  別のキーにしている場合は、そのキーを押しても判定は迂回しない。
+- `KeymapTool.exe --watch-layer <UniqIdHex>` を別のコンソールで動かしておくと、切替キーを押すたびに
+  `NICOLA=ON/OFF` の行が出る。`--set-layer <UniqIdHex> on 1 --no-nicola-keys` でアプリから
+  NICOLAのレイヤーを立てられ、Enterで終了（またはKeymapToolを強制終了）すると下りる。
 - 文字キーを押し続けるとその文字がリピートすること。
 - `KeymapTool.exe --get-nicola <UniqIdHex>` で設定した内容が返ること。再起動後も残ること。
 

@@ -146,6 +146,7 @@ Platform.
     <ClCompile Include="LayerEngine.c" />
     <ClCompile Include="ControlDevice.c" />
     <ClCompile Include="NicolaCore.c" />
+    <ClCompile Include="LayerNotify.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\devprop.h" />

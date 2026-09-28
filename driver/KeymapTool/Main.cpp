@@ -374,6 +374,83 @@ int CmdClearNicola(IoctlClient* client, ULONG uniqId) {
     return 0;
 }
 
+void PrintLayerState(const KBDLAYER_LAYER_STATE& s) {
+    printf("Seq=%lu Effective=0x%02lX (Active=0x%02lX App=0x%02lX Default=%lu) LayerMap=%s NICOLA=%s\n",
+           s.Seq, s.EffectiveLayerMask, s.ActiveLayerMask, s.AppLayerMask, s.DefaultLayer,
+           s.LayerMapEnabled ? "ON" : "OFF", s.NicolaActive ? "ON" : "OFF");
+    // --watch-layerの出力をファイルへリダイレクトしても、強制終了で行が失われないように。
+    fflush(stdout);
+}
+
+int CmdGetLayerState(IoctlClient* client, ULONG uniqId) {
+    KBDLAYER_LAYER_STATE state;
+    if (!client->GetLayerState(uniqId, &state)) return 1;
+    printf("UniqId=%08X ", uniqId);
+    PrintLayerState(state);
+    return 0;
+}
+
+// --watch-layer <UniqIdHex>: レイヤー状態が変わるたびに1行表示する（Ctrl+Cで終了）。
+int CmdWatchLayer(IoctlClient* client, ULONG uniqId) {
+    KBDLAYER_LAYER_STATE state;
+    if (!client->GetLayerState(uniqId, &state)) return 1;
+    printf("Watching UniqId=%08X (Ctrl+C to stop)\n", uniqId);
+    PrintLayerState(state);
+    for (;;) {
+        bool cancelled = false;
+        ULONG lastSeq = state.Seq;
+        if (!client->WaitLayerChange(uniqId, lastSeq, &state, &cancelled)) {
+            return cancelled ? 0 : 1;
+        }
+        PrintLayerState(state);
+    }
+}
+
+// --set-layer <UniqIdHex> on|off|toggle <layer> / mask <hexMask> [--no-nicola-keys]
+// アプリ管理レイヤーは、立てたハンドルを閉じると下ろされる。そのため、Enterを押すまで
+// ハンドルを開いたまま待つ（そのままKeymapToolを強制終了すると、ハンドルのクローズで
+// 下ろされることも確認できる）。
+int CmdSetLayer(IoctlClient* client, ULONG uniqId, const char* opName, const char* value, bool noNicolaKeys) {
+    ULONG op;
+    ULONG layer = 0;
+    ULONG mask = 0;
+
+    if (strcmp(opName, "on") == 0) {
+        op = KBDLAYER_LAYER_OP_ON;
+    } else if (strcmp(opName, "off") == 0) {
+        op = KBDLAYER_LAYER_OP_OFF;
+    } else if (strcmp(opName, "toggle") == 0) {
+        op = KBDLAYER_LAYER_OP_TOGGLE;
+    } else if (strcmp(opName, "mask") == 0) {
+        op = KBDLAYER_LAYER_OP_SET_MASK;
+    } else {
+        fprintf(stderr, "--set-layer: operation must be on / off / toggle / mask\n");
+        return 1;
+    }
+    if (op == KBDLAYER_LAYER_OP_SET_MASK) {
+        if (!ParseHexU32(value, &mask)) {
+            fprintf(stderr, "--set-layer mask: \"%s\" is not a hex mask (e.g. 02)\n", value);
+            return 1;
+        }
+    } else {
+        char* end = nullptr;
+        layer = (ULONG)strtoul(value, &end, 10);
+        if (end == value || *end != '\0') {
+            fprintf(stderr, "--set-layer: \"%s\" is not a layer number\n", value);
+            return 1;
+        }
+    }
+
+    KBDLAYER_LAYER_STATE state;
+    ULONG flags = noNicolaKeys ? KBDLAYER_LAYER_STATE_FLAG_NO_NICOLA_KEYS : 0;
+    if (!client->SetLayerState(uniqId, op, layer, mask, flags, &state)) return 1;
+    printf("SET_LAYER_STATE ok. UniqId=%08X ", uniqId);
+    PrintLayerState(state);
+    printf("The app-managed layers stay on while this command runs. Press Enter to release them and exit.\n");
+    (void)getchar();
+    return 0;
+}
+
 // --dump-nicola <nicola.json>: ドライバに送らず、展開結果だけを表示する。
 int CmdDumpNicola(const char* jsonPath) {
     std::vector<unsigned char> blob;
@@ -603,6 +680,14 @@ void PrintUsage() {
         "      Show / remove the NICOLA layout loaded in the driver.\n"
         "  KeymapTool.exe --dump-nicola <nicola.json>\n"
         "      Show what --set-nicola would send, without touching the driver.\n"
+        "  KeymapTool.exe --get-layer-state <UniqIdHex>\n"
+        "      Show the current layer state (keyboard layers, app-managed layers, NICOLA on/off).\n"
+        "  KeymapTool.exe --watch-layer <UniqIdHex>\n"
+        "      Print a line every time the layer state changes (Ctrl+C to stop).\n"
+        "  KeymapTool.exe --set-layer <UniqIdHex> on|off|toggle <layer> [--no-nicola-keys]\n"
+        "  KeymapTool.exe --set-layer <UniqIdHex> mask <hexMask> [--no-nicola-keys]\n"
+        "      Turn app-managed layers on/off. They stay on until you press Enter (or this\n"
+        "      command is killed). --no-nicola-keys: do not send NICOLA's onEnter/onExit keys.\n"
         "\n"
         "  UniqIdHex is the value shown by --list (e.g. A1B20000).\n");
 }
@@ -730,6 +815,25 @@ int main(int rawArgc, char** rawArgv) {
         ULONG uniqId;
         if (argc < 3 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
         return CmdGetNicola(&client, uniqId);
+    }
+
+    if (strcmp(cmd, "--get-layer-state") == 0) {
+        ULONG uniqId;
+        if (argc < 3 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
+        return CmdGetLayerState(&client, uniqId);
+    }
+
+    if (strcmp(cmd, "--watch-layer") == 0) {
+        ULONG uniqId;
+        if (argc < 3 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
+        return CmdWatchLayer(&client, uniqId);
+    }
+
+    if (strcmp(cmd, "--set-layer") == 0) {
+        ULONG uniqId;
+        if (argc < 5 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
+        bool noNicolaKeys = (argc >= 6 && strcmp(argv[5], "--no-nicola-keys") == 0);
+        return CmdSetLayer(&client, uniqId, argv[3], argv[4], noNicolaKeys);
     }
 
     if (strcmp(cmd, "--clear-nicola") == 0) {

@@ -113,6 +113,10 @@ DispatchControlCreateClose(
 
     if (irpSp->MajorFunction == IRP_MJ_CLEANUP && irpSp->FileObject != NULL) {
         ReleaseCaptureSuppressForOwner(irpSp->FileObject);
+        // そのハンドルで保留中のWAIT_LAYER_CHANGEを終わらせ、そのハンドルが立てた
+        // アプリ管理レイヤーを下ろす（アプリが落ちてもレイヤーが立ちっぱなしにならない）。
+        LayerNotifyCleanupOwner(irpSp->FileObject);
+        ReleaseAppLayersForOwner(irpSp->FileObject);
     }
 
     Irp->IoStatus.Status = STATUS_SUCCESS;
@@ -868,6 +872,128 @@ HandleGetNicola(
     return STATUS_SUCCESS;
 }
 
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleGetLayerState(
+    _In_ PIRP Irp,
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    ULONG outputLen = IrpSp->Parameters.DeviceIoControl.OutputBufferLength;
+    PKBDLAYER_TARGET target = (PKBDLAYER_TARGET)SystemBuffer;
+    PDEVICE_EXTENSION devExt;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_TARGET)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (outputLen < sizeof(KBDLAYER_LAYER_STATE)) {
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+
+    devExt = FindDeviceExtensionByUniqId(target->UniqId, Irp);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    // METHOD_BUFFERED: 読み終えたtargetの上に出力を書く。
+    GetLayerStateForDevice(devExt, (PKBDLAYER_LAYER_STATE)SystemBuffer);
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+
+    *BytesReturned = sizeof(KBDLAYER_LAYER_STATE);
+    return STATUS_SUCCESS;
+}
+
+// レイヤー状態の変化を待つ。IRPは保留（STATUS_PENDING）にし、LayerNotify.cが完了させる
+// （HandleCaptureNextKeyと同じく、FindDeviceExtensionByUniqIdが取得したremove lockを
+// そのまま保留IRPに持たせる）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleWaitLayerChange(
+    _In_ PIRP Irp,
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    ULONG outputLen = IrpSp->Parameters.DeviceIoControl.OutputBufferLength;
+    PKBDLAYER_WAIT_LAYER_CHANGE_INPUT input = (PKBDLAYER_WAIT_LAYER_CHANGE_INPUT)SystemBuffer;
+    PDEVICE_EXTENSION devExt;
+    ULONG lastSeq;
+    NTSTATUS status;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_WAIT_LAYER_CHANGE_INPUT)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (outputLen < sizeof(KBDLAYER_LAYER_STATE)) {
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+
+    // METHOD_BUFFERED: 出力は同じバッファに後で書かれるので、入力は先に読んでおく。
+    lastSeq = input->LastSeq;
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId, Irp);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    // STATUS_PENDINGなら、IRPの完了とremove lockの解放はLayerNotify.c側が行う。
+    status = StartWaitLayerChange(devExt, Irp, lastSeq);
+    if (status != STATUS_PENDING) {
+        IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+    }
+    return status;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleSetLayerState(
+    _In_ PIRP Irp,
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    ULONG outputLen = IrpSp->Parameters.DeviceIoControl.OutputBufferLength;
+    PKBDLAYER_SET_LAYER_STATE_INPUT input = (PKBDLAYER_SET_LAYER_STATE_INPUT)SystemBuffer;
+    KBDLAYER_SET_LAYER_STATE_INPUT params;
+    KBDLAYER_LAYER_STATE state;
+    PDEVICE_EXTENSION devExt;
+    NTSTATUS status;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_SET_LAYER_STATE_INPUT)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    // METHOD_BUFFERED: 出力（任意）が同じバッファに書かれるので、入力を先に写しておく。
+    params = *input;
+
+    devExt = FindDeviceExtensionByUniqId(params.Target.UniqId, Irp);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    // このハンドル（FILE_OBJECT）がアプリ管理レイヤーの所有者になる。クローズ時の
+    // IRP_MJ_CLEANUPでDispatchControlCreateCloseが同じFILE_OBJECTをキーに下ろす。
+    status = SetAppLayerStateForDevice(devExt, params.Op, params.Layer, params.Mask, params.Flags,
+                                       IrpSp->FileObject, &state);
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+
+    if (NT_SUCCESS(status) && outputLen >= sizeof(KBDLAYER_LAYER_STATE)) {
+        RtlCopyMemory(SystemBuffer, &state, sizeof(state));
+        *BytesReturned = sizeof(KBDLAYER_LAYER_STATE);
+    }
+    return status;
+}
+
 NTSTATUS
 DispatchControlIoctl(
     IN PDEVICE_OBJECT DeviceObject,
@@ -938,6 +1064,20 @@ DispatchControlIoctl(
         break;
     case IOCTL_KBDLAYER_GET_NICOLA:
         status = HandleGetNicola(Irp, irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_GET_LAYER_STATE:
+        status = HandleGetLayerState(Irp, irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_WAIT_LAYER_CHANGE:
+        status = HandleWaitLayerChange(Irp, irpSp, systemBuffer, &bytesReturned);
+        if (status == STATUS_PENDING) {
+            // IRPは保留中（LayerNotify.cのStartWaitLayerChangeがキューへ入れ、
+            // IoMarkIrpPending済み）。ここで完了させてはならない。
+            return STATUS_PENDING;
+        }
+        break;
+    case IOCTL_KBDLAYER_SET_LAYER_STATE:
+        status = HandleSetLayerState(Irp, irpSp, systemBuffer, &bytesReturned);
         break;
     default:
         status = STATUS_INVALID_DEVICE_REQUEST;
