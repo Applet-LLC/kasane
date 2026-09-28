@@ -348,6 +348,79 @@ HandleSetLayerMapEnabled(
     return status;
 }
 
+// E-2: DeviceIdは一意でない前提で設計する（common/kbdlayer_ioctl.hのコメント参照）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleGetDeviceScope(
+    _In_ PIRP Irp,
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    ULONG outputLen = IrpSp->Parameters.DeviceIoControl.OutputBufferLength;
+    PKBDLAYER_TARGET target = (PKBDLAYER_TARGET)SystemBuffer;
+    PDEVICE_EXTENSION devExt;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_TARGET)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (outputLen < sizeof(KBDLAYER_DEVICE_SCOPE)) {
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+
+    devExt = FindDeviceExtensionByUniqId(target->UniqId, Irp);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    // METHOD_BUFFERED: 読み終えたtargetの上に出力を書く。
+    GetDeviceScopeForDevice(devExt, (PKBDLAYER_DEVICE_SCOPE)SystemBuffer);
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+
+    *BytesReturned = sizeof(KBDLAYER_DEVICE_SCOPE);
+    return STATUS_SUCCESS;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleSetDeviceScope(
+    _In_ PIRP Irp,
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    ULONG outputLen = IrpSp->Parameters.DeviceIoControl.OutputBufferLength;
+    PKBDLAYER_SET_DEVICE_SCOPE_INPUT input = (PKBDLAYER_SET_DEVICE_SCOPE_INPUT)SystemBuffer;
+    PDEVICE_EXTENSION devExt;
+    NTSTATUS status;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_SET_DEVICE_SCOPE_INPUT)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId, Irp);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    status = SetDeviceScopeForDevice(devExt, input->Binding);
+    if (NT_SUCCESS(status) && outputLen >= sizeof(KBDLAYER_DEVICE_SCOPE)) {
+        // METHOD_BUFFERED: 読み終えたinputの上に出力を書く（任意）。
+        GetDeviceScopeForDevice(devExt, (PKBDLAYER_DEVICE_SCOPE)SystemBuffer);
+        *BytesReturned = sizeof(KBDLAYER_DEVICE_SCOPE);
+    }
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+    return status;
+}
+
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static NTSTATUS
 HandleSetConfig(
@@ -1078,6 +1151,12 @@ DispatchControlIoctl(
         break;
     case IOCTL_KBDLAYER_SET_LAYER_STATE:
         status = HandleSetLayerState(Irp, irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_GET_DEVICE_SCOPE:
+        status = HandleGetDeviceScope(Irp, irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_SET_DEVICE_SCOPE:
+        status = HandleSetDeviceScope(Irp, irpSp, systemBuffer, &bytesReturned);
         break;
     default:
         status = STATUS_INVALID_DEVICE_REQUEST;
