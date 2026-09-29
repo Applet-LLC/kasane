@@ -225,6 +225,17 @@ typedef struct _DEVICE_EXTENSION {
     // 待機中に届いても、NumLockや次のスロットとして誤記録しないため）。
     BOOLEAN CaptureSkipAfterE1;
 
+    // --- 緊急時の解除手段（release-roadmap-priority.md 項番3） ---
+    // グローバル設定（g_EmergencyKeyCount/g_EmergencyScanCodes、LayerEngine.c）のうち、
+    // このデバイスで現在押されている物理キーのビットマスク。全ビットが揃ってから
+    // KBDLAYER_EMERGENCY_HOLD_MS 経過したら、接続中の全キーボードを一括でOFFにする
+    // （EmergencyDpcRoutine→ワークアイテム。common/kbdlayer_ioctl.hのコメント参照）。
+    // devExt->OutputLock保持中に読み書きすること（Hold/Combo/TapDanceと同じKTIMER+KDPCの組）。
+    UCHAR EmergencyKeysDownMask;
+    KTIMER EmergencyTimer;
+    KDPC EmergencyDpc;
+    ULONGLONG EmergencyDeadline;
+
     // --- キャリブレーション用の入力抑止（IOCTL_KBDLAYER_SET_CAPTURE_SUPPRESS）---
     // ResolveCalibration（LayerEngine.c）がEngineLock保持中に参照・更新する。
     BOOLEAN SuppressActive;         // TRUE = 押下イベントをOSへ渡さずに捨てる

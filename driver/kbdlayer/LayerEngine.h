@@ -557,6 +557,59 @@ SetDeviceScopeForDevice(
     _In_ ULONG NewBinding
     );
 
+// --- 緊急時の解除手段（release-roadmap-priority.md 項番3。common/kbdlayer_ioctl.hの
+// コメントと .plans/emergency-release.md 参照） ---
+
+// DriverEntryから、CreateControlDevice成功後に1回だけ呼ぶ: レジストリの
+// Parameters\EmergencyRelease から設定を読み込む（無ければ既定の組み合わせ
+// [左右Ctrl+左右Shift]を使う）。ワークアイテムをControlDeviceObjectへ紐づけて確保する。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+InitializeEmergencyReleaseGlobal(
+    _In_ PDEVICE_OBJECT ControlDeviceObject
+    );
+
+// TeardownControlDeviceから、IoDeleteDeviceの前に呼ぶ: ワークアイテムを解放する。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+TeardownEmergencyReleaseGlobal(
+    VOID
+    );
+
+// AddDeviceから呼ばれる: devExt->EmergencyTimer/EmergencyDpcを初期化する。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+InitializeEmergencyReleaseState(
+    _In_ PDEVICE_EXTENSION devExt
+    );
+
+// ServiceCallbackの先頭（ResolveCalibrationより前、OutputLock保持中）から、生の
+// 物理スキャンコードのバッチをそのまま渡して呼ぶ。イベント自体は書き換えない
+// （観測のみ）。組み合わせが揃ってKBDLAYER_EMERGENCY_HOLD_MS経過すると、
+// devExt->EmergencyDpcが接続中の全キーボードを一括でOFFにする処理を起動する。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+CheckEmergencyRelease(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd
+    );
+
+// GET/SET_EMERGENCY_RELEASE の実体。ドライバ全体の設定なので特定のdevExtを取らない。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+GetEmergencyReleaseConfig(
+    _Out_ PKBDLAYER_EMERGENCY_RELEASE_CONFIG OutConfig
+    );
+
+// KeyCountがKBDLAYER_EMERGENCY_MIN_KEYS〜MAX_KEYS以外、または重複したScanCodesが
+// あればSTATUS_INVALID_PARAMETER。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetEmergencyReleaseConfig(
+    _In_ PKBDLAYER_EMERGENCY_RELEASE_CONFIG Config
+    );
+
 // --- キャリブレーションウィザード（ControlDevice.cのCAPTURE_NEXT_KEYハンドラから） ---
 
 // AddDeviceから呼ばれる: CaptureTimer/CaptureDpcを初期化する。

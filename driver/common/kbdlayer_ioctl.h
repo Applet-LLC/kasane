@@ -474,6 +474,29 @@ typedef struct _KBDLAYER_SET_DEVICE_SCOPE_INPUT {
     ULONG Binding; // KBDLAYER_BINDING_*
 } KBDLAYER_SET_DEVICE_SCOPE_INPUT, *PKBDLAYER_SET_DEVICE_SCOPE_INPUT;
 
+// --- 緊急時の解除手段（release-roadmap-priority.md 項番3） ---
+//
+// 設定ミスで入力できなくなったときの逃げ道。指定した物理キーの組み合わせ（ScanCodes、
+// Enc16形式）を KBDLAYER_EMERGENCY_HOLD_MS 以上同時に押し続けると、その時点で接続中の
+// 全キーボードのレイヤーマップを一括でOFFにする（マップ自体は消さない。既存の
+// IOCTL_KBDLAYER_SET_LAYERMAP_ENABLED(Enabled=0) と同じ効果を全台へ適用し、永続化する）。
+// 判定はレイヤーマップ解決より前の生の物理スキャンコード段階で行うため、マップ・マクロ・
+// コンボの内容がどれだけ壊れていても必ず動く。ドライバ全体で1つの設定（キーボードごとでは
+// ない）なので、これらのIOCTLは KBDLAYER_TARGET を取らない。
+// 詳細: .plans/emergency-release.md
+
+#define KBDLAYER_EMERGENCY_MIN_KEYS 2
+#define KBDLAYER_EMERGENCY_MAX_KEYS 6
+#define KBDLAYER_EMERGENCY_HOLD_MS  3000 // 固定（IOCTLでは変更できない）
+
+// IOCTL_KBDLAYER_GET/SET_EMERGENCY_RELEASE の入出力。
+// KeyCount は常に KBDLAYER_EMERGENCY_MIN_KEYS〜KBDLAYER_EMERGENCY_MAX_KEYS
+// （0は許可しない。安全網そのものを無効化させないため）。ScanCodesはKeyCount個が有効。
+typedef struct _KBDLAYER_EMERGENCY_RELEASE_CONFIG {
+    ULONG KeyCount;
+    USHORT ScanCodes[KBDLAYER_EMERGENCY_MAX_KEYS];
+} KBDLAYER_EMERGENCY_RELEASE_CONFIG, *PKBDLAYER_EMERGENCY_RELEASE_CONFIG;
+
 #pragma pack(pop)
 
 // IOCTL_INTERNAL_KEYBOARD_CONNECT 等の既存IOCTLと衝突しないよう、
@@ -541,5 +564,11 @@ typedef struct _KBDLAYER_SET_DEVICE_SCOPE_INPUT {
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x814, METHOD_BUFFERED, FILE_READ_ACCESS)
 #define IOCTL_KBDLAYER_SET_DEVICE_SCOPE \
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x815, METHOD_BUFFERED, FILE_WRITE_ACCESS)
+// 緊急解除の組み合わせを変更できるのは管理者のみ（変更を悪用されると解除手段そのものを
+// 無力化されうるため、SET_LAYERMAP等の書き込み系と同じ扱いにする）。読み出しは誰でもよい。
+#define IOCTL_KBDLAYER_GET_EMERGENCY_RELEASE \
+    CTL_CODE(FILE_DEVICE_KBDLAYER, 0x816, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_KBDLAYER_SET_EMERGENCY_RELEASE \
+    CTL_CODE(FILE_DEVICE_KBDLAYER, 0x817, METHOD_BUFFERED, FILE_WRITE_ACCESS)
 
 #endif // _KBDLAYER_COMMON_IOCTL_H_

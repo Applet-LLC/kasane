@@ -433,6 +433,50 @@ int CmdSetScope(IoctlClient* client, ULONG uniqId, const char* bindingName) {
     return 0;
 }
 
+void PrintEmergencyReleaseConfig(const KBDLAYER_EMERGENCY_RELEASE_CONFIG& c) {
+    printf("KeyCount=%lu HoldMs=%u ScanCodes=", c.KeyCount, KBDLAYER_EMERGENCY_HOLD_MS);
+    for (ULONG i = 0; i < c.KeyCount; i++) {
+        printf("%s0x%04X", (i > 0) ? "," : "", c.ScanCodes[i]);
+    }
+    printf("\n");
+}
+
+// --get-emergency-release: 緊急時の解除手段（項番3）の現在の組み合わせを表示する。
+int CmdGetEmergencyRelease(IoctlClient* client) {
+    KBDLAYER_EMERGENCY_RELEASE_CONFIG config;
+    if (!client->GetEmergencyRelease(&config)) return 1;
+    PrintEmergencyReleaseConfig(config);
+    return 0;
+}
+
+// --set-emergency-release KC_xxx KC_yyy [...]: 2〜6個の異なるキーを、保持し続けたときの
+// 組み合わせとして登録する。押し続けるとKBDLAYER_EMERGENCY_HOLD_MS後に、接続中の
+// 全キーボードのレイヤーマップが一括でOFFになる。
+int CmdSetEmergencyRelease(IoctlClient* client, int argc, char** argv) {
+    KBDLAYER_EMERGENCY_RELEASE_CONFIG config;
+    RtlZeroMemory(&config, sizeof(config));
+
+    if (argc < (int)KBDLAYER_EMERGENCY_MIN_KEYS || argc > (int)KBDLAYER_EMERGENCY_MAX_KEYS) {
+        fprintf(stderr, "--set-emergency-release: need %d-%d KC_* keys (got %d)\n",
+                KBDLAYER_EMERGENCY_MIN_KEYS, KBDLAYER_EMERGENCY_MAX_KEYS, argc);
+        return 1;
+    }
+    config.KeyCount = (ULONG)argc;
+    for (int i = 0; i < argc; i++) {
+        KeycodeMapping mapping;
+        if (!KeycodeTable::Resolve(argv[i], &mapping) || mapping.ActionType != KBDLAYER_ACTION_KEY) {
+            fprintf(stderr, "--set-emergency-release: \"%s\" is not a plain key\n", argv[i]);
+            return 1;
+        }
+        config.ScanCodes[i] = mapping.Param2;
+    }
+
+    if (!client->SetEmergencyRelease(config)) return 1;
+    printf("SET_EMERGENCY_RELEASE ok. ");
+    PrintEmergencyReleaseConfig(config);
+    return 0;
+}
+
 // --watch-layer <UniqIdHex>: レイヤー状態が変わるたびに1行表示する（Ctrl+Cで終了）。
 int CmdWatchLayer(IoctlClient* client, ULONG uniqId) {
     KBDLAYER_LAYER_STATE state;
@@ -738,6 +782,15 @@ void PrintUsage() {
         "  KeymapTool.exe --set-scope <UniqIdHex> model|instance\n"
         "      Switch the persisted-settings scope. Switching from model to instance first\n"
         "      copies the current settings so nothing appears to disappear.\n"
+        "  KeymapTool.exe --get-emergency-release\n"
+        "      Show the emergency-release key combination (driver-wide, not per-keyboard).\n"
+        "  KeymapTool.exe --set-emergency-release KC_xxx KC_yyy [...]\n"
+        "      Set the emergency-release combination (2-6 distinct keys). Holding all of\n"
+        "      them down for 3 seconds on any connected keyboard turns off every\n"
+        "      keyboard's layer map at once (same effect as --off on all of them). This\n"
+        "      works no matter how broken the current layer map is, since it is checked\n"
+        "      on the raw physical scancodes before any layer/macro/combo resolution.\n"
+        "      Default if never set: KC_LCTL KC_RCTL KC_LSFT KC_RSFT.\n"
         "\n"
         "  UniqIdHex is the value shown by --list (e.g. A1B20000).\n");
 }
@@ -896,6 +949,14 @@ int main(int rawArgc, char** rawArgv) {
         ULONG uniqId;
         if (argc < 4 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
         return CmdSetScope(&client, uniqId, argv[3]);
+    }
+
+    if (strcmp(cmd, "--get-emergency-release") == 0) {
+        return CmdGetEmergencyRelease(&client);
+    }
+
+    if (strcmp(cmd, "--set-emergency-release") == 0) {
+        return CmdSetEmergencyRelease(&client, argc - 2, argv + 2);
     }
 
     if (strcmp(cmd, "--clear-nicola") == 0) {

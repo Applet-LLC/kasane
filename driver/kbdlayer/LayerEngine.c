@@ -40,6 +40,13 @@
 #define KBDLAYER_NICOLA_VALUE_NAME L"Nicola"
 #define KBDLAYER_REGTEMP_POOL_TAG 'tLdK'
 
+// 緊急時の解除手段（release-roadmap-priority.md 項番3）。ドライバ全体で1つの設定
+// （キーボードごとではない）なので、他のLayerMapsサブキーとは別の場所へ持つ。
+#define KBDLAYER_EMERGENCY_SUBKEY L"EmergencyRelease"
+#define KBDLAYER_EMERGENCY_KEYCOUNT_VALUE_NAME L"EmergencyReleaseKeyCount"
+#define KBDLAYER_EMERGENCY_SCANCODES_VALUE_NAME L"EmergencyReleaseScanCodes"
+#define KBDLAYER_EMERGENCY_MAX_TARGETS 64 // 一括OFF処理で同時に扱うキーボードの上限
+
 // マクロの永続化形式（レジストリ"Macros"値）。KBDLAYER_MAX_MACRO_COUNT個ぶん
 // 固定サイズで連続して並べる。devExt->MacroStepCounts/Macros（別々の配列）とは
 // レイアウトが異なるため、そのままmemcpyはできず明示的なシリアライズ/
@@ -2317,6 +2324,320 @@ SetLayerMapEnabledForDevice(
     // （アプリ管理レイヤーはOFFでも消さない。持ち主のアプリが下ろす）
     LayerNotifyIfChanged(devExt);
     return STATUS_SUCCESS;
+}
+
+// ---------------------------------------------------------------------------
+// 緊急時の解除手段（release-roadmap-priority.md 項番3。common/kbdlayer_ioctl.hの
+// コメントと .plans/emergency-release.md 参照）
+// ---------------------------------------------------------------------------
+
+// ドライバ全体の設定（グローバル）。g_EmergencyConfigLockで保護する。CheckEmergencyRelease
+// （devExt->OutputLock保持中、DISPATCH_LEVEL）から読むため、KSPIN_LOCKで保護する
+// （PASSIVE_LEVELの書き込み側もこれを使う。ロック順序: OutputLock → g_EmergencyConfigLock、
+// 一方向のみ）。
+static KSPIN_LOCK g_EmergencyConfigLock;
+static ULONG g_EmergencyKeyCount = 0;
+static USHORT g_EmergencyScanCodes[KBDLAYER_EMERGENCY_MAX_KEYS];
+static PIO_WORKITEM g_EmergencyWorkItem = NULL;
+static LONG g_EmergencyReleaseInFlight = 0;
+
+// 一度も設定していない場合の既定値: 左右Ctrl + 左右Shift（Enc16）。
+static const USHORT g_DefaultEmergencyScanCodes[4] = { 0x001D, 0xE01D, 0x002A, 0x0036 };
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+GetEmergencyReleaseConfig(
+    _Out_ PKBDLAYER_EMERGENCY_RELEASE_CONFIG OutConfig
+    )
+{
+    KIRQL oldIrql;
+
+    KeAcquireSpinLock(&g_EmergencyConfigLock, &oldIrql);
+    OutConfig->KeyCount = g_EmergencyKeyCount;
+    RtlCopyMemory(OutConfig->ScanCodes, g_EmergencyScanCodes, sizeof(OutConfig->ScanCodes));
+    KeReleaseSpinLock(&g_EmergencyConfigLock, oldIrql);
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetEmergencyReleaseConfig(
+    _In_ PKBDLAYER_EMERGENCY_RELEASE_CONFIG Config
+    )
+{
+    KIRQL oldIrql;
+    NTSTATUS status;
+    NTSTATUS scStatus;
+
+    PAGED_CODE();
+
+    if (Config->KeyCount < KBDLAYER_EMERGENCY_MIN_KEYS || Config->KeyCount > KBDLAYER_EMERGENCY_MAX_KEYS) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    // 重複キーは拒否する（同じ物理キーが2回指定されると、全ビットが揃うことがなくなり
+    // 実質的な無効化と同じになるため）。
+    for (ULONG i = 0; i < Config->KeyCount; i++) {
+        for (ULONG j = i + 1; j < Config->KeyCount; j++) {
+            if (Config->ScanCodes[i] == Config->ScanCodes[j]) {
+                return STATUS_INVALID_PARAMETER;
+            }
+        }
+    }
+
+    KeAcquireSpinLock(&g_EmergencyConfigLock, &oldIrql);
+    g_EmergencyKeyCount = Config->KeyCount;
+    RtlZeroMemory(g_EmergencyScanCodes, sizeof(g_EmergencyScanCodes));
+    RtlCopyMemory(g_EmergencyScanCodes, Config->ScanCodes, Config->KeyCount * sizeof(USHORT));
+    KeReleaseSpinLock(&g_EmergencyConfigLock, oldIrql);
+
+    status = RegWriteDword(KBDLAYER_SERVICE_NAME, KBDLAYER_EMERGENCY_SUBKEY,
+                            KBDLAYER_EMERGENCY_KEYCOUNT_VALUE_NAME, Config->KeyCount);
+    scStatus = RegWriteBinary(KBDLAYER_SERVICE_NAME, KBDLAYER_EMERGENCY_SUBKEY,
+                               KBDLAYER_EMERGENCY_SCANCODES_VALUE_NAME,
+                               Config->ScanCodes, Config->KeyCount * sizeof(USHORT));
+    if (!NT_SUCCESS(status)) {
+        DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
+                   "kbdlayer: failed to persist %ws, status=0x%08X\n", KBDLAYER_EMERGENCY_KEYCOUNT_VALUE_NAME, status);
+    }
+    if (!NT_SUCCESS(scStatus)) {
+        DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
+                   "kbdlayer: failed to persist %ws, status=0x%08X\n", KBDLAYER_EMERGENCY_SCANCODES_VALUE_NAME, scStatus);
+    }
+
+    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_WARNING_LEVEL,
+               "kbdlayer: emergency release combo changed, KeyCount=%lu\n", Config->KeyCount);
+
+    return STATUS_SUCCESS; // ライブの設定は既に反映済み（他のSet*と同じ方針）
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+InitializeEmergencyReleaseGlobal(
+    _In_ PDEVICE_OBJECT ControlDeviceObject
+    )
+{
+    ULONG keyCount = 0;
+    USHORT scanCodes[KBDLAYER_EMERGENCY_MAX_KEYS] = {0};
+    ULONG actualLength = 0;
+    KIRQL oldIrql;
+
+    PAGED_CODE();
+
+    KeInitializeSpinLock(&g_EmergencyConfigLock);
+
+    RegReadDwordEx(KBDLAYER_SERVICE_NAME, KBDLAYER_EMERGENCY_SUBKEY,
+                    KBDLAYER_EMERGENCY_KEYCOUNT_VALUE_NAME, &keyCount, 0);
+    if (keyCount >= KBDLAYER_EMERGENCY_MIN_KEYS && keyCount <= KBDLAYER_EMERGENCY_MAX_KEYS) {
+        NTSTATUS status = RegReadBinary(KBDLAYER_SERVICE_NAME, KBDLAYER_EMERGENCY_SUBKEY,
+                                         KBDLAYER_EMERGENCY_SCANCODES_VALUE_NAME,
+                                         scanCodes, sizeof(scanCodes), &actualLength);
+        if (!NT_SUCCESS(status) || actualLength != keyCount * sizeof(USHORT)) {
+            DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
+                       "kbdlayer: EmergencyReleaseScanCodes missing/corrupt (status=0x%08X, length=%lu, expected=%lu); "
+                       "falling back to the default combo\n", status, actualLength, keyCount * (ULONG)sizeof(USHORT));
+            keyCount = 0;
+        }
+    } else {
+        keyCount = 0;
+    }
+
+    if (keyCount == 0) {
+        keyCount = RTL_NUMBER_OF(g_DefaultEmergencyScanCodes);
+        RtlCopyMemory(scanCodes, g_DefaultEmergencyScanCodes, sizeof(g_DefaultEmergencyScanCodes));
+    }
+
+    KeAcquireSpinLock(&g_EmergencyConfigLock, &oldIrql);
+    g_EmergencyKeyCount = keyCount;
+    RtlCopyMemory(g_EmergencyScanCodes, scanCodes, keyCount * sizeof(USHORT));
+    KeReleaseSpinLock(&g_EmergencyConfigLock, oldIrql);
+
+    g_EmergencyWorkItem = IoAllocateWorkItem(ControlDeviceObject);
+    if (g_EmergencyWorkItem == NULL) {
+        DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
+                   "kbdlayer: IoAllocateWorkItem failed; emergency release will not be able to act\n");
+    }
+
+    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
+               "kbdlayer: emergency release armed, KeyCount=%lu\n", keyCount);
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+TeardownEmergencyReleaseGlobal(
+    VOID
+    )
+{
+    PAGED_CODE();
+
+    if (g_EmergencyWorkItem != NULL) {
+        IoFreeWorkItem(g_EmergencyWorkItem);
+        g_EmergencyWorkItem = NULL;
+    }
+}
+
+// 接続中の全キーボードのレイヤーマップを一括でOFFにする実処理。PASSIVE_LEVELで動く
+// ワークアイテムのルーチン（IoQueueWorkItem/DelayedWorkQueue）。EmergencyDpcRoutine
+// （DISPATCH_LEVEL）から、SetLayerMapEnabledForDevice（PASSIVE_LEVEL・レジストリI/O）を
+// 直接呼べないためにこの形にしている。
+_Function_class_(IO_WORKITEM_ROUTINE)
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static VOID
+EmergencyReleaseWorkRoutine(
+    _In_ PDEVICE_OBJECT WorkItemDeviceObject,
+    _In_opt_ PVOID Context
+    )
+{
+    PDEVICE_EXTENSION targets[KBDLAYER_EMERGENCY_MAX_TARGETS];
+    ULONG targetCount = 0;
+    KIRQL oldIrql;
+    PLIST_ENTRY entry;
+    PDEVICE_EXTENSION devExt;
+
+    UNREFERENCED_PARAMETER(WorkItemDeviceObject);
+    UNREFERENCED_PARAMETER(Context);
+    PAGED_CODE();
+
+    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_WARNING_LEVEL,
+               "kbdlayer: EMERGENCY RELEASE triggered, disabling all layer maps\n");
+
+    // B-1: remove lockはg_listLockを保持したまま取得し（PnPによる削除との競合防止）、
+    // 実際のSetLayerMapEnabledForDevice呼び出し（PASSIVE_LEVEL・レジストリI/O）は
+    // g_listLockを解放してから行う（スピンロック保持中にPAGEDコードを呼ばない）。
+    KeAcquireSpinLock(&g_listLock, &oldIrql);
+    for (entry = g_deviceList.Flink;
+         entry != &g_deviceList && targetCount < KBDLAYER_EMERGENCY_MAX_TARGETS;
+         entry = entry->Flink) {
+        devExt = CONTAINING_RECORD(entry, DEVICE_EXTENSION, ListEntry);
+        if (devExt->DeviceId == 0) {
+            continue;
+        }
+        if (NT_SUCCESS(IoAcquireRemoveLock(&devExt->RemoveLock, NULL))) {
+            targets[targetCount++] = devExt;
+        }
+    }
+    KeReleaseSpinLock(&g_listLock, oldIrql);
+
+    for (ULONG i = 0; i < targetCount; i++) {
+        SetLayerMapEnabledForDevice(targets[i], FALSE);
+        IoReleaseRemoveLock(&targets[i]->RemoveLock, NULL);
+    }
+
+    InterlockedExchange(&g_EmergencyReleaseInFlight, 0);
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+QueueEmergencyReleaseWorkItem(
+    VOID
+    )
+{
+    if (g_EmergencyWorkItem == NULL) {
+        return; // InitializeEmergencyReleaseGlobalでの割り当てに失敗している
+    }
+    if (InterlockedCompareExchange(&g_EmergencyReleaseInFlight, 1, 0) == 0) {
+        IoQueueWorkItem(g_EmergencyWorkItem, EmergencyReleaseWorkRoutine, DelayedWorkQueue, NULL);
+    }
+}
+
+// HoldTimer/ComboTimer/TapDanceTimerと同じKTIMER+KDPCの組。組み合わせの全キーが
+// 揃った状態でKBDLAYER_EMERGENCY_HOLD_MS経過したときに起動する。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+EmergencyDpcRoutine(
+    _In_ PKDPC Dpc,
+    _In_opt_ PVOID DeferredContext,
+    _In_opt_ PVOID SystemArgument1,
+    _In_opt_ PVOID SystemArgument2
+    )
+{
+    PDEVICE_EXTENSION devExt = (PDEVICE_EXTENSION)DeferredContext;
+    ULONG keyCount;
+    BOOLEAN shouldTrigger;
+
+    UNREFERENCED_PARAMETER(Dpc);
+    UNREFERENCED_PARAMETER(SystemArgument1);
+    UNREFERENCED_PARAMETER(SystemArgument2);
+
+    if (devExt == NULL) {
+        return;
+    }
+
+    KeAcquireSpinLockAtDpcLevel(&devExt->OutputLock);
+    keyCount = g_EmergencyKeyCount; // 単純な読み出し。SetのタイミングとDPCが競合しても
+                                     // 「その瞬間のマスクと比べて古い/新しいKeyCount」を
+                                     // 使うだけで、最悪もう一度押し直せば確実に発動する。
+    shouldTrigger = (keyCount >= KBDLAYER_EMERGENCY_MIN_KEYS) &&
+                    (devExt->EmergencyKeysDownMask == (UCHAR)((1U << keyCount) - 1)) &&
+                    (KeQueryInterruptTime() >= devExt->EmergencyDeadline);
+    KeReleaseSpinLockFromDpcLevel(&devExt->OutputLock);
+
+    if (shouldTrigger) {
+        QueueEmergencyReleaseWorkItem();
+    }
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+InitializeEmergencyReleaseState(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    KeInitializeTimer(&devExt->EmergencyTimer);
+    KeInitializeDpc(&devExt->EmergencyDpc, EmergencyDpcRoutine, devExt);
+    devExt->EmergencyKeysDownMask = 0;
+    devExt->EmergencyDeadline = 0;
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+CheckEmergencyRelease(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd
+    )
+{
+    ULONG keyCount;
+    USHORT scanCodes[KBDLAYER_EMERGENCY_MAX_KEYS];
+    UCHAR fullMask;
+    KIRQL oldIrql;
+
+    KeAcquireSpinLock(&g_EmergencyConfigLock, &oldIrql);
+    keyCount = g_EmergencyKeyCount;
+    RtlCopyMemory(scanCodes, g_EmergencyScanCodes, sizeof(scanCodes));
+    KeReleaseSpinLock(&g_EmergencyConfigLock, oldIrql);
+
+    if (keyCount < KBDLAYER_EMERGENCY_MIN_KEYS) {
+        return; // 未初期化（InitializeEmergencyReleaseGlobal未呼び出し）
+    }
+    fullMask = (UCHAR)((1U << keyCount) - 1);
+
+    for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
+        USHORT sc = EncodeScancode16(p->MakeCode, p->Flags);
+        BOOLEAN isBreak = (p->Flags & KEY_BREAK) != 0;
+
+        for (ULONG i = 0; i < keyCount; i++) {
+            if (scanCodes[i] != sc) {
+                continue;
+            }
+
+            UCHAR bit = (UCHAR)(1U << i);
+            if (isBreak) {
+                if (devExt->EmergencyKeysDownMask & bit) {
+                    devExt->EmergencyKeysDownMask &= (UCHAR)~bit;
+                    KeCancelTimer(&devExt->EmergencyTimer);
+                }
+            } else if (!(devExt->EmergencyKeysDownMask & bit)) {
+                devExt->EmergencyKeysDownMask |= bit;
+                if (devExt->EmergencyKeysDownMask == fullMask) {
+                    LARGE_INTEGER dueTime;
+                    devExt->EmergencyDeadline = KeQueryInterruptTime() +
+                        (ULONGLONG)KBDLAYER_EMERGENCY_HOLD_MS * 10000ULL;
+                    dueTime.QuadPart = -(LONGLONG)KBDLAYER_EMERGENCY_HOLD_MS * 10000LL;
+                    KeSetTimer(&devExt->EmergencyTimer, dueTime, &devExt->EmergencyDpc);
+                }
+            }
+            break; // このイベントは組み合わせのうち1つのキーとしか一致しない
+        }
+    }
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
