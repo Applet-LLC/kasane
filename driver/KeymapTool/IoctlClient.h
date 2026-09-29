@@ -90,6 +90,11 @@ public:
     bool GetDeviceScope(ULONG uniqId, KBDLAYER_DEVICE_SCOPE* out);
     bool SetDeviceScope(ULONG uniqId, ULONG binding, KBDLAYER_DEVICE_SCOPE* out);
 
+    // 緊急時の解除手段（release-roadmap-priority.md 項番3）。ドライバ全体の設定なので
+    // UniqIdを取らない。GET_EMERGENCY_RELEASEはFILE_READ_ACCESSなので昇格していなくても使える。
+    bool GetEmergencyRelease(KBDLAYER_EMERGENCY_RELEASE_CONFIG* out);
+    bool SetEmergencyRelease(const KBDLAYER_EMERGENCY_RELEASE_CONFIG& config);
+
     ~IoctlClient() { Close(); }
 
 private:

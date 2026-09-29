@@ -94,6 +94,10 @@ TeardownControlDevice(
     RtlInitUnicodeString(&symLinkName, KBDLAYER_CONTROL_SYMLINK_NT_NAME);
     IoDeleteSymbolicLink(&symLinkName);
 
+    // 緊急時の解除手段（項番3）のワークアイテムは、紐づけたg_ControlDeviceObjectを
+    // 削除する前に解放する。
+    TeardownEmergencyReleaseGlobal();
+
     IoDeleteDevice(g_ControlDeviceObject);
     g_ControlDeviceObject = NULL;
 }
@@ -419,6 +423,49 @@ HandleSetDeviceScope(
     }
     IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
     return status;
+}
+
+// 緊急時の解除手段（項番3）。ドライバ全体の設定なので、特定のキーボード（Target）を
+// 取らない（FindDeviceExtensionByUniqId・remove lockは不要）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleGetEmergencyRelease(
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG outputLen = IrpSp->Parameters.DeviceIoControl.OutputBufferLength;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || outputLen < sizeof(KBDLAYER_EMERGENCY_RELEASE_CONFIG)) {
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+
+    GetEmergencyReleaseConfig((PKBDLAYER_EMERGENCY_RELEASE_CONFIG)SystemBuffer);
+    *BytesReturned = sizeof(KBDLAYER_EMERGENCY_RELEASE_CONFIG);
+    return STATUS_SUCCESS;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleSetEmergencyRelease(
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    PKBDLAYER_EMERGENCY_RELEASE_CONFIG input = (PKBDLAYER_EMERGENCY_RELEASE_CONFIG)SystemBuffer;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_EMERGENCY_RELEASE_CONFIG)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    return SetEmergencyReleaseConfig(input);
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
@@ -1157,6 +1204,12 @@ DispatchControlIoctl(
         break;
     case IOCTL_KBDLAYER_SET_DEVICE_SCOPE:
         status = HandleSetDeviceScope(Irp, irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_GET_EMERGENCY_RELEASE:
+        status = HandleGetEmergencyRelease(irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_SET_EMERGENCY_RELEASE:
+        status = HandleSetEmergencyRelease(irpSp, systemBuffer, &bytesReturned);
         break;
     default:
         status = STATUS_INVALID_DEVICE_REQUEST;

@@ -149,6 +149,11 @@ NTSTATUS DriverEntry(IN PDRIVER_OBJECT DriverObject, IN PUNICODE_STRING Registry
     controlStatus = CreateControlDevice(DriverObject);
     if (!NT_SUCCESS(controlStatus)) {
         KdPrint(("kbdlayer: DriverEntry: CreateControlDevice failed, status=0x%08X (continuing)\n", controlStatus));
+    } else {
+        // 緊急時の解除手段（項番3）のグローバル設定を読み込み、ワークアイテムを
+        // g_ControlDeviceObjectへ紐づけて確保する。制御デバイスが無ければレイヤーマップ
+        // 自体を設定できないので、その場合は不要（IOCTLハンドラも呼ばれない）。
+        InitializeEmergencyReleaseGlobal(g_ControlDeviceObject);
     }
 
     return STATUS_SUCCESS;
@@ -214,6 +219,7 @@ NTSTATUS AddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT PhysicalDev
     InitializeTapDanceState(devExt); // TapDanceTimer/TapDanceDpcの初期化含む（Phase 5）
     InitializeNicolaState(devExt);   // NicolaTimer/NicolaDpcの初期化含む（Phase 6）
     InitializeCaptureState(devExt);  // CaptureTimer/CaptureDpcの初期化（CAPTURE_NEXT_KEYの保留IRP用）
+    InitializeEmergencyReleaseState(devExt); // EmergencyTimer/EmergencyDpcの初期化（緊急時の解除手段）
 
     // LicenseTokenをECDSA検証してライセンス状態を決定（PASSIVE_LEVEL）
     {
@@ -480,6 +486,8 @@ NTSTATUS DispatchPnp(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
         KeCancelTimer(&devExt->NicolaTimer);
         // キャリブレーションのCaptureTimer/CaptureDpcも同様。
         KeCancelTimer(&devExt->CaptureTimer);
+        // 緊急時の解除手段のEmergencyTimer/EmergencyDpcも同様。
+        KeCancelTimer(&devExt->EmergencyTimer);
         KeFlushQueuedDpcs();
 
         // この時点ではport driver側のREMOVE_DEVICE処理（上のIoCallDriver）が
@@ -584,6 +592,12 @@ VOID ServiceCallback(
     // （ただしキャリブレーションウィザードのCAPTURE_NEXT_KEYはDeviceId確定後
     // にしか呼べないため、この経路には影響しない）。
     if (devExt->DeviceId != 0) {
+        // 緊急時の解除手段（release-roadmap-priority.md 項番3）。レイヤーマップ・
+        // マクロ・コンボの内容に一切依存せず必ず動くよう、生の物理スキャンコードの
+        // 段階で、どの処理よりも先に見る（キャリブレーションの抑止中でも見逃さない）。
+        // イベント自体は書き換えない（観測のみ）。
+        CheckEmergencyRelease(devExt, InputDataStart, InputDataEnd);
+
         // キャリブレーション（キャプチャ記録・入力抑止）。キャプチャを取りこぼさない
         // よう、どのResolve*よりも先に処理する。抑止中に捨てたイベントはここで配列から
         // 取り除かれる。詳細はLayerEngine.cのResolveCalibration参照。
@@ -805,6 +819,8 @@ VOID Unload(IN PDRIVER_OBJECT DriverObject) {
             KeCancelTimer(&devExt->NicolaTimer);
             // キャリブレーションのCaptureTimer/CaptureDpcも同様。
             KeCancelTimer(&devExt->CaptureTimer);
+            // 緊急時の解除手段のEmergencyTimer/EmergencyDpcも同様。
+            KeCancelTimer(&devExt->EmergencyTimer);
             KeFlushQueuedDpcs();
 
             if (devExt->LayerMap != NULL) {

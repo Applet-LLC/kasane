@@ -508,6 +508,34 @@ bool IoctlClient::GetDeviceScope(ULONG uniqId, KBDLAYER_DEVICE_SCOPE* out) {
     return true;
 }
 
+bool IoctlClient::GetEmergencyRelease(KBDLAYER_EMERGENCY_RELEASE_CONFIG* out) {
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_GET_EMERGENCY_RELEASE,
+                              NULL, 0,
+                              out, sizeof(*out),
+                              &bytesReturned, NULL);
+    if (!ok) {
+        fprintf(stderr, "IOCTL_KBDLAYER_GET_EMERGENCY_RELEASE failed. Error: %lu\n", GetLastError());
+        return false;
+    }
+    return true;
+}
+
+bool IoctlClient::SetEmergencyRelease(const KBDLAYER_EMERGENCY_RELEASE_CONFIG& config) {
+    if (!RequireWriteAccess("IOCTL_KBDLAYER_SET_EMERGENCY_RELEASE")) return false;
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_SET_EMERGENCY_RELEASE,
+                              (LPVOID)&config, sizeof(config),
+                              NULL, 0,
+                              &bytesReturned, NULL);
+    if (!ok) {
+        fprintf(stderr, "IOCTL_KBDLAYER_SET_EMERGENCY_RELEASE failed. Error: %lu "
+                "(need 2-6 distinct keys)\n", GetLastError());
+        return false;
+    }
+    return true;
+}
+
 bool IoctlClient::SetDeviceScope(ULONG uniqId, ULONG binding, KBDLAYER_DEVICE_SCOPE* out) {
     if (!RequireWriteAccess("IOCTL_KBDLAYER_SET_DEVICE_SCOPE")) return false;
     KBDLAYER_SET_DEVICE_SCOPE_INPUT input;
