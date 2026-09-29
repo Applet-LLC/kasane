@@ -27,7 +27,6 @@
 // ワイヤー/レジストリ形式（KBDLAYER_MAP_HEADER, common/kbdlayer_ioctl.h）と
 // フィールド構成は同じだが、こちらは内部表現として単独で扱う。
 typedef struct _KBDLAYER_MAP_TABLE {
-    ULONG LayerCount;
     ULONG KeyCount;
     KBDLAYER_KEY_ENTRY Entries[ANYSIZE_ARRAY];
 } KBDLAYER_MAP_TABLE, *PKBDLAYER_MAP_TABLE;
@@ -89,7 +88,7 @@ typedef struct _DEVICE_EXTENSION {
     KSPIN_LOCK EngineLock;              // LayerMap・レイヤー状態全体を保護
     PKBDLAYER_MAP_TABLE LayerMap;       // NULL = 未設定（素通し）
     BOOLEAN LayerMapEnabled;            // FALSE = マップは保持したまま素通し（ON/OFF切替用）
-    ULONG ActiveLayerMask;              // bit0..7 = 各レイヤーのON/OFF（MO/TG由来。DefaultLayerは含まない）
+    ULONG ActiveLayerMask;              // bit0..15 = 各レイヤーのON/OFF（MO/TG由来。DefaultLayerは含まない）
     ULONG DefaultLayer;                 // DF(layer)で変更される基底レイヤー（常時ON扱い）
     BOOLEAN OneShotLayerPending;        // OSL(layer)発動中、次のKEYアクション解決でOFFに戻す
     ULONG OneShotLayerBit;              // OneShotLayerPending==TRUE時に、解除すべきビット
@@ -135,6 +134,15 @@ typedef struct _DEVICE_EXTENSION {
     // HoldDpcは期限前なら何もしない（満了済みでキュー待ちの古いDPCが、その後に始まった
     // 新しい保留サイクルを即座にホールド確定させないため。CaptureDeadlineと同じ手法）。
     ULONGLONG HoldDeadline;
+
+    // --- 機能別ON/OFF（release-roadmap-priority.md 項番4。common/kbdlayer_ioctl.hの
+    // コメント参照） ---
+    // 対象はMacro/Combo/TapDanceの3つ（MT/LT・NICOLAは対象外）。既定は全機能有効
+    // （KBDLAYER_FEATURE_ALL）。ServiceCallback（Driver.cのResolveAndForward）が、
+    // 無効な機能のResolve*呼び出しをスキップするのに使う。書き換えはOutputLockと
+    // EngineLockの両方を保持して行い（SetFeaturesForDevice）、読むときはどちらか一方を
+    // 保持していればよい（ResolveAndForwardはOutputLock、GET_FEATURESはEngineLock）。
+    ULONG EnabledFeatures;
 
     // --- Phase 3: マクロ ---
     // 固定サイズで埋め込み（32 * (4 + 64*4) = 8320バイト程度。動的確保・解放の

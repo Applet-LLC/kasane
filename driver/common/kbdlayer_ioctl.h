@@ -55,7 +55,11 @@ typedef struct _KBDLAYER_ACTION {
 #define KBDLAYER_ACTION_CUSTOM        11 // 将来の拡張フック点として予約のみ。詳細設計は先送り (Phase 3)
 #define KBDLAYER_ACTION_TAPDANCE      12 // TAPDANCE(id): Param1=タップダンスID(0..KBDLAYER_MAX_TAPDANCE_COUNT-1) (Phase 5)
 
-#define KBDLAYER_MAX_LAYERS 8   // VIA実務上の上限(4)に余裕を持たせる
+// VIA実務上の上限(4)に余裕を持たせる。2026-09-29に8→16へ引き上げ（ヘルパーアプリが
+// アプリごとのレイヤーをSET_LAYER_STATEで切り替える用途に備えて）。レイヤーのビットマスク
+// （ActiveLayerMask等）はULONGなので32まで入るが、Actions[]の容量が比例して増えるため16に留める。
+// 変えるときは kbdlayer-keymap-gui の KbdLayerClient.MaxLayers も合わせること。
+#define KBDLAYER_MAX_LAYERS 16
 #define KBDLAYER_MAX_KEYS   256 // 既存 KBDADDID_MAX_REMAP_ENTRIES を踏襲
 
 // 1物理キー分のエントリ: 物理スキャンコード(Enc16) + レイヤー数分のアクション。
@@ -65,15 +69,19 @@ typedef struct _KBDLAYER_KEY_ENTRY {
 } KBDLAYER_KEY_ENTRY, *PKBDLAYER_KEY_ENTRY;
 
 // ワイヤー/レジストリ形式のブロブヘッダ。続けて KeyCount 個の KBDLAYER_KEY_ENTRY が続く。
+// レイヤー数は常に KBDLAYER_MAX_LAYERS（可変ではない。2026-09-29に LayerCount フィールドを
+// 廃止した。1キーあたりの Actions[] は元々 KBDLAYER_MAX_LAYERS 分固定で確保されており、
+// LayerCount は「実際に使う数」を示すだけで容量には影響していなかったため、削っても
+// blobの1キーあたりのバイト数は変わらない。未使用レイヤー分は呼び出し側が
+// KBDLAYER_ACTION_TRANSPARENT で埋める）。
 typedef struct _KBDLAYER_MAP_HEADER {
     ULONG Header;      // 予約。常に0。
-    ULONG LayerCount;  // 実際に使用するレイヤー数（1 <= LayerCount <= KBDLAYER_MAX_LAYERS）
     ULONG KeyCount;    // 続く KBDLAYER_KEY_ENTRY の数（<= KBDLAYER_MAX_KEYS）
     // 続けて KeyCount 個の KBDLAYER_KEY_ENTRY
 } KBDLAYER_MAP_HEADER, *PKBDLAYER_MAP_HEADER;
 
 // blob全体（ヘッダ+エントリ列）の最大バイト数。
-// 256 keys * (2 + 8*4) bytes = 256 * 34 = 8704 bytes 程度。
+// 256 keys * (2 + 16*4) bytes = 256 * 66 = 16896 bytes 程度。
 #define KBDLAYER_MAX_MAP_BLOB_BYTES \
     (sizeof(KBDLAYER_MAP_HEADER) + (KBDLAYER_MAX_KEYS * sizeof(KBDLAYER_KEY_ENTRY)))
 
@@ -157,6 +165,33 @@ typedef struct _KBDLAYER_GET_CONFIG_OUTPUT {
     ULONG ComboTermMs;
     ULONG TapDanceTermMs;
 } KBDLAYER_GET_CONFIG_OUTPUT, *PKBDLAYER_GET_CONFIG_OUTPUT;
+
+// --- 機能別ON/OFF（release-roadmap-priority.md 項番4） ---
+//
+// 一般ユーザーにとって使わないことが多いMacro/Combo/TapDanceを、それぞれ無効化できるように
+// する。無効化しても、キーの置き換えとレイヤー（MO/TG/DF/OSL）・MT/LT・NICOLAはそのまま使える。
+// 無効な機能のキー（MACRO(id)/TAPDANCE(id)のアクション、Comboのメンバーキー）は、押しても
+// 何も出力しない（KC_NOと同じ扱い）。設定（SET_MACRO/SET_COMBO/SET_TAPDANCE）自体は無効中でも
+// 受け付ける（保持するだけで、有効化するまで効かない。レイヤーマップのOFF中にSET_LAYERMAPが
+// できるのと同じ考え方）。キーボードごとの設定で、永続化する（既定は全機能有効）。
+
+#define KBDLAYER_FEATURE_MACRO    0x00000001
+#define KBDLAYER_FEATURE_COMBO    0x00000002
+#define KBDLAYER_FEATURE_TAPDANCE 0x00000004
+#define KBDLAYER_FEATURE_ALL \
+    (KBDLAYER_FEATURE_MACRO | KBDLAYER_FEATURE_COMBO | KBDLAYER_FEATURE_TAPDANCE)
+
+// IOCTL_KBDLAYER_SET_FEATURES の入力バッファ。Featuresに未知のビットが含まれていたら
+// STATUS_INVALID_PARAMETER。
+typedef struct _KBDLAYER_SET_FEATURES_INPUT {
+    KBDLAYER_TARGET Target;
+    ULONG Features; // KBDLAYER_FEATURE_* のOR
+} KBDLAYER_SET_FEATURES_INPUT, *PKBDLAYER_SET_FEATURES_INPUT;
+
+// IOCTL_KBDLAYER_GET_FEATURES の入力は KBDLAYER_TARGET のみ。
+typedef struct _KBDLAYER_GET_FEATURES_OUTPUT {
+    ULONG Features; // KBDLAYER_FEATURE_* のOR
+} KBDLAYER_GET_FEATURES_OUTPUT, *PKBDLAYER_GET_FEATURES_OUTPUT;
 
 // IOCTL_KBDLAYER_SET_CAPTURE_SUPPRESS の入力バッファ（キャリブレーション用の「オフモード」）。
 // Enable=1 の間、対象デバイスの押下イベントをOSへ渡さずに捨てる（CAPTURE_NEXT_KEYの
@@ -570,5 +605,10 @@ typedef struct _KBDLAYER_EMERGENCY_RELEASE_CONFIG {
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x816, METHOD_BUFFERED, FILE_READ_ACCESS)
 #define IOCTL_KBDLAYER_SET_EMERGENCY_RELEASE \
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x817, METHOD_BUFFERED, FILE_WRITE_ACCESS)
+// 機能別ON/OFF（項番4）。設定の書き換えなので、他のSET_*と同じくFILE_WRITE_ACCESS。
+#define IOCTL_KBDLAYER_GET_FEATURES \
+    CTL_CODE(FILE_DEVICE_KBDLAYER, 0x818, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_KBDLAYER_SET_FEATURES \
+    CTL_CODE(FILE_DEVICE_KBDLAYER, 0x819, METHOD_BUFFERED, FILE_WRITE_ACCESS)
 
 #endif // _KBDLAYER_COMMON_IOCTL_H_

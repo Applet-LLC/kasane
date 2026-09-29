@@ -220,6 +220,9 @@ NTSTATUS AddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT PhysicalDev
     InitializeNicolaState(devExt);   // NicolaTimer/NicolaDpcの初期化含む（Phase 6）
     InitializeCaptureState(devExt);  // CaptureTimer/CaptureDpcの初期化（CAPTURE_NEXT_KEYの保留IRP用）
     InitializeEmergencyReleaseState(devExt); // EmergencyTimer/EmergencyDpcの初期化（緊急時の解除手段）
+    // 機能別ON/OFF（項番4）の既定は全機能有効。永続化された値があれば
+    // LoadPersistedLayerMapForDeviceが上書きする。
+    devExt->EnabledFeatures = KBDLAYER_FEATURE_ALL;
 
     // LicenseTokenをECDSA検証してライセンス状態を決定（PASSIVE_LEVEL）
     {
@@ -685,6 +688,12 @@ ResolveAndForward(
     _Inout_opt_ PVOID SystemArgument3)
 {
     BOOLEAN compacted = FALSE;
+    // 機能別ON/OFF（項番4）。無効な機能のResolve*は呼ばない。SetFeaturesForDeviceは
+    // OutputLockを保持して書き換えるので、OutputLock保持中のここでは一貫した値が読める。
+    // MACRO(id)/TAPDANCE(id)のアクションは、ここを飛ばすとResolveLayerActionの
+    // default節（LayerEngineShouldDropEntry）で「何もしない」として扱われる。
+    // Comboのメンバーキーは、コンボ判定を経ずに通常のキーとして解決される。
+    ULONG features = devExt->EnabledFeatures;
 
     // Phase 6: NICOLA（親指シフト）。判定が有効な間、文字キー・親指キーは物理キー単位で
     // ここが先に受け取る（コンボ等より優先）。詳細はLayerEngine.cのResolveNicola参照。
@@ -695,7 +704,8 @@ ResolveAndForward(
     // Phase 4: コンボ（2キー限定v1）。物理キー単位の判定なので、レイヤーや
     // タップ/ホールドの解釈より先に判定する。対象キーならここで完結する。
     // 詳細はLayerEngine.cのResolveCombo参照。
-    if (ResolveCombo(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
+    if ((features & KBDLAYER_FEATURE_COMBO) &&
+        ResolveCombo(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
         return FALSE;
     }
 
@@ -709,14 +719,16 @@ ResolveAndForward(
     // Phase 5: タップダンス（v1: タップ回数3回まで）。ResolveTapHoldと同じグループ
     // （1つの物理キーの振る舞い）として、ResolveMacroの前に判定する。詳細は
     // LayerEngine.cのResolveTapDance参照。
-    if (ResolveTapDance(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
+    if ((features & KBDLAYER_FEATURE_TAPDANCE) &&
+        ResolveTapDance(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
         return FALSE;
     }
 
     // Phase 3: マクロ(MACRO(id))。ResolveTapHoldと同じく、対象キーならここで
     // 完結し通常のResolveLayerAction以降の処理は行わない。詳細はLayerEngine.cの
     // ResolveMacro参照。
-    if (ResolveMacro(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
+    if ((features & KBDLAYER_FEATURE_MACRO) &&
+        ResolveMacro(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
         return FALSE;
     }
 

@@ -38,6 +38,7 @@
 #define KBDLAYER_TAPDANCES_VALUE_NAME L"TapDances"
 #define KBDLAYER_TAPDANCETERM_VALUE_NAME L"TapDanceTermMs"
 #define KBDLAYER_NICOLA_VALUE_NAME L"Nicola"
+#define KBDLAYER_FEATURES_VALUE_NAME L"EnabledFeatures"
 #define KBDLAYER_REGTEMP_POOL_TAG 'tLdK'
 
 // 緊急時の解除手段（release-roadmap-priority.md 項番3）。ドライバ全体で1つの設定
@@ -149,9 +150,6 @@ ParseLayerMapBlob(
     if (header->Header != 0) {
         return STATUS_INVALID_PARAMETER;
     }
-    if (header->LayerCount < 1 || header->LayerCount > KBDLAYER_MAX_LAYERS) {
-        return STATUS_INVALID_PARAMETER;
-    }
     if (header->KeyCount > KBDLAYER_MAX_KEYS) {
         return STATUS_INVALID_PARAMETER;
     }
@@ -164,9 +162,10 @@ ParseLayerMapBlob(
     entries = (PKBDLAYER_KEY_ENTRY)((PUCHAR)Blob + sizeof(KBDLAYER_MAP_HEADER));
 
     // Action.Type が未知の値を含んでいないか検証する（将来のPhase向けに予約された
-    // 値も含め、このドライババイナリが理解できるTypeのみを許可する）。
+    // 値も含め、このドライババイナリが理解できるTypeのみを許可する）。レイヤー数は
+    // 常にKBDLAYER_MAX_LAYERS（2026-09-29にLayerCountフィールドを廃止）。
     for (ULONG k = 0; k < header->KeyCount; k++) {
-        for (ULONG L = 0; L < header->LayerCount; L++) {
+        for (ULONG L = 0; L < KBDLAYER_MAX_LAYERS; L++) {
             UCHAR type = entries[k].Actions[L].Type;
             if (type > KBDLAYER_ACTION_TAPDANCE) {
                 return STATUS_INVALID_PARAMETER;
@@ -180,7 +179,6 @@ ParseLayerMapBlob(
         return STATUS_INSUFFICIENT_RESOURCES;
     }
 
-    newTable->LayerCount = header->LayerCount;
     newTable->KeyCount = header->KeyCount;
     if (header->KeyCount > 0) {
         RtlCopyMemory(newTable->Entries, entries, header->KeyCount * sizeof(KBDLAYER_KEY_ENTRY));
@@ -226,7 +224,6 @@ SerializeLayerMapTableToBlob(
 
     header = (PKBDLAYER_MAP_HEADER)Buffer;
     header->Header = 0;
-    header->LayerCount = Table->LayerCount;
     header->KeyCount = Table->KeyCount;
 
     entries = (PKBDLAYER_KEY_ENTRY)((PUCHAR)Buffer + sizeof(KBDLAYER_MAP_HEADER));
@@ -376,7 +373,11 @@ ResolveEffectiveAction(
 {
     ULONG effectiveMask = EffectiveLayerMaskLocked(devExt);
 
-    for (LONG layer = (LONG)table->LayerCount - 1; layer >= 0; layer--) {
+    // レイヤー数は常にKBDLAYER_MAX_LAYERS（LayerCountフィールド廃止）なので、tableは
+    // ここでは使わない（呼び出し元の互換のため引数は残す）。
+    UNREFERENCED_PARAMETER(table);
+
+    for (LONG layer = KBDLAYER_MAX_LAYERS - 1; layer >= 0; layer--) {
         if (!(effectiveMask & (1UL << layer))) {
             continue;
         }
@@ -2073,6 +2074,10 @@ CopyPersistedSettings(
         RegReadDwordEx(KBDLAYER_SERVICE_NAME, srcPath, KBDLAYER_TAPDANCETERM_VALUE_NAME, &value, KBDLAYER_DEFAULT_TAPDANCE_TERM_MS);
         CheckPersistResult(devExt, KBDLAYER_TAPDANCETERM_VALUE_NAME,
             RegWriteDword(KBDLAYER_SERVICE_NAME, dstPath, KBDLAYER_TAPDANCETERM_VALUE_NAME, value));
+
+        RegReadDwordEx(KBDLAYER_SERVICE_NAME, srcPath, KBDLAYER_FEATURES_VALUE_NAME, &value, KBDLAYER_FEATURE_ALL);
+        CheckPersistResult(devExt, KBDLAYER_FEATURES_VALUE_NAME,
+            RegWriteDword(KBDLAYER_SERVICE_NAME, dstPath, KBDLAYER_FEATURES_VALUE_NAME, value));
     }
 
     DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
@@ -2323,6 +2328,74 @@ SetLayerMapEnabledForDevice(
     // ON/OFF自体と、OFF時のレイヤー状態のリセットを、待っているアプリへ知らせる。
     // （アプリ管理レイヤーはOFFでも消さない。持ち主のアプリが下ろす）
     LayerNotifyIfChanged(devExt);
+    return STATUS_SUCCESS;
+}
+
+// ---------------------------------------------------------------------------
+// 機能別ON/OFF（release-roadmap-priority.md 項番4。common/kbdlayer_ioctl.hのコメント参照）
+// ---------------------------------------------------------------------------
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+ULONG
+GetFeaturesForDevice(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    KIRQL oldIrql;
+    ULONG features;
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    features = devExt->EnabledFeatures;
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+    return features;
+}
+
+// 無効化したビットの機能に保留中・確定中の状態があれば、SetLayerMapEnabledForDevice(FALSE)と
+// 同じ考え方で打ち切り、送出済みのmakeにbreakを送る（押しっぱなしを残さない）。
+// Macroは保留状態を持たないので対象外。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetFeaturesForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG Features
+    )
+{
+    KIRQL outputIrql;
+    WCHAR subKeyPath[64];
+    KBDLAYER_ABORT_RELEASES releases;
+    ULONG disabled;
+
+    if (Features & ~KBDLAYER_FEATURE_ALL) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    releases.Count = 0;
+
+    KeAcquireSpinLock(&devExt->OutputLock, &outputIrql);
+    KeAcquireSpinLockAtDpcLevel(&devExt->EngineLock);
+    disabled = devExt->EnabledFeatures & ~Features;
+    if (disabled & KBDLAYER_FEATURE_COMBO) {
+        AbortComboLocked(devExt, &releases);
+    }
+    if (disabled & KBDLAYER_FEATURE_TAPDANCE) {
+        AbortTapDanceLocked(devExt, &releases);
+    }
+    devExt->EnabledFeatures = Features;
+    KeReleaseSpinLockFromDpcLevel(&devExt->EngineLock);
+
+    if (disabled & KBDLAYER_FEATURE_COMBO) {
+        KeCancelTimer(&devExt->ComboTimer);
+    }
+    if (disabled & KBDLAYER_FEATURE_TAPDANCE) {
+        KeCancelTimer(&devExt->TapDanceTimer);
+    }
+    SendAbortReleases(devExt, &releases);
+    KeReleaseSpinLock(&devExt->OutputLock, outputIrql);
+
+    BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    CheckPersistResult(devExt, KBDLAYER_FEATURES_VALUE_NAME,
+        RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_FEATURES_VALUE_NAME, Features));
+
     return STATUS_SUCCESS;
 }
 
@@ -2728,6 +2801,14 @@ LoadPersistedLayerMapForDevice(
         RegReadDwordEx(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPTERM_VALUE_NAME,
                         &tapTermValue, KBDLAYER_DEFAULT_TAP_TERM_MS);
         devExt->TapTermMs = (tapTermValue != 0) ? tapTermValue : KBDLAYER_DEFAULT_TAP_TERM_MS;
+    }
+
+    {
+        // 機能別ON/OFF（項番4）。値が無ければ全機能有効（既定、旧バージョンの永続化データも同じ）。
+        ULONG features = KBDLAYER_FEATURE_ALL;
+        RegReadDwordEx(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_FEATURES_VALUE_NAME,
+                        &features, KBDLAYER_FEATURE_ALL);
+        devExt->EnabledFeatures = features & KBDLAYER_FEATURE_ALL;
     }
 
     LoadPersistedMacrosForDevice(devExt);
@@ -4622,8 +4703,10 @@ SetAppLayerStateForDevice(
 
     KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
 
-    // 立てられるのは、レイヤーマップにあるレイヤーだけ（未設定なら上限まで）。
-    layerCount = (devExt->LayerMap != NULL) ? devExt->LayerMap->LayerCount : KBDLAYER_MAX_LAYERS;
+    // レイヤー数は常にKBDLAYER_MAX_LAYERS（LayerCountフィールド廃止）なので、0〜15の
+    // どのレイヤーも常に指定できる（ヘルパーアプリがVIAL的に動的切替する対象を、静的な
+    // キーマップの定義済みレイヤー数に制限しないための望ましい副作用でもある）。
+    layerCount = KBDLAYER_MAX_LAYERS;
     validMask = (layerCount >= 32) ? 0xFFFFFFFFUL : ((1UL << layerCount) - 1);
 
     newMask = devExt->AppLayerMask;

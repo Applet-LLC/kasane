@@ -425,6 +425,75 @@ HandleSetDeviceScope(
     return status;
 }
 
+// 機能別ON/OFF（項番4）。キーボードごとの設定。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleGetFeatures(
+    _In_ PIRP Irp,
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    ULONG outputLen = IrpSp->Parameters.DeviceIoControl.OutputBufferLength;
+    PKBDLAYER_TARGET target = (PKBDLAYER_TARGET)SystemBuffer;
+    PDEVICE_EXTENSION devExt;
+    ULONG features;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_TARGET)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (outputLen < sizeof(KBDLAYER_GET_FEATURES_OUTPUT)) {
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+
+    devExt = FindDeviceExtensionByUniqId(target->UniqId, Irp);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    features = GetFeaturesForDevice(devExt);
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+
+    // METHOD_BUFFERED: 読み終えたtargetの上に出力を書く。
+    ((PKBDLAYER_GET_FEATURES_OUTPUT)SystemBuffer)->Features = features;
+    *BytesReturned = sizeof(KBDLAYER_GET_FEATURES_OUTPUT);
+    return STATUS_SUCCESS;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleSetFeatures(
+    _In_ PIRP Irp,
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    PKBDLAYER_SET_FEATURES_INPUT input = (PKBDLAYER_SET_FEATURES_INPUT)SystemBuffer;
+    PDEVICE_EXTENSION devExt;
+    NTSTATUS status;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_SET_FEATURES_INPUT)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId, Irp);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    status = SetFeaturesForDevice(devExt, input->Features);
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+    return status;
+}
+
 // 緊急時の解除手段（項番3）。ドライバ全体の設定なので、特定のキーボード（Target）を
 // 取らない（FindDeviceExtensionByUniqId・remove lockは不要）。
 _IRQL_requires_max_(PASSIVE_LEVEL)
@@ -1210,6 +1279,12 @@ DispatchControlIoctl(
         break;
     case IOCTL_KBDLAYER_SET_EMERGENCY_RELEASE:
         status = HandleSetEmergencyRelease(irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_GET_FEATURES:
+        status = HandleGetFeatures(Irp, irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_SET_FEATURES:
+        status = HandleSetFeatures(Irp, irpSp, systemBuffer, &bytesReturned);
         break;
     default:
         status = STATUS_INVALID_DEVICE_REQUEST;
