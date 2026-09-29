@@ -55,7 +55,11 @@ typedef struct _KBDLAYER_ACTION {
 #define KBDLAYER_ACTION_CUSTOM        11 // 将来の拡張フック点として予約のみ。詳細設計は先送り (Phase 3)
 #define KBDLAYER_ACTION_TAPDANCE      12 // TAPDANCE(id): Param1=タップダンスID(0..KBDLAYER_MAX_TAPDANCE_COUNT-1) (Phase 5)
 
-#define KBDLAYER_MAX_LAYERS 8   // VIA実務上の上限(4)に余裕を持たせる
+// VIA実務上の上限(4)に余裕を持たせる。2026-09-29に8→16へ引き上げ（ヘルパーアプリが
+// アプリごとのレイヤーをSET_LAYER_STATEで切り替える用途に備えて）。レイヤーのビットマスク
+// （ActiveLayerMask等）はULONGなので32まで入るが、Actions[]の容量が比例して増えるため16に留める。
+// 変えるときは kbdlayer-keymap-gui の KbdLayerClient.MaxLayers も合わせること。
+#define KBDLAYER_MAX_LAYERS 16
 #define KBDLAYER_MAX_KEYS   256 // 既存 KBDADDID_MAX_REMAP_ENTRIES を踏襲
 
 // 1物理キー分のエントリ: 物理スキャンコード(Enc16) + レイヤー数分のアクション。
@@ -77,7 +81,7 @@ typedef struct _KBDLAYER_MAP_HEADER {
 } KBDLAYER_MAP_HEADER, *PKBDLAYER_MAP_HEADER;
 
 // blob全体（ヘッダ+エントリ列）の最大バイト数。
-// 256 keys * (2 + 8*4) bytes = 256 * 34 = 8704 bytes 程度。
+// 256 keys * (2 + 16*4) bytes = 256 * 66 = 16896 bytes 程度。
 #define KBDLAYER_MAX_MAP_BLOB_BYTES \
     (sizeof(KBDLAYER_MAP_HEADER) + (KBDLAYER_MAX_KEYS * sizeof(KBDLAYER_KEY_ENTRY)))
 

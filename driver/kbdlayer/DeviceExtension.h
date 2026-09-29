@@ -88,7 +88,7 @@ typedef struct _DEVICE_EXTENSION {
     KSPIN_LOCK EngineLock;              // LayerMap・レイヤー状態全体を保護
     PKBDLAYER_MAP_TABLE LayerMap;       // NULL = 未設定（素通し）
     BOOLEAN LayerMapEnabled;            // FALSE = マップは保持したまま素通し（ON/OFF切替用）
-    ULONG ActiveLayerMask;              // bit0..7 = 各レイヤーのON/OFF（MO/TG由来。DefaultLayerは含まない）
+    ULONG ActiveLayerMask;              // bit0..15 = 各レイヤーのON/OFF（MO/TG由来。DefaultLayerは含まない）
     ULONG DefaultLayer;                 // DF(layer)で変更される基底レイヤー（常時ON扱い）
     BOOLEAN OneShotLayerPending;        // OSL(layer)発動中、次のKEYアクション解決でOFFに戻す
     ULONG OneShotLayerBit;              // OneShotLayerPending==TRUE時に、解除すべきビット

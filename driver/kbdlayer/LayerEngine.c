@@ -4703,7 +4703,7 @@ SetAppLayerStateForDevice(
 
     KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
 
-    // レイヤー数は常にKBDLAYER_MAX_LAYERS（LayerCountフィールド廃止）なので、0〜7の
+    // レイヤー数は常にKBDLAYER_MAX_LAYERS（LayerCountフィールド廃止）なので、0〜15の
     // どのレイヤーも常に指定できる（ヘルパーアプリがVIAL的に動的切替する対象を、静的な
     // キーマップの定義済みレイヤー数に制限しないための望ましい副作用でもある）。
     layerCount = KBDLAYER_MAX_LAYERS;

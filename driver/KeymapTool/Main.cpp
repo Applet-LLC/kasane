@@ -97,7 +97,7 @@ int CmdList(IoctlClient* client) {
 
     printf("DeviceCount=%zu\n", devices.size());
     for (const auto& d : devices) {
-        printf("  UniqId=%08X HasLayerMap=%d Enabled=%d ActiveLayerMask=0x%02X HardwareId=%ls\n",
+        printf("  UniqId=%08X HasLayerMap=%d Enabled=%d ActiveLayerMask=0x%04X HardwareId=%ls\n",
                d.UniqId, d.HasLayerMap ? 1 : 0, d.Enabled ? 1 : 0, d.ActiveLayerMask, d.HardwareId.c_str());
         // E-2: 永続化スコープ（--get-scope/--set-scope参照）。LIST_DEVICESの固定長構造体
         // （kbdlayer-keymap-guiが独自にオフセット計算している）は変えず、別IOCTLで補う。
@@ -389,7 +389,7 @@ int CmdClearNicola(IoctlClient* client, ULONG uniqId) {
 }
 
 void PrintLayerState(const KBDLAYER_LAYER_STATE& s) {
-    printf("Seq=%lu Effective=0x%02lX (Active=0x%02lX App=0x%02lX Default=%lu) LayerMap=%s NICOLA=%s\n",
+    printf("Seq=%lu Effective=0x%04lX (Active=0x%04lX App=0x%04lX Default=%lu) LayerMap=%s NICOLA=%s\n",
            s.Seq, s.EffectiveLayerMask, s.ActiveLayerMask, s.AppLayerMask, s.DefaultLayer,
            s.LayerMapEnabled ? "ON" : "OFF", s.NicolaActive ? "ON" : "OFF");
     // --watch-layerの出力をファイルへリダイレクトしても、強制終了で行が失われないように。

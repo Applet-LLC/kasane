@@ -64,7 +64,7 @@ public sealed class KbdLayerClient : IDisposable
     private static readonly uint IOCTL_SET_CAPTURE_SUPPRESS = CtlCode(0x80D, FILE_WRITE_ACCESS);
     private static readonly uint IOCTL_GET_CONFIG = CtlCode(0x80E, FILE_READ_ACCESS);
 
-    public const int MaxLayers = 8;             // KBDLAYER_MAX_LAYERS
+    public const int MaxLayers = 16;            // KBDLAYER_MAX_LAYERS（ドライバの値と必ず一致させる）
     public const int MaxKeys = 256;             // KBDLAYER_MAX_KEYS
     public const int MaxMacroCount = 32;        // KBDLAYER_MAX_MACRO_COUNT
     public const int MaxMacroSteps = 64;        // KBDLAYER_MAX_MACRO_STEPS
@@ -325,7 +325,7 @@ public sealed class KbdLayerClient : IDisposable
     /// レイヤーマップのblobを読む。ドライバのレイヤー数は常に MaxLayers（LayerCountフィールドは
     /// 廃止）なので、戻り値の LayerCount は「KC_TRNS 以外が入っている最後のレイヤー + 1」
     /// （最低1）から推定する。未使用レイヤーは TRANSPARENT で埋めて送っているため、2層の
-    /// キーマップを読み込んだときに8層ぶんのタブが出ないようにするため。
+    /// キーマップを読み込んだときに16層ぶんのタブが出ないようにするため。
     /// </summary>
     public static (int LayerCount, List<LayerMapEntry> Entries) ParseLayerMapBlob(byte[] blob)
     {
