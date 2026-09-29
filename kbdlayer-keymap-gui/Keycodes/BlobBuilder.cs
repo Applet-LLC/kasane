@@ -22,14 +22,16 @@ public static class BlobBuilder
         using (var w = new BinaryWriter(ms))
         {
             w.Write(0u);                 // Header（予約）
-            w.Write((uint)layerCount);
-            w.Write((uint)keys.Count);
+            w.Write((uint)keys.Count);   // LayerCountは廃止（レイヤー数は常にMaxLayers）
             foreach (var key in keys)
             {
                 w.Write(key.SourceScanCode);
                 for (int L = 0; L < KbdLayerClient.MaxLayers; L++)
                 {
-                    KeyAction a = default; // 使わないレイヤー分はゼロ埋め（C++版のZeroMemoryと同じ）
+                    // 使わないレイヤー分はTRANSPARENT（下のレイヤーへフォールスルー）で埋める
+                    // （BlobBuilder.cppと同じ）。NONEだと、ヘルパーアプリが未定義の上位レイヤーを
+                    // 動的にONにしたときにキーが効かなくなる。
+                    KeyAction a = KeyAction.Transparent;
                     if (L < layerCount)
                     {
                         string token = key.TokensPerLayer[L];

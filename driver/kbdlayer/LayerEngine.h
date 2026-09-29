@@ -557,6 +557,25 @@ SetDeviceScopeForDevice(
     _In_ ULONG NewBinding
     );
 
+// --- 機能別ON/OFF（release-roadmap-priority.md 項番4。common/kbdlayer_ioctl.hの
+// コメント参照） ---
+
+// GET_FEATURES: devExt->EnabledFeatures（KBDLAYER_FEATURE_*のOR）を返す。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+ULONG
+GetFeaturesForDevice(
+    _In_ PDEVICE_EXTENSION devExt
+    );
+
+// SET_FEATURES: 有効な機能を切り替えて永続化する。無効化した機能の保留中の状態は打ち切り、
+// 送出済みのmakeにbreakを送る。未知のビットがあればSTATUS_INVALID_PARAMETER。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetFeaturesForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG Features
+    );
+
 // --- 緊急時の解除手段（release-roadmap-priority.md 項番3。common/kbdlayer_ioctl.hの
 // コメントと .plans/emergency-release.md 参照） ---
 

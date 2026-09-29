@@ -95,6 +95,10 @@ public:
     bool GetEmergencyRelease(KBDLAYER_EMERGENCY_RELEASE_CONFIG* out);
     bool SetEmergencyRelease(const KBDLAYER_EMERGENCY_RELEASE_CONFIG& config);
 
+    // 機能別ON/OFF（項番4）。features は KBDLAYER_FEATURE_* のOR。
+    bool GetFeatures(ULONG uniqId, ULONG* outFeatures);
+    bool SetFeatures(ULONG uniqId, ULONG features);
+
     ~IoctlClient() { Close(); }
 
 private:

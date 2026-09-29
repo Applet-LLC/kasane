@@ -43,6 +43,15 @@ bool BuildLayerMapBlob(
         ZeroMemory(&entry, sizeof(entry));
         entry.SourceScanCode = scanCodesByIndex[i];
 
+        // レイヤー数は常にKBDLAYER_MAX_LAYERS（ドライバ側でLayerCountを廃止した）。
+        // keymap.jsonに書かれていないレイヤーは、ゼロ（KBDLAYER_ACTION_NONE＝何も送らない）
+        // ではなくTRANSPARENT（下のレイヤーへフォールスルー）で埋める。ヘルパーアプリが
+        // 未定義の上位レイヤーをSET_LAYER_STATEで動的にONにしても、キーが効かなくならない
+        // ようにするため。
+        for (size_t L = layerCount; L < KBDLAYER_MAX_LAYERS; L++) {
+            entry.Actions[L].Type = KBDLAYER_ACTION_TRANSPARENT;
+        }
+
         for (size_t L = 0; L < layerCount; L++) {
             KeycodeMapping mapping;
             if (!KeycodeTable::Resolve(layers[L][i], &mapping)) {
@@ -60,7 +69,6 @@ bool BuildLayerMapBlob(
 
     KBDLAYER_MAP_HEADER header;
     header.Header = 0;
-    header.LayerCount = (ULONG)layerCount;
     header.KeyCount = (ULONG)keyCount;
 
     outBlob->resize(sizeof(header) + entries.size() * sizeof(KBDLAYER_KEY_ENTRY));

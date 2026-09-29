@@ -536,6 +536,40 @@ bool IoctlClient::SetEmergencyRelease(const KBDLAYER_EMERGENCY_RELEASE_CONFIG& c
     return true;
 }
 
+bool IoctlClient::GetFeatures(ULONG uniqId, ULONG* outFeatures) {
+    KBDLAYER_TARGET target;
+    target.UniqId = uniqId;
+    KBDLAYER_GET_FEATURES_OUTPUT output = {};
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_GET_FEATURES,
+                              &target, sizeof(target),
+                              &output, sizeof(output),
+                              &bytesReturned, NULL);
+    if (!ok) {
+        fprintf(stderr, "IOCTL_KBDLAYER_GET_FEATURES failed. Error: %lu\n", GetLastError());
+        return false;
+    }
+    *outFeatures = output.Features;
+    return true;
+}
+
+bool IoctlClient::SetFeatures(ULONG uniqId, ULONG features) {
+    if (!RequireWriteAccess("IOCTL_KBDLAYER_SET_FEATURES")) return false;
+    KBDLAYER_SET_FEATURES_INPUT input;
+    input.Target.UniqId = uniqId;
+    input.Features = features;
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_SET_FEATURES,
+                              &input, sizeof(input),
+                              NULL, 0,
+                              &bytesReturned, NULL);
+    if (!ok) {
+        fprintf(stderr, "IOCTL_KBDLAYER_SET_FEATURES failed. Error: %lu\n", GetLastError());
+        return false;
+    }
+    return true;
+}
+
 bool IoctlClient::SetDeviceScope(ULONG uniqId, ULONG binding, KBDLAYER_DEVICE_SCOPE* out) {
     if (!RequireWriteAccess("IOCTL_KBDLAYER_SET_DEVICE_SCOPE")) return false;
     KBDLAYER_SET_DEVICE_SCOPE_INPUT input;

@@ -45,11 +45,17 @@ void PrintLayerMapBlob(const unsigned char* blob, size_t blobLength) {
     const KBDLAYER_KEY_ENTRY* entries =
         (const KBDLAYER_KEY_ENTRY*)(blob + sizeof(KBDLAYER_MAP_HEADER));
 
-    printf("  LayerCount=%lu KeyCount=%lu\n", header->LayerCount, header->KeyCount);
+    // レイヤー数は常にKBDLAYER_MAX_LAYERS。レイヤー1以上のTRANSPARENT（未使用レイヤーの
+    // 埋め草を含む）は表示を省く。
+    printf("  Layers=%d KeyCount=%lu (layer 1+ entries that are KC_TRNS are omitted)\n",
+           KBDLAYER_MAX_LAYERS, header->KeyCount);
     for (ULONG i = 0; i < header->KeyCount; i++) {
         printf("    [%lu] SourceScanCode=0x%04X\n", i, entries[i].SourceScanCode);
-        for (ULONG L = 0; L < header->LayerCount; L++) {
+        for (ULONG L = 0; L < KBDLAYER_MAX_LAYERS; L++) {
             const KBDLAYER_ACTION& a = entries[i].Actions[L];
+            if (L > 0 && a.Type == KBDLAYER_ACTION_TRANSPARENT) {
+                continue;
+            }
             printf("      L%lu: Type=%u Param1=%u Param2=0x%04X\n", L, a.Type, a.Param1, a.Param2);
         }
     }
@@ -433,6 +439,41 @@ int CmdSetScope(IoctlClient* client, ULONG uniqId, const char* bindingName) {
     return 0;
 }
 
+void PrintFeatures(ULONG uniqId, ULONG f) {
+    printf("UniqId=%08X Macro=%d Combo=%d TapDance=%d\n", uniqId,
+           (f & KBDLAYER_FEATURE_MACRO) ? 1 : 0,
+           (f & KBDLAYER_FEATURE_COMBO) ? 1 : 0,
+           (f & KBDLAYER_FEATURE_TAPDANCE) ? 1 : 0);
+}
+
+// --get-features <UniqIdHex>: 機能別ON/OFF（項番4）の現在の状態を表示する。
+int CmdGetFeatures(IoctlClient* client, ULONG uniqId) {
+    ULONG features = 0;
+    if (!client->GetFeatures(uniqId, &features)) return 1;
+    PrintFeatures(uniqId, features);
+    return 0;
+}
+
+// --set-features <UniqIdHex> <macro:0|1> <combo:0|1> <tapdance:0|1>
+// （--set-configの位置引数と同じスタイル）
+int CmdSetFeatures(IoctlClient* client, ULONG uniqId, const char* macro, const char* combo, const char* tapDance) {
+    const char* args[3] = { macro, combo, tapDance };
+    const ULONG bits[3] = { KBDLAYER_FEATURE_MACRO, KBDLAYER_FEATURE_COMBO, KBDLAYER_FEATURE_TAPDANCE };
+    ULONG features = 0;
+    for (int i = 0; i < 3; i++) {
+        if (strcmp(args[i], "1") == 0) {
+            features |= bits[i];
+        } else if (strcmp(args[i], "0") != 0) {
+            fprintf(stderr, "--set-features: each flag must be 0 or 1 (got \"%s\")\n", args[i]);
+            return 1;
+        }
+    }
+    if (!client->SetFeatures(uniqId, features)) return 1;
+    printf("SET_FEATURES ok. ");
+    PrintFeatures(uniqId, features);
+    return 0;
+}
+
 void PrintEmergencyReleaseConfig(const KBDLAYER_EMERGENCY_RELEASE_CONFIG& c) {
     printf("KeyCount=%lu HoldMs=%u ScanCodes=", c.KeyCount, KBDLAYER_EMERGENCY_HOLD_MS);
     for (ULONG i = 0; i < c.KeyCount; i++) {
@@ -782,6 +823,13 @@ void PrintUsage() {
         "  KeymapTool.exe --set-scope <UniqIdHex> model|instance\n"
         "      Switch the persisted-settings scope. Switching from model to instance first\n"
         "      copies the current settings so nothing appears to disappear.\n"
+        "  KeymapTool.exe --get-features <UniqIdHex>\n"
+        "      Show which optional features are enabled on this keyboard.\n"
+        "  KeymapTool.exe --set-features <UniqIdHex> <macro:0|1> <combo:0|1> <tapdance:0|1>\n"
+        "      Enable/disable Macro, Combo and TapDance on this keyboard (all enabled by\n"
+        "      default). Disabled features' keys do nothing (like KC_NO); combo member\n"
+        "      keys act as their normal layer keys. Key remapping, layers (MO/TG/DF/OSL),\n"
+        "      MT/LT and NICOLA are always available. Settings stay stored while disabled.\n"
         "  KeymapTool.exe --get-emergency-release\n"
         "      Show the emergency-release key combination (driver-wide, not per-keyboard).\n"
         "  KeymapTool.exe --set-emergency-release KC_xxx KC_yyy [...]\n"
@@ -949,6 +997,18 @@ int main(int rawArgc, char** rawArgv) {
         ULONG uniqId;
         if (argc < 4 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
         return CmdSetScope(&client, uniqId, argv[3]);
+    }
+
+    if (strcmp(cmd, "--get-features") == 0) {
+        ULONG uniqId;
+        if (argc < 3 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
+        return CmdGetFeatures(&client, uniqId);
+    }
+
+    if (strcmp(cmd, "--set-features") == 0) {
+        ULONG uniqId;
+        if (argc < 6 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
+        return CmdSetFeatures(&client, uniqId, argv[3], argv[4], argv[5]);
     }
 
     if (strcmp(cmd, "--get-emergency-release") == 0) {

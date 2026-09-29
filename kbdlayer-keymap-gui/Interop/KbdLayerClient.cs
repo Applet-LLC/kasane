@@ -73,7 +73,7 @@ public sealed class KbdLayerClient : IDisposable
 
     private const int DeviceInfoSize = 4 * 4 + 256 * 2;          // KBDLAYER_DEVICE_INFO
     private const int KeyEntrySize = 2 + MaxLayers * 4;           // KBDLAYER_KEY_ENTRY
-    private const int MapHeaderSize = 12;                         // KBDLAYER_MAP_HEADER
+    private const int MapHeaderSize = 8;                          // KBDLAYER_MAP_HEADER（Header + KeyCount。LayerCountは廃止）
     private const int MaxMapBlobBytes = MapHeaderSize + MaxKeys * KeyEntrySize;
 
     private readonly SafeFileHandle _handle;
@@ -321,21 +321,31 @@ public sealed class KbdLayerClient : IDisposable
 
     public sealed record LayerMapEntry(ushort SourceScanCode, KeyAction[] Actions);
 
+    /// <summary>
+    /// レイヤーマップのblobを読む。ドライバのレイヤー数は常に MaxLayers（LayerCountフィールドは
+    /// 廃止）なので、戻り値の LayerCount は「KC_TRNS 以外が入っている最後のレイヤー + 1」
+    /// （最低1）から推定する。未使用レイヤーは TRANSPARENT で埋めて送っているため、2層の
+    /// キーマップを読み込んだときに8層ぶんのタブが出ないようにするため。
+    /// </summary>
     public static (int LayerCount, List<LayerMapEntry> Entries) ParseLayerMapBlob(byte[] blob)
     {
         var entries = new List<LayerMapEntry>();
         if (blob.Length < MapHeaderSize) return (0, entries);
         using var r = new BinaryReader(new MemoryStream(blob));
         r.ReadUInt32(); // Header（予約）
-        int layerCount = (int)r.ReadUInt32();
         int keyCount = (int)r.ReadUInt32();
+        int usedLayerCount = 1;
         for (int i = 0; i < keyCount; i++)
         {
             ushort sc = r.ReadUInt16();
             var actions = new KeyAction[MaxLayers];
-            for (int L = 0; L < MaxLayers; L++) actions[L] = ReadAction(r);
-            entries.Add(new LayerMapEntry(sc, actions[..layerCount]));
+            for (int L = 0; L < MaxLayers; L++)
+            {
+                actions[L] = ReadAction(r);
+                if (actions[L].Type != ActionType.Transparent && L + 1 > usedLayerCount) usedLayerCount = L + 1;
+            }
+            entries.Add(new LayerMapEntry(sc, actions));
         }
-        return (layerCount, entries);
+        return (usedLayerCount, entries);
     }
 }
