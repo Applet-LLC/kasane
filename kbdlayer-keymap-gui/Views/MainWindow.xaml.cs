@@ -314,7 +314,8 @@ public partial class MainWindow : Window
 
     private static bool ReferencesLayer(string token, int layer) =>
         KeycodeTable.TryResolve(token, out var a) &&
-        a.Type is ActionType.Momentary or ActionType.Toggle or ActionType.Default or ActionType.OneShotLayer or ActionType.LayerTap &&
+        a.Type is ActionType.Momentary or ActionType.Toggle or ActionType.Default or ActionType.OneShotLayer
+            or ActionType.LayerTap or ActionType.LayerMod &&
         a.Param1 == layer;
 
     // ------------------------------------------------------------------

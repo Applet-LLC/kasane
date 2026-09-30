@@ -65,6 +65,20 @@ public static class KeycodeCatalog
     public static string ShortName(string token)
     {
         if (ShortNames.TryGetValue(token, out var s)) return s;
+        // 修飾付きキーは「^C」「⇧1」「^⇧T」のように、修飾キーの記号 + キー名で表す。
+        // LMは「LM1^」のように、レイヤー番号 + 修飾キーの記号。
+        if (KeycodeTable.TryResolve(token, out var modded))
+        {
+            if (modded.Type == ActionType.ModdedKey)
+            {
+                var baseName = KeycodeTable.NameForScanCode(modded.Param2);
+                return ModSymbols(modded.Param1) + (baseName != null ? ShortName(baseName) : "?");
+            }
+            if (modded.Type == ActionType.LayerMod)
+            {
+                return $"LM{modded.Param1}" + ModSymbols((byte)(modded.Param2 & 0xFF));
+            }
+        }
         // 別名（KC_ENT等）は正式名（KC_ENTER等）に正規化して引き直す。
         if (KeycodeTable.TryResolve(token, out var action) && action.Type == ActionType.Key)
         {
@@ -75,5 +89,21 @@ public static class KeycodeCatalog
         if (token.StartsWith("KC_KP_")) return "P" + token[6..];
         if (token.StartsWith("KC_")) return token[3..];
         return token; // MO(1), LT(1,KC_A) 等はそのまま
+    }
+
+    /// <summary>
+    /// 修飾子マスク → 記号（Ctrl=^、Shift=⇧、Alt=⌥、Win=⊞。右側は前に「R」を付ける）。
+    /// </summary>
+    public static string ModSymbols(byte mask)
+    {
+        string[] sym = { "^", "⇧", "⌥", "⊞" };
+        var sb = new System.Text.StringBuilder();
+        for (int bit = 0; bit < 8; bit++)
+        {
+            if ((mask & (1 << bit)) == 0) continue;
+            if (bit >= 4) sb.Append('R');
+            sb.Append(sym[bit % 4]);
+        }
+        return sb.ToString();
     }
 }

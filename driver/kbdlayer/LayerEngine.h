@@ -201,15 +201,41 @@ ResolveNicola(
     _Inout_opt_ PVOID SystemArgument3
     );
 
-// kbdclassへバッチを転送する直前に呼ぶ。送る修飾キーの押下状態をdevExt->OutputModifierDownに
-// 反映する（OSへ修飾キーを押下中はNICOLA判定を迂回するため）。合成イベント
-// （SendSyntheticEvent）は内部で同じ追跡をしている。devExt->OutputLock保持中に呼ぶこと。
+// kbdclassへの送出の入口（普通の出力はすべてここを通す）。修飾キーの押下状態を
+// devExt->RealModsDownに記録し、修飾付きキー・LMが足している修飾キーのbreakは送らずに
+// 配列から除く。除いた場合は*SystemArgument3を元の件数で上書きしてTRUEを返す（D-3）。
+// devExt->OutputLock保持中・EngineLock非保持で呼ぶこと。
 _IRQL_requires_max_(DISPATCH_LEVEL)
-VOID
-TrackOutputModifiers(
+BOOLEAN
+ForwardToClass(
     _In_ PDEVICE_EXTENSION devExt,
     _In_ PKEYBOARD_INPUT_DATA InputDataStart,
-    _In_ PKEYBOARD_INPUT_DATA InputDataEnd
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd,
+    _Inout_opt_ PVOID SystemArgument3
+    );
+
+// 修飾付きキー（MODDED_KEY、QMKのLCTL(kc)等相当）とLM（LAYER_MOD）。Driver.cのServiceCallbackから、
+// ResolveMacroの後・ResolveLayerActionの前に呼ぶこと。単一イベントのバッチのみを対象とする。
+// 押下で修飾キーを足してからキーを送り、解放でキーを離してから足した修飾キーを戻す。
+// 押下の記録があるキー（MODDED_KEY/LAYER_MODとして押したもの）の解放・オートリピートは、
+// レイヤーマップのOFF・差し替え後も記録どおりに処理する（D-6）。
+// 戻り値: ResolveTapHoldと同じ意味（TRUE=処理済み、FALSE=対象外）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+ResolveModdedKey(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd,
+    _Inout_opt_ PVOID SystemArgument3
+    );
+
+// ServiceCallbackが複数件バッチを1件ずつに分けて流すべきか。修飾付きキー・LMを含む
+// マップが有効なとき、またはそれらとして押下中のキーがあるとき（マップを差し替えた後の
+// 解放も1件ずつ処理して、足した修飾キーを必ず戻すため）。OutputLock保持中に呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+NeedsSingleEventDispatch(
+    _In_ PDEVICE_EXTENSION devExt
     );
 
 // NICOLA判定が現在有効か（設定あり・Enabled・レイヤーマップON・対象レイヤーがアクティブ）。

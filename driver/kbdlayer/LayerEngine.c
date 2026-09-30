@@ -60,6 +60,28 @@ typedef struct _KBDLAYER_MACRO_PERSIST_ENTRY {
 #define KBDLAYER_MACRO_PERSIST_BLOB_BYTES \
     (KBDLAYER_MAX_MACRO_COUNT * sizeof(KBDLAYER_MACRO_PERSIST_ENTRY))
 
+// 2026-09-30にマクロの最大数を32→128へ上げる前の保存サイズ（32個分、8320バイト）。
+// 読み込み（LoadPersistedMacrosForDevice）とE-2の設定コピー（CopyPersistedSettings）の
+// 両方でこのサイズも受け付ける（アップグレードで既存のマクロが消えないように）。
+// 次のSET_MACROで新しいサイズに書き直される。
+#define KBDLAYER_MACRO_PERSIST_LEGACY_COUNT 32
+
+// "Macros"値のバイト数から、何個分のマクロが入っているかを返す。受け付けないサイズなら0。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static ULONG
+MacroPersistCountFromLength(
+    _In_ ULONG Length
+    )
+{
+    if (Length == KBDLAYER_MACRO_PERSIST_BLOB_BYTES) {
+        return KBDLAYER_MAX_MACRO_COUNT;
+    }
+    if (Length == KBDLAYER_MACRO_PERSIST_LEGACY_COUNT * sizeof(KBDLAYER_MACRO_PERSIST_ENTRY)) {
+        return KBDLAYER_MACRO_PERSIST_LEGACY_COUNT;
+    }
+    return 0;
+}
+
 // コンボの永続化形式（レジストリ"Combos"値）。マクロと同じ方式で、
 // KBDLAYER_MAX_COMBO_COUNT個ぶん固定サイズで連続して並べる。
 typedef struct _KBDLAYER_COMBO_PERSIST_ENTRY {
@@ -164,11 +186,26 @@ ParseLayerMapBlob(
     // Action.Type が未知の値を含んでいないか検証する（将来のPhase向けに予約された
     // 値も含め、このドライババイナリが理解できるTypeのみを許可する）。レイヤー数は
     // 常にKBDLAYER_MAX_LAYERS（2026-09-29にLayerCountフィールドを廃止）。
+    BOOLEAN needsSingleEvents = FALSE;
     for (ULONG k = 0; k < header->KeyCount; k++) {
         for (ULONG L = 0; L < KBDLAYER_MAX_LAYERS; L++) {
-            UCHAR type = entries[k].Actions[L].Type;
-            if (type > KBDLAYER_ACTION_TAPDANCE) {
+            PKBDLAYER_ACTION a = &entries[k].Actions[L];
+            if (a->Type > KBDLAYER_ACTION_TYPE_MAX) {
                 return STATUS_INVALID_PARAMETER;
+            }
+            // 修飾付きキー: 修飾子マスクが0なら単なるKEYと同じで、意図しない形（F-3）。
+            if (a->Type == KBDLAYER_ACTION_MODDED_KEY) {
+                if (a->Param1 == 0) {
+                    return STATUS_INVALID_PARAMETER;
+                }
+                needsSingleEvents = TRUE;
+            }
+            // LM: レイヤー番号は範囲内、Param2は下位8bitの修飾子マスク（0以外）のみ。
+            if (a->Type == KBDLAYER_ACTION_LAYER_MOD) {
+                if (a->Param1 >= KBDLAYER_MAX_LAYERS || (a->Param2 & 0xFF00) != 0 || (a->Param2 & 0x00FF) == 0) {
+                    return STATUS_INVALID_PARAMETER;
+                }
+                needsSingleEvents = TRUE;
             }
         }
     }
@@ -180,6 +217,7 @@ ParseLayerMapBlob(
     }
 
     newTable->KeyCount = header->KeyCount;
+    newTable->NeedsSingleEvents = needsSingleEvents;
     if (header->KeyCount > 0) {
         RtlCopyMemory(newTable->Entries, entries, header->KeyCount * sizeof(KBDLAYER_KEY_ENTRY));
     }
@@ -303,6 +341,55 @@ HeldKeyFor(
     return &devExt->HeldKeys[index];
 }
 
+// MODDED_KEY/LAYER_MOD（修飾キーを足すアクション）か。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static BOOLEAN
+IsModdedActionType(
+    _In_ UCHAR Type
+    )
+{
+    return Type == KBDLAYER_ACTION_MODDED_KEY || Type == KBDLAYER_ACTION_LAYER_MOD;
+}
+
+// 記録の「足した修飾キー」を変え、devExt->AddedModCount[]（ビットごとの足している記録の数）を
+// 合わせる。OutputLockとEngineLockの両方を保持して呼ぶこと（AddedModCountはどちらか一方の
+// 保持中に読まれる）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+SetHeldAddedModsLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _Inout_ PKBDLAYER_HELD_KEY Held,
+    _In_ UCHAR AddedMods
+    )
+{
+    for (ULONG bit = 0; bit < 8; bit++) {
+        UCHAR m = (UCHAR)(1u << bit);
+        if ((Held->AddedMods & m) && !(AddedMods & m) && devExt->AddedModCount[bit] > 0) {
+            devExt->AddedModCount[bit]--;
+        } else if (!(Held->AddedMods & m) && (AddedMods & m)) {
+            devExt->AddedModCount[bit]++;
+        }
+    }
+    Held->AddedMods = AddedMods;
+}
+
+// 押下中の記録のどれかが足している修飾キー（KBDLAYER_MOD_*のOR）。
+// OutputLockかEngineLockのどちらかを保持して呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static UCHAR
+AddedModsUnion(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    UCHAR mods = 0;
+    for (ULONG bit = 0; bit < 8; bit++) {
+        if (devExt->AddedModCount[bit] != 0) {
+            mods |= (UCHAR)(1u << bit);
+        }
+    }
+    return mods;
+}
+
 _IRQL_requires_max_(DISPATCH_LEVEL)
 static VOID
 SetHeldKeyLocked(
@@ -319,11 +406,24 @@ SetHeldKeyLocked(
     } else if (held->State != KBDLAYER_HELD_NONE && State == KBDLAYER_HELD_NONE && devExt->HeldKeyCount > 0) {
         devExt->HeldKeyCount--;
     }
+    // MODDED_KEY/LAYER_MODの記録の数（ServiceCallbackが1件ずつに分けるかの判定に使う）。
+    // 足した修飾キーは、ResolveModdedKeyが記録を消す前にbreakを送って0に戻している。
+    // ここで0でないまま上書きされるのは想定外の経路だけで、その場合も数は合わせておく。
+    if (held->State == KBDLAYER_HELD_ACTION && IsModdedActionType(held->Action.Type) &&
+        devExt->ModdedHeldCount > 0) {
+        devExt->ModdedHeldCount--;
+    }
+    if (held->AddedMods != 0) {
+        SetHeldAddedModsLocked(devExt, held, 0);
+    }
     held->State = State;
     if (Action != NULL) {
         held->Action = *Action;
     } else {
         RtlZeroMemory(&held->Action, sizeof(held->Action));
+    }
+    if (State == KBDLAYER_HELD_ACTION && Action != NULL && IsModdedActionType(Action->Type)) {
+        devExt->ModdedHeldCount++;
     }
 }
 
@@ -508,6 +608,29 @@ apply:
         }
         return TRUE; // 出力しない
 
+    case KBDLAYER_ACTION_MODDED_KEY:
+    case KBDLAYER_ACTION_LAYER_MOD:
+        // 通常はResolveModdedKeyが先に処理する（これらを含むマップ・押下中の記録がある間は、
+        // ServiceCallbackが複数件バッチを1件ずつに分けるため）。ここに来るのは想定外の経路
+        // だけで、修飾キーは足さずに、キー（またはレイヤー）部分だけを処理する。
+        // 修飾付きキーの解放がここに来た場合、足した修飾キーの記録は上のSetHeldKeyLockedが
+        // 消すだけで、breakはまだ送っていない。そのbreakは、このイベントを送るForwardToClassの
+        // 安全網（ReleaseLeakedModifiers）が送る。通ったことが分かるようトレースを残す。
+        KBDLAYER_TRACE("ShouldDropEntry: fallback for MODDED/LM sc=0x%X break=%d\n", src, isBreak);
+        if (action->Type == KBDLAYER_ACTION_MODDED_KEY) {
+            DecodeScancode16(action->Param2, &Entry->MakeCode, &Entry->Flags);
+            return FALSE;
+        }
+        if (action->Param1 < KBDLAYER_MAX_LAYERS) {
+            ULONG bit = 1UL << action->Param1;
+            if (!isBreak) {
+                devExt->ActiveLayerMask |= bit;
+            } else {
+                devExt->ActiveLayerMask &= ~bit;
+            }
+        }
+        return TRUE;
+
     default:
         // MODTAP/LAYERTAPはResolveTapHold、MACROはResolveMacro、TAPDANCEはResolveTapDance
         // （いずれもServiceCallbackからResolveLayerActionより前に呼ばれる、Driver.c参照）が
@@ -580,12 +703,10 @@ static const USHORT s_ModifierScanCodes[8] = {
     /* 7: RGUI */ 0xE05C,
 };
 
-// kbdclassへ送る1イベントが修飾キーなら、devExt->OutputModifierDownを更新する。
-// devExt->OutputLock保持中に呼ぶこと（送出はすべてOutputLock保持中に行う）。
+// スキャンコードが修飾キーならKBDLAYER_MOD_*のビット（1つ）を、そうでなければ0を返す。
 _IRQL_requires_max_(DISPATCH_LEVEL)
-static VOID
-TrackOutputModifierEvent(
-    _In_ PDEVICE_EXTENSION devExt,
+static UCHAR
+ModifierMaskOf(
     _In_ USHORT MakeCode,
     _In_ USHORT Flags
     )
@@ -594,27 +715,256 @@ TrackOutputModifierEvent(
 
     for (ULONG bit = 0; bit < RTL_NUMBER_OF(s_ModifierScanCodes); bit++) {
         if (s_ModifierScanCodes[bit] == scanCode) {
-            if (Flags & KEY_BREAK) {
-                devExt->OutputModifierDown &= (UCHAR)~(1u << bit);
-            } else {
-                devExt->OutputModifierDown |= (UCHAR)(1u << bit);
+            return (UCHAR)(1u << bit);
+        }
+    }
+    return 0;
+}
+
+// 修飾キー1つ（Enc16形式）のmake/breakを、ForwardToClassを通さずに単独で送る。
+// RealModsDown・OutputModsDownは変えない（呼び出し側が扱う）。OutputLock保持中・
+// EngineLock非保持で呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+SendRawModifierEvent(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ USHORT EncodedScanCode,
+    _In_ USHORT BreakBit
+    )
+{
+    KEYBOARD_INPUT_DATA ev;
+    ULONG dummyConsumed = 0;
+    USHORT makeCode;
+    USHORT flags = BreakBit;
+
+    if (devExt->OriginalClassService == NULL) {
+        return;
+    }
+    DecodeScancode16(EncodedScanCode, &makeCode, &flags);
+    RtlZeroMemory(&ev, sizeof(ev));
+    ev.MakeCode = makeCode;
+    ev.Flags = flags;
+    ev.ExtraInformation = devExt->DeviceId & 0xFFFF0000UL;
+    devExt->OriginalClassService(
+        devExt->OriginalClassDeviceObject,
+        &ev,
+        &ev + 1,
+        &dummyConsumed);
+}
+
+// 修飾付きキー・LMが「足す／戻す」修飾キー（Modsの各ビット）のmake/breakを送る。
+// RealModsDownは変えない（ForwardToClassを通さない）。どのビットを送るべきかは呼び出し側が
+// RealModsDownとAddedModsUnionから決める（ResolveModdedKey参照）。OutputLock保持中・
+// EngineLock非保持で呼ぶこと。
+// OutputModsDownを見て、OSが既に押されていると思っているビットのmake、既に離されていると
+// 思っているビットのbreakは送らない（二重送信の防止。のどかのgenerateKeyEventと同じ考え方）。
+// Alt・Winのbreakで、直前のmakeが修飾キー（=間に何も押していない単独押し）なら、先に
+// Ctrlのタップを挟む。こうしないと、LM(n,LALT)を押して何も押さずに離しただけで
+// メニューバーが開く（Winならスタートメニュー）。Shiftでなく Ctrl を使うのは、
+// Alt+Shift が入力言語の切り替えに割り当てられていることがあるため。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+SendAddedModifiers(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ UCHAR Mods,
+    _In_ USHORT BreakBit
+    )
+{
+    const UCHAR menuMods = KBDLAYER_MOD_LALT | KBDLAYER_MOD_RALT | KBDLAYER_MOD_LGUI | KBDLAYER_MOD_RGUI;
+
+    if (BreakBit == KEY_BREAK) {
+        Mods &= devExt->OutputModsDown;
+        if ((Mods & menuMods) != 0 && devExt->LastOutputWasModifier) {
+            USHORT ctrl = 0;
+            if (!(devExt->OutputModsDown & KBDLAYER_MOD_LCTL)) {
+                ctrl = s_ModifierScanCodes[0];
+            } else if (!(devExt->OutputModsDown & KBDLAYER_MOD_RCTL)) {
+                ctrl = s_ModifierScanCodes[4];
             }
-            return;
+            if (ctrl != 0) {
+                SendRawModifierEvent(devExt, ctrl, KEY_MAKE);
+                SendRawModifierEvent(devExt, ctrl, KEY_BREAK);
+            }
+            devExt->LastOutputWasModifier = FALSE;
+        }
+    } else {
+        Mods &= (UCHAR)~devExt->OutputModsDown;
+    }
+
+    for (ULONG bit = 0; bit < RTL_NUMBER_OF(s_ModifierScanCodes); bit++) {
+        UCHAR m = (UCHAR)(1u << bit);
+        if (Mods & m) {
+            SendRawModifierEvent(devExt, s_ModifierScanCodes[bit], BreakBit);
+            if (BreakBit == KEY_BREAK) {
+                devExt->OutputModsDown &= (UCHAR)~m;
+            } else {
+                devExt->OutputModsDown |= m;
+                devExt->LastOutputWasModifier = TRUE;
+            }
         }
     }
 }
 
+// バッチに、ScanCode16以外の「修飾キーでないキーのmake」があるか。
 _IRQL_requires_max_(DISPATCH_LEVEL)
-VOID
-TrackOutputModifiers(
+static BOOLEAN
+BatchHasOtherKeyMake(
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd,
+    _In_ USHORT ScanCode16
+    )
+{
+    for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
+        if (!(p->Flags & KEY_BREAK) &&
+            ModifierMaskOf(p->MakeCode, p->Flags) == 0 &&
+            EncodeScancode16(p->MakeCode, p->Flags) != ScanCode16) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+// [D-12] 修飾付きキー（LSFT(KC_1)等）を押したまま別のキーを押したら、その修飾付きキーが
+// 足した修飾キーを外す（QMKのweak modsの考え方。のどかも、キーを押すたびに修飾キーを
+// 物理的な状態に合わせ直すので同じ動作になる）。こうしないと、「!」を打つキーを離す前に
+// 次の「a」を押すと「A」になる。
+// - 対象は MODDED_KEY の記録だけ。LM は「押している間は修飾キーが掛かる」のが目的なので外さない。
+// - 「別のキー」は修飾キーでないキーのmake。修飾付きキー自身の出力キー（オートリピート・
+//   押下時のmake）は含めない。
+// - 記録は残し、AddedModsだけを0にする（そのキーを離したときに二重にbreakを送らない）。
+// ここではカウンタを直すだけで、OSへのbreakは呼び出し元（ForwardToClass）の
+// ReleaseLeakedModifiersが、そのキーのmakeより前に送る。
+// OutputLock保持中・EngineLock非保持で呼ぶこと（ここでEngineLockを取る）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static BOOLEAN
+StripModdedKeyMods(
     _In_ PDEVICE_EXTENSION devExt,
     _In_ PKEYBOARD_INPUT_DATA InputDataStart,
     _In_ PKEYBOARD_INPUT_DATA InputDataEnd
     )
 {
-    for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
-        TrackOutputModifierEvent(devExt, p->MakeCode, p->Flags);
+    KIRQL oldIrql;
+    BOOLEAN stripped = FALSE;
+
+    // ModdedHeldCountはOutputLockとEngineLockの両方を保持して書かれるので、OutputLock保持中の
+    // ここでは一貫した値が読める。
+    if (devExt->ModdedHeldCount == 0) {
+        return FALSE;
     }
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    for (ULONG i = 0; i < KBDLAYER_HELD_KEY_SLOTS; i++) {
+        PKBDLAYER_HELD_KEY held = &devExt->HeldKeys[i];
+        if (held->AddedMods == 0 || held->State != KBDLAYER_HELD_ACTION ||
+            held->Action.Type != KBDLAYER_ACTION_MODDED_KEY) {
+            continue;
+        }
+        if (BatchHasOtherKeyMake(InputDataStart, InputDataEnd, held->Action.Param2)) {
+            SetHeldAddedModsLocked(devExt, held, 0);
+            stripped = TRUE;
+        }
+    }
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+    return stripped;
+}
+
+// [安全網] OSが押されていると思っている修飾キーのうち、普通の出力にも足した記録にも
+// 押されていないもの（OutputModsDown & ~(RealModsDown | AddedModsUnion)）にbreakを送る。
+// D-12で外したビット・修飾付きキーの解放で足した記録が消えたビットは、ここで離れる。
+// 想定外の経路（押下記録が足した修飾キーごと上書きされた等。LayerEngineShouldDropEntry参照）
+// でbreakを送り損ねても、次の送出で必ず直る（のどかで繰り返し起きた「カウンタは合って
+// いるのにOSでは押されたまま」を防ぐため）。OutputLock保持中・EngineLock非保持で呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+ReleaseLeakedModifiers(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    UCHAR leaked = (UCHAR)(devExt->OutputModsDown & ~(devExt->RealModsDown | AddedModsUnion(devExt)));
+
+    if (leaked != 0) {
+        SendAddedModifiers(devExt, leaked, KEY_BREAK);
+    }
+}
+
+// kbdclassへの送出の入口。普通の出力（素通し・置き換え・MTのホールド・マクロ・コンボ・
+// タップダンス・NICOLA）はすべてここを通す。修飾付きキー・LMが足した修飾キーの送出だけは
+// SendAddedModifiersを使う。devExt->OutputLock保持中・EngineLock非保持で呼ぶこと。
+// - 修飾キーのmakeはRealModsDownに立てて送る（足した分と重なっていてもそのまま送る。
+//   OSにはオートリピートと同じに見える）。
+// - 修飾キーのbreakはRealModsDownから落とす。足した分にまだ含まれていれば**送らない**
+//   （OSではまだ押されている。足した記録が消えたときにReleaseLeakedModifiersで送られる）。
+//   例: CapsLock→Ctrlを押したまま LCTL(KC_C) を離しても、Ctrlは離れない。逆に、
+//   LCTL(KC_C) を押している間にマクロ・MTの打ち切り・物理Ctrlの解放でCtrlのbreakが来ても、
+//   足したCtrlは離れない。
+// - 修飾キーでないキーのmakeがあれば、先に修飾付きキーが足した修飾キーを外す（D-12、
+//   StripModdedKeyMods）。
+// - 送った後、OSで押されたままになっている修飾キーを離す（安全網、ReleaseLeakedModifiers）。
+// 送らなかったイベントがあれば配列を詰め、*SystemArgument3を元の件数で上書きして
+// TRUEを返す（D-3）。全部詰めたらkbdclassは呼ばない。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+ForwardToClass(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd,
+    _Inout_opt_ PVOID SystemArgument3
+    )
+{
+    ULONG originalCount = (ULONG)(InputDataEnd - InputDataStart);
+    UCHAR added;
+    PKEYBOARD_INPUT_DATA writePtr = InputDataStart;
+
+    if (StripModdedKeyMods(devExt, InputDataStart, InputDataEnd)) {
+        ReleaseLeakedModifiers(devExt); // 外した修飾キーのbreakを、キーのmakeより前に送る
+    }
+    added = AddedModsUnion(devExt);
+
+    for (PKEYBOARD_INPUT_DATA readPtr = InputDataStart; readPtr < InputDataEnd; readPtr++) {
+        UCHAR mod = ModifierMaskOf(readPtr->MakeCode, readPtr->Flags);
+        BOOLEAN keep = TRUE;
+
+        if (mod != 0) {
+            if (readPtr->Flags & KEY_BREAK) {
+                devExt->RealModsDown &= (UCHAR)~mod;
+                if (added & mod) {
+                    keep = FALSE;
+                } else {
+                    devExt->OutputModsDown &= (UCHAR)~mod;
+                }
+            } else {
+                devExt->RealModsDown |= mod;
+                devExt->OutputModsDown |= mod;
+            }
+        }
+        if (keep) {
+            if (!(readPtr->Flags & KEY_BREAK)) {
+                devExt->LastOutputWasModifier = (mod != 0);
+            }
+            if (writePtr != readPtr) {
+                *writePtr = *readPtr;
+            }
+            writePtr++;
+        }
+    }
+
+    if (writePtr != InputDataStart) {
+        devExt->OriginalClassService(
+            devExt->OriginalClassDeviceObject,
+            InputDataStart,
+            writePtr,
+            SystemArgument3);
+    }
+
+    ReleaseLeakedModifiers(devExt);
+
+    if (writePtr != InputDataEnd) {
+        if (SystemArgument3 != NULL) {
+            *(PULONG)SystemArgument3 = originalCount;
+        }
+        return TRUE;
+    }
+    return FALSE;
 }
 
 // devExt->EngineLock保持中に呼ぶこと。保留サイクル用タイマー（Hold/Combo/TapDance）の
@@ -655,12 +1005,8 @@ SendSyntheticEvent(
     ev.Flags = Flags;
     ev.ExtraInformation = devExt->DeviceId & 0xFFFF0000UL;
 
-    TrackOutputModifierEvent(devExt, MakeCode, Flags);
-    devExt->OriginalClassService(
-        devExt->OriginalClassDeviceObject,
-        &ev,
-        &ev + 1,
-        &dummyConsumed);
+    // 普通の出力なので、足した修飾キーとの関係はForwardToClassが扱う。
+    ForwardToClass(devExt, &ev, &ev + 1, &dummyConsumed);
 }
 
 // Enc16形式のスキャンコードをデコードし、BreakBit（KEY_MAKEまたはKEY_BREAK）を
@@ -883,12 +1229,7 @@ ResolveTapHold(
         for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
             p->ExtraInformation = (p->ExtraInformation & 0x0000FFFFUL) | (devExt->DeviceId & 0xFFFF0000UL);
         }
-        TrackOutputModifiers(devExt, InputDataStart, InputDataEnd);
-        devExt->OriginalClassService(
-            devExt->OriginalClassDeviceObject,
-            InputDataStart,
-            InputDataEnd,
-            SystemArgument3);
+        ForwardToClass(devExt, InputDataStart, InputDataEnd, SystemArgument3);
         return TRUE;
     }
 
@@ -1057,6 +1398,157 @@ run:
         *(PULONG)SystemArgument3 = 1;
     }
     return TRUE;
+}
+
+// ---------------------------------------------------------------------------
+// 修飾付きキー（MODDED_KEY: QMKのLCTL(kc)等相当）とLM（LAYER_MOD: QMKのLM(layer,mod)相当）
+//
+// 押下で「普通の出力として押されていない」修飾キーを足し（HeldKeys[].AddedModsに記録）、
+// 解放でキーを離してから、足した修飾キーのうち他のどこからも押されていないものを離す。
+// 普通の出力の修飾キー（RealModsDown）との重なりはForwardToClassと合わせて扱う
+// （DeviceExtension.hのAddedModCountのコメント参照）。送出はすべてOutputLock保持中（D-5）。
+// ---------------------------------------------------------------------------
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+ResolveModdedKey(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd,
+    _Inout_opt_ PVOID SystemArgument3
+    )
+{
+    PKEYBOARD_INPUT_DATA ev;
+    USHORT scanCode;
+    BOOLEAN isBreak;
+    KIRQL oldIrql;
+    PKBDLAYER_HELD_KEY held;
+    KBDLAYER_ACTION action;
+    UCHAR sendMods = 0;
+
+    if ((InputDataEnd - InputDataStart) != 1) {
+        return FALSE;
+    }
+
+    ev = InputDataStart;
+    scanCode = EncodeScancode16(ev->MakeCode, ev->Flags);
+    isBreak = (ev->Flags & KEY_BREAK) != 0;
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+
+    held = HeldKeyFor(devExt, scanCode);
+
+    // --- 修飾付きキー・LMとして押下中のキー: マップのON/OFF・差し替えにかかわらず記録どおり ---
+    if (held->State == KBDLAYER_HELD_ACTION && IsModdedActionType(held->Action.Type)) {
+        action = held->Action;
+
+        if (!isBreak) {
+            // オートリピート。修飾付きキーはキーのmakeだけを繰り返す（修飾キーは押したまま）。
+            // 別のキーを押して修飾キーを外した後（D-12、StripModdedKeyMods）は、修飾キーなしで
+            // 繰り返す。ただしハードウェアのリピートは最後に押したキーだけなので、実際には
+            // ほとんど起きない。LMは何もしない。
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+            if (action.Type == KBDLAYER_ACTION_MODDED_KEY) {
+                SendDecodedEvent(devExt, action.Param2, KEY_MAKE);
+            }
+            if (SystemArgument3 != NULL) {
+                *(PULONG)SystemArgument3 = 1;
+            }
+            return TRUE;
+        }
+
+        // 解放。記録を消してから、足した修飾キーのうち、他の記録にも普通の出力にも
+        // 押されていないものだけを離す。
+        {
+            UCHAR added = held->AddedMods;
+            SetHeldAddedModsLocked(devExt, held, 0);
+            SetHeldKeyLocked(devExt, scanCode, KBDLAYER_HELD_NONE, NULL);
+            if (action.Type == KBDLAYER_ACTION_LAYER_MOD && action.Param1 < KBDLAYER_MAX_LAYERS) {
+                devExt->ActiveLayerMask &= ~(1UL << action.Param1);
+            }
+            sendMods = (UCHAR)(added & ~(devExt->RealModsDown | AddedModsUnion(devExt)));
+        }
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+        // 修飾付きキーでは、キーのbreakを送るForwardToClassの安全網が、足した修飾キーの
+        // breakも続けて送る。下のSendAddedModifiersは、そのとき送り済みのビットを送らない
+        // （OutputModsDownで判定）ので、LMのとき・念のための呼び出しになる。
+        if (action.Type == KBDLAYER_ACTION_MODDED_KEY) {
+            SendDecodedEvent(devExt, action.Param2, KEY_BREAK);
+        }
+        SendAddedModifiers(devExt, sendMods, KEY_BREAK);
+        if (SystemArgument3 != NULL) {
+            *(PULONG)SystemArgument3 = 1;
+        }
+        return TRUE;
+    }
+
+    // --- 新しい押下 ---
+    if (isBreak || held->State != KBDLAYER_HELD_NONE ||
+        !devExt->LayerMapEnabled || devExt->LayerMap == NULL) {
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        return FALSE;
+    }
+    {
+        PKBDLAYER_KEY_ENTRY keyEntry = FindKeyEntry(devExt->LayerMap, scanCode);
+        PKBDLAYER_ACTION resolved = (keyEntry != NULL) ?
+            ResolveEffectiveAction(devExt, devExt->LayerMap, keyEntry) : NULL;
+        UCHAR mask;
+        UCHAR downBefore;
+        UCHAR added;
+
+        if (resolved == NULL || !IsModdedActionType(resolved->Type)) {
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+            return FALSE;
+        }
+        action = *resolved;
+        mask = (action.Type == KBDLAYER_ACTION_MODDED_KEY) ? action.Param1 : (UCHAR)(action.Param2 & 0xFF);
+
+        // 普通の出力として押されている修飾キーは足さない（離しもしない。QMKのweak mods相当）。
+        // 他の記録が足している修飾キーは、こちらの記録にも含めるが送り直さない（両方が
+        // 離れるまで押したままにするため）。
+        downBefore = (UCHAR)(devExt->RealModsDown | AddedModsUnion(devExt));
+        added = (UCHAR)(mask & ~devExt->RealModsDown);
+        SetHeldKeyLocked(devExt, scanCode, KBDLAYER_HELD_ACTION, &action);
+        SetHeldAddedModsLocked(devExt, held, added);
+        sendMods = (UCHAR)(added & ~downBefore);
+
+        if (action.Type == KBDLAYER_ACTION_LAYER_MOD) {
+            if (action.Param1 < KBDLAYER_MAX_LAYERS) {
+                devExt->ActiveLayerMask |= (1UL << action.Param1);
+            }
+        } else if (devExt->OneShotLayerPending) {
+            // KEYと同じく、OSL(layer)発動後に最初に解決された実キーでワンショットを消費する。
+            devExt->ActiveLayerMask &= ~devExt->OneShotLayerBit;
+            devExt->OneShotLayerPending = FALSE;
+        }
+    }
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    SendAddedModifiers(devExt, sendMods, KEY_MAKE);
+    if (action.Type == KBDLAYER_ACTION_MODDED_KEY) {
+        SendDecodedEvent(devExt, action.Param2, KEY_MAKE);
+    }
+    if (SystemArgument3 != NULL) {
+        *(PULONG)SystemArgument3 = 1;
+    }
+    return TRUE;
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+NeedsSingleEventDispatch(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    KIRQL oldIrql;
+    BOOLEAN needs;
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    needs = (devExt->ModdedHeldCount != 0) ||
+            (devExt->LayerMapEnabled && devExt->LayerMap != NULL && devExt->LayerMap->NeedsSingleEvents);
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+    return needs;
 }
 
 // ---------------------------------------------------------------------------
@@ -1769,12 +2261,7 @@ ResolveTapDance(
             for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
                 p->ExtraInformation = (p->ExtraInformation & 0x0000FFFFUL) | (devExt->DeviceId & 0xFFFF0000UL);
             }
-            TrackOutputModifiers(devExt, InputDataStart, InputDataEnd);
-            devExt->OriginalClassService(
-                devExt->OriginalClassDeviceObject,
-                InputDataStart,
-                InputDataEnd,
-                SystemArgument3);
+            ForwardToClass(devExt, InputDataStart, InputDataEnd, SystemArgument3);
             return TRUE;
         }
     }
@@ -2043,8 +2530,20 @@ CopyPersistedSettings(
     }
 
     {
-        static const PCWSTR fixedNames[] = { KBDLAYER_MACROS_VALUE_NAME, KBDLAYER_COMBOS_VALUE_NAME, KBDLAYER_TAPDANCES_VALUE_NAME };
-        static const ULONG fixedSizes[] = { KBDLAYER_MACRO_PERSIST_BLOB_BYTES, KBDLAYER_COMBO_PERSIST_BLOB_BYTES, KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES };
+        // Macrosは旧サイズ（32個分）も受け付け、読んだバイト列のままコピーする
+        // （読み込み側のLoadPersistedMacrosForDeviceも旧サイズを読めるため）。
+        actualLength = 0;
+        if (NT_SUCCESS(RegReadBinary(KBDLAYER_SERVICE_NAME, srcPath, KBDLAYER_MACROS_VALUE_NAME,
+                                      scratch, scratchBytes, &actualLength)) &&
+            MacroPersistCountFromLength(actualLength) > 0) {
+            CheckPersistResult(devExt, KBDLAYER_MACROS_VALUE_NAME,
+                RegWriteBinary(KBDLAYER_SERVICE_NAME, dstPath, KBDLAYER_MACROS_VALUE_NAME, scratch, actualLength));
+        }
+    }
+
+    {
+        static const PCWSTR fixedNames[] = { KBDLAYER_COMBOS_VALUE_NAME, KBDLAYER_TAPDANCES_VALUE_NAME };
+        static const ULONG fixedSizes[] = { KBDLAYER_COMBO_PERSIST_BLOB_BYTES, KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES };
         for (ULONG i = 0; i < RTL_NUMBER_OF(fixedNames); i++) {
             actualLength = 0;
             if (NT_SUCCESS(RegReadBinary(KBDLAYER_SERVICE_NAME, srcPath, fixedNames[i],
@@ -3082,8 +3581,10 @@ LoadPersistedMacrosForDevice(
     BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
     status = RegReadBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_MACROS_VALUE_NAME,
                             buffer, KBDLAYER_MACRO_PERSIST_BLOB_BYTES, &actualLength);
-    if (NT_SUCCESS(status) && actualLength == KBDLAYER_MACRO_PERSIST_BLOB_BYTES) {
-        for (ULONG i = 0; i < KBDLAYER_MAX_MACRO_COUNT; i++) {
+    // 旧サイズ（32個分）なら先頭32個として読む（MacroPersistCountFromLength参照）。
+    ULONG persistedCount = NT_SUCCESS(status) ? MacroPersistCountFromLength(actualLength) : 0;
+    if (persistedCount > 0) {
+        for (ULONG i = 0; i < persistedCount; i++) {
             ULONG stepCount = buffer[i].StepCount;
             if (stepCount > KBDLAYER_MAX_MACRO_STEPS) {
                 stepCount = 0; // 壊れたデータは無視する（安全側）
@@ -3094,8 +3595,8 @@ LoadPersistedMacrosForDevice(
             }
         }
     }
-    // actualLengthがKBDLAYER_MACRO_PERSIST_BLOB_BYTESと一致しない場合（値が
-    // 存在しない、または将来の互換性が壊れた場合）は何もしない。AddDeviceで
+    // actualLengthが受け付けるサイズでない場合（値が存在しない、または将来の
+    // 互換性が壊れた場合）は何もしない。AddDeviceで
     // RtlZeroMemory済みのため全マクロ未設定のままで安全。
 
     ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
@@ -4306,11 +4807,20 @@ ResolveNicola(
         kind = NICOLA_KEY_OTHER;
     }
     // Ctrl/Alt/Win/ShiftをOSへ押下中はショートカット等を壊さないよう判定を迂回する。
-    // 物理キーではなく、実際に送った出力で見る（TrackOutputModifierEvent参照）。
-    // レイヤーマップでCtrlにしたキーやMTのホールドも対象になり、物理Ctrlを別のキーに
-    // した場合は対象外になる。ServiceCallbackはOutputLockを保持しているので、ロック無しで読める。
-    if (kind != NICOLA_KEY_OTHER && devExt->OutputModifierDown != 0) {
+    // 物理キーではなく、実際に送った出力で見る（ForwardToClass参照）。
+    // レイヤーマップでCtrlにしたキーやMTのホールド、修飾付きキー・LMで足した修飾キーも
+    // 対象になり、物理Ctrlを別のキーにした場合は対象外になる。ServiceCallbackはOutputLockを
+    // 保持しているので読める（AddedModCountはEngineLockでも保護されている）。
+    if (kind != NICOLA_KEY_OTHER && (devExt->RealModsDown | AddedModsUnion(devExt)) != 0) {
         kind = NICOLA_KEY_OTHER;
+    }
+    // 修飾付きキー・LMとして押されているキーの解放・オートリピートは、NICOLAが取らずに
+    // 後段（ResolveModdedKey）へ渡す（足した修飾キーを必ず戻すため）。
+    {
+        PKBDLAYER_HELD_KEY held = HeldKeyFor(devExt, scanCode);
+        if (held->State == KBDLAYER_HELD_ACTION && IsModdedActionType(held->Action.Type)) {
+            kind = NICOLA_KEY_OTHER;
+        }
     }
     // MT/LT（とタップダンスの1回目の押下）のタップ/ホールドが判定中に、別のキーの押下が来た
     // 場合は、NICOLAは横取りせず後段に譲る。通常のキーと同じく「他キー押下でホールド確定」に
@@ -4353,7 +4863,9 @@ InitializeNicolaState(
     devExt->NicolaTable = NULL;
     devExt->NicolaTableBytes = 0;
     devExt->NicolaWasActive = FALSE;
-    devExt->OutputModifierDown = 0;
+    devExt->RealModsDown = 0;
+    devExt->OutputModsDown = 0;
+    devExt->LastOutputWasModifier = FALSE;
 }
 
 // NICOLA設定blobの形式を検証する（SET_NICOLAとレジストリからの読み込みの両方で使う）。

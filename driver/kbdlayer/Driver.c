@@ -620,7 +620,11 @@ VOID ServiceCallback(
         // Phase 6: NICOLA判定が有効な間は、複数件バッチを1件ずつに分けて流す。
         // USBキーボードでは親指キーと文字キーの同時押しが1つのレポート（=1バッチ）で
         // 届きうるが、各Resolve*は1件バッチしか扱わないため。
-        if ((InputDataEnd - InputDataStart) > 1 && NicolaIsActive(devExt)) {
+        // 修飾付きキー・LMを含むマップが有効な間と、それらとして押下中のキーがある間も同じ
+        // （押下が1件で届いて修飾キーを足し、解放が複数件のバッチで届いて戻さない、という
+        // 押しっぱなしを防ぐ。NeedsSingleEventDispatch参照）。
+        if ((InputDataEnd - InputDataStart) > 1 &&
+            (NicolaIsActive(devExt) || NeedsSingleEventDispatch(devExt))) {
             for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
                 KEYBOARD_INPUT_DATA single = *p;
                 ULONG dummyConsumed = 0;
@@ -732,6 +736,13 @@ ResolveAndForward(
         return FALSE;
     }
 
+    // 修飾付きキー（LCTL(kc)等）とLM(layer,mod)。修飾キーを足してからキーを送り、解放で戻す。
+    // 押下中の記録があるキーは、マップのOFF・差し替え後も記録どおりに処理する。
+    // 詳細はLayerEngine.cのResolveModdedKey参照。
+    if (ResolveModdedKey(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
+        return FALSE;
+    }
+
     PKEYBOARD_INPUT_DATA newEnd = ResolveLayerAction(devExt, InputDataStart, InputDataEnd);
     if (newEnd != InputDataEnd) {
         compacted = TRUE;
@@ -745,13 +756,11 @@ ResolveAndForward(
                        devExt->DeviceId, p->ExtraInformation, p->MakeCode, p->Flags);
     }
 
-    // OSへ送る修飾キーの押下状態を記録する（NICOLAが修飾キー押下中の判定を迂回するため）。
-    TrackOutputModifiers(devExt, InputDataStart, InputDataEnd);
-    devExt->OriginalClassService(
-        devExt->OriginalClassDeviceObject,
-        InputDataStart,
-        InputDataEnd,
-        SystemArgument3);
+    // 送出は必ずForwardToClassを通す（修飾キーの押下状態の記録と、修飾付きキー・LMが
+    // 足した修飾キーを普通の出力のbreakで離さないための処理。LayerEngine.c参照）。
+    if (ForwardToClass(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
+        compacted = TRUE;
+    }
     return compacted;
 }
 

@@ -28,6 +28,9 @@
 // フィールド構成は同じだが、こちらは内部表現として単独で扱う。
 typedef struct _KBDLAYER_MAP_TABLE {
     ULONG KeyCount;
+    // TRUE = MODDED_KEY/LAYER_MODを含む。ServiceCallbackは複数件バッチを1件ずつに分けて流す
+    // （押下と解放が別のバッチ形で届いても、足した修飾キーを必ず戻すため）。ParseLayerMapBlobで決める。
+    BOOLEAN NeedsSingleEvents;
     KBDLAYER_KEY_ENTRY Entries[ANYSIZE_ARRAY];
 } KBDLAYER_MAP_TABLE, *PKBDLAYER_MAP_TABLE;
 
@@ -49,6 +52,10 @@ typedef struct _KBDLAYER_MAP_TABLE {
 typedef struct _KBDLAYER_HELD_KEY {
     UCHAR State;            // KBDLAYER_HELD_*
     KBDLAYER_ACTION Action; // State==KBDLAYER_HELD_ACTIONのときの、押下時に使ったアクション
+    // MODDED_KEY/LAYER_MODの押下で足した修飾キー（KBDLAYER_MOD_*のOR）。押下時点で
+    // 普通の出力として押されていた修飾キー（RealModsDown）は含まない。0 = 足していない。
+    // 変更はSetHeldAddedModsLocked経由で行い、devExt->AddedModCount[]と整合させる。
+    UCHAR AddedMods;
 } KBDLAYER_HELD_KEY, *PKBDLAYER_HELD_KEY;
 
 #define KBDLAYER_DEFAULT_TAP_TERM_MS 200
@@ -97,6 +104,16 @@ typedef struct _DEVICE_EXTENSION {
     // アクションそのものを持つので、マップが無くなっても解放を変換できる。
     KBDLAYER_HELD_KEY HeldKeys[KBDLAYER_HELD_KEY_SLOTS];
     ULONG HeldKeyCount;                 // State!=NONEの記録数（0ならOFF中の走査を省く）
+    // --- 修飾付きキー（MODDED_KEY）とLM（LAYER_MOD） ---
+    // OSから見た修飾キーの押下状態は RealModsDown | AddedModsUnion(devExt)。
+    // - RealModsDown（下のOutput節）: 普通の出力（素通し・KEYで置き換えたキー・MTのホールド・
+    //   マクロ・コンボ・タップダンス・NICOLA）で押している修飾キー。
+    // - AddedModCount[bit]: その修飾キーを足している押下記録（HeldKeys[].AddedMods）の数。
+    // 両方を見て、足した修飾キーのmake/breakと、普通の出力の修飾キーのbreakを出し分ける
+    // （ForwardToClass・ResolveModdedKey参照）。OutputLockとEngineLockの両方を保持して書き、
+    // どちらか一方の保持中に読む。
+    UCHAR AddedModCount[8];
+    ULONG ModdedHeldCount;              // Action.TypeがMODDED_KEY/LAYER_MODの押下記録の数
 
     // --- アプリ管理レイヤーとレイヤー変化の通知（common/kbdlayer_ioctl.h参照） ---
     // EngineLock保持中に読み書きすること。
@@ -208,11 +225,23 @@ typedef struct _DEVICE_EXTENSION {
     KTIMER NicolaTimer;                  // NicolaState.Deadlineで満了するタイマー
     KDPC NicolaDpc;                      // タイムアウト時の確定処理（NicolaDpcRoutine, LayerEngine.c）
     BOOLEAN NicolaWasActive;             // 直前に判定が有効だったか（OnEnter/OnExitキーの送出判定用）
-    // OSへ送った修飾キーのうち、押下中のもの（s_ModifierScanCodesのビット）。押下中は
-    // NICOLAの判定を迂回する。物理キーではなく、実際にkbdclassへ送った出力で追跡する
-    // （レイヤーマップでCtrlにしたキーやMTのホールドも含み、逆に物理Ctrlを別のキーに
-    // した場合は含まない）。送出はすべてOutputLock保持中に行うので、OutputLockで保護する。
-    UCHAR OutputModifierDown;
+    // 普通の出力としてOSへ送った修飾キーのうち、押下中のもの（KBDLAYER_MOD_*のビット。
+    // s_ModifierScanCodesと同じ並び）。修飾付きキー・LMで足した分は含まない（AddedModCount参照）。
+    // NICOLAは RealModsDown | AddedModsUnion(devExt) が0でない間、判定を迂回する。
+    // 物理キーではなく、実際にkbdclassへ送った出力で追跡する（レイヤーマップでCtrlにした
+    // キーやMTのホールドも含み、逆に物理Ctrlを別のキーにした場合は含まない）。送出はすべて
+    // OutputLock保持中にForwardToClassを通るので、OutputLockで保護する。
+    UCHAR RealModsDown;
+    // OSへ実際にmakeを送り、まだbreakを送っていない修飾キー（普通の出力と足した分の両方）。
+    // 正しく動いていれば RealModsDown | AddedModsUnion(devExt) と一致する。はみ出したビット
+    // （足した記録がbreakを送らずに消えた等）は、ForwardToClassの後始末がbreakを送って直す
+    // （のどかのflushPendingModifiersIfIdleに相当する安全網）。SendAddedModifiersはこれを見て、
+    // 送り済みのmake・breakを二重に送らない。OutputLockで保護する。
+    UCHAR OutputModsDown;
+    // 直近にOSへ送ったmakeが修飾キーだったか。足したAlt・Winを、間に何も押さずに離すと
+    // メニューバー・スタートメニューが開くので、そのときはCtrlのタップを挟む
+    // （SendAddedModifiers参照）。OutputLockで保護する。
+    BOOLEAN LastOutputWasModifier;
 
     // --- キャリブレーションウィザード (IOCTL_KBDLAYER_CAPTURE_NEXT_KEY) 用 ---
     // CAPTURE_NEXT_KEYのIRPは保留（STATUS_PENDING）にしてCaptureIrpに持ち、

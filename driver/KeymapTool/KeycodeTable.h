@@ -33,7 +33,16 @@ class KeycodeTable {
 public:
     // token（例: "KC_A", "KC_TRNS", "MO(1)", "LT(2,KC_ENT)"）を解決する。
     // 既知でない場合はfalseを返す（*outは不定）。
+    // 修飾付きキー（LCTL(KC_C)等）はKBDLAYER_ACTION_MODDED_KEY（Param1=修飾子マスク）、
+    // LM(layer, MOD_xxx|...)はKBDLAYER_ACTION_LAYER_MOD（Param2=修飾子マスク）に解決する。
     static bool Resolve(const std::string& token, KeycodeMapping* out);
+
+    // "MOD_LCTL|MOD_LSFT" を修飾子マスク（KBDLAYER_MOD_*のOR）にする。
+    static bool ResolveModMask(const std::string& token, UCHAR* outMask);
+
+    // 修飾子マスクのビット番号（0=LCTL ... 7=RGUI）から、その修飾キーのスキャンコード（Enc16）。
+    // driver/kbdlayer/LayerEngine.cのs_ModifierScanCodesと同じ。
+    static USHORT ModifierScanCode(int bit);
 
 private:
     // 単純キー（修飾子含む）のみを解決する。MO/TG/DF/OSL/MT/LTのパラメータとして

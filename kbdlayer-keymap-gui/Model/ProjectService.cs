@@ -134,7 +134,7 @@ public static class ProjectService
                     continue;
                 }
                 bool layerRef = a.Type is ActionType.Momentary or ActionType.Toggle or ActionType.Default
-                    or ActionType.OneShotLayer or ActionType.LayerTap;
+                    or ActionType.OneShotLayer or ActionType.LayerTap or ActionType.LayerMod;
                 if (layerRef && a.Param1 >= project.Layers.Count)
                     errors.Add($"レイヤー{L} {slot.Description}: {token} のレイヤー{a.Param1}がありません（レイヤーを追加してください）");
                 else if (a.Type == ActionType.Macro && !macroIds.Contains(a.Param1))
@@ -150,17 +150,64 @@ public static class ProjectService
         var steps = new List<MacroStep>();
         foreach (var token in macro.Keys)
         {
-            if (!KeycodeTable.TryResolve(token, out var a) || a.Type != ActionType.Key)
+            if (!KeycodeTable.TryResolve(token, out var a) || (a.Type != ActionType.Key && a.Type != ActionType.ModdedKey))
             {
-                errors.Add($"マクロ{macro.Id}: 「{token}」は単純なキー(KC_*)ではありません");
+                errors.Add($"マクロ{macro.Id}: 「{token}」はキー(KC_*)または修飾付きキー(LCTL(KC_C)等)ではありません");
                 continue;
             }
+            // LCTL(KC_C) は「Ctrl押す, C押す, C離す, Ctrl離す」に展開する（修飾キーは逆順で離す）。
+            byte mods = a.Type == ActionType.ModdedKey ? a.Param1 : (byte)0;
+            for (int bit = 0; bit < 8; bit++)
+                if ((mods & (1 << bit)) != 0) steps.Add(new MacroStep(KeycodeTable.ModifierScanCodes[bit], false));
             steps.Add(new MacroStep(a.Param2, false));
             steps.Add(new MacroStep(a.Param2, true));
+            for (int bit = 7; bit >= 0; bit--)
+                if ((mods & (1 << bit)) != 0) steps.Add(new MacroStep(KeycodeTable.ModifierScanCodes[bit], true));
         }
         if (steps.Count > KbdLayerClient.MaxMacroSteps)
-            errors.Add($"マクロ{macro.Id}: キーは{KbdLayerClient.MaxMacroSteps / 2}個までです");
+            errors.Add($"マクロ{macro.Id}: 長すぎます（{steps.Count}ステップ。上限は{KbdLayerClient.MaxMacroSteps}で、" +
+                       "キー1つが2、修飾キー1つにつき2を使います）");
         return steps;
+    }
+
+    /// <summary>
+    /// ドライバから読んだマクロのステップ列を、キーコードの並びに戻す（MacroStepsの逆）。
+    /// 「修飾キーを押す → キーを押して離す → 修飾キーを離す」の並びは LCTL(KC_C) の形にする。
+    /// </summary>
+    public static List<string> MacroTokensFromSteps(IReadOnlyList<MacroStep> steps)
+    {
+        string Name(ushort sc) => KeycodeTable.NameForScanCode(sc) ?? $"KC_UNKNOWN_{sc:X4}";
+        int ModBit(ushort sc) => Array.IndexOf(KeycodeTable.ModifierScanCodes, sc);
+
+        var tokens = new List<string>();
+        int i = 0;
+        while (i < steps.Count)
+        {
+            // 修飾キーの押下（直後が自分自身の解放でないもの）を集める。
+            byte mask = 0;
+            while (i + 1 < steps.Count && !steps[i].IsBreak && ModBit(steps[i].ScanCode) >= 0 &&
+                   !(steps[i + 1].IsBreak && steps[i + 1].ScanCode == steps[i].ScanCode))
+            {
+                mask |= (byte)(1 << ModBit(steps[i].ScanCode));
+                i++;
+            }
+            if (i >= steps.Count) break;
+            if (steps[i].IsBreak)
+            {
+                i++; // 対応する押下の無い解放は読み飛ばす
+                continue;
+            }
+            ushort key = steps[i].ScanCode;
+            i++;
+            if (i < steps.Count && steps[i].IsBreak && steps[i].ScanCode == key) i++;
+            while (i < steps.Count && steps[i].IsBreak && ModBit(steps[i].ScanCode) >= 0 &&
+                   (mask & (1 << ModBit(steps[i].ScanCode))) != 0)
+            {
+                i++;
+            }
+            tokens.Add(mask == 0 ? Name(key) : KeycodeTable.WrapWithMods(mask, Name(key)));
+        }
+        return tokens;
     }
 
     public static ComboEntry? ComboToEntry(KeymapProject project, KeyboardLayout layout, ComboDef combo, List<string> errors)
@@ -240,8 +287,13 @@ public static class ProjectService
         else client.ClearLayerMap(id);
         client.SetConfig(id, project.TapTermMs, project.ComboTermMs, project.TapDanceTermMs);
 
+        // SET_MACROは1回ごとにマクロ全体（128個分、約33KB）をレジストリへ書くので、全IDには送らない。
+        // 定義のあるものと、ドライバ側で空でないもの（消す必要があるもの）だけを送る。
         for (int m = 0; m < KbdLayerClient.MaxMacroCount; m++)
-            client.SetMacro(id, m, macroSteps.TryGetValue(m, out var s) ? s : new List<MacroStep>());
+        {
+            if (macroSteps.TryGetValue(m, out var s)) client.SetMacro(id, m, s);
+            else if (client.GetMacro(id, m).Count > 0) client.SetMacro(id, m, new List<MacroStep>());
+        }
 
         // コンボは「同じキーが複数のコンボに属さない」ことをドライバが登録時に検証するため、
         // 先に全部消してから登録する（IDを入れ替えた場合に古いコンボと衝突しないように）。
@@ -295,7 +347,7 @@ public static class ProjectService
             project.Macros.Add(new MacroDef
             {
                 Id = m,
-                Keys = steps.Where(s => !s.IsBreak).Select(s => KeycodeTable.NameForScanCode(s.ScanCode) ?? $"KC_UNKNOWN_{s.ScanCode:X4}").ToList(),
+                Keys = MacroTokensFromSteps(steps),
             });
         }
         for (int c = 0; c < KbdLayerClient.MaxComboCount; c++)
