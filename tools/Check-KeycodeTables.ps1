@@ -41,8 +41,25 @@ $cppOrder = @($cpp.Keys) -join ','
 $csOrder = @($cs.Keys) -join ','
 if ($problems.Count -eq 0 -and $cppOrder -ne $csOrder) { $problems += "キーコードの並び順が違います（同じスキャンコードの正式名が変わる可能性があります）" }
 
+# 修飾付きキーの関数名（LCTL(kc)等）→ 修飾子マスクの表も照合する。
+# C++: {"LCTL", 0x01}  C#: ("LCTL", 0x01)
+$modPattern = '[\{\(]"(LCTL|LSFT|LALT|LGUI|RCTL|RSFT|RALT|RGUI|C|S|A|G)",\s*(0x[0-9A-Fa-f]{2})[\}\)]'
+function Read-ModTable([string]$path) {
+    $list = @()
+    foreach ($m in [regex]::Matches((Get-Content $path -Raw -Encoding utf8), $modPattern)) {
+        $list += "$($m.Groups[1].Value)=$($m.Groups[2].Value.ToUpperInvariant() -replace '0X', '0x')"
+    }
+    return ,$list
+}
+$cppMods = Read-ModTable $cppPath
+$csMods = Read-ModTable $csPath
+if ($cppMods.Count -eq 0) { $problems += "C++側に修飾付きキーの表（ModFunctionTable）が見つかりません" }
+elseif (($cppMods -join ',') -ne ($csMods -join ',')) {
+    $problems += "修飾付きキーの表が違います  C++=$($cppMods -join ',')  C#=$($csMods -join ',')"
+}
+
 if ($problems.Count -gt 0) {
     $problems | ForEach-Object { Write-Host $_ -ForegroundColor Red }
     exit 1
 }
-Write-Host "OK: $($cpp.Count) 個のキーコードが一致しています。" -ForegroundColor Green
+Write-Host "OK: $($cpp.Count) 個のキーコードと、$($cppMods.Count) 個の修飾付きキーの関数名が一致しています。" -ForegroundColor Green

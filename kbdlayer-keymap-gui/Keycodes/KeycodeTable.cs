@@ -23,6 +23,10 @@ public static class ActionType
     public const byte Macro = 10;
     public const byte Custom = 11;
     public const byte TapDance = 12;
+    /// <summary>修飾付きキー（LCTL(kc)等）: Param1=修飾子マスク, Param2=スキャンコード。</summary>
+    public const byte ModdedKey = 13;
+    /// <summary>LM(layer, mod): Param1=レイヤー番号, Param2の下位8bit=修飾子マスク。</summary>
+    public const byte LayerMod = 14;
 }
 
 /// <summary>
@@ -142,6 +146,67 @@ public static class KeycodeTable
     public static readonly string[] ModifierNames =
         { "MOD_LCTL", "MOD_LSFT", "MOD_LALT", "MOD_LGUI", "MOD_RCTL", "MOD_RSFT", "MOD_RALT", "MOD_RGUI" };
 
+    /// <summary>
+    /// 修飾付きキー（LCTL(kc)等）の関数名 → 修飾子マスク（KBDLAYER_MOD_*のビット。MT用のビット番号とは
+    /// 表し方が違う）。C()/S()/A()/G()はQMKの短い別名。driver/KeymapTool/KeycodeTable.cpp の
+    /// ModFunctionTable と同じ内容・並びにすること（tools/Check-KeycodeTables.ps1 が照合する）。
+    /// </summary>
+    public static readonly (string Name, byte Mask)[] ModFunctions =
+    {
+        ("LCTL", 0x01), ("LSFT", 0x02), ("LALT", 0x04), ("LGUI", 0x08),
+        ("RCTL", 0x10), ("RSFT", 0x20), ("RALT", 0x40), ("RGUI", 0x80),
+        ("C", 0x01), ("S", 0x02), ("A", 0x04), ("G", 0x08),
+    };
+
+    /// <summary>修飾子マスクのビット番号（0=LCTL ... 7=RGUI）→ その修飾キーのスキャンコード（Enc16）。</summary>
+    public static readonly ushort[] ModifierScanCodes =
+        { 0x001D, 0x002A, 0x0038, 0xE05B, 0xE01D, 0x0036, 0xE038, 0xE05C };
+
+    /// <summary>修飾子マスク → 入れ子の正規形（例: 0x03 と "KC_T" → "LCTL(LSFT(KC_T))"）。</summary>
+    public static string WrapWithMods(byte mask, string inner)
+    {
+        string s = inner;
+        for (int bit = 7; bit >= 0; bit--)
+        {
+            if ((mask & (1 << bit)) != 0) s = $"{ModFunctions[bit].Name}({s})";
+        }
+        return s;
+    }
+
+    /// <summary>修飾子マスク → "MOD_LCTL|MOD_LSFT"。</summary>
+    public static string ModMaskToNames(byte mask) =>
+        string.Join("|", Enumerable.Range(0, 8).Where(b => (mask & (1 << b)) != 0).Select(b => ModifierNames[b]));
+
+    private static bool TryParseModdedKey(string token, out byte mask, out ushort scanCode)
+    {
+        mask = 0;
+        scanCode = 0;
+        string cur = token;
+        for (int depth = 0; depth < 8; depth++)
+        {
+            int open = cur.IndexOf('(');
+            if (open <= 0 || !cur.EndsWith(')')) break;
+            string name = cur[..open];
+            int idx = Array.FindIndex(ModFunctions, f => f.Name == name);
+            if (idx < 0) return false;
+            mask |= ModFunctions[idx].Mask;
+            cur = cur[(open + 1)..^1].Trim();
+        }
+        return mask != 0 && TryResolveBaseKey(cur, out scanCode) && scanCode != 0;
+    }
+
+    private static bool TryParseModMask(string s, out byte mask)
+    {
+        mask = 0;
+        foreach (var part in s.Split('|').Select(p => p.Trim()))
+        {
+            int bit = Array.IndexOf(ModifierNames, part);
+            if (bit < 0) return false;
+            mask |= (byte)(1 << bit);
+        }
+        return mask != 0;
+    }
+
     private static readonly Dictionary<string, ushort> NameToScan = BuildNameToScan();
     private static readonly Dictionary<ushort, string> ScanToName = BuildScanToName();
 
@@ -188,6 +253,12 @@ public static class KeycodeTable
             return true;
         }
 
+        if (TryParseModdedKey(token, out var modMask, out var modSc))
+        {
+            action = new KeyAction(ActionType.ModdedKey, modMask, modSc);
+            return true;
+        }
+
         int open = token.IndexOf('(');
         if (open > 0 && token.EndsWith(')'))
         {
@@ -196,6 +267,17 @@ public static class KeycodeTable
 
             switch (name)
             {
+                case "LM" when parts.Length == 2:
+                {
+                    if (!ParseLayer(parts[0], out var layer, out error)) return false;
+                    if (!TryParseModMask(parts[1], out var mask))
+                    {
+                        error = $"LMの修飾キー「{parts[1]}」は MOD_LCTL や MOD_LCTL|MOD_LSFT の形で指定してください";
+                        return false;
+                    }
+                    action = new KeyAction(ActionType.LayerMod, layer, mask);
+                    return true;
+                }
                 case "MO" or "TG" or "DF" or "OSL" when parts.Length == 1:
                 {
                     if (!ParseLayer(parts[0], out var layer, out error)) return false;
@@ -295,6 +377,8 @@ public static class KeycodeTable
             ActionType.LayerTap => $"LT({a.Param1},{Key(a.Param2)})",
             ActionType.Macro => $"MACRO({a.Param1})",
             ActionType.TapDance => $"TAPDANCE({a.Param1})",
+            ActionType.ModdedKey => WrapWithMods(a.Param1, Key(a.Param2)),
+            ActionType.LayerMod => $"LM({a.Param1},{ModMaskToNames((byte)(a.Param2 & 0xFF))})",
             _ => "KC_NO",
         };
     }

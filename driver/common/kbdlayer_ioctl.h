@@ -54,6 +54,25 @@ typedef struct _KBDLAYER_ACTION {
 #define KBDLAYER_ACTION_MACRO         10 // MACRO(id): Param1=マクロID(0..KBDLAYER_MAX_MACRO_COUNT-1) (Phase 3)
 #define KBDLAYER_ACTION_CUSTOM        11 // 将来の拡張フック点として予約のみ。詳細設計は先送り (Phase 3)
 #define KBDLAYER_ACTION_TAPDANCE      12 // TAPDANCE(id): Param1=タップダンスID(0..KBDLAYER_MAX_TAPDANCE_COUNT-1) (Phase 5)
+// 修飾付きキー（QMKのLCTL(kc)等に相当）: Param1=修飾子マスク（0以外）, Param2=送出スキャンコード(Enc16)。
+// 押下で、まだ押されていない修飾キーを足してからキーを送り、解放でキーを離してから足した分を戻す。
+#define KBDLAYER_ACTION_MODDED_KEY    13
+// レイヤー＋修飾（QMKのLM(layer,mod)に相当）: Param1=レイヤー番号, Param2の下位8bit=修飾子マスク（0以外）,
+// Param2の上位8bitは0。押している間、レイヤーをONにし、修飾キーを足す。
+#define KBDLAYER_ACTION_LAYER_MOD     14
+// ParseLayerMapBlobが受け付けるTypeの上限（古いドライバは、これより大きいTypeを含むマップを拒否する）。
+#define KBDLAYER_ACTION_TYPE_MAX      KBDLAYER_ACTION_LAYER_MOD
+
+// 修飾子マスク（MODDED_KEY/LAYER_MODで使う）のビット。**MODTAPのParam1（ビット番号0〜7）とは
+// 表し方が違う**ので注意（MODTAPはビット番号、こちらはビットのOR）。並びは同じ。
+#define KBDLAYER_MOD_LCTL 0x01
+#define KBDLAYER_MOD_LSFT 0x02
+#define KBDLAYER_MOD_LALT 0x04
+#define KBDLAYER_MOD_LGUI 0x08
+#define KBDLAYER_MOD_RCTL 0x10
+#define KBDLAYER_MOD_RSFT 0x20
+#define KBDLAYER_MOD_RALT 0x40
+#define KBDLAYER_MOD_RGUI 0x80
 
 // VIA実務上の上限(4)に余裕を持たせる。2026-09-29に8→16へ引き上げ（ヘルパーアプリが
 // アプリごとのレイヤーをSET_LAYER_STATEで切り替える用途に備えて）。レイヤーのビットマスク
@@ -210,7 +229,10 @@ typedef struct _KBDLAYER_SET_CAPTURE_SUPPRESS_INPUT {
 
 // --- Phase 3: マクロ ---
 
-#define KBDLAYER_MAX_MACRO_COUNT 32  // KBDLAYER_ACTION_MACROのParam1(UCHAR)が指せる範囲を実務的に制限
+// KBDLAYER_ACTION_MACROのParam1(UCHAR)が指せる範囲を実務的に制限。2026-09-30に32→128へ
+// 引き上げた（ドライバはレジストリの旧サイズ（32個分）の"Macros"値も読める）。
+// 変えるときは kbdlayer-keymap-gui の KbdLayerClient.MaxMacroCount も合わせること。
+#define KBDLAYER_MAX_MACRO_COUNT 128
 #define KBDLAYER_MAX_MACRO_STEPS 64  // 1マクロあたりのステップ数上限
 
 // マクロ1ステップ分。単純なキー押下/解放のみ（遅延指定は将来拡張、Phase 3では未対応）。

@@ -4,6 +4,7 @@
 #include "KeycodeTable.h"
 #include <unordered_map>
 #include <cstdlib>
+#include <algorithm>
 
 namespace {
 
@@ -146,6 +147,19 @@ const std::unordered_map<std::string, UCHAR>& ModifierBitTable() {
     return table;
 }
 
+// 修飾付きキー（LCTL(kc)等）の関数名 → 修飾子マスク（KBDLAYER_MOD_*のビット。MT用の
+// ModifierBitTable（ビット番号）とは表し方が違う）。C()/S()/A()/G()はQMKの短い別名。
+// kbdlayer-keymap-gui/Keycodes/KeycodeTable.cs の ModFunctions と同じ内容・並びにすること
+// （tools/Check-KeycodeTables.ps1 が照合する）。
+const std::unordered_map<std::string, UCHAR>& ModFunctionTable() {
+    static const std::unordered_map<std::string, UCHAR> table = {
+        {"LCTL", 0x01}, {"LSFT", 0x02}, {"LALT", 0x04}, {"LGUI", 0x08},
+        {"RCTL", 0x10}, {"RSFT", 0x20}, {"RALT", 0x40}, {"RGUI", 0x80},
+        {"C", 0x01}, {"S", 0x02}, {"A", 0x04}, {"G", 0x08},
+    };
+    return table;
+}
+
 // "MO(1)" のような "NAME(args)" 形式を分解する。argsはカンマ区切りのまま返す
 // （呼び出し側がさらに分割する）。マッチしなければfalse。
 bool SplitCall(const std::string& token, std::string* name, std::string* args) {
@@ -202,7 +216,56 @@ bool ParseTapDanceId(const std::string& s, UCHAR* out) {
     return true;
 }
 
+// "LCTL(LSFT(KC_T))" のような修飾付きキーを、修飾子マスクと基本キーに分解する
+// （入れ子を1段ずつ外す）。修飾関数が1つも無い（ただの基本キー）場合はfalse。
+bool ParseModdedKey(const std::string& token, UCHAR* outMask, USHORT* outScanCode16) {
+    UCHAR mask = 0;
+    std::string cur = token;
+    for (int depth = 0; depth < 8; depth++) {
+        std::string name, inner;
+        if (!SplitCall(cur, &name, &inner)) break;
+        auto it = ModFunctionTable().find(name);
+        if (it == ModFunctionTable().end()) return false;
+        mask |= it->second;
+        cur = inner;
+        cur.erase(std::remove(cur.begin(), cur.end(), ' '), cur.end());
+    }
+    if (mask == 0) return false;
+    auto base = BaseKeyTable().find(cur);
+    if (base == BaseKeyTable().end() || base->second == 0) return false;
+    *outMask = mask;
+    *outScanCode16 = base->second;
+    return true;
+}
+
 } // namespace
+
+USHORT KeycodeTable::ModifierScanCode(int bit) {
+    static const USHORT table[8] = {
+        SC1(0x1D), SC1(0x2A), SC1(0x38), SCE0(0x5B),   // LCTL LSFT LALT LGUI
+        SCE0(0x1D), SC1(0x36), SCE0(0x38), SCE0(0x5C),  // RCTL RSFT RALT RGUI
+    };
+    return (bit >= 0 && bit < 8) ? table[bit] : 0;
+}
+
+bool KeycodeTable::ResolveModMask(const std::string& token, UCHAR* outMask) {
+    // "MOD_LCTL|MOD_LSFT" 形式（LM(layer, mod)の第2引数）。ModifierBitTableのビット番号を
+    // マスクに直してORする。
+    UCHAR mask = 0;
+    size_t start = 0;
+    while (start <= token.size()) {
+        size_t bar = token.find('|', start);
+        std::string part = token.substr(start, bar == std::string::npos ? std::string::npos : bar - start);
+        UCHAR bit;
+        if (!ResolveModifierBit(part, &bit)) return false;
+        mask |= (UCHAR)(1u << bit);
+        if (bar == std::string::npos) break;
+        start = bar + 1;
+    }
+    if (mask == 0) return false;
+    *outMask = mask;
+    return true;
+}
 
 bool KeycodeTable::ResolveBaseKey(const std::string& token, USHORT* outScanCode16) {
     const auto& table = BaseKeyTable();
@@ -242,9 +305,33 @@ bool KeycodeTable::Resolve(const std::string& token, KeycodeMapping* out) {
         return true;
     }
 
+    {
+        // 修飾付きキー: LCTL(kc) / C(kc) / LCTL(LSFT(kc)) など。
+        UCHAR mask;
+        USHORT sc;
+        if (ParseModdedKey(token, &mask, &sc)) {
+            out->ActionType = KBDLAYER_ACTION_MODDED_KEY;
+            out->Param1 = mask;
+            out->Param2 = sc;
+            return true;
+        }
+    }
+
     std::string name, args;
     if (SplitCall(token, &name, &args)) {
         std::vector<std::string> parts = SplitArgs(args);
+
+        if (name == "LM" && parts.size() == 2) {
+            // LM(layer, MOD_LCTL|MOD_LSFT)
+            UCHAR layer;
+            UCHAR mask;
+            if (!ParseLayerNumber(parts[0], &layer)) return false;
+            if (!ResolveModMask(parts[1], &mask)) return false;
+            out->ActionType = KBDLAYER_ACTION_LAYER_MOD;
+            out->Param1 = layer;
+            out->Param2 = mask;
+            return true;
+        }
 
         if (name == "MO" && parts.size() == 1) {
             UCHAR layer;

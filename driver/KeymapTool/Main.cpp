@@ -174,19 +174,28 @@ int CmdSetMacro(IoctlClient* client, ULONG uniqId, ULONG macroId, int argc, char
     std::vector<KBDLAYER_MACRO_STEP> steps;
     for (int i = 0; i < argc; i++) {
         KeycodeMapping mapping;
-        if (!KeycodeTable::Resolve(argv[i], &mapping) || mapping.ActionType != KBDLAYER_ACTION_KEY) {
-            fprintf(stderr, "--set-macro: \"%s\" is not a plain key (macros only support KC_* keys, not layer actions)\n", argv[i]);
+        if (!KeycodeTable::Resolve(argv[i], &mapping) ||
+            (mapping.ActionType != KBDLAYER_ACTION_KEY && mapping.ActionType != KBDLAYER_ACTION_MODDED_KEY)) {
+            fprintf(stderr, "--set-macro: \"%s\" is not a key (macros support KC_* keys and modified keys such as LCTL(KC_C), not layer actions)\n", argv[i]);
             return 1;
         }
-        if (steps.size() + 2 > KBDLAYER_MAX_MACRO_STEPS) {
-            fprintf(stderr, "--set-macro: too many steps (max %d key taps = %d steps)\n",
-                    KBDLAYER_MAX_MACRO_STEPS / 2, KBDLAYER_MAX_MACRO_STEPS);
+        // LCTL(KC_C) は「Ctrl押す, C押す, C離す, Ctrl離す」に展開する（修飾キーは逆順で離す）。
+        UCHAR mods = (mapping.ActionType == KBDLAYER_ACTION_MODDED_KEY) ? mapping.Param1 : 0;
+        std::vector<KBDLAYER_MACRO_STEP> tap;
+        for (int bit = 0; bit < 8; bit++) {
+            if (mods & (1u << bit)) tap.push_back(KBDLAYER_MACRO_STEP{ KeycodeTable::ModifierScanCode(bit), 0, 0 });
+        }
+        tap.push_back(KBDLAYER_MACRO_STEP{ mapping.Param2, 0, 0 });
+        tap.push_back(KBDLAYER_MACRO_STEP{ mapping.Param2, 1, 0 });
+        for (int bit = 7; bit >= 0; bit--) {
+            if (mods & (1u << bit)) tap.push_back(KBDLAYER_MACRO_STEP{ KeycodeTable::ModifierScanCode(bit), 1, 0 });
+        }
+        if (steps.size() + tap.size() > KBDLAYER_MAX_MACRO_STEPS) {
+            fprintf(stderr, "--set-macro: too many steps (max %d steps; a plain key uses 2, each modifier adds 2)\n",
+                    KBDLAYER_MAX_MACRO_STEPS);
             return 1;
         }
-        KBDLAYER_MACRO_STEP press{ mapping.Param2, 0, 0 };
-        KBDLAYER_MACRO_STEP release{ mapping.Param2, 1, 0 };
-        steps.push_back(press);
-        steps.push_back(release);
+        steps.insert(steps.end(), tap.begin(), tap.end());
     }
 
     if (!client->SetMacro(uniqId, macroId, steps)) return 1;
@@ -782,8 +791,10 @@ void PrintUsage() {
         "  KeymapTool.exe --get-config <UniqIdHex>\n"
         "      Show the current TapTermMs / ComboTermMs / TapDanceTermMs values.\n"
         "  KeymapTool.exe --set-macro <UniqIdHex> <MacroId> [KC_xxx KC_yyy ...]\n"
-        "      Define macro <MacroId> (0-31) as a sequence of key taps, played back\n"
-        "      via MACRO(<MacroId>) in a keymap.json. Omit the keycodes to clear it.\n"
+        "      Define macro <MacroId> (0-127) as a sequence of key taps, played back\n"
+        "      via MACRO(<MacroId>) in a keymap.json. Modified keys are allowed:\n"
+        "      LCTL(KC_C) taps Ctrl+C. Up to 64 steps (a key uses 2, each modifier +2).\n"
+        "      Omit the keycodes to clear it.\n"
         "  KeymapTool.exe --get-macro <UniqIdHex> <MacroId>\n"
         "      Show the raw step list currently stored for a macro (debugging).\n"
         "  KeymapTool.exe --set-combo <UniqIdHex> <ComboId> [KC_member1 KC_member2 KC_output]\n"

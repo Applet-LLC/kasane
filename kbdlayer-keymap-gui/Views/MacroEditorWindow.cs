@@ -14,8 +14,9 @@ public sealed class MacroEditorWindow : IdListEditorWindow
     public MacroEditorWindow(IEnumerable<MacroDef> macros)
         : base("マクロ", KbdLayerClient.MaxMacroCount,
             "マクロは、キーマップで MACRO(n) を割り当てたキーを押したときに、並べたキーを順にタップ（押して離す）します。\n" +
-            "キーコードをスペース区切りで並べてください（例: KC_H KC_I）。修飾キーとの同時押し（Ctrl+C等）は表現できません。" +
-            $"1つのマクロは{KbdLayerClient.MaxMacroSteps / 2}キーまでです。")
+            "キーコードをスペース区切りで並べてください（例: KC_H KC_I）。Ctrl+C のような同時押しは LCTL(KC_C) と書きます" +
+            "（C(KC_C) でも可。Ctrl+Shift+T は LCTL(LSFT(KC_T))）。\n" +
+            $"1つのマクロは{KbdLayerClient.MaxMacroSteps}ステップまでです（キー1つで2、修飾キー1つにつき2を使います）。")
     {
         for (int i = 0; i < _texts.Length; i++) _texts[i] = "";
         foreach (var m in macros)

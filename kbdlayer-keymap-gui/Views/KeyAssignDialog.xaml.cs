@@ -20,6 +20,12 @@ public partial class KeyAssignDialog : Window
 
     private readonly int _layerCount;
 
+    // 修飾キーのチェックボックス（ビット番号 = KBDLAYER_MOD_*のビット。0=左Ctrl ... 7=右Win）。
+    private static readonly string[] ModLabels =
+        { "左Ctrl", "左Shift", "左Alt", "左Win", "右Ctrl", "右Shift", "右Alt", "右Win" };
+    private readonly CheckBox[] _modChecks = new CheckBox[8];
+    private bool _syncingMods;
+
     public string ResultToken { get; private set; }
 
     public KeyAssignDialog(KeySlot slot, int layer, string currentToken, int layerCount)
@@ -28,6 +34,16 @@ public partial class KeyAssignDialog : Window
         _layerCount = layerCount;
         ResultToken = currentToken;
         TxtHeader.Text = $"{slot.Description} ／ レイヤー{layer}";
+
+        for (int bit = 0; bit < 8; bit++)
+        {
+            var cb = new CheckBox { Content = ModLabels[bit], Margin = new Thickness(0, 0, 14, 0) };
+            cb.Checked += (_, _) => ApplyModsToToken();
+            cb.Unchecked += (_, _) => ApplyModsToToken();
+            _modChecks[bit] = cb;
+            ModPanel.Children.Add(cb);
+        }
+
         TxtToken.Text = currentToken;
 
         foreach (var c in KeycodeCatalog.Categories) LstCategories.Items.Add(c.Name);
@@ -70,8 +86,8 @@ public partial class KeyAssignDialog : Window
                 Height = 44,
                 ToolTip = kc,
             };
-            b.Click += (_, _) => TxtToken.Text = kc;
-            b.MouseDoubleClick += (_, _) => { TxtToken.Text = kc; Confirm(); };
+            b.Click += (_, _) => TxtToken.Text = WithCheckedMods(kc);
+            b.MouseDoubleClick += (_, _) => { TxtToken.Text = WithCheckedMods(kc); Confirm(); };
             panel.Children.Add(b);
         }
         return panel;
@@ -81,14 +97,27 @@ public partial class KeyAssignDialog : Window
 
     private UIElement LayerPanel()
     {
-        var func = Combo(new[] { "MO", "TG", "DF", "OSL" });
+        var func = Combo(new[] { "MO", "TG", "DF", "OSL", "LM" });
         var layer = Combo(Layers.Select(i => i.ToString()));
         layer.SelectedIndex = Math.Min(1, KbdLayerClient.MaxLayers - 1);
         return Form(
             "MO(n): 押している間だけレイヤーnを有効にする\nTG(n): 押すたびにレイヤーnをON/OFFする\n" +
-            "DF(n): 基本レイヤーをnに切り替える\nOSL(n): 次に押すキー1回だけレイヤーnにする",
+            "DF(n): 基本レイヤーをnに切り替える\nOSL(n): 次に押すキー1回だけレイヤーnにする\n" +
+            "LM(n): 押している間、レイヤーnを有効にし、下で選んだ修飾キーも押す" +
+            "（例: レイヤーnに▽のままのキーを押すと Ctrl+そのキー になる）",
             ("種類", func), ("レイヤー", layer),
-            () => $"{func.SelectedItem}({layer.SelectedItem})");
+            () =>
+            {
+                if ((string)func.SelectedItem != "LM") return $"{func.SelectedItem}({layer.SelectedItem})";
+                byte mask = CheckedMask();
+                if (mask == 0)
+                {
+                    TxtValidation.Foreground = Brushes.Firebrick;
+                    TxtValidation.Text = "LM では、下の修飾キーを1つ以上チェックしてください";
+                    return null;
+                }
+                return $"LM({layer.SelectedItem},{KeycodeTable.ModMaskToNames(mask)})";
+            });
     }
 
     private UIElement ModTapPanel()
@@ -133,7 +162,7 @@ public partial class KeyAssignDialog : Window
         return c;
     }
 
-    private UIElement Form(string help, (string Label, Control Input) a, (string Label, Control Input) b, Func<string> build)
+    private UIElement Form(string help, (string Label, Control Input) a, (string Label, Control Input) b, Func<string?> build)
     {
         var panel = new StackPanel { Margin = new Thickness(4) };
         panel.Children.Add(new TextBlock { Text = help, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10) });
@@ -145,9 +174,71 @@ public partial class KeyAssignDialog : Window
             panel.Children.Add(row);
         }
         var set = new Button { Content = "キーコード欄に入れる", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(90, 8, 0, 0) };
-        set.Click += (_, _) => TxtToken.Text = build();
+        set.Click += (_, _) =>
+        {
+            var token = build();
+            if (token != null) TxtToken.Text = token;
+        };
         panel.Children.Add(set);
         return panel;
+    }
+
+    private byte CheckedMask()
+    {
+        byte mask = 0;
+        for (int bit = 0; bit < 8; bit++)
+        {
+            if (_modChecks[bit].IsChecked == true) mask |= (byte)(1 << bit);
+        }
+        return mask;
+    }
+
+    /// <summary>基本キー（KC_*）なら、チェックした修飾キーを付けた形にする。それ以外はそのまま。</summary>
+    private string WithCheckedMods(string token)
+    {
+        byte mask = CheckedMask();
+        if (mask == 0 || !KeycodeTable.TryResolveBaseKey(token, out var sc) || sc == 0) return token;
+        return KeycodeTable.WrapWithMods(mask, token);
+    }
+
+    /// <summary>チェックボックスの変更を、キーコード欄のキー（または LM）に反映する。</summary>
+    private void ApplyModsToToken()
+    {
+        if (_syncingMods) return;
+        if (!KeycodeTable.TryResolve(TxtToken.Text.Trim(), out var action)) return;
+        byte mask = CheckedMask();
+        switch (action.Type)
+        {
+            case ActionType.Key:
+            case ActionType.ModdedKey:
+            {
+                var baseName = KeycodeTable.NameForScanCode(action.Param2);
+                if (baseName == null) return;
+                TxtToken.Text = mask == 0 ? baseName : KeycodeTable.WrapWithMods(mask, baseName);
+                break;
+            }
+            case ActionType.LayerMod when mask != 0:
+                TxtToken.Text = $"LM({action.Param1},{KeycodeTable.ModMaskToNames(mask)})";
+                break;
+        }
+    }
+
+    /// <summary>キーコード欄の内容に合わせて、チェックボックスの状態を変える（手で書き換えた場合も含む）。</summary>
+    private void SyncModChecks(KeyAction action)
+    {
+        byte mask = action.Type switch
+        {
+            ActionType.ModdedKey => action.Param1,
+            ActionType.LayerMod => (byte)(action.Param2 & 0xFF),
+            ActionType.Key => 0,
+            _ => CheckedMask(), // 修飾キーと関係ないキーコードでは今のチェックを保つ
+        };
+        _syncingMods = true;
+        try
+        {
+            for (int bit = 0; bit < 8; bit++) _modChecks[bit].IsChecked = (mask & (1 << bit)) != 0;
+        }
+        finally { _syncingMods = false; }
     }
 
     private void TxtToken_TextChanged(object sender, TextChangedEventArgs e)
@@ -155,9 +246,10 @@ public partial class KeyAssignDialog : Window
         var token = TxtToken.Text.Trim();
         if (KeycodeTable.TryResolve(token, out var action, out var error))
         {
+            SyncModChecks(action);
             string? warn = null;
             if (action.Type is ActionType.Momentary or ActionType.Toggle or ActionType.Default
-                    or ActionType.OneShotLayer or ActionType.LayerTap && action.Param1 >= _layerCount)
+                    or ActionType.OneShotLayer or ActionType.LayerTap or ActionType.LayerMod && action.Param1 >= _layerCount)
                 warn = $"レイヤー{action.Param1}はまだありません（レイヤーを追加してから適用してください）";
             TxtValidation.Foreground = warn == null ? Brushes.DarkGreen : Brushes.DarkOrange;
             TxtValidation.Text = warn ?? "OK: " + KeycodeCatalog.ShortName(token);

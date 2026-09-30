@@ -66,7 +66,7 @@ public sealed class KbdLayerClient : IDisposable
 
     public const int MaxLayers = 16;            // KBDLAYER_MAX_LAYERS（ドライバの値と必ず一致させる）
     public const int MaxKeys = 256;             // KBDLAYER_MAX_KEYS
-    public const int MaxMacroCount = 32;        // KBDLAYER_MAX_MACRO_COUNT
+    public const int MaxMacroCount = 128;       // KBDLAYER_MAX_MACRO_COUNT（ドライバの値と必ず一致させる）
     public const int MaxMacroSteps = 64;        // KBDLAYER_MAX_MACRO_STEPS
     public const int MaxComboCount = 16;        // KBDLAYER_MAX_COMBO_COUNT
     public const int MaxTapDanceCount = 16;     // KBDLAYER_MAX_TAPDANCE_COUNT
