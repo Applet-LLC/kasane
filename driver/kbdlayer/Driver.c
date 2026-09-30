@@ -699,6 +699,10 @@ ResolveAndForward(
     // Comboのメンバーキーは、コンボ判定を経ずに通常のキーとして解決される。
     ULONG features = devExt->EnabledFeatures;
 
+    // TT(layer): TTキーを押している間・タップの合間に別のキーが押されたことを、どのResolve*が
+    // 処理するキーかに関係なく記録する（LayerEngine.cのHandleTapToggleLocked参照）。
+    LayerEngineObserveKeyEvents(devExt, InputDataStart, InputDataEnd);
+
     // Phase 6: NICOLA（親指シフト）。判定が有効な間、文字キー・親指キーは物理キー単位で
     // ここが先に受け取る（コンボ等より優先）。詳細はLayerEngine.cのResolveNicola参照。
     if (ResolveNicola(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {

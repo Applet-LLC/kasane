@@ -365,6 +365,22 @@ bool KeycodeTable::Resolve(const std::string& token, KeycodeMapping* out) {
             out->Param2 = 0;
             return true;
         }
+        if (name == "TO" && parts.size() == 1) {
+            UCHAR layer;
+            if (!ParseLayerNumber(parts[0], &layer)) return false;
+            out->ActionType = KBDLAYER_ACTION_LAYER_TO;
+            out->Param1 = layer;
+            out->Param2 = 0;
+            return true;
+        }
+        if (name == "TT" && parts.size() == 1) {
+            UCHAR layer;
+            if (!ParseLayerNumber(parts[0], &layer)) return false;
+            out->ActionType = KBDLAYER_ACTION_LAYER_TAP_TOGGLE;
+            out->Param1 = layer;
+            out->Param2 = 0;
+            return true;
+        }
         if (name == "MT" && parts.size() == 2) {
             UCHAR bit;
             USHORT tapSc;

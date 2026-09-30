@@ -42,18 +42,54 @@ public class ProjectServiceTapDanceTests
         Assert.NotNull(entry);
     }
 
-    [Fact]
-    public void SingleHold_KC_NO_IsRejected()
+    [Theory]
+    [InlineData("KC_NO")]
+    [InlineData("")]
+    public void SingleHold_KC_NO_OrBlank_MeansNoAction(string singleHold)
     {
-        // Regression test for a real mistake made while OIB-testing feature/tap-hold-reresolve-
-        // quicktap on 2026-09-30: KC_NO is valid as MT/LT's own *tap* argument (MT(MOD_LCTL,KC_NO))
-        // but NOT as a bare SingleHold value by itself. The CLI (KeymapTool --set-tapdance) rejects
-        // it with "SingleHold "KC_NO" must be a plain key, MT(mod,kc), or LT(layer,kc)", and this
-        // exact mistake was made in a PowerShell test script whose output-filtering helper silently
-        // swallowed that error (it doesn't contain "fail"/"error"), so the tap-dance was silently
-        // never configured and a later test ran against an unconfigured tap-dance for a while
-        // before the bug was found. This unit test would have caught it immediately.
-        var td = Valid(singleHold: "KC_NO");
+        // History: until 2026-09-30 (feature/layer-to-tt) a bare KC_NO in SingleHold was rejected, and a
+        // PowerShell test script whose output-filtering helper swallowed that error ran against an
+        // unconfigured tap-dance for a while (dev-notes H-5). The spec then changed: KC_NO / blank in
+        // any slot means "do nothing" for that tap count / the hold. The error-reporting half of that
+        // lesson is kept by SingleHold_InvalidToken_IsRejected below.
+        var td = Valid(singleHold: singleHold);
+        var errors = new List<string>();
+        var entry = ProjectService.TapDanceToEntry(td, errors);
+
+        Assert.Empty(errors);
+        Assert.NotNull(entry);
+        Assert.Equal(ActionType.None, entry!.SingleHold.Type);
+    }
+
+    [Theory]
+    [InlineData("KC_NO")]
+    [InlineData("")]
+    public void TapSlot_KC_NO_OrBlank_IsSentAsKeyZero(string token)
+    {
+        // The driver treats SingleTap.Type == NONE as "clear this tap-dance id", so "no action" on the
+        // tap side must be encoded as KEY with scan code 0 (the driver outputs nothing for it).
+        var td = Valid();
+        td.SingleTap = token;
+        td.DoubleTap = token;
+        var errors = new List<string>();
+        var entry = ProjectService.TapDanceToEntry(td, errors);
+
+        Assert.Empty(errors);
+        Assert.NotNull(entry);
+        Assert.Equal(ActionType.Key, entry!.SingleTap.Type);
+        Assert.Equal(0, entry.SingleTap.Param2);
+        Assert.Equal(ActionType.Key, entry.DoubleTap.Type);
+        Assert.Equal(0, entry.DoubleTap.Param2);
+    }
+
+    [Theory]
+    [InlineData("MO(1)")]
+    [InlineData("NOT_A_KEY")]
+    public void SingleHold_InvalidToken_IsRejected(string singleHold)
+    {
+        // A mistyped hold must surface as an error (not silently become "no action"); see the history
+        // note in SingleHold_KC_NO_OrBlank_MeansNoAction.
+        var td = Valid(singleHold: singleHold);
         var errors = new List<string>();
         var entry = ProjectService.TapDanceToEntry(td, errors);
 
@@ -80,7 +116,7 @@ public class ProjectServiceTapDanceTests
     [Fact]
     public void AllFourInvalid_ReportsAllFourErrors()
     {
-        var td = new TapDanceDef { Id = 2, SingleTap = "MO(1)", SingleHold = "KC_NO", DoubleTap = "MO(1)", TripleTap = "MO(1)" };
+        var td = new TapDanceDef { Id = 2, SingleTap = "MO(1)", SingleHold = "MO(1)", DoubleTap = "MO(1)", TripleTap = "MO(1)" };
         var errors = new List<string>();
         var entry = ProjectService.TapDanceToEntry(td, errors);
 

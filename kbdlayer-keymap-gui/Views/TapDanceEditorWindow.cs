@@ -16,6 +16,7 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
             "1回・2回・3回タップはキー(KC_*)、LCTL(KC_C) のような修飾付きキー、MACRO(n) のいずれか、" +
             "長押しは KC_*、MT(MOD_LCTL,KC_NO) のような修飾キー、" +
             "LT(1,KC_NO) のようなレイヤーのいずれかを指定します（MT/LTのタップ側のキーは使われません）。" +
+            "空欄（または KC_NO）にした欄は「動作なし」で、そのタップ回数・長押しでは何も起きません。" +
             "判定時間はタイミング設定の TapDanceTerm です。4つとも空にすると未使用になります。")
     {
         foreach (var t in tapDances)

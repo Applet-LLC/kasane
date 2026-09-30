@@ -1,6 +1,7 @@
-# GUI-T2: UI Automation test -- an invalid SingleHold value (the exact regression from the OIB
-# session: "KC_NO" is not valid for SingleHold) shows a validation error in the GUI and blocks OK
-# from closing the dialog.
+# GUI-T2: UI Automation test -- an invalid SingleHold value shows a validation error in the GUI and
+# blocks OK from closing the dialog. (Originally this used "KC_NO", the value that was mistakenly used
+# in the OIB session; since feature/layer-to-tt, KC_NO/blank in SingleHold means "no hold action" and is
+# valid, so an actually invalid token -- a layer key, which SingleHold does not accept -- is used instead.)
 . "$PSScriptRoot\gui-uia-lib.ps1"
 $ErrorActionPreference = "Stop"
 $EXE = "C:\Users\applet\Documents\GitHub\LayerDriver\kbdlayer-keymap-gui\bin\Debug\net8.0-windows\win-x64\kbdlayer-keymap-gui.exe"
@@ -27,14 +28,14 @@ try {
     Start-Sleep -Milliseconds 300
 
     Set-ElementValue (Find-ChildByAutomationId $td "SingleTap") "KC_ESC"
-    Set-ElementValue (Find-ChildByAutomationId $td "SingleHold") "KC_NO"   # invalid: KC_NO is only valid as MT/LT's own tap arg
+    Set-ElementValue (Find-ChildByAutomationId $td "SingleHold") "MO(1)"   # invalid: SingleHold takes KC_*, MT, LT, or blank/KC_NO
     Set-ElementValue (Find-ChildByAutomationId $td "DoubleTap") "KC_A"
     Set-ElementValue (Find-ChildByAutomationId $td "TripleTap") "KC_B"
     Start-Sleep -Milliseconds 300
 
     $validationText = (Find-ChildByAutomationId $td "ValidationText").Current.Name
     "  validation text: '$validationText'"
-    Chk "invalid SingleHold (KC_NO) shows a non-OK validation message" ($validationText -ne "OK" -and $validationText.Length -gt 0)
+    Chk "invalid SingleHold (MO(1)) shows a non-OK validation message" ($validationText -ne "OK" -and $validationText.Length -gt 0)
     Chk "validation message mentions the hold field" ($validationText -match "ホールド")
 
     $tdHandle = $td.Current.NativeWindowHandle.ToString()

@@ -99,6 +99,15 @@ typedef struct _DEVICE_EXTENSION {
     ULONG DefaultLayer;                 // DF(layer)で変更される基底レイヤー（常時ON扱い）
     BOOLEAN OneShotLayerPending;        // OSL(layer)発動中、次のKEYアクション解決でOFFに戻す
     ULONG OneShotLayerBit;              // OneShotLayerPending==TRUE時に、解除すべきビット
+    // TT(layer)の状態（LayerEngine.cのHandleTapToggleLocked参照）。OutputLockとEngineLockの両方を
+    // 保持して書き（ResolveLayerAction・OFF）、どちらか一方の保持中に読む。
+    USHORT TtScanCode;                  // 最後に押したTTキー（物理スキャンコード、Enc16）
+    BOOLEAN TtKeyDown;                  // TtScanCodeのTTキーを押している間TRUE
+    BOOLEAN TtInterrupted;              // TTキーを押している間に別のキーが押された（タップにならない）
+    ULONG TtTapCount;                   // 続けてタップした回数（別のキー・時間切れで0に戻す）
+    ULONGLONG TtPressTime;              // TTキーを押した時刻（KeQueryInterruptTime()値）
+    ULONGLONG TtLastTapTime;            // 最後にタップが成立した時刻
+    ULONG TtToggledLayers;              // TTのタップで固定したレイヤーのビット（ActiveLayerMaskにも立っている）
     // 押下中キーの処理記録（KBDLAYER_HELD_*）。レイヤーマップのOFF・差し替え・CLEAR後も
     // 保持し、記録のあるキーの解放は記録どおりに処理する（押しっぱなしを残さないため）。
     // アクションそのものを持つので、マップが無くなっても解放を変換できる。

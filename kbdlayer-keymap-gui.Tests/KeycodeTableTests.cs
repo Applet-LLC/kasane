@@ -120,6 +120,20 @@ public class KeycodeTableTests
     }
 
     [Theory]
+    [InlineData("TO(2)", ActionType.LayerTo)]
+    [InlineData("TT(3)", ActionType.LayerTapToggle)]
+    public void LayerToAndTapToggle_Resolve(string token, byte expectedType)
+    {
+        Assert.True(KeycodeTable.TryResolve(token, out var action, out var error));
+        Assert.Null(error);
+        Assert.Equal(expectedType, action.Type);
+        Assert.True(ActionType.ReferencesLayer(action.Type));
+        Assert.Equal(KeycodeTable.ToToken(action), token);
+    }
+
+    [Theory]
+    [InlineData("TO(99)")]       // out of range (KbdLayerClient.MaxLayers)
+    [InlineData("TT(99)")]
     [InlineData("NOT_A_REAL_TOKEN")]
     [InlineData("LCTL()")]
     [InlineData("MT(BOGUS_MOD,KC_A)")]
