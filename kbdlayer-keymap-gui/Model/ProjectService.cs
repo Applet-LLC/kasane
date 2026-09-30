@@ -143,6 +143,15 @@ public static class ProjectService
                     warnings.Add($"{token} の中身が未設定です（押しても何も起きません）");
             }
         }
+        // タップダンスのタップ側から参照しているマクロ。
+        foreach (var td in project.TapDances)
+        {
+            foreach (var token in new[] { td.SingleTap, td.DoubleTap, td.TripleTap })
+            {
+                if (KeycodeTable.TryResolve(token, out var a) && a.Type == ActionType.Macro && !macroIds.Contains(a.Param1))
+                    warnings.Add($"タップダンス{td.Id}: {token} の中身が未設定です（そのタップでは何も起きません）");
+            }
+        }
     }
 
     public static List<MacroStep> MacroSteps(MacroDef macro, List<string> errors)
@@ -231,19 +240,22 @@ public static class ProjectService
 
     public static TapDanceEntry? TapDanceToEntry(TapDanceDef td, List<string> errors)
     {
-        KeyAction Plain(string token, string what)
+        // タップ側は、キー(KC_*)・修飾付きキー(LCTL(KC_C)等)・MACRO(n)を置ける（ドライバが確定時に
+        // 押して離す。修飾付きキーは修飾キーごと、マクロは中身を順に送る）。
+        KeyAction Tap(string token, string what)
         {
-            if (!KeycodeTable.TryResolve(token, out var a) || a.Type != ActionType.Key)
+            if (!KeycodeTable.TryResolve(token, out var a) ||
+                a.Type is not (ActionType.Key or ActionType.ModdedKey or ActionType.Macro))
             {
-                errors.Add($"タップダンス{td.Id}: {what}「{token}」は単純なキー(KC_*)にしてください");
+                errors.Add($"タップダンス{td.Id}: {what}「{token}」はキー(KC_*)、修飾付きキー(LCTL(KC_C)等)、MACRO(n)のいずれかにしてください");
                 return KeyAction.None;
             }
             return a;
         }
         int before = errors.Count;
-        var single = Plain(td.SingleTap, "1回タップ");
-        var dbl = Plain(td.DoubleTap, "2回タップ");
-        var triple = Plain(td.TripleTap, "3回タップ");
+        var single = Tap(td.SingleTap, "1回タップ");
+        var dbl = Tap(td.DoubleTap, "2回タップ");
+        var triple = Tap(td.TripleTap, "3回タップ");
         if (!KeycodeTable.TryResolve(td.SingleHold, out var hold) ||
             (hold.Type != ActionType.Key && hold.Type != ActionType.ModTap && hold.Type != ActionType.LayerTap))
         {

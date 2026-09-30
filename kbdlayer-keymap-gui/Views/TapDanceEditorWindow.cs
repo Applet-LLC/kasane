@@ -13,7 +13,8 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
     public TapDanceEditorWindow(IEnumerable<TapDanceDef> tapDances)
         : base("タップダンス", KbdLayerClient.MaxTapDanceCount,
             "タップダンスは、キーマップで TAPDANCE(n) を割り当てたキーを、何回続けてタップしたか・長押ししたかで動作を変えます。\n" +
-            "1回・2回・3回タップは単純なキー(KC_*)、長押しは KC_*、MT(MOD_LCTL,KC_NO) のような修飾キー、" +
+            "1回・2回・3回タップはキー(KC_*)、LCTL(KC_C) のような修飾付きキー、MACRO(n) のいずれか、" +
+            "長押しは KC_*、MT(MOD_LCTL,KC_NO) のような修飾キー、" +
             "LT(1,KC_NO) のようなレイヤーのいずれかを指定します（MT/LTのタップ側のキーは使われません）。" +
             "判定時間はタイミング設定の TapDanceTerm です。4つとも空にすると未使用になります。")
     {

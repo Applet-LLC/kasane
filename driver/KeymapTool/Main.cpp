@@ -284,12 +284,20 @@ int CmdGetCombo(IoctlClient* client, ULONG uniqId, ULONG comboId) {
     return 0;
 }
 
+// タップダンスのタップ側（SingleTap/DoubleTap/TripleTap）に置けるか: 単純キー(KC_xxx)、
+// 修飾付きキー(LCTL(KC_C)等)、MACRO(n)。
+static bool IsTapDanceTapAction(const KeycodeMapping& m) {
+    return m.ActionType == KBDLAYER_ACTION_KEY ||
+           m.ActionType == KBDLAYER_ACTION_MODDED_KEY ||
+           m.ActionType == KBDLAYER_ACTION_MACRO;
+}
+
 // --set-tapdance <UniqIdHex> <TapDanceId> <SingleTap> <SingleHold> <DoubleTap> <TripleTap>
-// v1制限（common/kbdlayer_ioctl.h参照）: タップ回数は3回まで区別。SingleTap/DoubleTap/
-// TripleTapは単純キー(KC_xxx)のみ許可。SingleHoldはKC_xxx（押している間その生キーを
-// 送る）に加え、MT(mod,kc)/LT(layer,kc)トークンも受け付ける（タップ時キーコード引数は
-// 無視される。ホールド時のmod/layer部分だけがSingleHoldActionとして使われる。
-// 例: --set-tapdance <id> KC_ESC "LT(1,KC_NO)" KC_TAB KC_CAPS）。
+// 制限（common/kbdlayer_ioctl.h参照）: タップ回数は3回まで区別。SingleTap/DoubleTap/
+// TripleTapは単純キー(KC_xxx)・修飾付きキー(LCTL(KC_C)等)・MACRO(n)を許可。SingleHoldは
+// KC_xxx（押している間その生キーを送る）に加え、MT(mod,kc)/LT(layer,kc)トークンも受け付ける
+// （タップ時キーコード引数は無視される。ホールド時のmod/layer部分だけがSingleHoldActionとして
+// 使われる。例: --set-tapdance <id> KC_ESC "LT(1,KC_NO)" "LCTL(KC_C)" "MACRO(0)"）。
 // 引数無し（4つとも渡さない）場合はそのタップダンスIDをクリアする。
 int CmdSetTapDance(IoctlClient* client, ULONG uniqId, ULONG tapDanceId, int argc, char** argv) {
     if (argc == 0) {
@@ -304,8 +312,8 @@ int CmdSetTapDance(IoctlClient* client, ULONG uniqId, ULONG tapDanceId, int argc
     }
 
     KeycodeMapping singleTap, singleHold, doubleTap, tripleTap;
-    if (!KeycodeTable::Resolve(argv[0], &singleTap) || singleTap.ActionType != KBDLAYER_ACTION_KEY) {
-        fprintf(stderr, "--set-tapdance: SingleTap \"%s\" is not a plain key\n", argv[0]);
+    if (!KeycodeTable::Resolve(argv[0], &singleTap) || !IsTapDanceTapAction(singleTap)) {
+        fprintf(stderr, "--set-tapdance: SingleTap \"%s\" must be a key, a modified key (LCTL(kc)), or MACRO(n)\n", argv[0]);
         return 1;
     }
     if (!KeycodeTable::Resolve(argv[1], &singleHold) ||
@@ -315,12 +323,12 @@ int CmdSetTapDance(IoctlClient* client, ULONG uniqId, ULONG tapDanceId, int argc
         fprintf(stderr, "--set-tapdance: SingleHold \"%s\" must be a plain key, MT(mod,kc), or LT(layer,kc)\n", argv[1]);
         return 1;
     }
-    if (!KeycodeTable::Resolve(argv[2], &doubleTap) || doubleTap.ActionType != KBDLAYER_ACTION_KEY) {
-        fprintf(stderr, "--set-tapdance: DoubleTap \"%s\" is not a plain key\n", argv[2]);
+    if (!KeycodeTable::Resolve(argv[2], &doubleTap) || !IsTapDanceTapAction(doubleTap)) {
+        fprintf(stderr, "--set-tapdance: DoubleTap \"%s\" must be a key, a modified key (LCTL(kc)), or MACRO(n)\n", argv[2]);
         return 1;
     }
-    if (!KeycodeTable::Resolve(argv[3], &tripleTap) || tripleTap.ActionType != KBDLAYER_ACTION_KEY) {
-        fprintf(stderr, "--set-tapdance: TripleTap \"%s\" is not a plain key\n", argv[3]);
+    if (!KeycodeTable::Resolve(argv[3], &tripleTap) || !IsTapDanceTapAction(tripleTap)) {
+        fprintf(stderr, "--set-tapdance: TripleTap \"%s\" must be a key, a modified key (LCTL(kc)), or MACRO(n)\n", argv[3]);
         return 1;
     }
 
@@ -806,9 +814,10 @@ void PrintUsage() {
         "      Show the current definition of a combo (debugging).\n"
         "  KeymapTool.exe --set-tapdance <UniqIdHex> <TapDanceId> [<SingleTap> <SingleHold> <DoubleTap> <TripleTap>]\n"
         "      Define tap-dance <TapDanceId> (0-15), played back via TAPDANCE(<TapDanceId>)\n"
-        "      in a keymap.json. v1 limits: up to 3 taps are distinguished; SingleTap/\n"
-        "      DoubleTap/TripleTap must be plain keys; SingleHold may be a plain key,\n"
-        "      MT(mod,kc), or LT(layer,kc) (the tap-kc argument in MT/LT is ignored here).\n"
+        "      in a keymap.json. Limits: up to 3 taps are distinguished; SingleTap/\n"
+        "      DoubleTap/TripleTap may be a plain key, a modified key (LCTL(KC_C)), or\n"
+        "      MACRO(n); SingleHold may be a plain key, MT(mod,kc), or LT(layer,kc)\n"
+        "      (the tap-kc argument in MT/LT is ignored here).\n"
         "      Omit all 4 actions to clear it.\n"
         "  KeymapTool.exe --get-tapdance <UniqIdHex> <TapDanceId>\n"
         "      Show the current definition of a tap-dance (debugging).\n"

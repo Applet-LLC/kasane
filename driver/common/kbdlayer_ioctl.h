@@ -315,9 +315,13 @@ typedef struct _KBDLAYER_GET_COMBO_OUTPUT {
 //     押しっぱなしにしても専用のHoldアクションは無く、その時点のタップ回数の
 //     タップアクションが確定するだけ（DoubleHold/TripleHold相当は非対応）。
 //   - SingleHoldActionのみ KEY/MODTAP/LAYERTAP を許可する（Phase 2のPendingActionと
-//     同じ扱いを再利用するため）。SingleTap/DoubleTap/TripleTapは KEY のみ許可。
-//   - 他キー割り込みによる確定は、Phase 2のHold On Other Key Pressと同じ規律
-//     （即座に確定し、割り込みバッチは生スキャンコードのまま転送する）を踏襲する。
+//     同じ扱いを再利用するため）。SingleTap/DoubleTap/TripleTapは KEY・MODDED_KEY（修飾付きキー。
+//     修飾子マスクは0以外）・MACRO（IDは範囲内、Param2は0）を許可する（2026-09-30にKEYのみから拡張。
+//     タップ側は確定した時点で押下と解放を続けて送るので、押している間の状態を持たない）。
+//     古いドライバはKEY以外のタップ側をSTATUS_INVALID_PARAMETERで拒否する。
+//   - 他キー割り込みによる確定は、Phase 2のHold On Other Key Pressと同じ規律を踏襲する
+//     （即座に確定し、割り込んだキーは確定後のレイヤーで通常どおり解決する。2026-09-30までは
+//     生スキャンコードのまま転送していた）。
 // 詳細な状態遷移はLayerEngine.cのResolveTapDance参照。
 #define KBDLAYER_MAX_TAPDANCE_COUNT 16
 #define KBDLAYER_MAX_TAP_COUNT 3 // これ以上は3回タップと同じ扱い
@@ -326,10 +330,10 @@ typedef struct _KBDLAYER_GET_COMBO_OUTPUT {
 // であることの合図として、Set時に「クリア」を意味する（common実装ではなく
 // ControlDevice.c/LayerEngine.cの規約）。
 typedef struct _KBDLAYER_TAPDANCE_ENTRY {
-    KBDLAYER_ACTION SingleTapAction;  // v1: KEYのみ許可
-    KBDLAYER_ACTION SingleHoldAction; // v1: KEY/MODTAP/LAYERTAPを許可
-    KBDLAYER_ACTION DoubleTapAction;  // v1: KEYのみ許可
-    KBDLAYER_ACTION TripleTapAction;  // v1: KEYのみ許可
+    KBDLAYER_ACTION SingleTapAction;  // KEY/MODDED_KEY/MACROを許可
+    KBDLAYER_ACTION SingleHoldAction; // KEY/MODTAP/LAYERTAPを許可
+    KBDLAYER_ACTION DoubleTapAction;  // KEY/MODDED_KEY/MACROを許可
+    KBDLAYER_ACTION TripleTapAction;  // KEY/MODDED_KEY/MACROを許可
 } KBDLAYER_TAPDANCE_ENTRY, *PKBDLAYER_TAPDANCE_ENTRY;
 
 // IOCTL_KBDLAYER_SET_TAPDANCE の入力バッファ。
