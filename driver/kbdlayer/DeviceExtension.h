@@ -151,6 +151,12 @@ typedef struct _DEVICE_EXTENSION {
     // HoldDpcは期限前なら何もしない（満了済みでキュー待ちの古いDPCが、その後に始まった
     // 新しい保留サイクルを即座にホールド確定させないため。CaptureDeadlineと同じ手法）。
     ULONGLONG HoldDeadline;
+    // Quick Tap（QMKのQuick Tap Term相当）: MT/LTをタップした直後に同じキーをもう一度押したら、
+    // 判定せずにタップ側のキーとして押す（押し続ければそのキーのリピートになる）。最後に
+    // タップが確定したMT/LTキーと、その時刻（KeQueryInterruptTime()値）。LastTapScanCode==0は
+    // 記録なし。EngineLockで保護する。期間はv1ではTapTermMsと同じ。
+    USHORT LastTapScanCode;
+    ULONGLONG LastTapTime;
 
     // --- 機能別ON/OFF（release-roadmap-priority.md 項番4。common/kbdlayer_ioctl.hの
     // コメント参照） ---

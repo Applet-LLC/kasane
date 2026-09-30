@@ -427,26 +427,6 @@ SetHeldKeyLocked(
     }
 }
 
-// 生のまま転送するバッチ（MT/LTのホールド確定・タップダンスの割り込み）の押下を
-// RAWとして記録する。こうしておくと、その解放も通常経路で生のまま転送される。
-_IRQL_requires_max_(DISPATCH_LEVEL)
-static VOID
-RecordRawMakesLocked(
-    _In_ PDEVICE_EXTENSION devExt,
-    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
-    _In_ PKEYBOARD_INPUT_DATA InputDataEnd
-    )
-{
-    for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
-        if (!(p->Flags & KEY_BREAK)) {
-            USHORT sc = EncodeScancode16(p->MakeCode, p->Flags);
-            if (HeldKeyFor(devExt, sc)->State == KBDLAYER_HELD_NONE) {
-                SetHeldKeyLocked(devExt, sc, KBDLAYER_HELD_RAW, NULL);
-            }
-        }
-    }
-}
-
 // 実効レイヤーマスク = キーボード側のレイヤー | アプリ管理レイヤー | DefaultLayerビット。
 // レイヤーの解決・NICOLAの有効判定・状態の通知は、すべてこれを使う。
 // devExt->EngineLock保持中に呼ぶこと。
@@ -631,13 +611,32 @@ apply:
         }
         return TRUE;
 
+    case KBDLAYER_ACTION_MODTAP:
+    case KBDLAYER_ACTION_LAYERTAP:
+        // タップ/ホールドの判定（ResolveTapHold）を経ずにここへ来るMT/LTは、タップ側のキー
+        // （Param2）として出す。次の場合に来る:
+        // - 別のMT/LTの保留中・ホールド中に押された（保留スロットは1つだけなので、後から
+        //   押したほうは判定しない。以前は割り込んだキーを生のスキャンコードのまま送っていた）
+        // - Quick Tap（同じMT/LTをタップした直後にもう一度押した。ResolveTapHold参照）
+        // - 複数件のバッチの一部として届いた
+        // 押下時の記録どおりに処理するので、オートリピートと解放も同じキーになる。
+        if (action->Param2 == 0) {
+            return TRUE; // タップ側がKC_NO
+        }
+        DecodeScancode16(action->Param2, &Entry->MakeCode, &Entry->Flags);
+        if (!isBreak && devExt->OneShotLayerPending) {
+            devExt->ActiveLayerMask &= ~devExt->OneShotLayerBit;
+            devExt->OneShotLayerPending = FALSE;
+        }
+        return FALSE;
+
     default:
-        // MODTAP/LAYERTAPはResolveTapHold、MACROはResolveMacro、TAPDANCEはResolveTapDance
+        // MACROはResolveMacro、TAPDANCEはResolveTapDance
         // （いずれもServiceCallbackからResolveLayerActionより前に呼ばれる、Driver.c参照）が
         // 先に横取りして処理するため、通常はここに到達しない。ここに来るのはOSM/CUSTOM
-        // （未実装、予約のみ）や、複数件バッチの一部として届いたためResolveTapHold/
-        // ResolveMacro/ResolveTapDanceがスキップしたMT/LT/MACRO/TAPDANCEキーなど、
-        // 想定外の経路のみ。
+        // （未実装、予約のみ）、機能別ON/OFFで無効にしたMACRO/TAPDANCE、複数件バッチの一部
+        // として届いたMACRO/TAPDANCE、タップダンスの判定中（次のタップ待ちで確定できない
+        // とき）に押された別のタップダンスキーなど。
         // 安全側に倒して「何もしない」として扱う（ParseLayerMapBlobで型自体は
         // 許可しているため、KeymapTool側が未対応アクションを送ってきてもクラッシュしない）。
         return TRUE;
@@ -1173,6 +1172,11 @@ ResolveTapHold(
             action.Param1 < KBDLAYER_MAX_LAYERS) {
             devExt->ActiveLayerMask &= ~(1UL << action.Param1);
         }
+        if (!wasHoldConfirmed && wasPending) {
+            // タップ確定。Quick Tap のために、キーと時刻を覚えておく。
+            devExt->LastTapScanCode = scanCode;
+            devExt->LastTapTime = KeQueryInterruptTime();
+        }
         KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
         // 保留サイクルはここで終わるので、タイマーが未発火ならキャンセルする。
@@ -1196,41 +1200,23 @@ ResolveTapHold(
     }
 
     // --- 保留中（未確定）に、別のキーの押下が来た場合 = ホールド確定 ---
-    // 【検証対象】1回のServiceCallback呼び出しの中でOriginalClassServiceを
-    // 最大2回呼ぶ（MODTAPの場合: 修飾キー合成 + 元バッチ転送。LAYERTAPの場合は
-    // ActiveLayerMaskの操作だけなので元バッチ転送の1回のみ）。
+    // MODTAPなら修飾キーのmakeを送り、LAYERTAPならレイヤーのビットを立ててから、割り込んだ
+    // キーは後段（ResolveTapDance以降、ResolveLayerActionまで）に渡す。ホールドを確定した後の
+    // レイヤーで解決されるので、LT(1,KC_SPC)を押してすぐJを押すと、レイヤー1のJの割り当てに
+    // なる。押下記録も後段が通常どおり作るので、解放は記録どおりに処理される（D-6）。
+    // 以前は割り込んだキーを生のスキャンコードのまま転送していた（レイヤーの影響を受けない
+    // 既知の制約。2026-09-30に解消）。割り込んだキー自体がMT/LTなら、後段がタップ側のキーとして
+    // 出す（LayerEngineShouldDropEntry参照）。
     if (devExt->PendingActive && !devExt->HoldConfirmed && !isBreak) {
         KBDLAYER_ACTION action;
-        BOOLEAN alreadyHeld = (HeldKeyFor(devExt, scanCode)->State != KBDLAYER_HELD_NONE);
 
         ConfirmHoldLocked(devExt, &action);
-        if (!alreadyHeld) {
-            // 生のまま転送する押下を記録し、その解放も生のまま転送されるようにする
-            // （記録が無いと、解放がホールド確定後のレイヤーで解決されて別のキーになり、
-            // 押下したキーが押しっぱなしになる）。
-            RecordRawMakesLocked(devExt, InputDataStart, InputDataEnd);
-        }
         KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
         KeCancelTimer(&devExt->HoldTimer);
 
         EmitModTapEventIfApplicable(devExt, &action, KEY_MAKE);
-
-        if (alreadyHeld) {
-            // MT/LTより前から押されていたキーのオートリピート。押下時の記録どおりに
-            // 処理させるため、通常経路（ResolveLayerAction）に委ねる。
-            return FALSE;
-        }
-
-        // 続けて元のバッチ（別キーのイベント）をそのままOriginalClassServiceに
-        // 渡す。このキーはレイヤーエンジンでの再解決を経ない生のスキャンコードの
-        // まま転送される（プラン記載の設計通り。既知の制約: 割り込んだキー自身が
-        // 現在アクティブなレイヤーの影響を受けない）。
-        for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
-            p->ExtraInformation = (p->ExtraInformation & 0x0000FFFFUL) | (devExt->DeviceId & 0xFFFF0000UL);
-        }
-        ForwardToClass(devExt, InputDataStart, InputDataEnd, SystemArgument3);
-        return TRUE;
+        return FALSE;
     }
 
     // --- 現在アイドル（保留中でもホールド中でもない）で、このキー自体が
@@ -1244,6 +1230,18 @@ ResolveTapHold(
             if (action != NULL &&
                 (action->Type == KBDLAYER_ACTION_MODTAP || action->Type == KBDLAYER_ACTION_LAYERTAP)) {
                 LARGE_INTEGER dueTime;
+                ULONGLONG now = KeQueryInterruptTime();
+
+                // Quick Tap: 同じMT/LTをタップした直後（TapTermMs以内）にもう一度押したら、判定せずに
+                // タップ側のキーとして押す（後段のLayerEngineShouldDropEntryがタップ側のキーとして
+                // 押下記録を作るので、押し続ければそのキーのリピートになり、解放も同じキーになる）。
+                // 時刻をこの押下で更新するので、続けて素早く押しても同じ扱いが続く。
+                if (devExt->LastTapScanCode == scanCode &&
+                    now - devExt->LastTapTime < (ULONGLONG)devExt->TapTermMs * 10000ULL) {
+                    devExt->LastTapTime = now;
+                    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+                    return FALSE;
+                }
 
                 devExt->PendingActive = TRUE;
                 devExt->HoldConfirmed = FALSE;
@@ -1275,6 +1273,47 @@ ResolveTapHold(
 // ServiceCallbackからResolveLayerActionより前に呼ばれる、独立した横取りパス。
 // ---------------------------------------------------------------------------
 
+// マクロMacroIdのステップ列をStepsへコピーし、ステップ数を返す（未設定・範囲外は0）。
+// devExt->EngineLock保持中に呼ぶこと（送出はロックを離してからSendMacroStepsで行う）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static ULONG
+CopyMacroStepsLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG MacroId,
+    _Out_writes_(KBDLAYER_MAX_MACRO_STEPS) PKBDLAYER_MACRO_STEP Steps
+    )
+{
+    ULONG stepCount;
+
+    if (MacroId >= KBDLAYER_MAX_MACRO_COUNT) {
+        return 0;
+    }
+    stepCount = devExt->MacroStepCounts[MacroId];
+    if (stepCount > KBDLAYER_MAX_MACRO_STEPS) {
+        stepCount = KBDLAYER_MAX_MACRO_STEPS; // 念のための防御（本来起こり得ない）
+    }
+    if (stepCount > 0) {
+        RtlCopyMemory(Steps, devExt->Macros[MacroId], stepCount * sizeof(KBDLAYER_MACRO_STEP));
+    }
+    return stepCount;
+}
+
+// CopyMacroStepsLockedでコピーしたステップ列を順に送る。EngineLockを保持していない状態で
+// 呼ぶこと（OutputLockは保持していてよい）。ステップのScanCodeはEnc16形式なので、
+// SendDecodedEventでMakeCode/Flagsへデコードしてから送る。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+SendMacroSteps(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_reads_(StepCount) const KBDLAYER_MACRO_STEP* Steps,
+    _In_ ULONG StepCount
+    )
+{
+    for (ULONG i = 0; i < StepCount; i++) {
+        SendDecodedEvent(devExt, Steps[i].ScanCode, Steps[i].IsBreak ? KEY_BREAK : KEY_MAKE);
+    }
+}
+
 _IRQL_requires_max_(DISPATCH_LEVEL)
 BOOLEAN
 ResolveMacro(
@@ -1292,7 +1331,6 @@ ResolveMacro(
     PKBDLAYER_ACTION action;
     PKBDLAYER_HELD_KEY held;
     KBDLAYER_ACTION recordedMacro;
-    ULONG macroId;
     ULONG stepCount;
     KBDLAYER_MACRO_STEP localSteps[KBDLAYER_MAX_MACRO_STEPS];
 
@@ -1365,34 +1403,12 @@ run:
         devExt->OneShotLayerPending = FALSE;
     }
 
-    macroId = action->Param1;
-    if (macroId >= KBDLAYER_MAX_MACRO_COUNT) {
-        // 不正なマクロID（KeymapTool側のバグ等）。安全側に倒して何もしない。
-        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
-        if (SystemArgument3 != NULL) {
-            *(PULONG)SystemArgument3 = 1;
-        }
-        return TRUE;
-    }
-
-    stepCount = devExt->MacroStepCounts[macroId];
-    if (stepCount > KBDLAYER_MAX_MACRO_STEPS) {
-        stepCount = KBDLAYER_MAX_MACRO_STEPS; // 念のための防御（本来起こり得ない）
-    }
-    if (stepCount > 0) {
-        RtlCopyMemory(localSteps, devExt->Macros[macroId], stepCount * sizeof(KBDLAYER_MACRO_STEP));
-    }
+    // 不正なマクロID（KeymapTool側のバグ等）・未設定のマクロは、何も出力しないだけで安全。
+    stepCount = CopyMacroStepsLocked(devExt, action->Param1, localSteps);
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
     // OriginalClassServiceはEngineLockを解放してから呼ぶ（既存の規律を踏襲）。
-    // 未設定のマクロID（stepCount==0）を押しても単に何も出力しないだけで安全。
-    // localSteps[i].ScanCodeはEnc16形式なので、SendDecodedEventでMakeCode/Flagsへ
-    // デコードしてから送る（SendSyntheticEventは既にデコード済みのMakeCode/Flagsを
-    // 直接取る低レベルヘルパーで、ここでは使わない）。
-    for (ULONG i = 0; i < stepCount; i++) {
-        USHORT breakBit = localSteps[i].IsBreak ? KEY_BREAK : KEY_MAKE;
-        SendDecodedEvent(devExt, localSteps[i].ScanCode, breakBit);
-    }
+    SendMacroSteps(devExt, localSteps, stepCount);
 
     if (SystemArgument3 != NULL) {
         *(PULONG)SystemArgument3 = 1;
@@ -1995,6 +2011,123 @@ EmitTapDanceHoldEventIfApplicable(
     }
 }
 
+// タップダンスのタップ側（SingleTap/DoubleTap/TripleTap）の出力。確定した時点で、押下と解放を
+// 続けて送る（押している間の状態は持たない）。PrepareTapDanceTapLocked（EngineLock保持中）で
+// 用意し、EmitTapDanceTap（EngineLock非保持・OutputLock保持中）で送る。
+// マクロのステップ列は、マクロの設定変更と競合しないようEngineLock保持中にコピーしておく。
+typedef struct _KBDLAYER_TAP_OUTPUT {
+    KBDLAYER_ACTION Action;
+    ULONG StepCount; // Action.Type == MACRO のときだけ使う
+    KBDLAYER_MACRO_STEP Steps[KBDLAYER_MAX_MACRO_STEPS];
+} KBDLAYER_TAP_OUTPUT, *PKBDLAYER_TAP_OUTPUT;
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+PrepareTapDanceTapLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ const KBDLAYER_ACTION* Action,
+    _Out_ PKBDLAYER_TAP_OUTPUT Out
+    )
+{
+    Out->Action = *Action;
+    Out->StepCount = 0;
+    if (Action->Type == KBDLAYER_ACTION_MACRO && (devExt->EnabledFeatures & KBDLAYER_FEATURE_MACRO)) {
+        // マクロの機能がOFFなら何も送らない（MACRO(id)のキーと同じ扱い）。
+        Out->StepCount = CopyMacroStepsLocked(devExt, Action->Param1, Out->Steps);
+    }
+}
+
+// 型ごとに送る。
+// - KEY: キーを押して離す。
+// - MODDED_KEY: 「修飾キーのmake（ビット順）→ キーのmake → キーのbreak → 修飾キーのbreak（逆順）」。
+//   マクロで LCTL(KC_C) を展開したのと同じ形で、普通の出力としてForwardToClassを通す。
+//   OSでもう押されている修飾キー（OutputModsDown。物理的に押しているCtrlや、修飾付きキーが
+//   足しているもの）は送らない（押しも離しもしない。QMKのweak modsの考え方）。
+// - MACRO: コピーしておいたステップ列を送る。
+// それ以外の型（読み込んだ古い設定などの想定外）は何もしない。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+EmitTapDanceTap(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ const KBDLAYER_TAP_OUTPUT* Out
+    )
+{
+    const KBDLAYER_ACTION* action = &Out->Action;
+
+    switch (action->Type) {
+    case KBDLAYER_ACTION_KEY:
+        if (action->Param2 != 0) {
+            SendDecodedEvent(devExt, action->Param2, KEY_MAKE);
+            SendDecodedEvent(devExt, action->Param2, KEY_BREAK);
+        }
+        break;
+
+    case KBDLAYER_ACTION_MODDED_KEY:
+    {
+        UCHAR mods = (UCHAR)(action->Param1 & ~devExt->OutputModsDown);
+        for (ULONG bit = 0; bit < RTL_NUMBER_OF(s_ModifierScanCodes); bit++) {
+            if (mods & (1u << bit)) {
+                SendDecodedEvent(devExt, s_ModifierScanCodes[bit], KEY_MAKE);
+            }
+        }
+        if (action->Param2 != 0) {
+            SendDecodedEvent(devExt, action->Param2, KEY_MAKE);
+            SendDecodedEvent(devExt, action->Param2, KEY_BREAK);
+        }
+        for (LONG bit = RTL_NUMBER_OF(s_ModifierScanCodes) - 1; bit >= 0; bit--) {
+            if (mods & (1u << bit)) {
+                SendDecodedEvent(devExt, s_ModifierScanCodes[bit], KEY_BREAK);
+            }
+        }
+        break;
+    }
+
+    case KBDLAYER_ACTION_MACRO:
+        SendMacroSteps(devExt, Out->Steps, Out->StepCount);
+        break;
+
+    default:
+        break;
+    }
+}
+
+// ScanCodeの押下が、今のレイヤーでタップダンスに解決されるなら、新しい保留サイクルを始めて
+// TRUEを返す（*DueTimeにKeSetTimerへ渡す時間を入れる。KeSetTimerは呼び出し側がロック解放後に
+// 呼ぶ）。押下記録のあるキー（オートリピート）は対象外。devExt->EngineLock保持中に呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static BOOLEAN
+TryStartTapDanceLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ USHORT ScanCode,
+    _Out_ PLARGE_INTEGER DueTime
+    )
+{
+    PKBDLAYER_KEY_ENTRY keyEntry;
+    PKBDLAYER_ACTION action;
+
+    DueTime->QuadPart = 0;
+    if (devExt->LayerMap == NULL || HeldKeyFor(devExt, ScanCode)->State != KBDLAYER_HELD_NONE) {
+        return FALSE;
+    }
+    keyEntry = FindKeyEntry(devExt->LayerMap, ScanCode);
+    if (keyEntry == NULL) {
+        return FALSE;
+    }
+    action = ResolveEffectiveAction(devExt, devExt->LayerMap, keyEntry);
+    if (action == NULL || action->Type != KBDLAYER_ACTION_TAPDANCE ||
+        action->Param1 >= KBDLAYER_MAX_TAPDANCE_COUNT || !devExt->TapDanceUsed[action->Param1]) {
+        return FALSE;
+    }
+
+    devExt->TapDancePendingActive = TRUE;
+    devExt->TapDanceKeyDown = TRUE;
+    devExt->TapDanceTapCount = 0;
+    devExt->TapDanceScanCode = ScanCode;
+    devExt->TapDanceActiveId = action->Param1;
+    *DueTime = TimerDueLocked(&devExt->TapDanceDeadline, devExt->TapDanceTermMs);
+    return TRUE;
+}
+
 // TapDanceTimerの満了で起動されるDPC。以下のいずれかの意味を持つ:
 //   - 1回目の押下中にタイムアウト -> SingleHold確定
 //   - 2回目以降の押下中にタイムアウト -> その時点のタップ回数を確定（押されたままの
@@ -2017,6 +2150,7 @@ TapDanceDpcRoutine(
     BOOLEAN shouldFire = FALSE;
     BOOLEAN isHoldCase = FALSE;
     KBDLAYER_ACTION action;
+    KBDLAYER_TAP_OUTPUT tapOut;
     USHORT scanCode = 0;
 
     UNREFERENCED_PARAMETER(Dpc);
@@ -2028,6 +2162,7 @@ TapDanceDpcRoutine(
     }
 
     RtlZeroMemory(&action, sizeof(action));
+    RtlZeroMemory(&tapOut, sizeof(tapOut));
 
     // 状態の決定から送出までをServiceCallbackと直列化する（OutputLockの説明参照）。
     KeAcquireSpinLockAtDpcLevel(&devExt->OutputLock);
@@ -2050,6 +2185,7 @@ TapDanceDpcRoutine(
         } else {
             ULONG finalCount = wasKeyDown ? (tapCountSoFar + 1) : tapCountSoFar;
             action = TapActionForCount(entry, finalCount);
+            PrepareTapDanceTapLocked(devExt, &action, &tapOut);
             devExt->TapDancePendingActive = FALSE;
             if (wasKeyDown) {
                 devExt->TapDanceDraining = TRUE;
@@ -2064,8 +2200,7 @@ TapDanceDpcRoutine(
             EmitTapDanceHoldEventIfApplicable(devExt, &action, KEY_MAKE);
         } else {
             KBDLAYER_TRACE("LayerEngine: tapdance TIMEOUT tap confirmed sc=0x%X type=%u\n", scanCode, action.Type);
-            SendDecodedEvent(devExt, action.Param2, KEY_MAKE);
-            SendDecodedEvent(devExt, action.Param2, KEY_BREAK);
+            EmitTapDanceTap(devExt, &tapOut);
         }
     }
     KeReleaseSpinLockFromDpcLevel(&devExt->OutputLock);
@@ -2170,12 +2305,13 @@ ResolveTapDance(
                 if (devExt->TapDanceTapCount >= KBDLAYER_MAX_TAP_COUNT) {
                     // 上限到達、これ以上待たずに即確定。
                     KBDLAYER_ACTION tapAction = TapActionForCount(entry, devExt->TapDanceTapCount);
+                    KBDLAYER_TAP_OUTPUT tapOut;
+                    PrepareTapDanceTapLocked(devExt, &tapAction, &tapOut);
                     devExt->TapDancePendingActive = FALSE;
                     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
                     KeCancelTimer(&devExt->TapDanceTimer);
-                    SendDecodedEvent(devExt, tapAction.Param2, KEY_MAKE);
-                    SendDecodedEvent(devExt, tapAction.Param2, KEY_BREAK);
+                    EmitTapDanceTap(devExt, &tapOut);
                     if (SystemArgument3 != NULL) {
                         *(PULONG)SystemArgument3 = 1;
                     }
@@ -2212,19 +2348,15 @@ ResolveTapDance(
         }
 
         // --- 無関係キーによる割り込み ---
+        // タップダンスの結果を確定して送ってから、割り込んだキーは後段（ResolveMacro以降、
+        // ResolveLayerActionまで）に渡す。ホールドを確定した後のレイヤーで解決され、押下記録も
+        // 後段が通常どおり作る（D-6）。以前は割り込んだキーを生のスキャンコードのまま転送して
+        // いた（ResolveTapHoldと同じ既知の制約。2026-09-30に解消）。
         {
             ULONG tapCountSoFar = devExt->TapDanceTapCount;
             BOOLEAN wasKeyDown = devExt->TapDanceKeyDown;
             BOOLEAN isHoldCase = (wasKeyDown && tapCountSoFar == 0);
-            // 押下時の記録があるキー（タップダンスより前から押されていたキーの解放・
-            // オートリピート）は、生のまま転送せず通常経路で記録どおりに処理させる。
-            // 記録が無い押下は、解放も生のまま転送されるようRAWとして記録する。
-            BOOLEAN alreadyHeld = (HeldKeyFor(devExt, scanCode)->State != KBDLAYER_HELD_NONE);
             KBDLAYER_ACTION action;
-
-            if (!alreadyHeld) {
-                RecordRawMakesLocked(devExt, InputDataStart, InputDataEnd);
-            }
 
             if (isHoldCase) {
                 // 1回目の押下中の割り込み = SingleHold確定（Phase 2のHold On Other Key
@@ -2235,62 +2367,58 @@ ResolveTapDance(
 
                 KeCancelTimer(&devExt->TapDanceTimer);
                 EmitTapDanceHoldEventIfApplicable(devExt, &action, KEY_MAKE);
-            } else {
-                // 2回目以降の押下中、または次のタップ待ち中の割り込み = その時点の
-                // タップ回数を確定。押されたままなら解放をDrainingで無音に待つ。
+                return FALSE;
+            }
+
+            // 2回目以降の押下中、または次のタップ待ち中の割り込み = その時点の
+            // タップ回数を確定。押されたままなら解放をDrainingで無音に待つ。
+            {
                 ULONG finalCount = wasKeyDown ? (tapCountSoFar + 1) : tapCountSoFar;
+                KBDLAYER_TAP_OUTPUT tapOut;
+                LARGE_INTEGER dueTime;
+                BOOLEAN restarted = FALSE;
+
                 action = TapActionForCount(entry, finalCount);
+                PrepareTapDanceTapLocked(devExt, &action, &tapOut);
                 devExt->TapDancePendingActive = FALSE;
                 if (wasKeyDown) {
                     devExt->TapDanceDraining = TRUE;
+                } else if (!isBreak) {
+                    // 次のタップ待ち中に、別のタップダンスキーが押された。確定したので、
+                    // そのキーで新しい保留サイクルを始める（Drainingが無いので状態は1組で足りる）。
+                    // 始められなければ後段へ渡す。
+                    restarted = TryStartTapDanceLocked(devExt, scanCode, &dueTime);
                 }
                 KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
                 KeCancelTimer(&devExt->TapDanceTimer);
-                SendDecodedEvent(devExt, action.Param2, KEY_MAKE);
-                SendDecodedEvent(devExt, action.Param2, KEY_BREAK);
-            }
+                EmitTapDanceTap(devExt, &tapOut);
 
-            if (alreadyHeld) {
+                if (restarted) {
+                    KeSetTimer(&devExt->TapDanceTimer, dueTime, &devExt->TapDanceDpc);
+                    if (SystemArgument3 != NULL) {
+                        *(PULONG)SystemArgument3 = 1;
+                    }
+                    return TRUE;
+                }
                 return FALSE;
             }
-
-            // 続けて割り込みバッチをそのままOriginalClassServiceに渡す（Phase 2の
-            // ResolveTapHoldと同じ方式。このキーはレイヤーエンジンでの再解決を経ない
-            // 生のスキャンコードのまま転送される、既知の制約も同様）。
-            for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
-                p->ExtraInformation = (p->ExtraInformation & 0x0000FFFFUL) | (devExt->DeviceId & 0xFFFF0000UL);
-            }
-            ForwardToClass(devExt, InputDataStart, InputDataEnd, SystemArgument3);
-            return TRUE;
         }
     }
 
     // --- Idle: このキー自体がTAPDANCEアクションに解決される押下イベントなら、
     //     新しい保留サイクルを開始する（押下時の記録があるキーのオートリピートは対象外） ---
-    if (!isBreak && HeldKeyFor(devExt, scanCode)->State == KBDLAYER_HELD_NONE) {
-        PKBDLAYER_KEY_ENTRY keyEntry = FindKeyEntry(devExt->LayerMap, scanCode);
-        if (keyEntry != NULL) {
-            PKBDLAYER_ACTION action = ResolveEffectiveAction(devExt, devExt->LayerMap, keyEntry);
-            if (action != NULL && action->Type == KBDLAYER_ACTION_TAPDANCE &&
-                action->Param1 < KBDLAYER_MAX_TAPDANCE_COUNT && devExt->TapDanceUsed[action->Param1]) {
-                LARGE_INTEGER dueTime;
+    if (!isBreak) {
+        LARGE_INTEGER dueTime;
+        if (TryStartTapDanceLocked(devExt, scanCode, &dueTime)) {
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
-                devExt->TapDancePendingActive = TRUE;
-                devExt->TapDanceKeyDown = TRUE;
-                devExt->TapDanceTapCount = 0;
-                devExt->TapDanceScanCode = scanCode;
-                devExt->TapDanceActiveId = action->Param1;
-                dueTime = TimerDueLocked(&devExt->TapDanceDeadline, devExt->TapDanceTermMs);
-                KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+            KeSetTimer(&devExt->TapDanceTimer, dueTime, &devExt->TapDanceDpc);
 
-                KeSetTimer(&devExt->TapDanceTimer, dueTime, &devExt->TapDanceDpc);
-
-                if (SystemArgument3 != NULL) {
-                    *(PULONG)SystemArgument3 = 1;
-                }
-                return TRUE;
+            if (SystemArgument3 != NULL) {
+                *(PULONG)SystemArgument3 = 1;
             }
+            return TRUE;
         }
     }
 
@@ -3812,6 +3940,26 @@ PersistAllTapDances(
     ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
 }
 
+// タップダンスのタップ側（SingleTap/DoubleTap/TripleTap）に置けるアクションか。
+// KEY（KC_NOも可）、MODDED_KEY（修飾子マスクが0でない）、MACRO（IDが範囲内）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static BOOLEAN
+IsValidTapDanceTapAction(
+    _In_ const KBDLAYER_ACTION* Action
+    )
+{
+    switch (Action->Type) {
+    case KBDLAYER_ACTION_KEY:
+        return TRUE;
+    case KBDLAYER_ACTION_MODDED_KEY:
+        return Action->Param1 != 0;
+    case KBDLAYER_ACTION_MACRO:
+        return Action->Param1 < KBDLAYER_MAX_MACRO_COUNT && Action->Param2 == 0;
+    default:
+        return FALSE;
+    }
+}
+
 _IRQL_requires_max_(PASSIVE_LEVEL)
 NTSTATUS
 SetTapDanceForDevice(
@@ -3828,11 +3976,11 @@ SetTapDanceForDevice(
     }
 
     if (Entry != NULL) {
-        // v1制限: SingleTap/DoubleTap/TripleTapはKEYのみ、SingleHoldはKEY/MODTAP/LAYERTAPの
-        // みを許可する（common/kbdlayer_ioctl.h参照）。
-        if (Entry->SingleTapAction.Type != KBDLAYER_ACTION_KEY ||
-            Entry->DoubleTapAction.Type != KBDLAYER_ACTION_KEY ||
-            Entry->TripleTapAction.Type != KBDLAYER_ACTION_KEY) {
+        // SingleTap/DoubleTap/TripleTapはKEY/MODDED_KEY/MACRO、SingleHoldはKEY/MODTAP/LAYERTAPを
+        // 許可する（common/kbdlayer_ioctl.h参照。F-3: 引数も検証する）。
+        if (!IsValidTapDanceTapAction(&Entry->SingleTapAction) ||
+            !IsValidTapDanceTapAction(&Entry->DoubleTapAction) ||
+            !IsValidTapDanceTapAction(&Entry->TripleTapAction)) {
             return STATUS_INVALID_PARAMETER;
         }
         if (Entry->SingleHoldAction.Type != KBDLAYER_ACTION_KEY &&
