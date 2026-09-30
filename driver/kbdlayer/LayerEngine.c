@@ -2378,6 +2378,8 @@ ResolveTapDance(
                 LARGE_INTEGER dueTime;
                 BOOLEAN restarted = FALSE;
 
+                dueTime.QuadPart = 0;
+
                 action = TapActionForCount(entry, finalCount);
                 PrepareTapDanceTapLocked(devExt, &action, &tapOut);
                 devExt->TapDancePendingActive = FALSE;
