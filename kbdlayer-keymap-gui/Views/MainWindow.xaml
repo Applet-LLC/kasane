@@ -51,13 +51,13 @@
 
         <WrapPanel DockPanel.Dock="Bottom" Margin="8,4,8,8">
             <Button x:Name="BtnCalibrateAll" Content="キャリブレーション（全キー）..." Click="BtnCalibrateAll_Click" />
-            <Button Content="マクロ..." Click="BtnMacros_Click" />
-            <Button Content="コンボ..." Click="BtnCombos_Click" />
-            <Button Content="タップダンス..." Click="BtnTapDances_Click" />
-            <Button Content="タイミング..." Click="BtnTiming_Click" />
+            <Button x:Name="BtnMacros" Content="マクロ..." Click="BtnMacros_Click" />
+            <Button x:Name="BtnCombos" Content="コンボ..." Click="BtnCombos_Click" />
+            <Button x:Name="BtnTapDances" Content="タップダンス..." Click="BtnTapDances_Click" />
+            <Button x:Name="BtnTiming" Content="タイミング..." Click="BtnTiming_Click" />
             <Separator Width="24" Background="Transparent" />
-            <Button Content="保存" Click="BtnSave_Click" />
-            <Button Content="エクスポート（CLI形式）..." Click="BtnExport_Click" />
+            <Button x:Name="BtnSave" Content="保存" Click="BtnSave_Click" />
+            <Button x:Name="BtnExport" Content="エクスポート（CLI形式）..." Click="BtnExport_Click" />
             <Separator Width="24" Background="Transparent" />
             <Button x:Name="BtnApply" Content="キーボードに適用（ON）" FontWeight="Bold" Click="BtnApply_Click" />
             <Button x:Name="BtnOff" Content="OFF（素通しに戻す）" Click="BtnOff_Click" />

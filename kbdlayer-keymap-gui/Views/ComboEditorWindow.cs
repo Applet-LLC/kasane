@@ -36,9 +36,9 @@ public sealed class ComboEditorWindow : IdListEditorWindow
     {
         var items = new List<string> { "（未使用）" };
         items.AddRange(_layout.Slots.Select(s => s.Description));
-        var m1 = new ComboBox { Width = 300, ItemsSource = items, IsEditable = false };
-        var m2 = new ComboBox { Width = 300, ItemsSource = items, IsEditable = false };
-        var output = KeycodeBox(_combos[id]?.Output ?? "KC_ESC");
+        var m1 = new ComboBox { Name = "Member1Combo", Width = 300, ItemsSource = items, IsEditable = false };
+        var m2 = new ComboBox { Name = "Member2Combo", Width = 300, ItemsSource = items, IsEditable = false };
+        var output = KeycodeBox(_combos[id]?.Output ?? "KC_ESC", "OutputBox");
         m1.SelectedIndex = _combos[id] is { } c1 ? c1.Slot1 + 1 : 0;
         m2.SelectedIndex = _combos[id] is { } c2 ? c2.Slot2 + 1 : 0;
 

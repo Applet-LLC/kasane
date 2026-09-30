@@ -19,6 +19,9 @@ Release/
 # .NET publish output
 publish/
 
+# dotnet test / coverlet coverage output
+TestResults/
+
 # WiX / installer staging
 setup/staging/
 *.msi

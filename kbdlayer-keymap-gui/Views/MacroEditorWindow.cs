@@ -27,7 +27,7 @@ public sealed class MacroEditorWindow : IdListEditorWindow
 
     protected override void ShowDetail(int id)
     {
-        var box = KeycodeBox(_texts[id]);
+        var box = KeycodeBox(_texts[id], "MacroBox");
         box.Width = 480;
         box.TextChanged += (_, _) =>
         {

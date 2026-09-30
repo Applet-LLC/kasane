@@ -10,11 +10,13 @@ namespace KbdLayerKeymapGui.Views;
 /// </summary>
 public abstract class IdListEditorWindow : Window
 {
-    private readonly ListBox _list = new() { Width = 300, Margin = new Thickness(0, 0, 10, 0) };
-    private readonly TextBlock _validation = new() { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) };
+    private readonly ListBox _list = new() { Name = "IdList", Width = 300, Margin = new Thickness(0, 0, 10, 0) };
+    private readonly TextBlock _validation = new() { Name = "ValidationText", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) };
     protected readonly StackPanel Detail = new();
     private readonly int _count;
 
+    // UI Automationでの要素特定用（WPFの既定AutomationPeerはx:Name/Nameを
+    // AutomationIdとして使うため、コード生成のコントロールにも明示的に設定しておく）。
     protected IdListEditorWindow(string title, int count, string help)
     {
         _count = count;
@@ -24,13 +26,13 @@ public abstract class IdListEditorWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         ShowInTaskbar = false;
 
-        var ok = new Button { Content = "OK", IsDefault = true, Width = 90 };
+        var ok = new Button { Name = "OkButton", Content = "OK", IsDefault = true, Width = 90 };
         ok.Click += (_, _) =>
         {
             if (ValidateAll(out var error)) DialogResult = true;
             else ShowValidation(error, isError: true);
         };
-        var cancel = new Button { Content = "キャンセル", IsCancel = true, Width = 90 };
+        var cancel = new Button { Name = "CancelButton", Content = "キャンセル", IsCancel = true, Width = 90 };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
         buttons.Children.Add(ok);
         buttons.Children.Add(cancel);
@@ -88,8 +90,10 @@ public abstract class IdListEditorWindow : Window
         return row;
     }
 
-    protected static TextBox KeycodeBox(string text) =>
-        new() { Text = text, Width = 300, FontFamily = new FontFamily("Consolas") };
+    /// <summary><paramref name="name"/>を渡すとUI Automationでの要素特定用に<c>Name</c>を設定する
+    /// （例: "SingleTap"）。省略時は無名（呼び出し側が複数箇所で使い回す場合など）。</summary>
+    protected static TextBox KeycodeBox(string text, string? name = null) =>
+        new() { Name = name ?? "", Text = text, Width = 300, FontFamily = new FontFamily("Consolas") };
 
     protected abstract string Summary(int id);
     protected abstract void ShowDetail(int id);

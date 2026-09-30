@@ -29,10 +29,10 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
     protected override void ShowDetail(int id)
     {
         var d = _defs[id];
-        var single = KeycodeBox(d?.SingleTap ?? "");
-        var hold = KeycodeBox(d?.SingleHold ?? "");
-        var dbl = KeycodeBox(d?.DoubleTap ?? "");
-        var triple = KeycodeBox(d?.TripleTap ?? "");
+        var single = KeycodeBox(d?.SingleTap ?? "", "SingleTap");
+        var hold = KeycodeBox(d?.SingleHold ?? "", "SingleHold");
+        var dbl = KeycodeBox(d?.DoubleTap ?? "", "DoubleTap");
+        var triple = KeycodeBox(d?.TripleTap ?? "", "TripleTap");
 
         void Changed()
         {
