@@ -26,6 +26,18 @@ public sealed class TapDanceDef
     public string TripleTap { get; set; } = "";
 }
 
+/// <summary>Key Override（キー置換）: Mods を押しながら Key を押すと Replacement を送る。</summary>
+public sealed class KeyOverrideDef
+{
+    public int Id { get; set; }
+    /// <summary>条件の修飾キー（MOD_LSFT、MOD_LCTL|MOD_LSFT など。左右は区別しない）。</summary>
+    public string Mods { get; set; } = "";
+    /// <summary>条件のキー（KC_*。レイヤーで解決した後の出力キー）。</summary>
+    public string Key { get; set; } = "";
+    /// <summary>置き換え先（KC_* か LCTL(KC_Z) のような修飾付きキー）。</summary>
+    public string Replacement { get; set; } = "";
+}
+
 /// <summary>
 /// 1台のキーボード分の設定一式（%LOCALAPPDATA%\LayerDriver\&lt;UniqId&gt;\project.json）。
 /// </summary>
@@ -49,6 +61,7 @@ public sealed class KeymapProject
     public List<MacroDef> Macros { get; set; } = new();
     public List<ComboDef> Combos { get; set; } = new();
     public List<TapDanceDef> TapDances { get; set; } = new();
+    public List<KeyOverrideDef> KeyOverrides { get; set; } = new();
 
     /// <summary>0 = ドライバの既定値（TapTerm 200ms / ComboTerm 50ms / TapDanceTerm 200ms）。</summary>
     public uint TapTermMs { get; set; }

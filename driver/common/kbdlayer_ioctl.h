@@ -241,8 +241,12 @@ typedef struct _KBDLAYER_GET_CONFIG_OUTPUT {
 #define KBDLAYER_FEATURE_MACRO    0x00000001
 #define KBDLAYER_FEATURE_COMBO    0x00000002
 #define KBDLAYER_FEATURE_TAPDANCE 0x00000004
-#define KBDLAYER_FEATURE_ALL \
+#define KBDLAYER_FEATURE_KEYOVERRIDE 0x00000008 // 2026-10-01追加
+// 2026-09（機能別ON/OFFの導入時）の3機能。永続化の旧値（EnabledFeatures）はこのビットだけを持つ。
+#define KBDLAYER_FEATURE_ALL_V1 \
     (KBDLAYER_FEATURE_MACRO | KBDLAYER_FEATURE_COMBO | KBDLAYER_FEATURE_TAPDANCE)
+#define KBDLAYER_FEATURE_ALL \
+    (KBDLAYER_FEATURE_ALL_V1 | KBDLAYER_FEATURE_KEYOVERRIDE)
 
 // IOCTL_KBDLAYER_SET_FEATURES の入力バッファ。Featuresに未知のビットが含まれていたら
 // STATUS_INVALID_PARAMETER。
@@ -306,6 +310,50 @@ typedef struct _KBDLAYER_GET_MACRO_OUTPUT {
     ULONG StepCount;
     // 続けて StepCount 個の KBDLAYER_MACRO_STEP
 } KBDLAYER_GET_MACRO_OUTPUT, *PKBDLAYER_GET_MACRO_OUTPUT;
+
+// --- Key Override（2026-10-01。QMKのKey Overridesの外部仕様を参考にした） ---
+//
+// 「指定した修飾キーを押しながら、指定したキーを押す」と、別のキー（修飾付きキーも可）に置き換える。
+// 例: Shift+2 → @（US配列の刻印のキーボードをJIS設定のWindowsで使う）、Shift+BS → Delete。
+//   - TriggerScanCodeは、レイヤーで解決した後の出力キー（KEYアクションのスキャンコード。レイヤー
+//     マップに無いキーは物理スキャンコード）。
+//   - TriggerModsは KBDLAYER_MOD_* のOR。左右は区別せず、Ctrl・Shift・Alt・Winの種類ごとに、
+//     指定した種類が**全部**押されているときに発動する（左右どちらでもよい）。指定していない修飾キーが
+//     押されていても発動する（その修飾キーは置き換え先にもそのまま掛かる）。
+//   - 発動すると、TriggerModsの種類の修飾キーをOS上で一時的に離し、Replacementを押す。置き換え先の
+//     キーを離したときに、まだ押されている修飾キーを戻す。
+//   - 置き換え中に条件の修飾キーを離しても、置き換えはキーを離すまで続く（押下と解放を同じ出力にする）。
+//   - 置き換え中に別のキーを押すと、そのキーの前に一時的に離していた修飾キーを戻す（置き換えは続く）。
+//   - ReplacementはKEYかMODDED_KEY。
+//   - 機能別ON/OFFのKBDLAYER_FEATURE_KEYOVERRIDEで無効にできる。
+#define KBDLAYER_MAX_KEY_OVERRIDE_COUNT 32
+
+typedef struct _KBDLAYER_KEY_OVERRIDE_ENTRY {
+    UCHAR TriggerMods;            // KBDLAYER_MOD_* のOR（0以外）
+    UCHAR Flags;                  // 予約。常に0。
+    USHORT TriggerScanCode;       // Enc16（0以外）
+    KBDLAYER_ACTION Replacement;  // KEY / MODDED_KEY
+} KBDLAYER_KEY_OVERRIDE_ENTRY, *PKBDLAYER_KEY_OVERRIDE_ENTRY;
+
+// IOCTL_KBDLAYER_SET_KEY_OVERRIDE の入力バッファ。
+// Entry.Replacement.Type == KBDLAYER_ACTION_NONE を渡すと、そのIdのクリアを意味する。
+typedef struct _KBDLAYER_SET_KEY_OVERRIDE_INPUT {
+    KBDLAYER_TARGET Target;
+    ULONG Id; // 0 <= Id < KBDLAYER_MAX_KEY_OVERRIDE_COUNT
+    KBDLAYER_KEY_OVERRIDE_ENTRY Entry;
+} KBDLAYER_SET_KEY_OVERRIDE_INPUT, *PKBDLAYER_SET_KEY_OVERRIDE_INPUT;
+
+// IOCTL_KBDLAYER_GET_KEY_OVERRIDE の入力バッファ。
+typedef struct _KBDLAYER_GET_KEY_OVERRIDE_INPUT {
+    KBDLAYER_TARGET Target;
+    ULONG Id;
+} KBDLAYER_GET_KEY_OVERRIDE_INPUT, *PKBDLAYER_GET_KEY_OVERRIDE_INPUT;
+
+// IOCTL_KBDLAYER_GET_KEY_OVERRIDE の出力バッファ。Used=0なら未設定。
+typedef struct _KBDLAYER_GET_KEY_OVERRIDE_OUTPUT {
+    ULONG Used;
+    KBDLAYER_KEY_OVERRIDE_ENTRY Entry;
+} KBDLAYER_GET_KEY_OVERRIDE_OUTPUT, *PKBDLAYER_GET_KEY_OVERRIDE_OUTPUT;
 
 // --- Phase 4: コンボ ---
 //
@@ -682,5 +730,10 @@ typedef struct _KBDLAYER_EMERGENCY_RELEASE_CONFIG {
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x818, METHOD_BUFFERED, FILE_READ_ACCESS)
 #define IOCTL_KBDLAYER_SET_FEATURES \
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x819, METHOD_BUFFERED, FILE_WRITE_ACCESS)
+// Key Override（2026-10-01）。設定の書き換えは他のSET_*と同じくFILE_WRITE_ACCESS。
+#define IOCTL_KBDLAYER_SET_KEY_OVERRIDE \
+    CTL_CODE(FILE_DEVICE_KBDLAYER, 0x81A, METHOD_BUFFERED, FILE_WRITE_ACCESS)
+#define IOCTL_KBDLAYER_GET_KEY_OVERRIDE \
+    CTL_CODE(FILE_DEVICE_KBDLAYER, 0x81B, METHOD_BUFFERED, FILE_READ_ACCESS)
 
 #endif // _KBDLAYER_COMMON_IOCTL_H_

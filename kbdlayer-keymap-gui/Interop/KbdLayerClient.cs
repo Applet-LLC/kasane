@@ -15,6 +15,8 @@ public sealed record DeviceInfo(uint UniqId, bool HasLayerMap, bool Enabled, uin
 public sealed record MacroStep(ushort ScanCode, bool IsBreak);
 
 public sealed record ComboEntry(ushort ScanCode1, ushort ScanCode2, KeyAction Output);
+/// <summary>KBDLAYER_KEY_OVERRIDE_ENTRY。TriggerModsはKBDLAYER_MOD_*のOR、TriggerScanCodeは出力キー（Enc16）。</summary>
+public sealed record KeyOverrideEntry(byte TriggerMods, ushort TriggerScanCode, KeyAction Replacement);
 
 public sealed record TapDanceEntry(KeyAction SingleTap, KeyAction SingleHold, KeyAction DoubleTap, KeyAction TripleTap);
 
@@ -72,6 +74,9 @@ public sealed class KbdLayerClient : IDisposable
     private static readonly uint IOCTL_GET_TAPDANCE = CtlCode(0x80C, FILE_READ_ACCESS);
     private static readonly uint IOCTL_SET_CAPTURE_SUPPRESS = CtlCode(0x80D, FILE_WRITE_ACCESS);
     private static readonly uint IOCTL_GET_CONFIG = CtlCode(0x80E, FILE_READ_ACCESS);
+    private static readonly uint IOCTL_SET_KEY_OVERRIDE = CtlCode(0x81A, FILE_WRITE_ACCESS);
+    private static readonly uint IOCTL_GET_KEY_OVERRIDE = CtlCode(0x81B, FILE_READ_ACCESS);
+    public const int MaxKeyOverrideCount = 32;  // KBDLAYER_MAX_KEY_OVERRIDE_COUNT
 
     public const int MaxLayers = 16;            // KBDLAYER_MAX_LAYERS（ドライバの値と必ず一致させる）
     public const int MaxKeys = 256;             // KBDLAYER_MAX_KEYS
@@ -303,6 +308,33 @@ public sealed class KbdLayerClient : IDisposable
         using var r = new BinaryReader(new MemoryStream(data));
         bool used = r.ReadUInt32() != 0;
         var e = new ComboEntry(r.ReadUInt16(), r.ReadUInt16(), ReadAction(r));
+        return used ? e : null;
+    }
+
+    /// <summary>entry=null はそのIDのクリア（Replacement.Type=NONEがクリアの合図）。</summary>
+    public void SetKeyOverride(uint uniqId, int id, KeyOverrideEntry? entry) =>
+        Ioctl($"キー置換{id}の書き込み", IOCTL_SET_KEY_OVERRIDE, Build(w =>
+        {
+            w.Write(uniqId);
+            w.Write((uint)id);
+            w.Write((byte)(entry?.TriggerMods ?? 0));
+            w.Write((byte)0); // Flags（予約）
+            w.Write((ushort)(entry?.TriggerScanCode ?? 0));
+            WriteAction(w, entry?.Replacement ?? KeyAction.None);
+        }), 0);
+
+    public KeyOverrideEntry? GetKeyOverride(uint uniqId, int id)
+    {
+        var data = Ioctl($"キー置換{id}の取得", IOCTL_GET_KEY_OVERRIDE, Build(w =>
+        {
+            w.Write(uniqId);
+            w.Write((uint)id);
+        }), 4 + 8);
+        using var r = new BinaryReader(new MemoryStream(data));
+        bool used = r.ReadUInt32() != 0;
+        byte mods = r.ReadByte();
+        r.ReadByte(); // Flags
+        var e = new KeyOverrideEntry(mods, r.ReadUInt16(), ReadAction(r));
         return used ? e : null;
     }
 

@@ -730,6 +730,89 @@ HandleSetCombo(
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static NTSTATUS
+HandleSetKeyOverride(
+    _In_ PIRP Irp,
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    PKBDLAYER_SET_KEY_OVERRIDE_INPUT input = (PKBDLAYER_SET_KEY_OVERRIDE_INPUT)SystemBuffer;
+    PDEVICE_EXTENSION devExt;
+    NTSTATUS status;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_SET_KEY_OVERRIDE_INPUT)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId, Irp);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    // Entry.Replacement.Type==NONEはクリアの合図（SET_COMBOと同じ規約）。
+    if (input->Entry.Replacement.Type == KBDLAYER_ACTION_NONE) {
+        status = SetKeyOverrideForDevice(devExt, input->Id, NULL);
+    } else {
+        status = SetKeyOverrideForDevice(devExt, input->Id, &input->Entry);
+    }
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+    return status;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleGetKeyOverride(
+    _In_ PIRP Irp,
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    ULONG outputLen = IrpSp->Parameters.DeviceIoControl.OutputBufferLength;
+    PKBDLAYER_GET_KEY_OVERRIDE_INPUT input = (PKBDLAYER_GET_KEY_OVERRIDE_INPUT)SystemBuffer;
+    PDEVICE_EXTENSION devExt;
+    PKBDLAYER_GET_KEY_OVERRIDE_OUTPUT out;
+    KBDLAYER_KEY_OVERRIDE_ENTRY entry;
+    BOOLEAN used = FALSE;
+    NTSTATUS status;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_GET_KEY_OVERRIDE_INPUT)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (outputLen < sizeof(KBDLAYER_GET_KEY_OVERRIDE_OUTPUT)) {
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+
+    devExt = FindDeviceExtensionByUniqId(input->Target.UniqId, Irp);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+
+    RtlZeroMemory(&entry, sizeof(entry));
+    status = GetKeyOverrideForDevice(devExt, input->Id, &entry, &used);
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+    if (!NT_SUCCESS(status)) {
+        return status;
+    }
+
+    // METHOD_BUFFERED: 入力と出力は同じSystemBufferを共有する（HandleGetComboと同じ）。
+    out = (PKBDLAYER_GET_KEY_OVERRIDE_OUTPUT)SystemBuffer;
+    out->Used = used ? 1 : 0;
+    out->Entry = entry;
+
+    *BytesReturned = sizeof(KBDLAYER_GET_KEY_OVERRIDE_OUTPUT);
+    return STATUS_SUCCESS;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
 HandleGetCombo(
     _In_ PIRP Irp,
     _In_ PIO_STACK_LOCATION IrpSp,
@@ -1252,6 +1335,12 @@ DispatchControlIoctl(
         break;
     case IOCTL_KBDLAYER_GET_COMBO:
         status = HandleGetCombo(Irp, irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_SET_KEY_OVERRIDE:
+        status = HandleSetKeyOverride(Irp, irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_GET_KEY_OVERRIDE:
+        status = HandleGetKeyOverride(Irp, irpSp, systemBuffer, &bytesReturned);
         break;
     case IOCTL_KBDLAYER_SET_TAPDANCE:
         status = HandleSetTapDance(Irp, irpSp, systemBuffer, &bytesReturned);

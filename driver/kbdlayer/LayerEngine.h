@@ -456,6 +456,25 @@ GetLayerMapForDevice(
     _Out_opt_ PBOOLEAN OutEnabled
     );
 
+// SET_KEY_OVERRIDE / GET_KEY_OVERRIDE（2026-10-01）。Entry=NULLはクリア。形が正しくなければ
+// STATUS_INVALID_PARAMETER。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetKeyOverrideForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG Id,
+    _In_opt_ PKBDLAYER_KEY_OVERRIDE_ENTRY Entry
+    );
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+GetKeyOverrideForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG Id,
+    _Out_ PKBDLAYER_KEY_OVERRIDE_ENTRY OutEntry,
+    _Out_ PBOOLEAN OutUsed
+    );
+
 // SET_CONFIG v2: 判定方式（KBDLAYER_TAPHOLD_MODE_*）・QuickTapTermMs・TappingToggleを変え、永続化する。
 // 範囲外ならSTATUS_INVALID_PARAMETER（何も変えない）。
 _IRQL_requires_max_(PASSIVE_LEVEL)
