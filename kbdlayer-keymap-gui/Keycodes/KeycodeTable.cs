@@ -287,6 +287,16 @@ public static class KeycodeTable
                     action = new KeyAction(ActionType.LayerMod, layer, mask);
                     return true;
                 }
+                case "OSM" when parts.Length == 1:
+                {
+                    if (!TryParseModMask(parts[0], out var mask))
+                    {
+                        error = $"OSMの修飾キー「{parts[0]}」は MOD_LSFT や MOD_LCTL|MOD_LSFT の形で指定してください";
+                        return false;
+                    }
+                    action = new KeyAction(ActionType.OneShotMod, mask, 0);
+                    return true;
+                }
                 case "MO" or "TG" or "DF" or "OSL" or "TO" or "TT" when parts.Length == 1:
                 {
                     if (!ParseLayer(parts[0], out var layer, out error)) return false;
@@ -385,6 +395,7 @@ public static class KeycodeTable
             ActionType.Default => $"DF({a.Param1})",
             ActionType.OneShotLayer => $"OSL({a.Param1})",
             ActionType.LayerTo => $"TO({a.Param1})",
+            ActionType.OneShotMod => $"OSM({ModMaskToNames(a.Param1)})",
             ActionType.LayerTapToggle => $"TT({a.Param1})",
             ActionType.ModTap => $"MT({(a.Param1 < ModifierNames.Length ? ModifierNames[a.Param1] : "MOD_LCTL")},{Key(a.Param2)})",
             ActionType.LayerTap => $"LT({a.Param1},{Key(a.Param2)})",

@@ -97,7 +97,7 @@ public partial class KeyAssignDialog : Window
 
     private UIElement LayerPanel()
     {
-        var func = Combo(new[] { "MO", "TG", "DF", "OSL", "TO", "TT", "LM" });
+        var func = Combo(new[] { "MO", "TG", "DF", "OSL", "TO", "TT", "LM", "OSM" });
         var layer = Combo(Layers.Select(i => i.ToString()));
         layer.SelectedIndex = Math.Min(1, KbdLayerClient.MaxLayers - 1);
         return Form(
@@ -106,19 +106,24 @@ public partial class KeyAssignDialog : Window
             "TO(n): レイヤーnだけを有効にする（他のレイヤーはOFF。基本レイヤーはそのまま）\n" +
             "TT(n): 押している間だけレイヤーnを有効にし、続けてタップする（既定5回。「タイミング...」で変更）とON/OFFを固定する\n" +
             "LM(n): 押している間、レイヤーnを有効にし、下で選んだ修飾キーも押す" +
-            "（例: レイヤーnに▽のままのキーを押すと Ctrl+そのキー になる）",
+            "（例: レイヤーnに▽のままのキーを押すと Ctrl+そのキー になる）\n" +
+            "OSM: 下で選んだ修飾キーを、次に押すキー1回だけに掛ける（押したまま使えば普通の修飾キー。" +
+            "もう一度タップで取り消し。レイヤーは使わない）",
             ("種類", func), ("レイヤー", layer),
             () =>
             {
-                if ((string)func.SelectedItem != "LM") return $"{func.SelectedItem}({layer.SelectedItem})";
+                string f = (string)func.SelectedItem;
+                if (f != "LM" && f != "OSM") return $"{f}({layer.SelectedItem})";
                 byte mask = CheckedMask();
                 if (mask == 0)
                 {
                     TxtValidation.Foreground = Brushes.Firebrick;
-                    TxtValidation.Text = "LM では、下の修飾キーを1つ以上チェックしてください";
+                    TxtValidation.Text = $"{f} では、下の修飾キーを1つ以上チェックしてください";
                     return null;
                 }
-                return $"LM({layer.SelectedItem},{KeycodeTable.ModMaskToNames(mask)})";
+                return f == "OSM"
+                    ? $"OSM({KeycodeTable.ModMaskToNames(mask)})"
+                    : $"LM({layer.SelectedItem},{KeycodeTable.ModMaskToNames(mask)})";
             });
     }
 
@@ -222,6 +227,9 @@ public partial class KeyAssignDialog : Window
             case ActionType.LayerMod when mask != 0:
                 TxtToken.Text = $"LM({action.Param1},{KeycodeTable.ModMaskToNames(mask)})";
                 break;
+            case ActionType.OneShotMod when mask != 0:
+                TxtToken.Text = $"OSM({KeycodeTable.ModMaskToNames(mask)})";
+                break;
         }
     }
 
@@ -232,6 +240,7 @@ public partial class KeyAssignDialog : Window
         {
             ActionType.ModdedKey => action.Param1,
             ActionType.LayerMod => (byte)(action.Param2 & 0xFF),
+            ActionType.OneShotMod => action.Param1,
             ActionType.Key => 0,
             _ => CheckedMask(), // 修飾キーと関係ないキーコードでは今のチェックを保つ
         };

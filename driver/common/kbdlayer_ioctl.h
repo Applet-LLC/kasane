@@ -48,7 +48,10 @@ typedef struct _KBDLAYER_ACTION {
 #define KBDLAYER_ACTION_TOGGLE        4  // TG(layer): Param1=レイヤー番号
 #define KBDLAYER_ACTION_DEFAULT       5  // DF(layer): Param1=レイヤー番号
 #define KBDLAYER_ACTION_ONESHOT_LAYER 6  // OSL(layer): Param1=レイヤー番号
-#define KBDLAYER_ACTION_ONESHOT_MOD   7  // OSM(mod): Param1=修飾子ビット (Phase 2以降)
+// OSM(mod)（One Shot Mod、2026-10-02実装）: Param1=修飾子マスク（KBDLAYER_MOD_*のOR、0以外）、Param2=0。
+// 押している間は修飾キーとして働く。別のキーを押さずに離すと、次に押す（修飾キーでない）キー1つにだけ
+// その修飾キーが掛かる。同じOSMをもう一度タップすると解除する。ロックと時間切れは無し。
+#define KBDLAYER_ACTION_ONESHOT_MOD   7
 #define KBDLAYER_ACTION_MODTAP        8  // MT(mod,kc): Param1=修飾子ビット, Param2=タップ時スキャンコード (Phase 2)
 #define KBDLAYER_ACTION_LAYERTAP      9  // LT(layer,kc): Param1=レイヤー番号, Param2=タップ時スキャンコード (Phase 2)
 #define KBDLAYER_ACTION_MACRO         10 // MACRO(id): Param1=マクロID(0..KBDLAYER_MAX_MACRO_COUNT-1) (Phase 3)

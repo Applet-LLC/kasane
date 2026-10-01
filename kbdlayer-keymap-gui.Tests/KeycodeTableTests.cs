@@ -132,6 +132,21 @@ public class KeycodeTableTests
     }
 
     [Theory]
+    [InlineData("OSM(MOD_LSFT)", 0x02)]
+    [InlineData("OSM(MOD_LCTL|MOD_LSFT)", 0x03)]
+    public void OneShotMod_ResolvesAndRoundTrips(string token, byte expectedMask)
+    {
+        Assert.True(KeycodeTable.TryResolve(token, out var action, out var error));
+        Assert.Null(error);
+        Assert.Equal(ActionType.OneShotMod, action.Type);
+        Assert.Equal(expectedMask, action.Param1);
+        Assert.Equal(0, action.Param2);
+        Assert.Equal(token, KeycodeTable.ToToken(action));
+    }
+
+    [Theory]
+    [InlineData("OSM()")]
+    [InlineData("OSM(SHIFT)")]
     [InlineData("TO(99)")]       // out of range (KbdLayerClient.MaxLayers)
     [InlineData("TT(99)")]
     [InlineData("NOT_A_REAL_TOKEN")]

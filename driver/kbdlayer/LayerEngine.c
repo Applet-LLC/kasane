@@ -227,6 +227,13 @@ ParseLayerMapBlob(
                 a->Type == KBDLAYER_ACTION_TAPDANCE) {
                 needsSingleEvents = TRUE;
             }
+            // OSM: 修飾子マスクは0以外、Param2は0。修飾付きキーと同じく1件ずつ処理する。
+            if (a->Type == KBDLAYER_ACTION_ONESHOT_MOD) {
+                if (a->Param1 == 0 || a->Param2 != 0) {
+                    return STATUS_INVALID_PARAMETER;
+                }
+                needsSingleEvents = TRUE;
+            }
             // TO/TT: レイヤー番号は範囲内、Param2は0。
             if (a->Type == KBDLAYER_ACTION_LAYER_TO || a->Type == KBDLAYER_ACTION_LAYER_TAP_TOGGLE) {
                 if (a->Param1 >= KBDLAYER_MAX_LAYERS || a->Param2 != 0) {
@@ -375,7 +382,7 @@ IsModdedActionType(
     )
 {
     return Type == KBDLAYER_ACTION_MODDED_KEY || Type == KBDLAYER_ACTION_LAYER_MOD ||
-           Type == KBDLAYER_ACTION_INTERNAL_KEY_OVERRIDE;
+           Type == KBDLAYER_ACTION_INTERNAL_KEY_OVERRIDE || Type == KBDLAYER_ACTION_ONESHOT_MOD;
 }
 
 // 記録の「足した修飾キー」を変え、devExt->AddedModCount[]（ビットごとの足している記録の数）を
@@ -401,14 +408,15 @@ SetHeldAddedModsLocked(
 }
 
 // 押下中の記録のどれかが足している修飾キー（KBDLAYER_MOD_*のOR）。
-// OutputLockかEngineLockのどちらかを保持して呼ぶこと。
+// OSMをタップした後、次のキーのために押したままにしている修飾キー（OneShotMods）も含める。
+// OutputLockを保持して呼ぶこと（OneShotModsはOutputLockで保護。呼び出し元はすべてOutputLock保持中）。
 _IRQL_requires_max_(DISPATCH_LEVEL)
 static UCHAR
 AddedModsUnion(
     _In_ PDEVICE_EXTENSION devExt
     )
 {
-    UCHAR mods = 0;
+    UCHAR mods = devExt->OneShotMods;
     for (ULONG bit = 0; bit < 8; bit++) {
         if (devExt->AddedModCount[bit] != 0) {
             mods |= (UCHAR)(1u << bit);
@@ -728,6 +736,7 @@ apply:
     case KBDLAYER_ACTION_MODDED_KEY:
     case KBDLAYER_ACTION_LAYER_MOD:
     case KBDLAYER_ACTION_INTERNAL_KEY_OVERRIDE:
+    case KBDLAYER_ACTION_ONESHOT_MOD:
         // 通常はResolveModdedKeyが先に処理する（これらを含むマップ・押下中の記録がある間は、
         // ServiceCallbackが複数件バッチを1件ずつに分けるため）。ここに来るのは想定外の経路
         // だけで、修飾キーは足さずに、キー（またはレイヤー）部分だけを処理する。
@@ -738,6 +747,9 @@ apply:
         if (action->Type == KBDLAYER_ACTION_MODDED_KEY || action->Type == KBDLAYER_ACTION_INTERNAL_KEY_OVERRIDE) {
             DecodeScancode16(action->Param2, &Entry->MakeCode, &Entry->Flags);
             return FALSE;
+        }
+        if (action->Type == KBDLAYER_ACTION_ONESHOT_MOD) {
+            return TRUE; // OSMはキーを持たない（修飾キーも足さない）
         }
         if (action->Param1 < KBDLAYER_MAX_LAYERS) {
             ULONG bit = 1UL << action->Param1;
@@ -1073,6 +1085,14 @@ ForwardToClass(
     ULONG originalCount = (ULONG)(InputDataEnd - InputDataStart);
     UCHAR added;
     PKEYBOARD_INPUT_DATA writePtr = InputDataStart;
+    // 修飾キーでないキーのmakeがあるか（スキャンコード0は実在しないので、どのキーとも「別のキー」）。
+    BOOLEAN hasKeyMake = BatchHasOtherKeyMake(InputDataStart, InputDataEnd, 0);
+
+    if (hasKeyMake) {
+        // OSMを押している間に別のキーを押した → そのOSMは離したときに普通の修飾キーとして戻す
+        // （One Shotにしない）。ResolveModdedKey参照。
+        devExt->OsmUsedWhileHeld = TRUE;
+    }
 
     if (StripModdedKeyMods(devExt, InputDataStart, InputDataEnd)) {
         ReleaseLeakedModifiers(devExt); // 外した修飾キーのbreakを、キーのmakeより前に送る
@@ -1125,6 +1145,12 @@ ForwardToClass(
             InputDataStart,
             writePtr,
             SystemArgument3);
+    }
+
+    // OSM: 次のキー（修飾キーでないキーのmake）を、修飾キーを押したまま送ったので、One Shotを使い切る。
+    // breakは下の安全網が送る（マクロ・コンボの出力なら、最初のキー1つにだけ掛かる）。
+    if (hasKeyMake && devExt->OneShotMods != 0) {
+        devExt->OneShotMods = 0;
     }
 
     ReleaseLeakedModifiers(devExt);
@@ -1850,9 +1876,9 @@ ResolveModdedKey(
             // オートリピート。修飾付きキー（とKey Overrideの置き換え先）はキーのmakeだけを繰り返す
             // （修飾キーは押したまま）。別のキーを押して修飾キーを外した後（D-12、StripModdedKeyMods）
             // は、修飾キーなしで繰り返す。ただしハードウェアのリピートは最後に押したキーだけなので、
-            // 実際にはほとんど起きない。LMは何もしない。
+            // 実際にはほとんど起きない。LM・OSMは何もしない。
             KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
-            if (action.Type != KBDLAYER_ACTION_LAYER_MOD) {
+            if (action.Type != KBDLAYER_ACTION_LAYER_MOD && action.Type != KBDLAYER_ACTION_ONESHOT_MOD) {
                 SendDecodedEvent(devExt, action.Param2, KEY_MAKE);
             }
             if (SystemArgument3 != NULL) {
@@ -1865,10 +1891,18 @@ ResolveModdedKey(
         // 押されていないものだけを離す。
         {
             UCHAR added = held->AddedMods;
+            // OSM: 押している間に別のキーを押さなかったら、修飾キーを次のキー1つのために押したままにする
+            // （OneShotModsはAddedModsUnionに含まれるので、下のsendModsは0になりbreakは送らない）。
+            // 別のキーを押していたら、普通の修飾キーとして戻す。
+            BOOLEAN toOneShot = (action.Type == KBDLAYER_ACTION_ONESHOT_MOD &&
+                                 !devExt->OsmUsedWhileHeld && devExt->OsmHeldScanCode == scanCode);
             SetHeldAddedModsLocked(devExt, held, 0);
             SetHeldKeyLocked(devExt, scanCode, KBDLAYER_HELD_NONE, NULL);
             if (action.Type == KBDLAYER_ACTION_LAYER_MOD && action.Param1 < KBDLAYER_MAX_LAYERS) {
                 devExt->ActiveLayerMask &= ~(1UL << action.Param1);
+            }
+            if (toOneShot) {
+                devExt->OneShotMods |= action.Param1;
             }
             sendMods = (UCHAR)(added & ~(devExt->RealModsDown | AddedModsUnion(devExt)));
         }
@@ -1876,8 +1910,8 @@ ResolveModdedKey(
 
         // 修飾付きキーでは、キーのbreakを送るForwardToClassの安全網が、足した修飾キーの
         // breakも続けて送る。下のSendAddedModifiersは、そのとき送り済みのビットを送らない
-        // （OutputModsDownで判定）ので、LMのとき・念のための呼び出しになる。
-        if (action.Type != KBDLAYER_ACTION_LAYER_MOD) {
+        // （OutputModsDownで判定）ので、LM・OSMのとき・念のための呼び出しになる。
+        if (action.Type != KBDLAYER_ACTION_LAYER_MOD && action.Type != KBDLAYER_ACTION_ONESHOT_MOD) {
             SendDecodedEvent(devExt, action.Param2, KEY_BREAK);
         }
         SendAddedModifiers(devExt, sendMods, KEY_BREAK);
@@ -1907,9 +1941,24 @@ ResolveModdedKey(
         UCHAR downBefore;
         UCHAR added;
 
+        if (resolved != NULL && resolved->Type == KBDLAYER_ACTION_ONESHOT_MOD &&
+            (devExt->OneShotMods & resolved->Param1) == resolved->Param1) {
+            // 同じOSMが次のキーを待っている間にもう一度タップした → 解除する（OneShotModsから外せば、
+            // 安全網がbreakを送る。Alt・Winなら単独押しにならないようCtrlのタップも挟まれる）。
+            // このキーの解放は飲み込む。
+            devExt->OneShotMods &= (UCHAR)~resolved->Param1;
+            SetHeldKeyLocked(devExt, scanCode, KBDLAYER_HELD_SWALLOWED, NULL);
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+            ReleaseLeakedModifiers(devExt);
+            if (SystemArgument3 != NULL) {
+                *(PULONG)SystemArgument3 = 1;
+            }
+            return TRUE;
+        }
         if (resolved != NULL && IsModdedActionType(resolved->Type)) {
             action = *resolved;
-            mask = (action.Type == KBDLAYER_ACTION_MODDED_KEY) ? action.Param1 : (UCHAR)(action.Param2 & 0xFF);
+            mask = (action.Type == KBDLAYER_ACTION_MODDED_KEY || action.Type == KBDLAYER_ACTION_ONESHOT_MOD)
+                       ? action.Param1 : (UCHAR)(action.Param2 & 0xFF);
         } else {
             // Key Override: 解決した出力キー（KEYアクション。マップに無いキーは物理スキャンコード）が
             // 表のどれかに当たり、条件の修飾キーが押されていれば、置き換え先を修飾付きキーと同じ扱いで
@@ -1948,6 +1997,11 @@ ResolveModdedKey(
             if (action.Param1 < KBDLAYER_MAX_LAYERS) {
                 devExt->ActiveLayerMask |= (1UL << action.Param1);
             }
+        } else if (action.Type == KBDLAYER_ACTION_ONESHOT_MOD) {
+            // OSMはキーを出さないので、OSLのワンショットは消費しない。離したときにOne Shotにするか
+            // （押している間に別のキーを押さなかったか）を見るため、押したことを覚える。
+            devExt->OsmHeldScanCode = scanCode;
+            devExt->OsmUsedWhileHeld = FALSE;
         } else if (devExt->OneShotLayerPending) {
             // KEYと同じく、OSL(layer)発動後に最初に解決された実キーでワンショットを消費する。
             devExt->ActiveLayerMask &= ~devExt->OneShotLayerBit;
@@ -1964,7 +2018,7 @@ ResolveModdedKey(
         SendAddedModifiers(devExt, (UCHAR)(previousSuppressed & ~suppress & devExt->RealModsDown), KEY_MAKE);
     }
     SendAddedModifiers(devExt, sendMods, KEY_MAKE);
-    if (action.Type != KBDLAYER_ACTION_LAYER_MOD) {
+    if (action.Type != KBDLAYER_ACTION_LAYER_MOD && action.Type != KBDLAYER_ACTION_ONESHOT_MOD) {
         SendDecodedEvent(devExt, action.Param2, KEY_MAKE);
     }
     if (SystemArgument3 != NULL) {
@@ -3405,6 +3459,8 @@ SetLayerMapEnabledForDevice(
         devExt->TtToggledLayers = 0;
         devExt->TtTapCount = 0;
         devExt->TtKeyDown = FALSE;
+        // OSMの待ち（次のキーのために押したままにしている修飾キー）も消す。breakは下の安全網が送る。
+        devExt->OneShotMods = 0;
     }
     KeReleaseSpinLockFromDpcLevel(&devExt->EngineLock);
 
@@ -3413,6 +3469,7 @@ SetLayerMapEnabledForDevice(
         KeCancelTimer(&devExt->ComboTimer);
         KeCancelTimer(&devExt->TapDanceTimer);
         SendAbortReleases(devExt, &releases);
+        ReleaseLeakedModifiers(devExt);
     }
     KeReleaseSpinLock(&devExt->OutputLock, outputIrql);
 
