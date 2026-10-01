@@ -1,7 +1,7 @@
 # GUI-T1: UI Automation round-trip test for the TapDance editor -- type LCTL(KC_C)/MACRO(0) into
 # DoubleTap/TripleTap (the new modded-key/macro tap-side support), click OK, reopen, and confirm
 # the same text is displayed (proves the GUI's field wiring, not just ProjectService's logic).
-. "$PSScriptRoot\gui-uia-lib.ps1"
+. "$PSScriptRoot\UiaLib.ps1"
 $ErrorActionPreference = "Stop"
 $EXE = "C:\Users\applet\Documents\GitHub\LayerDriver\kbdlayer-keymap-gui\bin\Debug\net8.0-windows\win-x64\kbdlayer-keymap-gui.exe"
 $fail = 0
