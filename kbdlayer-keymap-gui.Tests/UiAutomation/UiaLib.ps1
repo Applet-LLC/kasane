@@ -122,3 +122,14 @@ function Select-ComboItemByIndex([System.Windows.Automation.AutomationElement]$c
     $pat.Select()
     Start-Sleep -Milliseconds 200
 }
+
+function Get-ToggleState([System.Windows.Automation.AutomationElement]$el) {
+    $pat = $el.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern)
+    return $pat.Current.ToggleState
+}
+
+function Set-ToggleState([System.Windows.Automation.AutomationElement]$el, [bool]$checked) {
+    $pat = $el.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern)
+    $wantOn = if ($checked) { [System.Windows.Automation.ToggleState]::On } else { [System.Windows.Automation.ToggleState]::Off }
+    if ($pat.Current.ToggleState -ne $wantOn) { $pat.Toggle() }
+}
