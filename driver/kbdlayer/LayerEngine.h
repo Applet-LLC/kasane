@@ -229,6 +229,16 @@ ResolveModdedKey(
     _Inout_opt_ PVOID SystemArgument3
     );
 
+// TT(layer)のために、TTキー以外のキーの押下を記録する。Driver.cのResolveAndForwardの先頭
+// （どのResolve*よりも前）から呼ぶこと。OutputLock保持中・EngineLock非保持。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+LayerEngineObserveKeyEvents(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd
+    );
+
 // ServiceCallbackが複数件バッチを1件ずつに分けて流すべきか。修飾付きキー・LMを含む
 // マップが有効なとき、またはそれらとして押下中のキーがあるとき（マップを差し替えた後の
 // 解放も1件ずつ処理して、足した修飾キーを必ず戻すため）。OutputLock保持中に呼ぶこと。

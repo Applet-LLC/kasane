@@ -1,6 +1,6 @@
 # GUI-T3: UI Automation round-trip test for the Macro editor -- type a modded-key macro
 # (LCTL(KC_C) KC_A LCTL(LSFT(KC_T))), click OK, reopen, and confirm the same text is shown.
-. "$PSScriptRoot\gui-uia-lib.ps1"
+. "$PSScriptRoot\UiaLib.ps1"
 $ErrorActionPreference = "Stop"
 $EXE = "C:\Users\applet\Documents\GitHub\LayerDriver\kbdlayer-keymap-gui\bin\Debug\net8.0-windows\win-x64\kbdlayer-keymap-gui.exe"
 $fail = 0

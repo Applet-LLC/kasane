@@ -97,12 +97,14 @@ public partial class KeyAssignDialog : Window
 
     private UIElement LayerPanel()
     {
-        var func = Combo(new[] { "MO", "TG", "DF", "OSL", "LM" });
+        var func = Combo(new[] { "MO", "TG", "DF", "OSL", "TO", "TT", "LM" });
         var layer = Combo(Layers.Select(i => i.ToString()));
         layer.SelectedIndex = Math.Min(1, KbdLayerClient.MaxLayers - 1);
         return Form(
             "MO(n): 押している間だけレイヤーnを有効にする\nTG(n): 押すたびにレイヤーnをON/OFFする\n" +
             "DF(n): 基本レイヤーをnに切り替える\nOSL(n): 次に押すキー1回だけレイヤーnにする\n" +
+            "TO(n): レイヤーnだけを有効にする（他のレイヤーはOFF。基本レイヤーはそのまま）\n" +
+            "TT(n): 押している間だけレイヤーnを有効にし、5回続けてタップするとON/OFFを固定する\n" +
             "LM(n): 押している間、レイヤーnを有効にし、下で選んだ修飾キーも押す" +
             "（例: レイヤーnに▽のままのキーを押すと Ctrl+そのキー になる）",
             ("種類", func), ("レイヤー", layer),
@@ -248,8 +250,7 @@ public partial class KeyAssignDialog : Window
         {
             SyncModChecks(action);
             string? warn = null;
-            if (action.Type is ActionType.Momentary or ActionType.Toggle or ActionType.Default
-                    or ActionType.OneShotLayer or ActionType.LayerTap or ActionType.LayerMod && action.Param1 >= _layerCount)
+            if (ActionType.ReferencesLayer(action.Type) && action.Param1 >= _layerCount)
                 warn = $"レイヤー{action.Param1}はまだありません（レイヤーを追加してから適用してください）";
             TxtValidation.Foreground = warn == null ? Brushes.DarkGreen : Brushes.DarkOrange;
             TxtValidation.Text = warn ?? "OK: " + KeycodeCatalog.ShortName(token);

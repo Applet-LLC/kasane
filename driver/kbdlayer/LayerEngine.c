@@ -207,6 +207,12 @@ ParseLayerMapBlob(
                 }
                 needsSingleEvents = TRUE;
             }
+            // TO/TT: レイヤー番号は範囲内、Param2は0。
+            if (a->Type == KBDLAYER_ACTION_LAYER_TO || a->Type == KBDLAYER_ACTION_LAYER_TAP_TOGGLE) {
+                if (a->Param1 >= KBDLAYER_MAX_LAYERS || a->Param2 != 0) {
+                    return STATUS_INVALID_PARAMETER;
+                }
+            }
         }
     }
 
@@ -439,6 +445,96 @@ EffectiveLayerMaskLocked(
     return devExt->ActiveLayerMask | devExt->AppLayerMask | (1UL << devExt->DefaultLayer);
 }
 
+// TT(layer)（QMKのTT相当）の押下・解放。devExt->EngineLock保持中に呼ぶこと。
+// - 押下: MOと同じくレイヤーのビットを立てる。別のTTキーだった、または前のタップから
+//   TapTermMs以上経っていたら、タップの回数を数え直す。
+// - 解放: TapTermMs未満で、押している間に別のキーが押されていなければタップとして数える。
+//   KBDLAYER_TAPPING_TOGGLE回に達したら、そのレイヤーの固定（TtToggledLayers）を反転する。
+//   固定されていればビットを立てたまま、されていなければ落とす（MOと同じ）。
+// - オートリピートは何もしない。
+// 「別のキーが押された」はLayerEngineObserveKeyEventsが、どのResolve*より先に記録する。
+// タイマーは使わない（時刻の比較だけで決まる）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+HandleTapToggleLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ USHORT ScanCode16,
+    _In_ UCHAR Layer,
+    _In_ BOOLEAN IsBreak,
+    _In_ BOOLEAN IsRepeat
+    )
+{
+    ULONG bit = 1UL << Layer;
+    ULONGLONG now = KeQueryInterruptTime();
+    ULONGLONG term = (ULONGLONG)devExt->TapTermMs * 10000ULL;
+
+    if (!IsBreak) {
+        if (IsRepeat) {
+            return;
+        }
+        devExt->ActiveLayerMask |= bit;
+        if (devExt->TtScanCode != ScanCode16 || now - devExt->TtLastTapTime >= term) {
+            devExt->TtTapCount = 0;
+        }
+        devExt->TtScanCode = ScanCode16;
+        devExt->TtKeyDown = TRUE;
+        devExt->TtInterrupted = FALSE;
+        devExt->TtPressTime = now;
+        return;
+    }
+
+    if (devExt->TtScanCode == ScanCode16 && devExt->TtKeyDown && !devExt->TtInterrupted &&
+        now - devExt->TtPressTime < term) {
+        devExt->TtTapCount++;
+        devExt->TtLastTapTime = now;
+        if (devExt->TtTapCount >= KBDLAYER_TAPPING_TOGGLE) {
+            devExt->TtToggledLayers ^= bit;
+            devExt->TtTapCount = 0;
+        }
+    } else {
+        devExt->TtTapCount = 0;
+    }
+    if (devExt->TtScanCode == ScanCode16) {
+        devExt->TtKeyDown = FALSE;
+    }
+
+    if (devExt->TtToggledLayers & bit) {
+        devExt->ActiveLayerMask |= bit;
+    } else {
+        devExt->ActiveLayerMask &= ~bit;
+    }
+}
+
+// TT(layer)のために、TTキー以外のキーの押下を記録する（押している間に別のキーが押されたら
+// タップにしない。タップの間に別のキーが押されたら回数を数え直す）。MT/LT・マクロ・コンボなど、
+// ResolveLayerActionまで届かないキーも数えるため、ResolveAndForwardの先頭（どのResolve*よりも前）
+// から呼ぶ。OutputLock保持中・EngineLock非保持で呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+LayerEngineObserveKeyEvents(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd
+    )
+{
+    KIRQL oldIrql;
+
+    // TtKeyDown/TtTapCountはOutputLockとEngineLockの両方を保持して書かれるので、OutputLock保持中の
+    // ここでは一貫した値が読める。TTを使っていない間はロックを取らない。
+    if (!devExt->TtKeyDown && devExt->TtTapCount == 0) {
+        return;
+    }
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
+        if (!(p->Flags & KEY_BREAK) && EncodeScancode16(p->MakeCode, p->Flags) != devExt->TtScanCode) {
+            devExt->TtInterrupted = TRUE;
+            devExt->TtTapCount = 0;
+        }
+    }
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+}
+
 // [レイヤー解決規則] 実効レイヤーマスク（EffectiveLayerMaskLocked）の中で最も高いレイヤー
 // 番号から順に、KBDLAYER_ACTION_TRANSPARENT でないアクションを探す
 // （QMKの「上位レイヤー優先、透過ならフォールスルー」と同じ規則）。
@@ -494,6 +590,7 @@ LayerEngineShouldDropEntry(
     PKBDLAYER_ACTION action;
     USHORT src;
     BOOLEAN isBreak;
+    BOOLEAN isRepeat = FALSE; // 押下記録のあるキーのmake = オートリピート
 
     src = EncodeScancode16(Entry->MakeCode, Entry->Flags);
     isBreak = (Entry->Flags & KEY_BREAK) != 0;
@@ -503,6 +600,7 @@ LayerEngineShouldDropEntry(
         // 押下時の記録どおりに処理する（解放なら記録を消す）。
         UCHAR state = held->State;
         recorded = held->Action;
+        isRepeat = !isBreak;
         if (isBreak) {
             SetHeldKeyLocked(devExt, src, KBDLAYER_HELD_NONE, NULL);
         }
@@ -585,6 +683,23 @@ apply:
             devExt->ActiveLayerMask |= bit;
             devExt->OneShotLayerPending = TRUE;
             devExt->OneShotLayerBit = bit;
+        }
+        return TRUE; // 出力しない
+
+    case KBDLAYER_ACTION_LAYER_TO:
+        // キーボード側のレイヤーをこのレイヤーだけにする（DefaultLayerとAppLayerMaskは別に持つので
+        // そのまま）。OSLの待ちとTTで固定したレイヤーも消える。押している間に押されていたMOの
+        // 解放は、落とすビットがもう無いだけなので問題ない。解放では何もしない。
+        if (!isBreak && action->Param1 < KBDLAYER_MAX_LAYERS) {
+            devExt->ActiveLayerMask = 1UL << action->Param1;
+            devExt->OneShotLayerPending = FALSE;
+            devExt->TtToggledLayers = 0;
+        }
+        return TRUE; // 出力しない
+
+    case KBDLAYER_ACTION_LAYER_TAP_TOGGLE:
+        if (action->Param1 < KBDLAYER_MAX_LAYERS) {
+            HandleTapToggleLocked(devExt, src, action->Param1, isBreak, isRepeat);
         }
         return TRUE; // 出力しない
 
@@ -2006,9 +2121,10 @@ EmitTapDanceHoldEventIfApplicable(
 {
     if (HoldAction->Type == KBDLAYER_ACTION_MODTAP && HoldAction->Param1 < RTL_NUMBER_OF(s_ModifierScanCodes)) {
         SendDecodedEvent(devExt, s_ModifierScanCodes[HoldAction->Param1], BreakBit);
-    } else if (HoldAction->Type == KBDLAYER_ACTION_KEY) {
+    } else if (HoldAction->Type == KBDLAYER_ACTION_KEY && HoldAction->Param2 != 0) {
         SendDecodedEvent(devExt, HoldAction->Param2, BreakBit);
     }
+    // NONE・KEYのスキャンコード0（長押しの動作なし）は何も送らない。
 }
 
 // タップダンスのタップ側（SingleTap/DoubleTap/TripleTap）の出力。確定した時点で、押下と解放を
@@ -2939,6 +3055,11 @@ SetLayerMapEnabledForDevice(
         devExt->DefaultLayer = 0;
         devExt->OneShotLayerPending = FALSE;
         devExt->OneShotLayerBit = 0;
+        // TTで固定したレイヤーとタップの回数も消す（押しているTTキーの解放は押下記録どおりに
+        // 処理されるが、固定が無いのでビットを落とすだけになる）。
+        devExt->TtToggledLayers = 0;
+        devExt->TtTapCount = 0;
+        devExt->TtKeyDown = FALSE;
     }
     KeReleaseSpinLockFromDpcLevel(&devExt->EngineLock);
 
@@ -3943,7 +4064,7 @@ PersistAllTapDances(
 }
 
 // タップダンスのタップ側（SingleTap/DoubleTap/TripleTap）に置けるアクションか。
-// KEY（KC_NOも可）、MODDED_KEY（修飾子マスクが0でない）、MACRO（IDが範囲内）。
+// NONE・KEY（スキャンコード0は動作なし）、MODDED_KEY（修飾子マスクが0でない）、MACRO（IDが範囲内）。
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static BOOLEAN
 IsValidTapDanceTapAction(
@@ -3951,7 +4072,9 @@ IsValidTapDanceTapAction(
     )
 {
     switch (Action->Type) {
-    case KBDLAYER_ACTION_KEY:
+    case KBDLAYER_ACTION_NONE: // 動作なし（SingleTapのNONEはSET時に「クリア」の意味になるので、
+                               // ツールはSingleTapの動作なしをKEY・スキャンコード0で送る）
+    case KBDLAYER_ACTION_KEY:  // スキャンコード0（KC_NO）は動作なし
         return TRUE;
     case KBDLAYER_ACTION_MODDED_KEY:
         return Action->Param1 != 0;
@@ -3985,7 +4108,9 @@ SetTapDanceForDevice(
             !IsValidTapDanceTapAction(&Entry->TripleTapAction)) {
             return STATUS_INVALID_PARAMETER;
         }
-        if (Entry->SingleHoldAction.Type != KBDLAYER_ACTION_KEY &&
+        // SingleHoldのNONE（とKEYのスキャンコード0）は「長押しの動作なし」: 長押ししても何も出さない。
+        if (Entry->SingleHoldAction.Type != KBDLAYER_ACTION_NONE &&
+            Entry->SingleHoldAction.Type != KBDLAYER_ACTION_KEY &&
             Entry->SingleHoldAction.Type != KBDLAYER_ACTION_MODTAP &&
             Entry->SingleHoldAction.Type != KBDLAYER_ACTION_LAYERTAP) {
             return STATUS_INVALID_PARAMETER;

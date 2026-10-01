@@ -27,6 +27,14 @@ public static class ActionType
     public const byte ModdedKey = 13;
     /// <summary>LM(layer, mod): Param1=レイヤー番号, Param2の下位8bit=修飾子マスク。</summary>
     public const byte LayerMod = 14;
+    /// <summary>TO(layer): そのレイヤーだけを有効にする（キーボード側の他のレイヤーは無効）。</summary>
+    public const byte LayerTo = 15;
+    /// <summary>TT(layer): 押している間はMO、5回続けてタップするとTGと同じく固定・解除。</summary>
+    public const byte LayerTapToggle = 16;
+
+    /// <summary>Param1がレイヤー番号のアクションか（存在しないレイヤーへの参照を調べるのに使う）。</summary>
+    public static bool ReferencesLayer(byte type) => type is Momentary or Toggle or Default or OneShotLayer
+        or LayerTap or LayerMod or LayerTo or LayerTapToggle;
 }
 
 /// <summary>
@@ -278,7 +286,7 @@ public static class KeycodeTable
                     action = new KeyAction(ActionType.LayerMod, layer, mask);
                     return true;
                 }
-                case "MO" or "TG" or "DF" or "OSL" when parts.Length == 1:
+                case "MO" or "TG" or "DF" or "OSL" or "TO" or "TT" when parts.Length == 1:
                 {
                     if (!ParseLayer(parts[0], out var layer, out error)) return false;
                     byte type = name switch
@@ -286,6 +294,8 @@ public static class KeycodeTable
                         "MO" => ActionType.Momentary,
                         "TG" => ActionType.Toggle,
                         "DF" => ActionType.Default,
+                        "TO" => ActionType.LayerTo,
+                        "TT" => ActionType.LayerTapToggle,
                         _ => ActionType.OneShotLayer,
                     };
                     action = new KeyAction(type, layer, 0);
@@ -373,6 +383,8 @@ public static class KeycodeTable
             ActionType.Toggle => $"TG({a.Param1})",
             ActionType.Default => $"DF({a.Param1})",
             ActionType.OneShotLayer => $"OSL({a.Param1})",
+            ActionType.LayerTo => $"TO({a.Param1})",
+            ActionType.LayerTapToggle => $"TT({a.Param1})",
             ActionType.ModTap => $"MT({(a.Param1 < ModifierNames.Length ? ModifierNames[a.Param1] : "MOD_LCTL")},{Key(a.Param2)})",
             ActionType.LayerTap => $"LT({a.Param1},{Key(a.Param2)})",
             ActionType.Macro => $"MACRO({a.Param1})",

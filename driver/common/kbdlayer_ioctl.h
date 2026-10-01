@@ -60,8 +60,18 @@ typedef struct _KBDLAYER_ACTION {
 // レイヤー＋修飾（QMKのLM(layer,mod)に相当）: Param1=レイヤー番号, Param2の下位8bit=修飾子マスク（0以外）,
 // Param2の上位8bitは0。押している間、レイヤーをONにし、修飾キーを足す。
 #define KBDLAYER_ACTION_LAYER_MOD     14
+// TO(layer)（QMKのTO相当）: Param1=レイヤー番号。押すと、そのレイヤーだけを有効にし、キーボード側の
+// 他のレイヤー（MO/TG/OSL/LT/TTで有効にしたもの）をすべて無効にする。デフォルトレイヤー（DF）と
+// アプリ管理レイヤーはそのまま。
+#define KBDLAYER_ACTION_LAYER_TO      15
+// TT(layer)（QMKのTT相当）: Param1=レイヤー番号。押している間はMOと同じ。続けて
+// KBDLAYER_TAPPING_TOGGLE回タップするとTGと同じくON/OFFを切り替え、そのままにする。
+#define KBDLAYER_ACTION_LAYER_TAP_TOGGLE 16
 // ParseLayerMapBlobが受け付けるTypeの上限（古いドライバは、これより大きいTypeを含むマップを拒否する）。
-#define KBDLAYER_ACTION_TYPE_MAX      KBDLAYER_ACTION_LAYER_MOD
+#define KBDLAYER_ACTION_TYPE_MAX      KBDLAYER_ACTION_LAYER_TAP_TOGGLE
+
+// TT(layer)でレイヤーを切り替えるのに必要な連続タップ回数（QMKの既定値と同じ。v1は固定）。
+#define KBDLAYER_TAPPING_TOGGLE 5
 
 // 修飾子マスク（MODDED_KEY/LAYER_MODで使う）のビット。**MODTAPのParam1（ビット番号0〜7）とは
 // 表し方が違う**ので注意（MODTAPはビット番号、こちらはビットのOR）。並びは同じ。
@@ -330,10 +340,12 @@ typedef struct _KBDLAYER_GET_COMBO_OUTPUT {
 // であることの合図として、Set時に「クリア」を意味する（common実装ではなく
 // ControlDevice.c/LayerEngine.cの規約）。
 typedef struct _KBDLAYER_TAPDANCE_ENTRY {
+    // 「動作なし」は、KEYのスキャンコード0（KC_NO）で表す。SingleHoldとDouble/TripleTapはNONEも可
+    // （SingleTapのNONEはSET時に「クリア」の意味になるため、KEY・スキャンコード0を使うこと）。
     KBDLAYER_ACTION SingleTapAction;  // KEY/MODDED_KEY/MACROを許可
-    KBDLAYER_ACTION SingleHoldAction; // KEY/MODTAP/LAYERTAPを許可
-    KBDLAYER_ACTION DoubleTapAction;  // KEY/MODDED_KEY/MACROを許可
-    KBDLAYER_ACTION TripleTapAction;  // KEY/MODDED_KEY/MACROを許可
+    KBDLAYER_ACTION SingleHoldAction; // NONE/KEY/MODTAP/LAYERTAPを許可
+    KBDLAYER_ACTION DoubleTapAction;  // NONE/KEY/MODDED_KEY/MACROを許可
+    KBDLAYER_ACTION TripleTapAction;  // NONE/KEY/MODDED_KEY/MACROを許可
 } KBDLAYER_TAPDANCE_ENTRY, *PKBDLAYER_TAPDANCE_ENTRY;
 
 // IOCTL_KBDLAYER_SET_TAPDANCE の入力バッファ。

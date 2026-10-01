@@ -133,8 +133,7 @@ public static class ProjectService
                     errors.Add($"レイヤー{L} {slot.Description}: {err}");
                     continue;
                 }
-                bool layerRef = a.Type is ActionType.Momentary or ActionType.Toggle or ActionType.Default
-                    or ActionType.OneShotLayer or ActionType.LayerTap or ActionType.LayerMod;
+                bool layerRef = ActionType.ReferencesLayer(a.Type);
                 if (layerRef && a.Param1 >= project.Layers.Count)
                     errors.Add($"レイヤー{L} {slot.Description}: {token} のレイヤー{a.Param1}がありません（レイヤーを追加してください）");
                 else if (a.Type == ActionType.Macro && !macroIds.Contains(a.Param1))
@@ -240,14 +239,20 @@ public static class ProjectService
 
     public static TapDanceEntry? TapDanceToEntry(TapDanceDef td, List<string> errors)
     {
+        // 空欄と KC_NO は「動作なし」（そのタップ回数・長押しでは何も出さない）。
+        // 4つとも空なら未使用（TapDanceDef自体を作らない。TapDanceEditorWindow参照）。
+        static bool IsNoAction(string token) => token.Trim().Length == 0 || token.Trim() is "KC_NO" or "XXXXXXX";
+
         // タップ側は、キー(KC_*)・修飾付きキー(LCTL(KC_C)等)・MACRO(n)を置ける（ドライバが確定時に
-        // 押して離す。修飾付きキーは修飾キーごと、マクロは中身を順に送る）。
+        // 押して離す。修飾付きキーは修飾キーごと、マクロは中身を順に送る）。動作なしは、KEY・
+        // スキャンコード0として送る（1回タップのNONEはドライバ側で「クリア」の意味になるため）。
         KeyAction Tap(string token, string what)
         {
+            if (IsNoAction(token)) return new KeyAction(ActionType.Key, 0, 0);
             if (!KeycodeTable.TryResolve(token, out var a) ||
                 a.Type is not (ActionType.Key or ActionType.ModdedKey or ActionType.Macro))
             {
-                errors.Add($"タップダンス{td.Id}: {what}「{token}」はキー(KC_*)、修飾付きキー(LCTL(KC_C)等)、MACRO(n)のいずれかにしてください");
+                errors.Add($"タップダンス{td.Id}: {what}「{token}」はキー(KC_*)、修飾付きキー(LCTL(KC_C)等)、MACRO(n)、空欄（動作なし）のいずれかにしてください");
                 return KeyAction.None;
             }
             return a;
@@ -256,10 +261,12 @@ public static class ProjectService
         var single = Tap(td.SingleTap, "1回タップ");
         var dbl = Tap(td.DoubleTap, "2回タップ");
         var triple = Tap(td.TripleTap, "3回タップ");
-        if (!KeycodeTable.TryResolve(td.SingleHold, out var hold) ||
-            (hold.Type != ActionType.Key && hold.Type != ActionType.ModTap && hold.Type != ActionType.LayerTap))
+        KeyAction hold = KeyAction.None; // 長押しの動作なし
+        if (!IsNoAction(td.SingleHold) &&
+            (!KeycodeTable.TryResolve(td.SingleHold, out hold) ||
+             (hold.Type != ActionType.Key && hold.Type != ActionType.ModTap && hold.Type != ActionType.LayerTap)))
         {
-            errors.Add($"タップダンス{td.Id}: ホールド「{td.SingleHold}」はKC_*、MT(mod,kc)、LT(layer,kc)のいずれかにしてください");
+            errors.Add($"タップダンス{td.Id}: ホールド「{td.SingleHold}」はKC_*、MT(mod,kc)、LT(layer,kc)、空欄（動作なし）のいずれかにしてください");
         }
         return errors.Count == before ? new TapDanceEntry(single, hold, dbl, triple) : null;
     }
