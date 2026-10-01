@@ -142,14 +142,19 @@ public static class ProjectService
                     warnings.Add($"{token} の中身が未設定です（押しても何も起きません）");
             }
         }
-        // タップダンスのタップ側から参照しているマクロ。
+        // タップダンス（タップ側・長押し）とコンボの出力から参照しているマクロ。
         foreach (var td in project.TapDances)
         {
-            foreach (var token in new[] { td.SingleTap, td.DoubleTap, td.TripleTap })
+            foreach (var token in new[] { td.SingleTap, td.SingleHold, td.DoubleTap, td.TripleTap })
             {
                 if (KeycodeTable.TryResolve(token, out var a) && a.Type == ActionType.Macro && !macroIds.Contains(a.Param1))
-                    warnings.Add($"タップダンス{td.Id}: {token} の中身が未設定です（そのタップでは何も起きません）");
+                    warnings.Add($"タップダンス{td.Id}: {token} の中身が未設定です（そこでは何も起きません）");
             }
+        }
+        foreach (var combo in project.Combos)
+        {
+            if (KeycodeTable.TryResolve(combo.Output, out var a) && a.Type == ActionType.Macro && !macroIds.Contains(a.Param1))
+                warnings.Add($"コンボ{combo.Id}: {combo.Output} の中身が未設定です（成立しても何も起きません）");
         }
     }
 
@@ -229,9 +234,10 @@ public static class ProjectService
         var s2 = EffectiveScanCode(project, layout.Slots[combo.Slot2]);
         if (s1 == null || s2 == null) { errors.Add($"コンボ{combo.Id}: メンバーのスキャンコードが不明です"); return null; }
         if (s1 == s2) { errors.Add($"コンボ{combo.Id}: メンバーの2キーは別のキーにしてください"); return null; }
-        if (!KeycodeTable.TryResolve(combo.Output, out var output) || output.Type != ActionType.Key)
+        if (!KeycodeTable.TryResolve(combo.Output, out var output) ||
+            output.Type is not (ActionType.Key or ActionType.ModdedKey or ActionType.Macro))
         {
-            errors.Add($"コンボ{combo.Id}: 出力「{combo.Output}」は単純なキー(KC_*)にしてください");
+            errors.Add($"コンボ{combo.Id}: 出力「{combo.Output}」はキー(KC_*)、修飾付きキー(LCTL(KC_Z)等)、MACRO(n)のいずれかにしてください");
             return null;
         }
         return new ComboEntry(s1.Value, s2.Value, output);
@@ -264,9 +270,11 @@ public static class ProjectService
         KeyAction hold = KeyAction.None; // 長押しの動作なし
         if (!IsNoAction(td.SingleHold) &&
             (!KeycodeTable.TryResolve(td.SingleHold, out hold) ||
-             (hold.Type != ActionType.Key && hold.Type != ActionType.ModTap && hold.Type != ActionType.LayerTap)))
+             hold.Type is not (ActionType.Key or ActionType.ModTap or ActionType.LayerTap
+                 or ActionType.ModdedKey or ActionType.LayerMod or ActionType.Macro)))
         {
-            errors.Add($"タップダンス{td.Id}: ホールド「{td.SingleHold}」はKC_*、MT(mod,kc)、LT(layer,kc)、空欄（動作なし）のいずれかにしてください");
+            errors.Add($"タップダンス{td.Id}: ホールド「{td.SingleHold}」はKC_*、MT(mod,kc)、LT(layer,kc)、修飾付きキー(LCTL(KC_Z)等)、" +
+                       "LM(layer,mod)、MACRO(n)、空欄（動作なし）のいずれかにしてください");
         }
         return errors.Count == before ? new TapDanceEntry(single, hold, dbl, triple) : null;
     }

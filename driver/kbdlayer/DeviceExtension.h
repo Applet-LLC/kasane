@@ -155,6 +155,12 @@ typedef struct _DEVICE_EXTENSION {
     USHORT OsmHeldScanCode;
     BOOLEAN OsmUsedWhileHeld;
 
+    // コンボの出力・タップダンスの長押しが修飾付きキー（とLM）のとき、押している間足している修飾キー
+    // （2026-10-02。押下記録ではなく、それぞれの判定状態に結び付く）。AddedModsUnionに含まれる。
+    // 解除・打ち切りで0にし、安全網（ReleaseLeakedModifiers）がbreakを送る。OutputLockで保護する。
+    UCHAR ComboAddedMods;
+    UCHAR TapDanceAddedMods;
+
     // --- アプリ管理レイヤーとレイヤー変化の通知（common/kbdlayer_ioctl.h参照） ---
     // EngineLock保持中に読み書きすること。
     ULONG AppLayerMask;                 // アプリが立てたレイヤー（実効マスクにORで合成する）

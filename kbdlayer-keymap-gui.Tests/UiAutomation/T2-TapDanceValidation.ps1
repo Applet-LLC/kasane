@@ -28,7 +28,7 @@ try {
     Start-Sleep -Milliseconds 300
 
     Set-ElementValue (Find-ChildByAutomationId $td "SingleTap") "KC_ESC"
-    Set-ElementValue (Find-ChildByAutomationId $td "SingleHold") "MO(1)"   # invalid: SingleHold takes KC_*, MT, LT, or blank/KC_NO
+    Set-ElementValue (Find-ChildByAutomationId $td "SingleHold") "MO(1)"   # invalid: SingleHold takes KC_*, MT, LT, modded key, LM, MACRO, or blank/KC_NO (not MO)
     Set-ElementValue (Find-ChildByAutomationId $td "DoubleTap") "KC_A"
     Set-ElementValue (Find-ChildByAutomationId $td "TripleTap") "KC_B"
     Start-Sleep -Milliseconds 300

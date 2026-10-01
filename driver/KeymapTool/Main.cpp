@@ -333,9 +333,10 @@ int CmdSetCombo(IoctlClient* client, ULONG uniqId, ULONG comboId, int argc, char
         fprintf(stderr, "--set-combo: the two member keys must be different\n");
         return 1;
     }
-    if (!KeycodeTable::Resolve(argv[2], &output) || output.ActionType != KBDLAYER_ACTION_KEY) {
-        fprintf(stderr, "--set-combo: output \"%s\" is not a plain key "
-                "(v1 only supports a KC_* output)\n", argv[2]);
+    if (!KeycodeTable::Resolve(argv[2], &output) ||
+        (output.ActionType != KBDLAYER_ACTION_KEY && output.ActionType != KBDLAYER_ACTION_MODDED_KEY &&
+         output.ActionType != KBDLAYER_ACTION_MACRO)) {
+        fprintf(stderr, "--set-combo: output \"%s\" must be a plain key, a modified key (LCTL(kc)), or MACRO(n)\n", argv[2]);
         return 1;
     }
 
@@ -419,8 +420,12 @@ int CmdSetTapDance(IoctlClient* client, ULONG uniqId, ULONG tapDanceId, int argc
         (singleHold.ActionType != KBDLAYER_ACTION_NONE &&
          singleHold.ActionType != KBDLAYER_ACTION_KEY &&
          singleHold.ActionType != KBDLAYER_ACTION_MODTAP &&
-         singleHold.ActionType != KBDLAYER_ACTION_LAYERTAP)) {
-        fprintf(stderr, "--set-tapdance: SingleHold \"%s\" must be a plain key, MT(mod,kc), LT(layer,kc), or KC_NO\n", argv[1]);
+         singleHold.ActionType != KBDLAYER_ACTION_LAYERTAP &&
+         singleHold.ActionType != KBDLAYER_ACTION_MODDED_KEY &&
+         singleHold.ActionType != KBDLAYER_ACTION_LAYER_MOD &&
+         singleHold.ActionType != KBDLAYER_ACTION_MACRO)) {
+        fprintf(stderr, "--set-tapdance: SingleHold \"%s\" must be a plain key, MT(mod,kc), LT(layer,kc), "
+                "a modified key (LCTL(kc)), LM(layer,mod), MACRO(n), or KC_NO\n", argv[1]);
         return 1;
     }
     if (!ResolveTapDanceArg(argv[2], &doubleTap) || !NormalizeTapDanceTapAction(&doubleTap)) {
@@ -978,8 +983,9 @@ void PrintUsage() {
         "      Show the raw step list currently stored for a macro (debugging).\n"
         "  KeymapTool.exe --set-combo <UniqIdHex> <ComboId> [KC_member1 KC_member2 KC_output]\n"
         "      Define combo <ComboId> (0-15): pressing member1+member2 together within\n"
-        "      ComboTermMs sends KC_output instead. v1 limits: exactly 2 members, plain-key\n"
-        "      output only, and a given key may not belong to more than one combo.\n"
+        "      ComboTermMs sends KC_output instead. The output may be a plain key, a modified\n"
+        "      key (LCTL(KC_Z), held while the combo is held) or MACRO(n) (played once).\n"
+        "      Limits: exactly 2 members, and a given key may not belong to more than one combo.\n"
         "      Omit the keycodes to clear it.\n"
         "  KeymapTool.exe --get-combo <UniqIdHex> <ComboId>\n"
         "      Show the current definition of a combo (debugging).\n"
@@ -987,7 +993,8 @@ void PrintUsage() {
         "      Define tap-dance <TapDanceId> (0-15), played back via TAPDANCE(<TapDanceId>)\n"
         "      in a keymap.json. Limits: up to 3 taps are distinguished; SingleTap/\n"
         "      DoubleTap/TripleTap may be a plain key, a modified key (LCTL(KC_C)), or\n"
-        "      MACRO(n); SingleHold may be a plain key, MT(mod,kc), or LT(layer,kc)\n"
+        "      MACRO(n); SingleHold may be a plain key, MT(mod,kc), LT(layer,kc), a modified\n"
+        "      key, LM(layer,mod), or MACRO(n) (played once when the hold is confirmed)\n"
         "      (the tap-kc argument in MT/LT is ignored here). KC_NO (or \"\") in any of\n"
         "      the four means \"do nothing\" for that tap count / the hold.\n"
         "      Omit all 4 actions to clear it.\n"

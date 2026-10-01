@@ -33,6 +33,9 @@ public class ProjectServiceTapDanceTests
     [Theory]
     [InlineData("KC_ESC")]
     [InlineData("LT(1,KC_NO)")]
+    [InlineData("LCTL(KC_C)")]       // since feature/combo-td-extend (2026-10-02)
+    [InlineData("LM(1,MOD_LCTL)")]
+    [InlineData("MACRO(0)")]
     public void SingleHold_AcceptsKeyOrLayerTapToo(string singleHold)
     {
         var errors = new List<string>();
