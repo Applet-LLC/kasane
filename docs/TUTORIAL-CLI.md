@@ -332,6 +332,10 @@ PCを再起動し、ログイン後にもう一度手順8を試します。設�
   ON/OFFを固定。回数は既定5回で、`--set-config ... ttcount=<回数>` で変更）も使えます。
 - `MT(...)`・`LT(...)` を押している間に別のキーを押すと長押し扱いになり、そのキーは切り替わった後のレイヤーで
   入力されます。短く押した直後にもう一度押し続けると、短く押したときのキーのリピートになります。
+- キー置換（Key Override）: `KeymapTool --set-key-override <ID> <番号> <修飾キー> <キー> <置き換え先>`
+  - 例: `KeymapTool --set-key-override <ID> 0 MOD_LSFT KC_BSPACE KC_DELETE`（Shift+BS → Delete）
+  - 修飾キーは `"MOD_LCTL|MOD_LSFT"` のように複数書けます（全部押されているときに置き換え。左右は区別しない）。
+  - 置き換え先には `"LCTL(KC_Y)"` のような修飾付きキーも書けます。番号（0〜31）だけを指定すると消えます。
 - MT/LT の判定方式は `--set-config` で変えられます（既定は `mode=hold`）。
   - `KeymapTool --set-config <ID> 200 50 200 mode=permissive` … 別のキーを押して**離したら**長押し扱い
   - `mode=tap` … 時間内（TapTerm）に MT/LT を離せば短押し扱い
