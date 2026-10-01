@@ -47,12 +47,23 @@ public:
     // 戻り値: true=IOCTL自体は成功（*outTimedOutで実際に捕捉できたか判定）。
     bool CaptureNextKey(ULONG uniqId, ULONG timeoutMs, USHORT* outScanCode16, bool* outTimedOut);
 
+    // SET_CONFIG v2で追加した項目（kbdlayer_ioctl.hのKBDLAYER_SET_CONFIG_INPUT参照）。
+    struct TapHoldOptions {
+        ULONG TapHoldMode;    // KBDLAYER_TAPHOLD_MODE_*
+        ULONG QuickTapTermMs; // 0 = TapTermMsと同じ、KBDLAYER_QUICK_TAP_TERM_DISABLED = 使わない
+        ULONG TappingToggle;  // 0 = 既定(5)
+    };
+
     // Phase 2/4/5: TapTermMs（Mod-Tap/Layer-Tap判定閾値）・ComboTermMs（コンボ判定閾値）・
     // TapDanceTermMs（タップダンス判定閾値、いずれもミリ秒）を設定する。0を渡すとその項目だけ
     // ドライバ側既定値にリセットする (TapTermMs=200ms, ComboTermMs=50ms, TapDanceTermMs=200ms)。
-    bool SetConfig(ULONG uniqId, ULONG tapTermMs, ULONG comboTermMs, ULONG tapDanceTermMs);
-    // 上記3項目の現在の実効値を取得する。
-    bool GetConfig(ULONG uniqId, KBDLAYER_GET_CONFIG_OUTPUT* out);
+    // tapHoldを渡すと判定方式・Quick Tap・TTの回数も設定する（v2。古いドライバは無視する）。
+    // nullptrなら旧サイズで送り、それらは変えない。
+    bool SetConfig(ULONG uniqId, ULONG tapTermMs, ULONG comboTermMs, ULONG tapDanceTermMs,
+                   const TapHoldOptions* tapHold = nullptr);
+    // 現在の実効値を取得する。古いドライバは先頭の3項目だけを返す。そのときは追加した項目を
+    // 既定値にし、*outHasTapHoldOptionsをfalseにする。
+    bool GetConfig(ULONG uniqId, KBDLAYER_GET_CONFIG_OUTPUT* out, bool* outHasTapHoldOptions = nullptr);
 
     // キャリブレーション用の入力抑止（オフモード）。有効中は対象デバイスのキー入力が
     // Windowsへ届かない。このハンドル（IoctlClient）をCloseすると（プロセス終了・

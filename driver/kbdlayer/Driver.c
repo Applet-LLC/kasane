@@ -691,7 +691,6 @@ ResolveAndForward(
     _In_ PKEYBOARD_INPUT_DATA InputDataEnd,
     _Inout_opt_ PVOID SystemArgument3)
 {
-    BOOLEAN compacted = FALSE;
     // 機能別ON/OFF（項番4）。無効な機能のResolve*は呼ばない。SetFeaturesForDeviceは
     // OutputLockを保持して書き換えるので、OutputLock保持中のここでは一貫した値が読める。
     // MACRO(id)/TAPDANCE(id)のアクションは、ここを飛ばすとResolveLayerActionの
@@ -717,12 +716,31 @@ ResolveAndForward(
         return FALSE;
     }
 
-    // Phase 2: Mod-Tap/Layer-Tapのタップ/ホールド判定（Hold On Other Key Press方式）。
-    // MT/LTキーの保留・確定・タイムアウトに関わるイベントはここで完結し、通常の
-    // ResolveLayerAction以降の処理は行わない。詳細はLayerEngine.cのResolveTapHold参照。
+    // Phase 2: Mod-Tap/Layer-Tapのタップ/ホールド判定（判定方式はSET_CONFIGのTapHoldMode）。
+    // MT/LTキーの保留・確定・タイムアウトに関わるイベントと、判定中に溜めた別のキーの
+    // イベントはここで完結する（溜めたイベントは、判定が決まってからResolveAndForwardTailへ
+    // 流し直される）。詳細はLayerEngine.cのResolveTapHold参照。
     if (ResolveTapHold(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
         return FALSE;
     }
+
+    return ResolveAndForwardTail(devExt, InputDataStart, InputDataEnd, SystemArgument3);
+}
+
+// ResolveAndForwardのうち、タップ/ホールド判定より後ろ（TapDance → Macro → 修飾付きキー →
+// ResolveLayerAction → kbdclassへ転送）。ResolveTapHoldが、判定中に溜めたイベントを判定の
+// 確定後に流し直すときにも呼ぶ（ServiceCallback・HoldTapDpcRoutine・OFFの後始末から。いずれも
+// OutputLock保持中・EngineLock非保持）。戻り値はResolveAndForwardと同じ。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+ResolveAndForwardTail(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd,
+    _Inout_opt_ PVOID SystemArgument3)
+{
+    BOOLEAN compacted = FALSE;
+    ULONG features = devExt->EnabledFeatures; // ResolveAndForwardと同じ（OutputLock保持中に読む）
 
     // Phase 5: タップダンス（v1: タップ回数3回まで）。ResolveTapHoldと同じグループ
     // （1つの物理キーの振る舞い）として、ResolveMacroの前に判定する。詳細は

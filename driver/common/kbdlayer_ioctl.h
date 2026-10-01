@@ -65,13 +65,33 @@ typedef struct _KBDLAYER_ACTION {
 // アプリ管理レイヤーはそのまま。
 #define KBDLAYER_ACTION_LAYER_TO      15
 // TT(layer)（QMKのTT相当）: Param1=レイヤー番号。押している間はMOと同じ。続けて
-// KBDLAYER_TAPPING_TOGGLE回タップするとTGと同じくON/OFFを切り替え、そのままにする。
+// TappingToggle回（既定KBDLAYER_DEFAULT_TAPPING_TOGGLE）タップするとTGと同じくON/OFFを切り替え、そのままにする。
 #define KBDLAYER_ACTION_LAYER_TAP_TOGGLE 16
 // ParseLayerMapBlobが受け付けるTypeの上限（古いドライバは、これより大きいTypeを含むマップを拒否する）。
 #define KBDLAYER_ACTION_TYPE_MAX      KBDLAYER_ACTION_LAYER_TAP_TOGGLE
 
-// TT(layer)でレイヤーを切り替えるのに必要な連続タップ回数（QMKの既定値と同じ。v1は固定）。
-#define KBDLAYER_TAPPING_TOGGLE 5
+// TT(layer)でレイヤーを切り替えるのに必要な連続タップ回数の既定値（QMKの既定値と同じ）。
+// SET_CONFIGのTappingToggleで変えられる（1〜KBDLAYER_MAX_TAPPING_TOGGLE）。
+#define KBDLAYER_DEFAULT_TAPPING_TOGGLE 5
+#define KBDLAYER_MAX_TAPPING_TOGGLE     32
+
+// MT/LTのタップ／ホールドの判定方式（SET_CONFIGのTapHoldMode）。タップダンスの長押しの判定は
+// 対象外（常にHOLD_ON_OTHER_KEYと同じ）。QMKの同名の設定の外部仕様（docs.qmk.fm）を参考にした。
+// - HOLD_ON_OTHER_KEY: 判定中に別のキーが押されたら、すぐにホールドに確定する（既定。2026-09まではこれだけ）。
+// - PERMISSIVE_HOLD: 判定中に別のキーを押して離したら（そのキーのタップが判定中に終わったら）ホールド。
+//   別のキーを押しただけで、先にMT/LTを離せばタップ（＋そのキー）。
+// - TAP_PREFERRED: 判定時間内にMT/LTを離せば、間に別のキーを押して離していてもタップ。判定時間が
+//   過ぎたらホールド（QMKの既定に近い）。
+// PERMISSIVE_HOLDとTAP_PREFERREDでは、判定中に押された別のキーのイベントをドライバが溜め、判定が
+// 決まってから順に流し直す（KBDLAYER_MAX_HOLD_BUFFER件まで。あふれたらホールドに確定する）。
+#define KBDLAYER_TAPHOLD_MODE_HOLD_ON_OTHER_KEY 0
+#define KBDLAYER_TAPHOLD_MODE_PERMISSIVE_HOLD   1
+#define KBDLAYER_TAPHOLD_MODE_TAP_PREFERRED     2
+#define KBDLAYER_TAPHOLD_MODE_MAX               KBDLAYER_TAPHOLD_MODE_TAP_PREFERRED
+#define KBDLAYER_MAX_HOLD_BUFFER 8
+
+// Quick Tap（QMKのQuick Tap Term相当）を使わない、を表すQuickTapTermMsの値。
+#define KBDLAYER_QUICK_TAP_TERM_DISABLED 0xFFFFFFFFUL
 
 // 修飾子マスク（MODDED_KEY/LAYER_MODで使う）のビット。**MODTAPのParam1（ビット番号0〜7）とは
 // 表し方が違う**ので注意（MODTAPはビット番号、こちらはビットのOR）。並びは同じ。
@@ -180,20 +200,34 @@ typedef struct _KBDLAYER_CAPTURE_NEXT_KEY_OUTPUT {
 
 // IOCTL_KBDLAYER_SET_CONFIG の入力バッファ（Phase 2: Tap-Hold設定。Phase 1では未使用だが
 // 構造体自体は先に定義しておく）。
+// 2026-10-01に末尾へTapHoldMode/QuickTapTermMs/TappingToggleを追加した。ドライバは旧サイズ
+// （KBDLAYER_SET_CONFIG_INPUT_V1_SIZE）の入力も受け付け、その場合は追加した項目を変えない。
+// 古いドライバは入力が長くても先頭の項目だけを使う（長さは下限しか検査しない）。
 typedef struct _KBDLAYER_SET_CONFIG_INPUT {
     KBDLAYER_TARGET Target;
     ULONG TapTermMs;      // 既定200ms。0を渡すと既定値にリセットする。
     ULONG ComboTermMs;    // 既定50ms。0を渡すと既定値にリセットする。(Phase 4: コンボ)
     ULONG TapDanceTermMs; // 既定200ms。0を渡すと既定値にリセットする。(Phase 5: タップダンス)
+    // --- 以下 v2（2026-10-01） ---
+    ULONG TapHoldMode;    // KBDLAYER_TAPHOLD_MODE_*。範囲外はSTATUS_INVALID_PARAMETER。
+    ULONG QuickTapTermMs; // 0 = TapTermMsと同じ（既定）。KBDLAYER_QUICK_TAP_TERM_DISABLED = 使わない。
+    ULONG TappingToggle;  // TT(layer)の回数。0 = 既定(5)。KBDLAYER_MAX_TAPPING_TOGGLEを超えたらSTATUS_INVALID_PARAMETER。
 } KBDLAYER_SET_CONFIG_INPUT, *PKBDLAYER_SET_CONFIG_INPUT;
+#define KBDLAYER_SET_CONFIG_INPUT_V1_SIZE ((ULONG)FIELD_OFFSET(KBDLAYER_SET_CONFIG_INPUT, TapHoldMode)) // カーネルのFIELD_OFFSETはLONG
 
 // IOCTL_KBDLAYER_GET_CONFIG の入力は KBDLAYER_TARGET のみ。出力は現在の実効値
-// （未設定・0指定で既定値に戻っている項目は既定値そのもの）。
+// （未設定・0指定で既定値に戻っている項目は既定値そのもの。QuickTapTermMsだけは設定値のまま返す）。
+// 出力バッファが旧サイズ（KBDLAYER_GET_CONFIG_OUTPUT_V1_SIZE）なら、先頭の3項目だけを返す。
 typedef struct _KBDLAYER_GET_CONFIG_OUTPUT {
     ULONG TapTermMs;
     ULONG ComboTermMs;
     ULONG TapDanceTermMs;
+    // --- 以下 v2（2026-10-01） ---
+    ULONG TapHoldMode;
+    ULONG QuickTapTermMs;
+    ULONG TappingToggle;
 } KBDLAYER_GET_CONFIG_OUTPUT, *PKBDLAYER_GET_CONFIG_OUTPUT;
+#define KBDLAYER_GET_CONFIG_OUTPUT_V1_SIZE ((ULONG)FIELD_OFFSET(KBDLAYER_GET_CONFIG_OUTPUT, TapHoldMode))
 
 // --- 機能別ON/OFF（release-roadmap-priority.md 項番4） ---
 //

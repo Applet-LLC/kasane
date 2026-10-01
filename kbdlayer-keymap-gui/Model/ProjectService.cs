@@ -304,7 +304,8 @@ public static class ProjectService
         client.SetEnabled(id, false);
         if (blob != null) client.SetLayerMap(id, blob);
         else client.ClearLayerMap(id);
-        client.SetConfig(id, project.TapTermMs, project.ComboTermMs, project.TapDanceTermMs);
+        client.SetConfig(id, project.TapTermMs, project.ComboTermMs, project.TapDanceTermMs,
+                         project.TapHoldMode, project.QuickTapTermMs, project.TappingToggle);
 
         // SET_MACROは1回ごとにマクロ全体（128個分、約33KB）をレジストリへ書くので、全IDには送らない。
         // 定義のあるものと、ドライバ側で空でないもの（消す必要があるもの）だけを送る。
@@ -358,6 +359,10 @@ public static class ProjectService
         project.TapTermMs = cfg.TapTermMs;
         project.ComboTermMs = cfg.ComboTermMs;
         project.TapDanceTermMs = cfg.TapDanceTermMs;
+        project.TapHoldMode = cfg.TapHoldMode;
+        project.QuickTapTermMs = cfg.QuickTapTermMs;
+        // ドライバは実効値（既定なら5）を返す。既定値と同じなら0（既定）として持つ。
+        project.TappingToggle = cfg.TappingToggle == KbdLayerClient.DefaultTappingToggle ? 0 : cfg.TappingToggle;
 
         for (int m = 0; m < KbdLayerClient.MaxMacroCount; m++)
         {

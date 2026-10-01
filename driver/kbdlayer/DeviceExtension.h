@@ -28,8 +28,9 @@
 // フィールド構成は同じだが、こちらは内部表現として単独で扱う。
 typedef struct _KBDLAYER_MAP_TABLE {
     ULONG KeyCount;
-    // TRUE = MODDED_KEY/LAYER_MODを含む。ServiceCallbackは複数件バッチを1件ずつに分けて流す
-    // （押下と解放が別のバッチ形で届いても、足した修飾キーを必ず戻すため）。ParseLayerMapBlobで決める。
+    // TRUE = MODDED_KEY/LAYER_MOD/MODTAP/LAYERTAP/TAPDANCEを含む。ServiceCallbackは複数件バッチを
+    // 1件ずつに分けて流す（押下と解放が別のバッチ形で届いても足した修飾キーを必ず戻すため、また
+    // タップ/ホールドの判定中に届いたイベントを1件ずつ判定・溜めるため）。ParseLayerMapBlobで決める。
     BOOLEAN NeedsSingleEvents;
     KBDLAYER_KEY_ENTRY Entries[ANYSIZE_ARRAY];
 } KBDLAYER_MAP_TABLE, *PKBDLAYER_MAP_TABLE;
@@ -166,6 +167,15 @@ typedef struct _DEVICE_EXTENSION {
     // 記録なし。EngineLockで保護する。期間はv1ではTapTermMsと同じ。
     USHORT LastTapScanCode;
     ULONGLONG LastTapTime;
+    // 判定方式と、その設定（IOCTL_KBDLAYER_SET_CONFIG v2。EngineLockで保護）。
+    ULONG TapHoldMode;             // KBDLAYER_TAPHOLD_MODE_*
+    ULONG QuickTapTermMs;          // 0 = TapTermMsと同じ、KBDLAYER_QUICK_TAP_TERM_DISABLED = 使わない
+    ULONG TappingToggle;           // TT(layer)の回数（1〜KBDLAYER_MAX_TAPPING_TOGGLE）
+    // PERMISSIVE_HOLD/TAP_PREFERREDで、判定中（PendingActive）に届いた別のキーのイベント。判定が
+    // 決まったら、MT/LT自身の出力の後に、届いた順にResolveAndForwardTailへ流し直す
+    // （LayerEngine.cのReplayHoldBuffer参照）。EngineLockで保護する。
+    KEYBOARD_INPUT_DATA HoldBuffer[KBDLAYER_MAX_HOLD_BUFFER];
+    ULONG HoldBufferCount;
 
     // --- 機能別ON/OFF（release-roadmap-priority.md 項番4。common/kbdlayer_ioctl.hの
     // コメント参照） ---
