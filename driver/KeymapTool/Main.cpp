@@ -13,6 +13,7 @@
 #include <windows.h>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -147,8 +148,74 @@ int CmdCapture(IoctlClient* client, ULONG uniqId, ULONG timeoutMs, bool suppress
     return 0;
 }
 
-int CmdSetConfig(IoctlClient* client, ULONG uniqId, ULONG tapTermMs, ULONG comboTermMs, ULONG tapDanceTermMs) {
-    if (!client->SetConfig(uniqId, tapTermMs, comboTermMs, tapDanceTermMs)) return 1;
+static const char* TapHoldModeName(ULONG mode) {
+    switch (mode) {
+    case KBDLAYER_TAPHOLD_MODE_HOLD_ON_OTHER_KEY: return "hold";
+    case KBDLAYER_TAPHOLD_MODE_PERMISSIVE_HOLD:   return "permissive";
+    case KBDLAYER_TAPHOLD_MODE_TAP_PREFERRED:     return "tap";
+    default:                                       return "?";
+    }
+}
+
+// --set-config の key=value 引数（mode= / quicktap= / ttcount=）を解釈して options に反映する。
+static bool ParseTapHoldOption(const char* arg, IoctlClient::TapHoldOptions* options) {
+    const char* eq = strchr(arg, '=');
+    if (eq == nullptr) return false;
+    std::string key(arg, eq - arg);
+    std::string value(eq + 1);
+    char* end = nullptr;
+    if (key == "mode") {
+        if (value == "hold") options->TapHoldMode = KBDLAYER_TAPHOLD_MODE_HOLD_ON_OTHER_KEY;
+        else if (value == "permissive") options->TapHoldMode = KBDLAYER_TAPHOLD_MODE_PERMISSIVE_HOLD;
+        else if (value == "tap") options->TapHoldMode = KBDLAYER_TAPHOLD_MODE_TAP_PREFERRED;
+        else return false;
+        return true;
+    }
+    if (key == "quicktap") {
+        if (value == "off") { options->QuickTapTermMs = KBDLAYER_QUICK_TAP_TERM_DISABLED; return true; }
+        if (value == "default") { options->QuickTapTermMs = 0; return true; }
+        unsigned long v = strtoul(value.c_str(), &end, 10);
+        if (value.empty() || *end != '\0' || v > 10000) return false;
+        options->QuickTapTermMs = v;
+        return true;
+    }
+    if (key == "ttcount") {
+        unsigned long v = strtoul(value.c_str(), &end, 10);
+        if (value.empty() || *end != '\0' || v > KBDLAYER_MAX_TAPPING_TOGGLE) return false;
+        options->TappingToggle = v;
+        return true;
+    }
+    return false;
+}
+
+// --set-config <UniqIdHex> <TapTermMs> [ComboTermMs] [TapDanceTermMs] [mode=..] [quicktap=..] [ttcount=..]
+// key=value を1つも書かなければ旧形式（v1）で送り、判定方式・Quick Tap・TTの回数は変えない。
+// 書いた場合は、今の値を読んでから、書いた項目だけを変えて送る（v2）。
+int CmdSetConfig(IoctlClient* client, ULONG uniqId, ULONG tapTermMs, ULONG comboTermMs, ULONG tapDanceTermMs,
+                 int optionCount, char** options) {
+    IoctlClient::TapHoldOptions tapHold = {};
+    bool useTapHold = optionCount > 0;
+    if (useTapHold) {
+        KBDLAYER_GET_CONFIG_OUTPUT current;
+        bool hasV2 = false;
+        if (!client->GetConfig(uniqId, &current, &hasV2)) return 1;
+        if (!hasV2) {
+            fprintf(stderr, "--set-config: this kbdlayer driver does not support mode=/quicktap=/ttcount= "
+                    "(update the driver)\n");
+            return 1;
+        }
+        tapHold.TapHoldMode = current.TapHoldMode;
+        tapHold.QuickTapTermMs = current.QuickTapTermMs;
+        tapHold.TappingToggle = current.TappingToggle;
+        for (int i = 0; i < optionCount; i++) {
+            if (!ParseTapHoldOption(options[i], &tapHold)) {
+                fprintf(stderr, "--set-config: bad option \"%s\" (expected mode=hold|permissive|tap, "
+                        "quicktap=<ms>|off|default, ttcount=<1-%d>)\n", options[i], KBDLAYER_MAX_TAPPING_TOGGLE);
+                return 1;
+            }
+        }
+    }
+    if (!client->SetConfig(uniqId, tapTermMs, comboTermMs, tapDanceTermMs, useTapHold ? &tapHold : nullptr)) return 1;
     printf("SET_CONFIG ok. UniqId=%08X TapTermMs=%lu%s ComboTermMs=%lu%s TapDanceTermMs=%lu%s\n", uniqId,
            tapTermMs != 0 ? tapTermMs : 200UL,
            tapTermMs == 0 ? " (default)" : "",
@@ -156,14 +223,29 @@ int CmdSetConfig(IoctlClient* client, ULONG uniqId, ULONG tapTermMs, ULONG combo
            comboTermMs == 0 ? " (default)" : "",
            tapDanceTermMs != 0 ? tapDanceTermMs : 200UL,
            tapDanceTermMs == 0 ? " (default)" : "");
+    if (useTapHold) {
+        printf("  mode=%s quicktap=%s ttcount=%lu\n", TapHoldModeName(tapHold.TapHoldMode),
+               tapHold.QuickTapTermMs == KBDLAYER_QUICK_TAP_TERM_DISABLED ? "off" :
+               tapHold.QuickTapTermMs == 0 ? "default(=TapTermMs)" : std::to_string(tapHold.QuickTapTermMs).c_str(),
+               tapHold.TappingToggle != 0 ? tapHold.TappingToggle : (ULONG)KBDLAYER_DEFAULT_TAPPING_TOGGLE);
+    }
     return 0;
 }
 
 int CmdGetConfig(IoctlClient* client, ULONG uniqId) {
     KBDLAYER_GET_CONFIG_OUTPUT config;
-    if (!client->GetConfig(uniqId, &config)) return 1;
+    bool hasV2 = false;
+    if (!client->GetConfig(uniqId, &config, &hasV2)) return 1;
     printf("UniqId=%08X TapTermMs=%lu ComboTermMs=%lu TapDanceTermMs=%lu\n",
            uniqId, config.TapTermMs, config.ComboTermMs, config.TapDanceTermMs);
+    if (hasV2) {
+        std::string quick = config.QuickTapTermMs == KBDLAYER_QUICK_TAP_TERM_DISABLED ? "off" :
+                            config.QuickTapTermMs == 0 ? "default(=TapTermMs)" : std::to_string(config.QuickTapTermMs);
+        printf("  mode=%s quicktap=%s ttcount=%lu\n", TapHoldModeName(config.TapHoldMode),
+               quick.c_str(), config.TappingToggle);
+    } else {
+        printf("  (this driver does not report mode/quicktap/ttcount)\n");
+    }
     return 0;
 }
 
@@ -814,8 +896,16 @@ void PrintUsage() {
         "      and the tap-dance threshold, in milliseconds (0 resets any one of them to\n"
         "      its driver default: TapTermMs=200ms, ComboTermMs=50ms, TapDanceTermMs=200ms;\n"
         "      an omitted trailing argument defaults to 0).\n"
+        "      Optional key=value arguments after the numbers (others keep their current value):\n"
+        "        mode=hold|permissive|tap  MT/LT tap-vs-hold decision (tap-dance always uses hold):\n"
+        "             hold       = another key's press confirms hold at once (default)\n"
+        "             permissive = another key pressed AND released while held confirms hold\n"
+        "             tap        = only the TapTermMs timeout confirms hold\n"
+        "        quicktap=<ms>|off|default  re-press after a tap within this time repeats the\n"
+        "             tap key (default = TapTermMs)\n"
+        "        ttcount=<1-32>  taps needed for TT(layer) to toggle (0 = default 5)\n"
         "  KeymapTool.exe --get-config <UniqIdHex>\n"
-        "      Show the current TapTermMs / ComboTermMs / TapDanceTermMs values.\n"
+        "      Show the current TapTermMs / ComboTermMs / TapDanceTermMs and mode / quicktap / ttcount.\n"
         "  KeymapTool.exe --set-macro <UniqIdHex> <MacroId> [KC_xxx KC_yyy ...]\n"
         "      Define macro <MacroId> (0-127) as a sequence of key taps, played back\n"
         "      via MACRO(<MacroId>) in a keymap.json. Modified keys are allowed:\n"
@@ -941,10 +1031,15 @@ int main(int rawArgc, char** rawArgv) {
     if (strcmp(cmd, "--set-config") == 0) {
         ULONG uniqId;
         if (argc < 4 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
+        // 位置引数（数値）は最大3つ。'=' を含む引数からは key=value（mode=/quicktap=/ttcount=）。
+        int numeric = 0;
+        while (3 + numeric < argc && numeric < 3 && strchr(argv[3 + numeric], '=') == nullptr) numeric++;
+        if (numeric == 0) { PrintUsage(); return 1; }
         ULONG tapTermMs = (ULONG)strtoul(argv[3], nullptr, 10);
-        ULONG comboTermMs = (argc >= 5) ? (ULONG)strtoul(argv[4], nullptr, 10) : 0;
-        ULONG tapDanceTermMs = (argc >= 6) ? (ULONG)strtoul(argv[5], nullptr, 10) : 0;
-        return CmdSetConfig(&client, uniqId, tapTermMs, comboTermMs, tapDanceTermMs);
+        ULONG comboTermMs = (numeric >= 2) ? (ULONG)strtoul(argv[4], nullptr, 10) : 0;
+        ULONG tapDanceTermMs = (numeric >= 3) ? (ULONG)strtoul(argv[5], nullptr, 10) : 0;
+        return CmdSetConfig(&client, uniqId, tapTermMs, comboTermMs, tapDanceTermMs,
+                            argc - (3 + numeric), argv + 3 + numeric);
     }
 
     if (strcmp(cmd, "--get-config") == 0) {

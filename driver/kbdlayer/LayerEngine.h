@@ -239,6 +239,18 @@ LayerEngineObserveKeyEvents(
     _In_ PKEYBOARD_INPUT_DATA InputDataEnd
     );
 
+// Driver.cで定義。ServiceCallbackの処理のうち、タップ/ホールド判定より後ろ（TapDance → Macro →
+// 修飾付きキー → ResolveLayerAction → kbdclassへ転送）。ResolveTapHoldが判定中に溜めたイベントを
+// 流し直すのに使う。OutputLock保持中・EngineLock非保持で呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+ResolveAndForwardTail(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd,
+    _Inout_opt_ PVOID SystemArgument3
+    );
+
 // ServiceCallbackが複数件バッチを1件ずつに分けて流すべきか。修飾付きキー・LMを含む
 // マップが有効なとき、またはそれらとして押下中のキーがあるとき（マップを差し替えた後の
 // 解放も1件ずつ処理して、足した修飾キーを必ず戻すため）。OutputLock保持中に呼ぶこと。
@@ -442,6 +454,17 @@ GetLayerMapForDevice(
     _In_ ULONG OutBufferLength,
     _Out_ PULONG BytesReturned,
     _Out_opt_ PBOOLEAN OutEnabled
+    );
+
+// SET_CONFIG v2: 判定方式（KBDLAYER_TAPHOLD_MODE_*）・QuickTapTermMs・TappingToggleを変え、永続化する。
+// 範囲外ならSTATUS_INVALID_PARAMETER（何も変えない）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetTapHoldOptionsForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG TapHoldMode,
+    _In_ ULONG QuickTapTermMs,
+    _In_ ULONG TappingToggle
     );
 
 // SET_CONFIG: devExt->TapTermMsを変更し、レジストリの"TapTermMs"値へ永続化する。

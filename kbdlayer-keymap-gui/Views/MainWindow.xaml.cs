@@ -257,6 +257,9 @@ public partial class MainWindow : Window
         p.TapTermMs = _project.TapTermMs;
         p.ComboTermMs = _project.ComboTermMs;
         p.TapDanceTermMs = _project.TapDanceTermMs;
+        p.TapHoldMode = _project.TapHoldMode;
+        p.QuickTapTermMs = _project.QuickTapTermMs;
+        p.TappingToggle = _project.TappingToggle;
         SetProject(p, layout, dirty: true);
         SetStatus($"レイアウトを {layout.Name} に変更しました（{layout.Slots.Count}キー）。");
     }

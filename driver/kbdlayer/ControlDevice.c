@@ -553,13 +553,23 @@ HandleSetConfig(
 
     *BytesReturned = 0;
 
-    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_SET_CONFIG_INPUT)) {
+    // 旧サイズ（v1: TapTerm/ComboTerm/TapDanceTermだけ）の入力も受け付ける（古いKeymapTool・GUI）。
+    if (SystemBuffer == NULL || inputLen < KBDLAYER_SET_CONFIG_INPUT_V1_SIZE) {
         return STATUS_INVALID_PARAMETER;
     }
 
     devExt = FindDeviceExtensionByUniqId(input->Target.UniqId, Irp);
     if (devExt == NULL) {
         return STATUS_NOT_FOUND;
+    }
+
+    // v2の項目は範囲を先に検証する（不正なら、v1の項目も含めて何も変えない）。
+    if (inputLen >= sizeof(KBDLAYER_SET_CONFIG_INPUT)) {
+        status = SetTapHoldOptionsForDevice(devExt, input->TapHoldMode, input->QuickTapTermMs,
+                                            input->TappingToggle);
+        if (!NT_SUCCESS(status)) {
+            goto Done;
+        }
     }
 
     status = SetTapTermForDevice(devExt, input->TapTermMs);
@@ -948,7 +958,8 @@ HandleGetConfig(
     if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_TARGET)) {
         return STATUS_INVALID_PARAMETER;
     }
-    if (outputLen < sizeof(KBDLAYER_GET_CONFIG_OUTPUT)) {
+    // 旧サイズ（v1）の出力バッファなら、先頭の3項目だけを返す（古いKeymapTool・GUI）。
+    if (outputLen < KBDLAYER_GET_CONFIG_OUTPUT_V1_SIZE) {
         return STATUS_BUFFER_TOO_SMALL;
     }
 
@@ -959,9 +970,15 @@ HandleGetConfig(
 
     // METHOD_BUFFERED: 入力(target)と出力は同じSystemBufferを共有する。
     // target->UniqIdは既に読み終えているので、そのまま上書きしてよい。
-    GetConfigForDevice(devExt, (PKBDLAYER_GET_CONFIG_OUTPUT)SystemBuffer);
+    {
+        KBDLAYER_GET_CONFIG_OUTPUT config;
+        ULONG copyLen = (outputLen >= sizeof(config)) ? sizeof(config) : KBDLAYER_GET_CONFIG_OUTPUT_V1_SIZE;
+
+        GetConfigForDevice(devExt, &config);
+        RtlCopyMemory(SystemBuffer, &config, copyLen);
+        *BytesReturned = copyLen;
+    }
     IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
-    *BytesReturned = sizeof(KBDLAYER_GET_CONFIG_OUTPUT);
     return STATUS_SUCCESS;
 }
 

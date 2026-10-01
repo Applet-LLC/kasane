@@ -193,17 +193,26 @@ bool IoctlClient::CaptureNextKey(ULONG uniqId, ULONG timeoutMs, USHORT* outScanC
     return true;
 }
 
-bool IoctlClient::SetConfig(ULONG uniqId, ULONG tapTermMs, ULONG comboTermMs, ULONG tapDanceTermMs) {
+bool IoctlClient::SetConfig(ULONG uniqId, ULONG tapTermMs, ULONG comboTermMs, ULONG tapDanceTermMs,
+                            const TapHoldOptions* tapHold) {
     if (!RequireWriteAccess("IOCTL_KBDLAYER_SET_CONFIG")) return false;
-    KBDLAYER_SET_CONFIG_INPUT input;
+    KBDLAYER_SET_CONFIG_INPUT input = {};
     input.Target.UniqId = uniqId;
     input.TapTermMs = tapTermMs;
     input.ComboTermMs = comboTermMs;
     input.TapDanceTermMs = tapDanceTermMs;
+    // tapHoldを渡さなければ旧サイズ（v1）で送り、ドライバ側の判定方式・Quick Tap・TTの回数は変えない。
+    DWORD inputSize = KBDLAYER_SET_CONFIG_INPUT_V1_SIZE;
+    if (tapHold != nullptr) {
+        input.TapHoldMode = tapHold->TapHoldMode;
+        input.QuickTapTermMs = tapHold->QuickTapTermMs;
+        input.TappingToggle = tapHold->TappingToggle;
+        inputSize = sizeof(input);
+    }
 
     DWORD bytesReturned = 0;
     BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_SET_CONFIG,
-                              &input, sizeof(input),
+                              &input, inputSize,
                               NULL, 0,
                               &bytesReturned, NULL);
     if (!ok) {
@@ -213,19 +222,31 @@ bool IoctlClient::SetConfig(ULONG uniqId, ULONG tapTermMs, ULONG comboTermMs, UL
     return true;
 }
 
-bool IoctlClient::GetConfig(ULONG uniqId, KBDLAYER_GET_CONFIG_OUTPUT* out) {
+bool IoctlClient::GetConfig(ULONG uniqId, KBDLAYER_GET_CONFIG_OUTPUT* out, bool* outHasTapHoldOptions) {
     KBDLAYER_TARGET input;
     input.UniqId = uniqId;
+    // METHOD_BUFFEREDなので入力と出力は同じバッファを共有する。出力用のバッファは、入力より
+    // 大きくても問題ない。
+    KBDLAYER_GET_CONFIG_OUTPUT output = {};
 
     DWORD bytesReturned = 0;
     BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_GET_CONFIG,
                               &input, sizeof(input),
-                              out, sizeof(*out),
+                              &output, sizeof(output),
                               &bytesReturned, NULL);
     if (!ok) {
         fprintf(stderr, "IOCTL_KBDLAYER_GET_CONFIG failed. Error: %lu\n", GetLastError());
         return false;
     }
+    // 古いドライバは先頭の3項目（v1）だけを返す。そのときは追加した項目を既定値にしておく。
+    bool hasV2 = bytesReturned >= sizeof(output);
+    if (!hasV2) {
+        output.TapHoldMode = KBDLAYER_TAPHOLD_MODE_HOLD_ON_OTHER_KEY;
+        output.QuickTapTermMs = 0;
+        output.TappingToggle = KBDLAYER_DEFAULT_TAPPING_TOGGLE;
+    }
+    *out = output;
+    if (outHasTapHoldOptions != nullptr) *outHasTapHoldOptions = hasV2;
     return true;
 }
 

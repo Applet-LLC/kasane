@@ -32,6 +32,9 @@
 #define KBDLAYER_MAP_VALUE_NAME L"LayerMap"
 #define KBDLAYER_ENABLED_VALUE_NAME L"Enabled"
 #define KBDLAYER_TAPTERM_VALUE_NAME L"TapTermMs"
+#define KBDLAYER_TAPHOLDMODE_VALUE_NAME L"TapHoldMode"
+#define KBDLAYER_QUICKTAPTERM_VALUE_NAME L"QuickTapTermMs"
+#define KBDLAYER_TAPPINGTOGGLE_VALUE_NAME L"TappingToggle"
 #define KBDLAYER_MACROS_VALUE_NAME L"Macros"
 #define KBDLAYER_COMBOS_VALUE_NAME L"Combos"
 #define KBDLAYER_COMBOTERM_VALUE_NAME L"ComboTermMs"
@@ -205,6 +208,12 @@ ParseLayerMapBlob(
                 if (a->Param1 >= KBDLAYER_MAX_LAYERS || (a->Param2 & 0xFF00) != 0 || (a->Param2 & 0x00FF) == 0) {
                     return STATUS_INVALID_PARAMETER;
                 }
+                needsSingleEvents = TRUE;
+            }
+            // MT/LT・タップダンス: 判定中に届いたイベントを1件ずつ溜める・判定するため、複数件の
+            // バッチは1件ずつに分ける（分けないと、複数件のバッチが判定を素通りする）。
+            if (a->Type == KBDLAYER_ACTION_MODTAP || a->Type == KBDLAYER_ACTION_LAYERTAP ||
+                a->Type == KBDLAYER_ACTION_TAPDANCE) {
                 needsSingleEvents = TRUE;
             }
             // TO/TT: レイヤー番号は範囲内、Param2は0。
@@ -449,7 +458,8 @@ EffectiveLayerMaskLocked(
 // - 押下: MOと同じくレイヤーのビットを立てる。別のTTキーだった、または前のタップから
 //   TapTermMs以上経っていたら、タップの回数を数え直す。
 // - 解放: TapTermMs未満で、押している間に別のキーが押されていなければタップとして数える。
-//   KBDLAYER_TAPPING_TOGGLE回に達したら、そのレイヤーの固定（TtToggledLayers）を反転する。
+//   TappingToggle回（既定KBDLAYER_DEFAULT_TAPPING_TOGGLE、SET_CONFIGで変更可）に達したら、そのレイヤーの
+//   固定（TtToggledLayers）を反転する。
 //   固定されていればビットを立てたまま、されていなければ落とす（MOと同じ）。
 // - オートリピートは何もしない。
 // 「別のキーが押された」はLayerEngineObserveKeyEventsが、どのResolve*より先に記録する。
@@ -487,7 +497,7 @@ HandleTapToggleLocked(
         now - devExt->TtPressTime < term) {
         devExt->TtTapCount++;
         devExt->TtLastTapTime = now;
-        if (devExt->TtTapCount >= KBDLAYER_TAPPING_TOGGLE) {
+        if (devExt->TtTapCount >= devExt->TappingToggle) {
             devExt->TtToggledLayers ^= bit;
             devExt->TtTapCount = 0;
         }
@@ -1178,6 +1188,82 @@ ConfirmHoldLocked(
     devExt->HoldConfirmed = TRUE;
 }
 
+// 判定中に溜めたイベント（devExt->HoldBuffer）をEventsへ移し、件数を返す（溜めたものは空になる）。
+// devExt->EngineLock保持中に呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static ULONG
+TakeHoldBufferLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _Out_writes_(KBDLAYER_MAX_HOLD_BUFFER) PKEYBOARD_INPUT_DATA Events
+    )
+{
+    ULONG count = devExt->HoldBufferCount;
+
+    if (count > KBDLAYER_MAX_HOLD_BUFFER) {
+        count = KBDLAYER_MAX_HOLD_BUFFER; // 念のための防御（本来起こり得ない）
+    }
+    if (count > 0) {
+        RtlCopyMemory(Events, devExt->HoldBuffer, count * sizeof(KEYBOARD_INPUT_DATA));
+    }
+    devExt->HoldBufferCount = 0;
+    return count;
+}
+
+// TakeHoldBufferLockedで取り出したイベントを、届いた順に1件ずつ、タップ/ホールド判定より後ろの
+// 処理（ResolveAndForwardTail）へ流す。判定が決まった後（MT/LT自身の出力を送った後）に呼ぶので、
+// ホールドならホールドした状態（LTならそのレイヤー）で、タップならタップした後の状態で解決される。
+// 押下記録も通常どおり作られる（D-6）。OutputLock保持中・EngineLock非保持で呼ぶこと。
+// 溜めたキーがMT/LTでも、改めて判定はしない（タップ側のキーになる。LayerEngineShouldDropEntry参照）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+ReplayHoldBuffer(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_reads_(Count) const KEYBOARD_INPUT_DATA* Events,
+    _In_ ULONG Count
+    )
+{
+    for (ULONG i = 0; i < Count; i++) {
+        KEYBOARD_INPUT_DATA ev = Events[i];
+        ULONG dummyConsumed = 0;
+        ResolveAndForwardTail(devExt, &ev, &ev + 1, &dummyConsumed);
+    }
+}
+
+// PERMISSIVE_HOLD/TAP_PREFERREDで、判定中に届いた別のキーのイベントEvを溜める。溜めた結果、
+// ホールドに確定すべきならTRUEを返す（呼び出し元が確定して流し直す）。
+// - 溜めたものがKBDLAYER_MAX_HOLD_BUFFER件に達した（あふれる前にホールドに確定する）。
+// - PERMISSIVE_HOLDで、溜めた中に押下があるキーの解放が来た（別のキーのタップが判定中に終わった）。
+// devExt->EngineLock保持中に呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static BOOLEAN
+BufferHoldEventLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ const KEYBOARD_INPUT_DATA* Ev
+    )
+{
+    USHORT scanCode = EncodeScancode16(Ev->MakeCode, Ev->Flags);
+    BOOLEAN isBreak = (Ev->Flags & KEY_BREAK) != 0;
+    ULONG before;
+
+    if (devExt->HoldBufferCount >= KBDLAYER_MAX_HOLD_BUFFER) {
+        return TRUE; // 念のための防御（満杯になった時点で確定しているので、本来起こり得ない）
+    }
+    before = devExt->HoldBufferCount;
+    devExt->HoldBuffer[devExt->HoldBufferCount++] = *Ev;
+    if (devExt->HoldBufferCount >= KBDLAYER_MAX_HOLD_BUFFER) {
+        return TRUE;
+    }
+    if (isBreak && devExt->TapHoldMode == KBDLAYER_TAPHOLD_MODE_PERMISSIVE_HOLD) {
+        for (ULONG i = 0; i < before; i++) {
+            const KEYBOARD_INPUT_DATA* p = &devExt->HoldBuffer[i];
+            if (!(p->Flags & KEY_BREAK) && EncodeScancode16(p->MakeCode, p->Flags) == scanCode) {
+                return TRUE;
+            }
+        }
+    }
+    return FALSE;
+}
+
 // HoldTimerの満了で起動されるDPC（タイムアウト経路。他キー押下による割り込みが
 // 無いままTapTermMsが経過した場合にホールド確定する）。DISPATCH_LEVELで実行される。
 // *** phase2-spikeブランチで未検証の経路。実機テストで重点的に確認すること ***
@@ -1195,6 +1281,8 @@ HoldTapDpcRoutine(
     KBDLAYER_ACTION action;
     USHORT pendingScanCode = 0;
     BOOLEAN shouldConfirm;
+    KEYBOARD_INPUT_DATA buffered[KBDLAYER_MAX_HOLD_BUFFER] = { 0 };
+    ULONG bufferedCount = 0;
 
     UNREFERENCED_PARAMETER(Dpc);
     UNREFERENCED_PARAMETER(SystemArgument1);
@@ -1203,6 +1291,8 @@ HoldTapDpcRoutine(
     if (devExt == NULL) {
         return;
     }
+
+    RtlZeroMemory(&action, sizeof(action));
 
     // 状態の決定から送出までをServiceCallbackと直列化する（OutputLockの説明参照）。
     KeAcquireSpinLockAtDpcLevel(&devExt->OutputLock);
@@ -1216,13 +1306,17 @@ HoldTapDpcRoutine(
     if (shouldConfirm) {
         pendingScanCode = devExt->PendingScanCode;
         ConfirmHoldLocked(devExt, &action);
+        bufferedCount = TakeHoldBufferLocked(devExt, buffered);
     }
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
     if (shouldConfirm) {
-        KBDLAYER_TRACE("LayerEngine: tap-hold TIMEOUT confirmed sc=0x%X type=%u\n",
-                       pendingScanCode, action.Type);
+        KBDLAYER_TRACE("LayerEngine: tap-hold TIMEOUT confirmed sc=0x%X type=%u buffered=%lu\n",
+                       pendingScanCode, action.Type, bufferedCount);
         EmitModTapEventIfApplicable(devExt, &action, KEY_MAKE);
+        // 判定中に溜めたイベント（PERMISSIVE_HOLD/TAP_PREFERRED）を、ホールドした状態で流し直す
+        // （key-remap-engine T-1: タイマー経路も入力経路と同じ後始末・送出を通す）。
+        ReplayHoldBuffer(devExt, buffered, bufferedCount);
     }
     KeReleaseSpinLockFromDpcLevel(&devExt->OutputLock);
 
@@ -1243,11 +1337,12 @@ ResolveTapHold(
     USHORT scanCode;
     BOOLEAN isBreak;
     KIRQL oldIrql;
+    KEYBOARD_INPUT_DATA buffered[KBDLAYER_MAX_HOLD_BUFFER] = { 0 };
+    ULONG bufferedCount = 0;
 
-    // 1件バッチのみを対象とする。複数件バッチ（コアレス）はホットパスの単純さを
-    // 保つため対象外とし、通常のResolveLayerAction側の処理に委ねる（MT/LTキー
-    // 自体が複数件バッチの一部として届いた場合、タップ/ホールド判定は行われず
-    // 通常のKEYアクションと同様に解決される。既知のスコープ限定）。
+    // 1件バッチのみを対象とする。MT/LTを含むマップが有効な間は、ServiceCallbackが複数件の
+    // バッチを1件ずつに分けて流す（ParseLayerMapBlobのNeedsSingleEvents）。それ以外で複数件の
+    // バッチが来たら、通常のResolveLayerAction側の処理に委ねる（MT/LTはタップ側のキーになる）。
     if ((InputDataEnd - InputDataStart) != 1) {
         return FALSE;
     }
@@ -1288,9 +1383,11 @@ ResolveTapHold(
             devExt->ActiveLayerMask &= ~(1UL << action.Param1);
         }
         if (!wasHoldConfirmed && wasPending) {
-            // タップ確定。Quick Tap のために、キーと時刻を覚えておく。
+            // タップ確定。Quick Tap のために、キーと時刻を覚えておく。判定中に溜めたイベント
+            // （PERMISSIVE_HOLD/TAP_PREFERRED）は、タップのキーの後に流し直す。
             devExt->LastTapScanCode = scanCode;
             devExt->LastTapTime = KeQueryInterruptTime();
+            bufferedCount = TakeHoldBufferLocked(devExt, buffered);
         }
         KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
@@ -1303,9 +1400,12 @@ ResolveTapHold(
         if (wasHoldConfirmed) {
             EmitModTapEventIfApplicable(devExt, &action, KEY_BREAK);
         } else if (wasPending) {
-            // 保留中に他キーが割り込まず、タイムアウトも発火しなかった = タップ確定。
-            SendDecodedEvent(devExt, action.Param2, KEY_MAKE);
-            SendDecodedEvent(devExt, action.Param2, KEY_BREAK);
+            // ホールドに確定しないまま、タイムアウトより先に離された = タップ確定。
+            if (action.Param2 != 0) {
+                SendDecodedEvent(devExt, action.Param2, KEY_MAKE);
+                SendDecodedEvent(devExt, action.Param2, KEY_BREAK);
+            }
+            ReplayHoldBuffer(devExt, buffered, bufferedCount);
         }
 
         if (SystemArgument3 != NULL) {
@@ -1314,7 +1414,7 @@ ResolveTapHold(
         return TRUE;
     }
 
-    // --- 保留中（未確定）に、別のキーの押下が来た場合 = ホールド確定 ---
+    // --- HOLD_ON_OTHER_KEY: 保留中（未確定）に、別のキーの押下が来た場合 = ホールド確定 ---
     // MODTAPなら修飾キーのmakeを送り、LAYERTAPならレイヤーのビットを立ててから、割り込んだ
     // キーは後段（ResolveTapDance以降、ResolveLayerActionまで）に渡す。ホールドを確定した後の
     // レイヤーで解決されるので、LT(1,KC_SPC)を押してすぐJを押すと、レイヤー1のJの割り当てに
@@ -1322,16 +1422,55 @@ ResolveTapHold(
     // 以前は割り込んだキーを生のスキャンコードのまま転送していた（レイヤーの影響を受けない
     // 既知の制約。2026-09-30に解消）。割り込んだキー自体がMT/LTなら、後段がタップ側のキーとして
     // 出す（LayerEngineShouldDropEntry参照）。
-    if (devExt->PendingActive && !devExt->HoldConfirmed && !isBreak) {
+    if (devExt->PendingActive && !devExt->HoldConfirmed &&
+        devExt->TapHoldMode == KBDLAYER_TAPHOLD_MODE_HOLD_ON_OTHER_KEY && !isBreak) {
         KBDLAYER_ACTION action;
 
         ConfirmHoldLocked(devExt, &action);
+        // 通常は空。判定の途中でSET_CONFIGによりPERMISSIVE_HOLD/TAP_PREFERREDから切り替えられた
+        // 場合だけ、それまでに溜めたイベントがある（このイベントより先に流し直す）。
+        bufferedCount = TakeHoldBufferLocked(devExt, buffered);
         KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
         KeCancelTimer(&devExt->HoldTimer);
 
         EmitModTapEventIfApplicable(devExt, &action, KEY_MAKE);
+        ReplayHoldBuffer(devExt, buffered, bufferedCount);
         return FALSE;
+    }
+
+    // --- PERMISSIVE_HOLD/TAP_PREFERRED: 保留中に届いた別のキーのイベントは溜める ---
+    // 判定が決まるまでOSへは何も送らない。決まったら、MT/LT自身の出力（ホールドなら修飾キー・
+    // レイヤー、タップならタップのキー）の後に、届いた順に流し直す（ReplayHoldBuffer）。
+    // 溜めるのは、押下と、溜めたものがあるときの解放（順序を保つため）。溜めたものが無いときの
+    // 解放（MT/LTより前から押されていたキー）は、そのまま後段へ渡す（そのmakeは送り済み）。
+    // PERMISSIVE_HOLDで別のキーのタップが判定中に終わった、または溜めたものが満杯になったら、
+    // ホールドに確定して流し直す。
+    if (devExt->PendingActive && !devExt->HoldConfirmed &&
+        devExt->TapHoldMode != KBDLAYER_TAPHOLD_MODE_HOLD_ON_OTHER_KEY &&
+        (!isBreak || devExt->HoldBufferCount != 0)) {
+        KBDLAYER_ACTION action;
+
+        if (!BufferHoldEventLocked(devExt, ev)) {
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+            if (SystemArgument3 != NULL) {
+                *(PULONG)SystemArgument3 = 1;
+            }
+            return TRUE;
+        }
+
+        ConfirmHoldLocked(devExt, &action);
+        bufferedCount = TakeHoldBufferLocked(devExt, buffered);
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+        KeCancelTimer(&devExt->HoldTimer);
+
+        EmitModTapEventIfApplicable(devExt, &action, KEY_MAKE);
+        ReplayHoldBuffer(devExt, buffered, bufferedCount);
+        if (SystemArgument3 != NULL) {
+            *(PULONG)SystemArgument3 = 1;
+        }
+        return TRUE;
     }
 
     // --- 現在アイドル（保留中でもホールド中でもない）で、このキー自体が
@@ -1347,12 +1486,16 @@ ResolveTapHold(
                 LARGE_INTEGER dueTime;
                 ULONGLONG now = KeQueryInterruptTime();
 
-                // Quick Tap: 同じMT/LTをタップした直後（TapTermMs以内）にもう一度押したら、判定せずに
+                ULONG quickTermMs = (devExt->QuickTapTermMs == 0) ? devExt->TapTermMs : devExt->QuickTapTermMs;
+
+                // Quick Tap: 同じMT/LTをタップした直後（QuickTapTermMs以内。0ならTapTermMs、
+                // KBDLAYER_QUICK_TAP_TERM_DISABLEDなら使わない）にもう一度押したら、判定せずに
                 // タップ側のキーとして押す（後段のLayerEngineShouldDropEntryがタップ側のキーとして
                 // 押下記録を作るので、押し続ければそのキーのリピートになり、解放も同じキーになる）。
                 // 時刻をこの押下で更新するので、続けて素早く押しても同じ扱いが続く。
-                if (devExt->LastTapScanCode == scanCode &&
-                    now - devExt->LastTapTime < (ULONGLONG)devExt->TapTermMs * 10000ULL) {
+                if (devExt->QuickTapTermMs != KBDLAYER_QUICK_TAP_TERM_DISABLED &&
+                    devExt->LastTapScanCode == scanCode &&
+                    now - devExt->LastTapTime < (ULONGLONG)quickTermMs * 10000ULL) {
                     devExt->LastTapTime = now;
                     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
                     return FALSE;
@@ -2562,6 +2705,9 @@ ResolveTapDance(
 typedef struct _KBDLAYER_ABORT_RELEASES {
     ULONG Count;
     USHORT ScanCodes[KBDLAYER_MAX_ABORT_RELEASES]; // Enc16
+    // AbortTapHoldLockedが取り出した、判定中に溜めていたイベント（breakの送出後に流し直す）。
+    ULONG ReplayCount;
+    KEYBOARD_INPUT_DATA Replay[KBDLAYER_MAX_HOLD_BUFFER];
 } KBDLAYER_ABORT_RELEASES, *PKBDLAYER_ABORT_RELEASES;
 
 _IRQL_requires_max_(DISPATCH_LEVEL)
@@ -2589,7 +2735,11 @@ SwallowPhysicalKeyLocked(
     }
 }
 
-// Phase 2: MT/LT。
+// Phase 2: MT/LT。判定中に溜めたイベント（PERMISSIVE_HOLD/TAP_PREFERRED）はReleases->Replayへ移し、
+// SendAbortReleasesが、修飾キーのbreakの後に流し直す。打ち切りはOFF（と、その経路を使う緊急解除）
+// なので、流し直した押下はマップを経ずにそのまま送られ、押下記録のあるキーの解放（判定より前から
+// 押されていたキー）は記録どおりに処理される。捨てると、送り済みのmakeに対応するbreakが失われ、
+// そのキーが押しっぱなしになる。
 _IRQL_requires_max_(DISPATCH_LEVEL)
 static VOID
 AbortTapHoldLocked(
@@ -2597,6 +2747,7 @@ AbortTapHoldLocked(
     _Inout_ PKBDLAYER_ABORT_RELEASES Releases
     )
 {
+    Releases->ReplayCount = TakeHoldBufferLocked(devExt, Releases->Replay);
     if (devExt->HoldConfirmed) {
         KBDLAYER_ACTION action = devExt->PendingAction;
         if (action.Type == KBDLAYER_ACTION_MODTAP && action.Param1 < RTL_NUMBER_OF(s_ModifierScanCodes)) {
@@ -2682,6 +2833,8 @@ SendAbortReleases(
         KBDLAYER_TRACE("LayerEngine: abort releases sc=0x%X\n", Releases->ScanCodes[i]);
         SendDecodedEvent(devExt, Releases->ScanCodes[i], KEY_BREAK);
     }
+    // MT/LTの判定中に溜めていたイベント（AbortTapHoldLocked参照）。打ち切った後の状態で流し直す。
+    ReplayHoldBuffer(devExt, Releases->Replay, Releases->ReplayCount);
 }
 
 // ---------------------------------------------------------------------------
@@ -2823,6 +2976,20 @@ CopyPersistedSettings(
         RegReadDwordEx(KBDLAYER_SERVICE_NAME, srcPath, KBDLAYER_FEATURES_VALUE_NAME, &value, KBDLAYER_FEATURE_ALL);
         CheckPersistResult(devExt, KBDLAYER_FEATURES_VALUE_NAME,
             RegWriteDword(KBDLAYER_SERVICE_NAME, dstPath, KBDLAYER_FEATURES_VALUE_NAME, value));
+
+        RegReadDwordEx(KBDLAYER_SERVICE_NAME, srcPath, KBDLAYER_TAPHOLDMODE_VALUE_NAME, &value,
+                       KBDLAYER_TAPHOLD_MODE_HOLD_ON_OTHER_KEY);
+        CheckPersistResult(devExt, KBDLAYER_TAPHOLDMODE_VALUE_NAME,
+            RegWriteDword(KBDLAYER_SERVICE_NAME, dstPath, KBDLAYER_TAPHOLDMODE_VALUE_NAME, value));
+
+        RegReadDwordEx(KBDLAYER_SERVICE_NAME, srcPath, KBDLAYER_QUICKTAPTERM_VALUE_NAME, &value, 0);
+        CheckPersistResult(devExt, KBDLAYER_QUICKTAPTERM_VALUE_NAME,
+            RegWriteDword(KBDLAYER_SERVICE_NAME, dstPath, KBDLAYER_QUICKTAPTERM_VALUE_NAME, value));
+
+        RegReadDwordEx(KBDLAYER_SERVICE_NAME, srcPath, KBDLAYER_TAPPINGTOGGLE_VALUE_NAME, &value,
+                       KBDLAYER_DEFAULT_TAPPING_TOGGLE);
+        CheckPersistResult(devExt, KBDLAYER_TAPPINGTOGGLE_VALUE_NAME,
+            RegWriteDword(KBDLAYER_SERVICE_NAME, dstPath, KBDLAYER_TAPPINGTOGGLE_VALUE_NAME, value));
     }
 
     DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_INFO_LEVEL,
@@ -3029,6 +3196,7 @@ SetLayerMapEnabledForDevice(
     KBDLAYER_ABORT_RELEASES releases;
 
     releases.Count = 0;
+    releases.ReplayCount = 0;
 
     // OutputLockはDISPATCH_LEVELに上げるので、以降のEngineLockはAtDpcLevelで取る。
     KeAcquireSpinLock(&devExt->OutputLock, &outputIrql);
@@ -3120,6 +3288,7 @@ SetFeaturesForDevice(
     }
 
     releases.Count = 0;
+    releases.ReplayCount = 0;
 
     KeAcquireSpinLock(&devExt->OutputLock, &outputIrql);
     KeAcquireSpinLockAtDpcLevel(&devExt->EngineLock);
@@ -3554,6 +3723,23 @@ LoadPersistedLayerMapForDevice(
     }
 
     {
+        // 判定方式・Quick Tap・TT（2026-10-01追加）。値が無ければ既定値（旧バージョンの永続化データも同じ）。
+        // 範囲外の値（手で書き換えた等）は既定値に戻す。
+        ULONG mode = KBDLAYER_TAPHOLD_MODE_HOLD_ON_OTHER_KEY;
+        ULONG quick = 0;
+        ULONG toggle = KBDLAYER_DEFAULT_TAPPING_TOGGLE;
+        RegReadDwordEx(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPHOLDMODE_VALUE_NAME, &mode,
+                       KBDLAYER_TAPHOLD_MODE_HOLD_ON_OTHER_KEY);
+        RegReadDwordEx(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_QUICKTAPTERM_VALUE_NAME, &quick, 0);
+        RegReadDwordEx(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPPINGTOGGLE_VALUE_NAME, &toggle,
+                       KBDLAYER_DEFAULT_TAPPING_TOGGLE);
+        devExt->TapHoldMode = (mode <= KBDLAYER_TAPHOLD_MODE_MAX) ? mode : KBDLAYER_TAPHOLD_MODE_HOLD_ON_OTHER_KEY;
+        devExt->QuickTapTermMs = quick;
+        devExt->TappingToggle = (toggle >= 1 && toggle <= KBDLAYER_MAX_TAPPING_TOGGLE) ? toggle
+                                                                                      : KBDLAYER_DEFAULT_TAPPING_TOGGLE;
+    }
+
+    {
         // 機能別ON/OFF（項番4）。値が無ければ全機能有効（既定、旧バージョンの永続化データも同じ）。
         ULONG features = KBDLAYER_FEATURE_ALL;
         RegReadDwordEx(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_FEATURES_VALUE_NAME,
@@ -3633,6 +3819,43 @@ SetTapDanceTermForDevice(
     return STATUS_SUCCESS;
 }
 
+// SET_CONFIG v2: 判定方式・Quick Tap・TTの回数を変え、永続化する。範囲外ならSTATUS_INVALID_PARAMETER
+// （何も変えない）。TappingToggle=0は既定値。方式を変えたときに判定中のMT/LTがあっても、その判定は
+// 新しい方式で続く（溜めたイベントは、確定したときに流し直される）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetTapHoldOptionsForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG TapHoldMode,
+    _In_ ULONG QuickTapTermMs,
+    _In_ ULONG TappingToggle
+    )
+{
+    KIRQL oldIrql;
+    WCHAR subKeyPath[64];
+    ULONG toggle = (TappingToggle != 0) ? TappingToggle : KBDLAYER_DEFAULT_TAPPING_TOGGLE;
+
+    if (TapHoldMode > KBDLAYER_TAPHOLD_MODE_MAX || toggle > KBDLAYER_MAX_TAPPING_TOGGLE) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    devExt->TapHoldMode = TapHoldMode;
+    devExt->QuickTapTermMs = QuickTapTermMs;
+    devExt->TappingToggle = toggle;
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    CheckPersistResult(devExt, KBDLAYER_TAPHOLDMODE_VALUE_NAME,
+        RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPHOLDMODE_VALUE_NAME, TapHoldMode));
+    CheckPersistResult(devExt, KBDLAYER_QUICKTAPTERM_VALUE_NAME,
+        RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_QUICKTAPTERM_VALUE_NAME, QuickTapTermMs));
+    CheckPersistResult(devExt, KBDLAYER_TAPPINGTOGGLE_VALUE_NAME,
+        RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_TAPPINGTOGGLE_VALUE_NAME, toggle));
+
+    return STATUS_SUCCESS;
+}
+
 _IRQL_requires_max_(PASSIVE_LEVEL)
 VOID
 InitializeTapHoldState(
@@ -3642,6 +3865,10 @@ InitializeTapHoldState(
     KeInitializeTimer(&devExt->HoldTimer);
     KeInitializeDpc(&devExt->HoldDpc, HoldTapDpcRoutine, devExt);
     devExt->TapTermMs = KBDLAYER_DEFAULT_TAP_TERM_MS;
+    devExt->TapHoldMode = KBDLAYER_TAPHOLD_MODE_HOLD_ON_OTHER_KEY;
+    devExt->QuickTapTermMs = 0;
+    devExt->TappingToggle = KBDLAYER_DEFAULT_TAPPING_TOGGLE;
+    devExt->HoldBufferCount = 0;
     devExt->PendingActive = FALSE;
     devExt->HoldConfirmed = FALSE;
     devExt->PendingScanCode = 0;
@@ -3917,6 +4144,7 @@ SetComboForDevice(
     }
 
     releases.Count = 0;
+    releases.ReplayCount = 0;
 
     // OutputLockはDISPATCH_LEVELに上げるので、以降のEngineLockはAtDpcLevelで取る。
     KeAcquireSpinLock(&devExt->OutputLock, &outputIrql);
@@ -4118,6 +4346,7 @@ SetTapDanceForDevice(
     }
 
     releases.Count = 0;
+    releases.ReplayCount = 0;
 
     // OutputLockはDISPATCH_LEVELに上げるので、以降のEngineLockはAtDpcLevelで取る。
     KeAcquireSpinLock(&devExt->OutputLock, &outputIrql);
@@ -4659,6 +4888,9 @@ GetConfigForDevice(
     Out->TapTermMs = devExt->TapTermMs;
     Out->ComboTermMs = devExt->ComboTermMs;
     Out->TapDanceTermMs = devExt->TapDanceTermMs;
+    Out->TapHoldMode = devExt->TapHoldMode;
+    Out->QuickTapTermMs = devExt->QuickTapTermMs;
+    Out->TappingToggle = devExt->TappingToggle;
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 }
 

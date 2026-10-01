@@ -54,4 +54,11 @@ public sealed class KeymapProject
     public uint TapTermMs { get; set; }
     public uint ComboTermMs { get; set; }
     public uint TapDanceTermMs { get; set; }
+
+    /// <summary>MT/LTの判定方式（Interop.TapHoldModes。0 = 別のキーを押したらすぐホールド）。タップダンスは対象外。</summary>
+    public uint TapHoldMode { get; set; }
+    /// <summary>Quick Tap の時間。0 = TapTermと同じ、KbdLayerClient.QuickTapTermDisabled = 使わない。</summary>
+    public uint QuickTapTermMs { get; set; }
+    /// <summary>TT(layer)の固定に必要なタップ回数。0 = 既定(5)。</summary>
+    public uint TappingToggle { get; set; }
 }

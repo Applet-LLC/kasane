@@ -18,7 +18,16 @@ public sealed record ComboEntry(ushort ScanCode1, ushort ScanCode2, KeyAction Ou
 
 public sealed record TapDanceEntry(KeyAction SingleTap, KeyAction SingleHold, KeyAction DoubleTap, KeyAction TripleTap);
 
-public sealed record DriverConfig(uint TapTermMs, uint ComboTermMs, uint TapDanceTermMs);
+public sealed record DriverConfig(uint TapTermMs, uint ComboTermMs, uint TapDanceTermMs,
+    uint TapHoldMode, uint QuickTapTermMs, uint TappingToggle, bool HasTapHoldOptions);
+
+/// <summary>KBDLAYER_TAPHOLD_MODE_*（MT/LTのタップ／ホールドの判定方式。タップダンスは対象外）。</summary>
+public static class TapHoldModes
+{
+    public const uint HoldOnOtherKey = 0; // 別のキーを押したらすぐホールド（既定）
+    public const uint PermissiveHold = 1; // 別のキーを押して離したらホールド
+    public const uint TapPreferred = 2;   // 時間内に離せばタップ（時間切れでホールド）
+}
 
 public sealed class KbdLayerException : Exception
 {
@@ -206,20 +215,36 @@ public sealed class KbdLayerClient : IDisposable
         return timedOut ? null : sc;
     }
 
-    public void SetConfig(uint uniqId, uint tapTermMs, uint comboTermMs, uint tapDanceTermMs) =>
+    /// <summary>
+    /// SET_CONFIG v2（判定方式・Quick Tap・TTの回数を含む）で送る。古いドライバは、長い入力の先頭の
+    /// 3項目（TapTerm/ComboTerm/TapDanceTerm）だけを使い、残りは無視する。
+    /// </summary>
+    public void SetConfig(uint uniqId, uint tapTermMs, uint comboTermMs, uint tapDanceTermMs,
+                          uint tapHoldMode = TapHoldModes.HoldOnOtherKey, uint quickTapTermMs = 0, uint tappingToggle = 0) =>
         Ioctl("タイミング設定の書き込み", IOCTL_SET_CONFIG, Build(w =>
         {
             w.Write(uniqId);
             w.Write(tapTermMs);
             w.Write(comboTermMs);
             w.Write(tapDanceTermMs);
+            w.Write(tapHoldMode);
+            w.Write(quickTapTermMs);
+            w.Write(tappingToggle);
         }), 0);
 
+    /// <summary>古いドライバは先頭の3項目だけを返す。そのときは追加した項目を既定値にする（HasTapHoldOptions=false）。</summary>
     public DriverConfig GetConfig(uint uniqId)
     {
-        var data = Ioctl("タイミング設定の取得", IOCTL_GET_CONFIG, BitConverter.GetBytes(uniqId), 12);
-        return new DriverConfig(BitConverter.ToUInt32(data, 0), BitConverter.ToUInt32(data, 4), BitConverter.ToUInt32(data, 8));
+        var data = Ioctl("タイミング設定の取得", IOCTL_GET_CONFIG, BitConverter.GetBytes(uniqId), 24);
+        uint U(int offset) => BitConverter.ToUInt32(data, offset);
+        if (data.Length >= 24)
+            return new DriverConfig(U(0), U(4), U(8), U(12), U(16), U(20), HasTapHoldOptions: true);
+        return new DriverConfig(U(0), U(4), U(8), TapHoldModes.HoldOnOtherKey, 0, DefaultTappingToggle, HasTapHoldOptions: false);
     }
+
+    public const uint DefaultTappingToggle = 5;          // KBDLAYER_DEFAULT_TAPPING_TOGGLE
+    public const uint MaxTappingToggle = 32;             // KBDLAYER_MAX_TAPPING_TOGGLE
+    public const uint QuickTapTermDisabled = 0xFFFFFFFF; // KBDLAYER_QUICK_TAP_TERM_DISABLED
 
     /// <summary>stepsが空ならそのマクロIDをクリアする。</summary>
     public void SetMacro(uint uniqId, int macroId, IReadOnlyList<MacroStep> steps) =>
