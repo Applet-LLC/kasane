@@ -557,10 +557,11 @@ int CmdSetScope(IoctlClient* client, ULONG uniqId, const char* bindingName) {
 }
 
 void PrintFeatures(ULONG uniqId, ULONG f) {
-    printf("UniqId=%08X Macro=%d Combo=%d TapDance=%d\n", uniqId,
+    printf("UniqId=%08X Macro=%d Combo=%d TapDance=%d KeyOverride=%d\n", uniqId,
            (f & KBDLAYER_FEATURE_MACRO) ? 1 : 0,
            (f & KBDLAYER_FEATURE_COMBO) ? 1 : 0,
-           (f & KBDLAYER_FEATURE_TAPDANCE) ? 1 : 0);
+           (f & KBDLAYER_FEATURE_TAPDANCE) ? 1 : 0,
+           (f & KBDLAYER_FEATURE_KEYOVERRIDE) ? 1 : 0);
 }
 
 // --get-features <UniqIdHex>: 機能別ON/OFF（項番4）の現在の状態を表示する。
@@ -571,13 +572,21 @@ int CmdGetFeatures(IoctlClient* client, ULONG uniqId) {
     return 0;
 }
 
-// --set-features <UniqIdHex> <macro:0|1> <combo:0|1> <tapdance:0|1>
-// （--set-configの位置引数と同じスタイル）
-int CmdSetFeatures(IoctlClient* client, ULONG uniqId, const char* macro, const char* combo, const char* tapDance) {
-    const char* args[3] = { macro, combo, tapDance };
-    const ULONG bits[3] = { KBDLAYER_FEATURE_MACRO, KBDLAYER_FEATURE_COMBO, KBDLAYER_FEATURE_TAPDANCE };
+// --set-features <UniqIdHex> <macro:0|1> <combo:0|1> <tapdance:0|1> [keyoverride:0|1]
+// （--set-configの位置引数と同じスタイル）。keyoverrideを省略したら、今の設定のままにする。
+int CmdSetFeatures(IoctlClient* client, ULONG uniqId, const char* macro, const char* combo, const char* tapDance,
+                   const char* keyOverride) {
+    const char* args[4] = { macro, combo, tapDance, keyOverride };
+    const ULONG bits[4] = { KBDLAYER_FEATURE_MACRO, KBDLAYER_FEATURE_COMBO, KBDLAYER_FEATURE_TAPDANCE,
+                            KBDLAYER_FEATURE_KEYOVERRIDE };
     ULONG features = 0;
-    for (int i = 0; i < 3; i++) {
+    if (keyOverride == nullptr) {
+        ULONG current = 0;
+        if (!client->GetFeatures(uniqId, &current)) return 1;
+        features |= current & KBDLAYER_FEATURE_KEYOVERRIDE;
+    }
+    for (int i = 0; i < 4; i++) {
+        if (args[i] == nullptr) continue;
         if (strcmp(args[i], "1") == 0) {
             features |= bits[i];
         } else if (strcmp(args[i], "0") != 0) {
@@ -588,6 +597,60 @@ int CmdSetFeatures(IoctlClient* client, ULONG uniqId, const char* macro, const c
     if (!client->SetFeatures(uniqId, features)) return 1;
     printf("SET_FEATURES ok. ");
     PrintFeatures(uniqId, features);
+    return 0;
+}
+
+// --set-key-override <UniqIdHex> <Id> [<TriggerMods> <TriggerKey> <Replacement>]
+// 引数無しならそのIdをクリアする。TriggerModsはMOD_*を|でつないだもの、TriggerKeyは単純キー(KC_xxx)、
+// Replacementは単純キーか修飾付きキー（LCTL(KC_Z)等）。
+int CmdSetKeyOverride(IoctlClient* client, ULONG uniqId, ULONG id, int argc, char** argv) {
+    if (argc == 0) {
+        if (!client->SetKeyOverride(uniqId, id, nullptr)) return 1;
+        printf("SET_KEY_OVERRIDE ok. UniqId=%08X Id=%lu cleared.\n", uniqId, id);
+        return 0;
+    }
+    if (argc != 3) {
+        fprintf(stderr, "--set-key-override: expected <TriggerMods> <TriggerKey> <Replacement>, or none to clear\n");
+        return 1;
+    }
+
+    UCHAR mods = 0;
+    if (!KeycodeTable::ResolveModMask(argv[0], &mods) || mods == 0) {
+        fprintf(stderr, "--set-key-override: TriggerMods \"%s\" must be MOD_xxx[|MOD_yyy...]\n", argv[0]);
+        return 1;
+    }
+    KeycodeMapping trigger, replacement;
+    if (!KeycodeTable::Resolve(argv[1], &trigger) || trigger.ActionType != KBDLAYER_ACTION_KEY || trigger.Param2 == 0) {
+        fprintf(stderr, "--set-key-override: TriggerKey \"%s\" must be a plain key (KC_xxx)\n", argv[1]);
+        return 1;
+    }
+    if (!KeycodeTable::Resolve(argv[2], &replacement) ||
+        (replacement.ActionType != KBDLAYER_ACTION_KEY && replacement.ActionType != KBDLAYER_ACTION_MODDED_KEY) ||
+        replacement.Param2 == 0) {
+        fprintf(stderr, "--set-key-override: Replacement \"%s\" must be a plain key or a modified key (LCTL(kc))\n", argv[2]);
+        return 1;
+    }
+
+    KBDLAYER_KEY_OVERRIDE_ENTRY entry = {};
+    entry.TriggerMods = mods;
+    entry.TriggerScanCode = trigger.Param2;
+    entry.Replacement = { replacement.ActionType, replacement.Param1, replacement.Param2 };
+    if (!client->SetKeyOverride(uniqId, id, &entry)) return 1;
+    printf("SET_KEY_OVERRIDE ok. UniqId=%08X Id=%lu: %s + %s -> %s\n", uniqId, id, argv[0], argv[1], argv[2]);
+    return 0;
+}
+
+int CmdGetKeyOverride(IoctlClient* client, ULONG uniqId, ULONG id) {
+    KBDLAYER_KEY_OVERRIDE_ENTRY entry = {};
+    bool used = false;
+    if (!client->GetKeyOverride(uniqId, id, &entry, &used)) return 1;
+    if (!used) {
+        printf("UniqId=%08X Id=%lu: (not set)\n", uniqId, id);
+    } else {
+        printf("UniqId=%08X Id=%lu: TriggerMods=0x%02X TriggerScanCode=0x%04X Replacement Type=%u Param1=0x%02X Param2=0x%04X\n",
+               uniqId, id, entry.TriggerMods, entry.TriggerScanCode,
+               entry.Replacement.Type, entry.Replacement.Param1, entry.Replacement.Param2);
+    }
     return 0;
 }
 
@@ -954,10 +1017,20 @@ void PrintUsage() {
         "      copies the current settings so nothing appears to disappear.\n"
         "  KeymapTool.exe --get-features <UniqIdHex>\n"
         "      Show which optional features are enabled on this keyboard.\n"
-        "  KeymapTool.exe --set-features <UniqIdHex> <macro:0|1> <combo:0|1> <tapdance:0|1>\n"
-        "      Enable/disable Macro, Combo and TapDance on this keyboard (all enabled by\n"
-        "      default). Disabled features' keys do nothing (like KC_NO); combo member\n"
-        "      keys act as their normal layer keys. Key remapping, layers (MO/TG/DF/OSL),\n"
+        "  KeymapTool.exe --set-key-override <UniqIdHex> <Id> [<TriggerMods> <TriggerKey> <Replacement>]\n"
+        "      Define key override <Id> (0-31): while all modifier kinds in <TriggerMods>\n"
+        "      (e.g. MOD_LSFT, MOD_LCTL|MOD_LSFT; left/right are not distinguished) are held,\n"
+        "      the key that outputs <TriggerKey> (KC_xxx, after layers) sends <Replacement>\n"
+        "      (KC_xxx or a modified key such as LCTL(KC_Z)) instead, with the trigger\n"
+        "      modifiers temporarily released. Example: MOD_LSFT KC_BSPC KC_DEL.\n"
+        "      Omit the last three arguments to clear it.\n"
+        "  KeymapTool.exe --get-key-override <UniqIdHex> <Id>\n"
+        "      Show the current definition of a key override.\n"
+        "  KeymapTool.exe --set-features <UniqIdHex> <macro:0|1> <combo:0|1> <tapdance:0|1> [keyoverride:0|1]\n"
+        "      Enable/disable Macro, Combo, TapDance and Key Override on this keyboard (all enabled by\n"
+        "      default; an omitted keyoverride flag keeps its current value).\n"
+        "      Disabled features' keys do nothing (like KC_NO); combo member keys act as\n"
+        "      their normal layer keys; key overrides stop applying. Key remapping, layers (MO/TG/DF/OSL),\n"
         "      MT/LT and NICOLA are always available. Settings stay stored while disabled.\n"
         "  KeymapTool.exe --get-emergency-release\n"
         "      Show the emergency-release key combination (driver-wide, not per-keyboard).\n"
@@ -1142,7 +1215,21 @@ int main(int rawArgc, char** rawArgv) {
     if (strcmp(cmd, "--set-features") == 0) {
         ULONG uniqId;
         if (argc < 6 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
-        return CmdSetFeatures(&client, uniqId, argv[3], argv[4], argv[5]);
+        return CmdSetFeatures(&client, uniqId, argv[3], argv[4], argv[5], (argc >= 7) ? argv[6] : nullptr);
+    }
+
+    if (strcmp(cmd, "--set-key-override") == 0) {
+        ULONG uniqId;
+        if (argc < 4 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
+        ULONG id = (ULONG)strtoul(argv[3], nullptr, 10);
+        return CmdSetKeyOverride(&client, uniqId, id, argc - 4, argv + 4);
+    }
+
+    if (strcmp(cmd, "--get-key-override") == 0) {
+        ULONG uniqId;
+        if (argc < 4 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
+        ULONG id = (ULONG)strtoul(argv[3], nullptr, 10);
+        return CmdGetKeyOverride(&client, uniqId, id);
     }
 
     if (strcmp(cmd, "--get-emergency-release") == 0) {

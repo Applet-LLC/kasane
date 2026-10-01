@@ -297,6 +297,7 @@ public static class ProjectService
         var macroSteps = project.Macros.ToDictionary(m => m.Id, m => MacroSteps(m, errors));
         var combos = project.Combos.ToDictionary(c => c.Id, c => ComboToEntry(project, layout, c, errors));
         var tapDances = project.TapDances.ToDictionary(t => t.Id, t => TapDanceToEntry(t, errors));
+        var keyOverrides = project.KeyOverrides.ToDictionary(k => k.Id, k => KeyOverrideToEntry(k, errors));
 
         if (errors.Count > 0) throw new InvalidOperationException(string.Join("\n", errors));
 
@@ -322,6 +323,18 @@ public static class ProjectService
 
         for (int t = 0; t < KbdLayerClient.MaxTapDanceCount; t++)
             client.SetTapDance(id, t, tapDances.TryGetValue(t, out var e) ? e : null);
+
+        // Key Override（2026-10-01）。SET_KEY_OVERRIDEは1回ごとに表全体をレジストリへ書くので、定義の
+        // あるものと、ドライバ側で使われているもの（消す必要があるもの）だけを送る。
+        // 古いドライバ（このIOCTLが無い）では、定義が無ければ何もしない。定義があればエラーになる。
+        if (keyOverrides.Count > 0 || SupportsKeyOverride(client, id))
+        {
+            for (int k = 0; k < KbdLayerClient.MaxKeyOverrideCount; k++)
+            {
+                if (keyOverrides.TryGetValue(k, out var ko) && ko != null) client.SetKeyOverride(id, k, ko);
+                else if (client.GetKeyOverride(id, k) != null) client.SetKeyOverride(id, k, null);
+            }
+        }
 
         if (blob != null) client.SetEnabled(id, true);
         else warnings.Add("割り当てのあるキーが無いため、レイヤーマップは消去されOFFのままです");
@@ -396,7 +409,46 @@ public static class ProjectService
                 TripleTap = KeycodeTable.ToToken(td.TripleTap),
             });
         }
+        if (SupportsKeyOverride(client, device.UniqId))
+        {
+            for (int k = 0; k < KbdLayerClient.MaxKeyOverrideCount; k++)
+            {
+                var ko = client.GetKeyOverride(device.UniqId, k);
+                if (ko == null) continue;
+                project.KeyOverrides.Add(new KeyOverrideDef
+                {
+                    Id = k,
+                    Mods = KeycodeTable.ModMaskToNames(ko.TriggerMods),
+                    Key = KeycodeTable.NameForScanCode(ko.TriggerScanCode) ?? $"KC_UNKNOWN_{ko.TriggerScanCode:X4}",
+                    Replacement = KeycodeTable.ToToken(ko.Replacement),
+                });
+            }
+        }
         return project;
+    }
+
+    /// <summary>ドライバがKey Override（GET_KEY_OVERRIDE）に対応しているか（古いドライバはIOCTLが無い）。</summary>
+    private static bool SupportsKeyOverride(KbdLayerClient client, uint uniqId)
+    {
+        try { client.GetKeyOverride(uniqId, 0); return true; }
+        catch (KbdLayerException) { return false; }
+    }
+
+    /// <summary>
+    /// キー置換1件をドライバへ送る形にする。条件の修飾キー（MOD_*を|でつなぐ）・条件のキー（KC_*）・
+    /// 置き換え先（KC_* か LCTL(KC_Z) のような修飾付きキー）がそろっていなければエラー。
+    /// </summary>
+    public static KeyOverrideEntry? KeyOverrideToEntry(KeyOverrideDef ko, List<string> errors)
+    {
+        int before = errors.Count;
+        if (!KeycodeTable.TryParseModMask(ko.Mods.Trim(), out var mods))
+            errors.Add($"キー置換{ko.Id}: 修飾キー「{ko.Mods}」は MOD_LSFT や MOD_LCTL|MOD_LSFT のように書いてください");
+        if (!KeycodeTable.TryResolve(ko.Key.Trim(), out var key) || key.Type != ActionType.Key || key.Param2 == 0)
+            errors.Add($"キー置換{ko.Id}: キー「{ko.Key}」は単純なキー(KC_*)にしてください");
+        if (!KeycodeTable.TryResolve(ko.Replacement.Trim(), out var replacement) ||
+            replacement.Type is not (ActionType.Key or ActionType.ModdedKey) || replacement.Param2 == 0)
+            errors.Add($"キー置換{ko.Id}: 置き換え先「{ko.Replacement}」はキー(KC_*)か修飾付きキー(LCTL(KC_Z)等)にしてください");
+        return errors.Count == before ? new KeyOverrideEntry(mods, key.Param2, replacement) : null;
     }
 
     /// <summary>
@@ -442,8 +494,8 @@ public static class ProjectService
         sb.Append("  ]\n}\n");
         File.WriteAllText(profilePath, sb.ToString(), new UTF8Encoding(false));
 
-        if (project.Macros.Count + project.Combos.Count + project.TapDances.Count > 0)
-            warnings.Add("マクロ・コンボ・タップダンスはkeymap.jsonに含まれません（CLIでは --set-macro / --set-combo / --set-tapdance で別途登録します）");
+        if (project.Macros.Count + project.Combos.Count + project.TapDances.Count + project.KeyOverrides.Count > 0)
+            warnings.Add("マクロ・コンボ・タップダンス・キー置換はkeymap.jsonに含まれません（CLIでは --set-macro / --set-combo / --set-tapdance / --set-key-override で別途登録します）");
         return warnings;
     }
 }

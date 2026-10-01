@@ -50,6 +50,13 @@ typedef struct _KBDLAYER_MAP_TABLE {
 // インデックス = MakeCode(下位8bit) + プレフィックス無し:0 / E0:0x100 / E1:0x200。
 #define KBDLAYER_HELD_KEY_SLOTS 0x300
 
+// 押下記録（KBDLAYER_HELD_KEY.Action.Type）にだけ使う、ドライバ内部のアクション種別。レイヤーマップ
+// には現れない（KBDLAYER_ACTION_TYPE_MAXより大きいので、ParseLayerMapBlobが拒否する）。
+// Key Overrideで置き換えたキー: Param1=置き換え先の修飾子マスク（KEYなら0）、Param2=置き換え先の
+// スキャンコード（Enc16）。MODDED_KEYと同じ扱い（足した修飾キー・1件ずつの処理・記録どおりの解放）に、
+// 一時的に離した修飾キー（devExt->SuppressedMods）を解放時に戻す処理が加わる。
+#define KBDLAYER_ACTION_INTERNAL_KEY_OVERRIDE 0x80
+
 typedef struct _KBDLAYER_HELD_KEY {
     UCHAR State;            // KBDLAYER_HELD_*
     KBDLAYER_ACTION Action; // State==KBDLAYER_HELD_ACTIONのときの、押下時に使ったアクション
@@ -123,7 +130,19 @@ typedef struct _DEVICE_EXTENSION {
     // （ForwardToClass・ResolveModdedKey参照）。OutputLockとEngineLockの両方を保持して書き、
     // どちらか一方の保持中に読む。
     UCHAR AddedModCount[8];
-    ULONG ModdedHeldCount;              // Action.TypeがMODDED_KEY/LAYER_MODの押下記録の数
+    ULONG ModdedHeldCount;              // Action.TypeがMODDED_KEY/LAYER_MOD/INTERNAL_KEY_OVERRIDEの押下記録の数
+
+    // --- Key Override（2026-10-01。LayerEngine.cのResolveModdedKey参照） ---
+    // 表（SET_KEY_OVERRIDE）。OutputLockとEngineLockの両方を保持して書き、どちらか一方の保持中に読む。
+    KBDLAYER_KEY_OVERRIDE_ENTRY KeyOverrides[KBDLAYER_MAX_KEY_OVERRIDE_COUNT];
+    BOOLEAN KeyOverrideUsed[KBDLAYER_MAX_KEY_OVERRIDE_COUNT];
+    ULONG KeyOverrideCount;             // KeyOverrideUsedがTRUEの数
+    // 置き換え中に、OS上で一時的に離している修飾キー（KBDLAYER_MOD_*）。普通の出力として押されて
+    // いても（RealModsDown）、OSへは送らない（ForwardToClass・ReleaseLeakedModifiers参照）。
+    // SuppressOwnerScanCodeは、その置き換え先のキー（Enc16。このキー自身のmakeでは戻さない）。
+    // OutputLockで保護する（書くのはすべてOutputLock保持中）。
+    UCHAR SuppressedMods;
+    USHORT SuppressOwnerScanCode;
 
     // --- アプリ管理レイヤーとレイヤー変化の通知（common/kbdlayer_ioctl.h参照） ---
     // EngineLock保持中に読み書きすること。

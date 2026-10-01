@@ -359,6 +359,50 @@ bool IoctlClient::GetCombo(ULONG uniqId, ULONG comboId, KBDLAYER_COMBO_ENTRY* ou
     return true;
 }
 
+bool IoctlClient::SetKeyOverride(ULONG uniqId, ULONG id, const KBDLAYER_KEY_OVERRIDE_ENTRY* entry) {
+    if (!RequireWriteAccess("IOCTL_KBDLAYER_SET_KEY_OVERRIDE")) return false;
+    KBDLAYER_SET_KEY_OVERRIDE_INPUT input = {};
+    input.Target.UniqId = uniqId;
+    input.Id = id;
+    if (entry != nullptr) {
+        input.Entry = *entry;
+    } else {
+        input.Entry.Replacement.Type = KBDLAYER_ACTION_NONE; // クリアの合図（ControlDevice.c参照）
+    }
+
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_SET_KEY_OVERRIDE,
+                              &input, sizeof(input),
+                              NULL, 0,
+                              &bytesReturned, NULL);
+    if (!ok) {
+        fprintf(stderr, "IOCTL_KBDLAYER_SET_KEY_OVERRIDE failed. Error: %lu\n", GetLastError());
+        return false;
+    }
+    return true;
+}
+
+bool IoctlClient::GetKeyOverride(ULONG uniqId, ULONG id, KBDLAYER_KEY_OVERRIDE_ENTRY* outEntry, bool* outUsed) {
+    KBDLAYER_GET_KEY_OVERRIDE_INPUT input = {};
+    input.Target.UniqId = uniqId;
+    input.Id = id;
+
+    KBDLAYER_GET_KEY_OVERRIDE_OUTPUT output = {};
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_GET_KEY_OVERRIDE,
+                              &input, sizeof(input),
+                              &output, sizeof(output),
+                              &bytesReturned, NULL);
+    if (!ok) {
+        fprintf(stderr, "IOCTL_KBDLAYER_GET_KEY_OVERRIDE failed. Error: %lu\n", GetLastError());
+        return false;
+    }
+
+    *outEntry = output.Entry;
+    *outUsed = output.Used != 0;
+    return true;
+}
+
 bool IoctlClient::SetTapDance(ULONG uniqId, ULONG tapDanceId, const KBDLAYER_TAPDANCE_ENTRY* entry) {
     if (!RequireWriteAccess("IOCTL_KBDLAYER_SET_TAPDANCE")) return false;
     KBDLAYER_SET_TAPDANCE_INPUT input;

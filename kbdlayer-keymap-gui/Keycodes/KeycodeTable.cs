@@ -203,7 +203,8 @@ public static class KeycodeTable
         return mask != 0 && TryResolveBaseKey(cur, out scanCode) && scanCode != 0;
     }
 
-    private static bool TryParseModMask(string s, out byte mask)
+    /// <summary>"MOD_LCTL|MOD_LSFT" → 修飾子マスク（KBDLAYER_MOD_*のOR）。空・不明な名前はfalse。</summary>
+    public static bool TryParseModMask(string s, out byte mask)
     {
         mask = 0;
         foreach (var part in s.Split('|').Select(p => p.Trim()))

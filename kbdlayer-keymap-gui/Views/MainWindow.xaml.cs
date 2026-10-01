@@ -254,6 +254,7 @@ public partial class MainWindow : Window
         var p = ProjectService.CreateDefault(_project!.UniqId, _project.HardwareId, layout, bundled);
         p.Macros = _project.Macros;
         p.TapDances = _project.TapDances;
+        p.KeyOverrides = _project.KeyOverrides;
         p.TapTermMs = _project.TapTermMs;
         p.ComboTermMs = _project.ComboTermMs;
         p.TapDanceTermMs = _project.TapDanceTermMs;
@@ -461,6 +462,15 @@ public partial class MainWindow : Window
         var dlg = new TapDanceEditorWindow(_project.TapDances) { Owner = this };
         if (dlg.ShowDialog() != true) return;
         _project.TapDances = dlg.Result;
+        MarkDirty();
+    }
+
+    private void BtnKeyOverrides_Click(object sender, RoutedEventArgs e)
+    {
+        if (_project == null) return;
+        var dlg = new KeyOverrideEditorWindow(_project.KeyOverrides) { Owner = this };
+        if (dlg.ShowDialog() != true) return;
+        _project.KeyOverrides = dlg.Result;
         MarkDirty();
     }
 

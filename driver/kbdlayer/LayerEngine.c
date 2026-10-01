@@ -42,6 +42,8 @@
 #define KBDLAYER_TAPDANCETERM_VALUE_NAME L"TapDanceTermMs"
 #define KBDLAYER_NICOLA_VALUE_NAME L"Nicola"
 #define KBDLAYER_FEATURES_VALUE_NAME L"EnabledFeatures"
+#define KBDLAYER_FEATURES_EX_VALUE_NAME L"EnabledFeaturesEx" // 2026-10-01: 全ビット（Key Overrideを含む）
+#define KBDLAYER_KEYOVERRIDES_VALUE_NAME L"KeyOverrides"
 #define KBDLAYER_REGTEMP_POOL_TAG 'tLdK'
 
 // 緊急時の解除手段（release-roadmap-priority.md 項番3）。ドライバ全体で1つの設定
@@ -104,6 +106,15 @@ typedef struct _KBDLAYER_TAPDANCE_PERSIST_ENTRY {
 
 #define KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES \
     (KBDLAYER_MAX_TAPDANCE_COUNT * sizeof(KBDLAYER_TAPDANCE_PERSIST_ENTRY))
+
+// Key Overrideの永続化形式（レジストリ"KeyOverrides"値）。コンボと同じ方式。
+typedef struct _KBDLAYER_KEY_OVERRIDE_PERSIST_ENTRY {
+    ULONG Used;
+    KBDLAYER_KEY_OVERRIDE_ENTRY Entry;
+} KBDLAYER_KEY_OVERRIDE_PERSIST_ENTRY, *PKBDLAYER_KEY_OVERRIDE_PERSIST_ENTRY;
+
+#define KBDLAYER_KEY_OVERRIDE_PERSIST_BLOB_BYTES \
+    (KBDLAYER_MAX_KEY_OVERRIDE_COUNT * sizeof(KBDLAYER_KEY_OVERRIDE_PERSIST_ENTRY))
 
 // ---------------------------------------------------------------------------
 // スキャンコードの16bitエンコード/デコード（OS標準Scancode Mapと同じ規約。
@@ -363,7 +374,8 @@ IsModdedActionType(
     _In_ UCHAR Type
     )
 {
-    return Type == KBDLAYER_ACTION_MODDED_KEY || Type == KBDLAYER_ACTION_LAYER_MOD;
+    return Type == KBDLAYER_ACTION_MODDED_KEY || Type == KBDLAYER_ACTION_LAYER_MOD ||
+           Type == KBDLAYER_ACTION_INTERNAL_KEY_OVERRIDE;
 }
 
 // 記録の「足した修飾キー」を変え、devExt->AddedModCount[]（ビットごとの足している記録の数）を
@@ -715,6 +727,7 @@ apply:
 
     case KBDLAYER_ACTION_MODDED_KEY:
     case KBDLAYER_ACTION_LAYER_MOD:
+    case KBDLAYER_ACTION_INTERNAL_KEY_OVERRIDE:
         // 通常はResolveModdedKeyが先に処理する（これらを含むマップ・押下中の記録がある間は、
         // ServiceCallbackが複数件バッチを1件ずつに分けるため）。ここに来るのは想定外の経路
         // だけで、修飾キーは足さずに、キー（またはレイヤー）部分だけを処理する。
@@ -722,7 +735,7 @@ apply:
         // 消すだけで、breakはまだ送っていない。そのbreakは、このイベントを送るForwardToClassの
         // 安全網（ReleaseLeakedModifiers）が送る。通ったことが分かるようトレースを残す。
         KBDLAYER_TRACE("ShouldDropEntry: fallback for MODDED/LM sc=0x%X break=%d\n", src, isBreak);
-        if (action->Type == KBDLAYER_ACTION_MODDED_KEY) {
+        if (action->Type == KBDLAYER_ACTION_MODDED_KEY || action->Type == KBDLAYER_ACTION_INTERNAL_KEY_OVERRIDE) {
             DecodeScancode16(action->Param2, &Entry->MakeCode, &Entry->Flags);
             return FALSE;
         }
@@ -979,8 +992,10 @@ StripModdedKeyMods(
     KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
     for (ULONG i = 0; i < KBDLAYER_HELD_KEY_SLOTS; i++) {
         PKBDLAYER_HELD_KEY held = &devExt->HeldKeys[i];
+        // Key Overrideの置き換え先が修飾付きキーなら、それも同じ扱い（足した修飾キーを外す）。
         if (held->AddedMods == 0 || held->State != KBDLAYER_HELD_ACTION ||
-            held->Action.Type != KBDLAYER_ACTION_MODDED_KEY) {
+            (held->Action.Type != KBDLAYER_ACTION_MODDED_KEY &&
+             held->Action.Type != KBDLAYER_ACTION_INTERNAL_KEY_OVERRIDE)) {
             continue;
         }
         if (BatchHasOtherKeyMake(InputDataStart, InputDataEnd, held->Action.Param2)) {
@@ -1004,10 +1019,30 @@ ReleaseLeakedModifiers(
     _In_ PDEVICE_EXTENSION devExt
     )
 {
-    UCHAR leaked = (UCHAR)(devExt->OutputModsDown & ~(devExt->RealModsDown | AddedModsUnion(devExt)));
+    // OS上であるべき状態は (RealModsDown & ~SuppressedMods) | AddedModsUnion。SuppressedModsは、
+    // Key Overrideが置き換え中に一時的に離している修飾キー（ResolveModdedKey参照）。
+    UCHAR desired = (UCHAR)((devExt->RealModsDown & ~devExt->SuppressedMods) | AddedModsUnion(devExt));
+    UCHAR leaked = (UCHAR)(devExt->OutputModsDown & ~desired);
 
     if (leaked != 0) {
         SendAddedModifiers(devExt, leaked, KEY_BREAK);
+    }
+}
+
+// Key Overrideが一時的に離していた修飾キー（SuppressedMods）を戻す。まだ普通の出力として押されて
+// いる（RealModsDown）ものだけをOSへmakeし直す。OutputLock保持中・EngineLock非保持で呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+RestoreSuppressedModifiers(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    UCHAR restore = (UCHAR)(devExt->SuppressedMods & devExt->RealModsDown);
+
+    devExt->SuppressedMods = 0;
+    devExt->SuppressOwnerScanCode = 0;
+    if (restore != 0) {
+        SendAddedModifiers(devExt, restore, KEY_MAKE); // OSで押されていないビットだけを送る
     }
 }
 
@@ -1042,6 +1077,12 @@ ForwardToClass(
     if (StripModdedKeyMods(devExt, InputDataStart, InputDataEnd)) {
         ReleaseLeakedModifiers(devExt); // 外した修飾キーのbreakを、キーのmakeより前に送る
     }
+    // Key Overrideの置き換え中に別のキーが押されたら、一時的に離していた修飾キーを、そのキーの
+    // makeより前に戻す（置き換えは続く。置き換え先のキー自身のmake=オートリピートでは戻さない）。
+    if (devExt->SuppressedMods != 0 &&
+        BatchHasOtherKeyMake(InputDataStart, InputDataEnd, devExt->SuppressOwnerScanCode)) {
+        RestoreSuppressedModifiers(devExt);
+    }
     added = AddedModsUnion(devExt);
 
     for (PKEYBOARD_INPUT_DATA readPtr = InputDataStart; readPtr < InputDataEnd; readPtr++) {
@@ -1053,12 +1094,18 @@ ForwardToClass(
                 devExt->RealModsDown &= (UCHAR)~mod;
                 if (added & mod) {
                     keep = FALSE;
+                } else if (devExt->SuppressedMods & mod) {
+                    // Key Overrideが一時的に離している修飾キーの解放。OSではもう離れているので
+                    // 送らない（二重のbreakにしない）。置き換えを離したときにも戻さない。
+                    devExt->SuppressedMods &= (UCHAR)~mod;
+                    keep = FALSE;
                 } else {
                     devExt->OutputModsDown &= (UCHAR)~mod;
                 }
             } else {
                 devExt->RealModsDown |= mod;
                 devExt->OutputModsDown |= mod;
+                devExt->SuppressedMods &= (UCHAR)~mod; // 押し直したら、もう離しておかない
             }
         }
         if (keep) {
@@ -1683,6 +1730,82 @@ run:
 // （DeviceExtension.hのAddedModCountのコメント参照）。送出はすべてOutputLock保持中（D-5）。
 // ---------------------------------------------------------------------------
 
+// 修飾子マスク → そのマスクが含む修飾キーの「種類」（左右を合わせたマスク）。
+// 例: LSFT(0x02) → Shift全体(0x22)。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static UCHAR
+ModifierKindsOf(
+    _In_ UCHAR Mods
+    )
+{
+    static const UCHAR kinds[] = { 0x11 /* Ctrl */, 0x22 /* Shift */, 0x44 /* Alt */, 0x88 /* Win */ };
+    UCHAR result = 0;
+
+    for (ULONG i = 0; i < RTL_NUMBER_OF(kinds); i++) {
+        if (Mods & kinds[i]) {
+            result |= kinds[i];
+        }
+    }
+    return result;
+}
+
+// Key Overrideの表から、出力キーOutScanCodeと今の修飾キーの状態に当てはまるものを探す（最初に
+// 当たったもの）。当たったら、押下記録にするアクション（INTERNAL_KEY_OVERRIDE、Param1=置き換え先の
+// 修飾子マスク、Param2=置き換え先のキー）と、OS上で一時的に離す修飾キーを返す。
+// 条件: TriggerModsの種類（Ctrl・Shift・Alt・Win。左右は区別しない）が全部、OS上で押されている
+// （普通の出力・足した修飾キー。一時的に離しているものは除く）。離すのは、押されている条件の種類の
+// 修飾キー（左右とも）のうち、置き換え先自身が使わないもの。
+// devExt->EngineLockとOutputLockを保持して呼ぶこと（RealModsDown・SuppressedModsはOutputLockで保護）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static BOOLEAN
+MatchKeyOverrideLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ USHORT OutScanCode,
+    _Out_ PKBDLAYER_ACTION OutAction,
+    _Out_ PUCHAR OutSuppress
+    )
+{
+    static const UCHAR kinds[] = { 0x11, 0x22, 0x44, 0x88 };
+    UCHAR down;
+
+    RtlZeroMemory(OutAction, sizeof(*OutAction));
+    *OutSuppress = 0;
+
+    if (!(devExt->EnabledFeatures & KBDLAYER_FEATURE_KEYOVERRIDE) || devExt->KeyOverrideCount == 0) {
+        return FALSE;
+    }
+    down = (UCHAR)((devExt->RealModsDown & ~devExt->SuppressedMods) | AddedModsUnion(devExt));
+
+    for (ULONG i = 0; i < KBDLAYER_MAX_KEY_OVERRIDE_COUNT; i++) {
+        const KBDLAYER_KEY_OVERRIDE_ENTRY* entry = &devExt->KeyOverrides[i];
+        UCHAR triggerKinds;
+        BOOLEAN satisfied = TRUE;
+        UCHAR replacementMods;
+
+        if (!devExt->KeyOverrideUsed[i] || entry->TriggerScanCode != OutScanCode) {
+            continue;
+        }
+        triggerKinds = ModifierKindsOf(entry->TriggerMods);
+        for (ULONG k = 0; k < RTL_NUMBER_OF(kinds); k++) {
+            if ((triggerKinds & kinds[k]) && !(down & kinds[k])) {
+                satisfied = FALSE;
+                break;
+            }
+        }
+        if (!satisfied) {
+            continue;
+        }
+
+        replacementMods = (entry->Replacement.Type == KBDLAYER_ACTION_MODDED_KEY) ? entry->Replacement.Param1 : 0;
+        OutAction->Type = KBDLAYER_ACTION_INTERNAL_KEY_OVERRIDE;
+        OutAction->Param1 = replacementMods;
+        OutAction->Param2 = entry->Replacement.Param2;
+        *OutSuppress = (UCHAR)(down & triggerKinds & ~replacementMods);
+        return TRUE;
+    }
+    return FALSE;
+}
+
 _IRQL_requires_max_(DISPATCH_LEVEL)
 BOOLEAN
 ResolveModdedKey(
@@ -1699,6 +1822,9 @@ ResolveModdedKey(
     PKBDLAYER_HELD_KEY held;
     KBDLAYER_ACTION action;
     UCHAR sendMods = 0;
+    BOOLEAN isOverride = FALSE;
+    UCHAR suppress = 0;
+    UCHAR previousSuppressed = 0;
 
     if ((InputDataEnd - InputDataStart) != 1) {
         return FALSE;
@@ -1707,22 +1833,23 @@ ResolveModdedKey(
     ev = InputDataStart;
     scanCode = EncodeScancode16(ev->MakeCode, ev->Flags);
     isBreak = (ev->Flags & KEY_BREAK) != 0;
+    RtlZeroMemory(&action, sizeof(action));
 
     KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
 
     held = HeldKeyFor(devExt, scanCode);
 
-    // --- 修飾付きキー・LMとして押下中のキー: マップのON/OFF・差し替えにかかわらず記録どおり ---
+    // --- 修飾付きキー・LM・Key Overrideとして押下中のキー: マップのON/OFF・差し替えにかかわらず記録どおり ---
     if (held->State == KBDLAYER_HELD_ACTION && IsModdedActionType(held->Action.Type)) {
         action = held->Action;
 
         if (!isBreak) {
-            // オートリピート。修飾付きキーはキーのmakeだけを繰り返す（修飾キーは押したまま）。
-            // 別のキーを押して修飾キーを外した後（D-12、StripModdedKeyMods）は、修飾キーなしで
-            // 繰り返す。ただしハードウェアのリピートは最後に押したキーだけなので、実際には
-            // ほとんど起きない。LMは何もしない。
+            // オートリピート。修飾付きキー（とKey Overrideの置き換え先）はキーのmakeだけを繰り返す
+            // （修飾キーは押したまま）。別のキーを押して修飾キーを外した後（D-12、StripModdedKeyMods）
+            // は、修飾キーなしで繰り返す。ただしハードウェアのリピートは最後に押したキーだけなので、
+            // 実際にはほとんど起きない。LMは何もしない。
             KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
-            if (action.Type == KBDLAYER_ACTION_MODDED_KEY) {
+            if (action.Type != KBDLAYER_ACTION_LAYER_MOD) {
                 SendDecodedEvent(devExt, action.Param2, KEY_MAKE);
             }
             if (SystemArgument3 != NULL) {
@@ -1747,10 +1874,16 @@ ResolveModdedKey(
         // 修飾付きキーでは、キーのbreakを送るForwardToClassの安全網が、足した修飾キーの
         // breakも続けて送る。下のSendAddedModifiersは、そのとき送り済みのビットを送らない
         // （OutputModsDownで判定）ので、LMのとき・念のための呼び出しになる。
-        if (action.Type == KBDLAYER_ACTION_MODDED_KEY) {
+        if (action.Type != KBDLAYER_ACTION_LAYER_MOD) {
             SendDecodedEvent(devExt, action.Param2, KEY_BREAK);
         }
         SendAddedModifiers(devExt, sendMods, KEY_BREAK);
+        // Key Override: この置き換えが一時的に離していた修飾キーのうち、まだ押されているものを戻す
+        // （置き換え中に別のキーを押していれば、そのときに戻し済み。SuppressedModsはOutputLockで保護）。
+        if (action.Type == KBDLAYER_ACTION_INTERNAL_KEY_OVERRIDE &&
+            devExt->SuppressedMods != 0 && devExt->SuppressOwnerScanCode == action.Param2) {
+            RestoreSuppressedModifiers(devExt);
+        }
         if (SystemArgument3 != NULL) {
             *(PULONG)SystemArgument3 = 1;
         }
@@ -1771,21 +1904,42 @@ ResolveModdedKey(
         UCHAR downBefore;
         UCHAR added;
 
-        if (resolved == NULL || !IsModdedActionType(resolved->Type)) {
-            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
-            return FALSE;
+        if (resolved != NULL && IsModdedActionType(resolved->Type)) {
+            action = *resolved;
+            mask = (action.Type == KBDLAYER_ACTION_MODDED_KEY) ? action.Param1 : (UCHAR)(action.Param2 & 0xFF);
+        } else {
+            // Key Override: 解決した出力キー（KEYアクション。マップに無いキーは物理スキャンコード）が
+            // 表のどれかに当たり、条件の修飾キーが押されていれば、置き換え先を修飾付きキーと同じ扱いで
+            // 押す（記録の種別はINTERNAL_KEY_OVERRIDE）。条件の修飾キーはOS上で一時的に離す。
+            USHORT outScanCode = 0;
+            if (keyEntry == NULL) {
+                outScanCode = scanCode;
+            } else if (resolved != NULL && resolved->Type == KBDLAYER_ACTION_KEY) {
+                outScanCode = resolved->Param2;
+            }
+            if (outScanCode == 0 || !MatchKeyOverrideLocked(devExt, outScanCode, &action, &suppress)) {
+                KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+                return FALSE;
+            }
+            mask = action.Param1;
+            isOverride = TRUE;
         }
-        action = *resolved;
-        mask = (action.Type == KBDLAYER_ACTION_MODDED_KEY) ? action.Param1 : (UCHAR)(action.Param2 & 0xFF);
 
         // 普通の出力として押されている修飾キーは足さない（離しもしない。QMKのweak mods相当）。
         // 他の記録が足している修飾キーは、こちらの記録にも含めるが送り直さない（両方が
         // 離れるまで押したままにするため）。
-        downBefore = (UCHAR)(devExt->RealModsDown | AddedModsUnion(devExt));
+        downBefore = (UCHAR)((devExt->RealModsDown & ~devExt->SuppressedMods) | AddedModsUnion(devExt));
         added = (UCHAR)(mask & ~devExt->RealModsDown);
         SetHeldKeyLocked(devExt, scanCode, KBDLAYER_HELD_ACTION, &action);
         SetHeldAddedModsLocked(devExt, held, added);
         sendMods = (UCHAR)(added & ~downBefore);
+
+        if (isOverride) {
+            // 前の置き換えが離していた修飾キーは、この置き換えが離さないものなら戻す（下で送る）。
+            previousSuppressed = devExt->SuppressedMods;
+            devExt->SuppressedMods = suppress;
+            devExt->SuppressOwnerScanCode = action.Param2;
+        }
 
         if (action.Type == KBDLAYER_ACTION_LAYER_MOD) {
             if (action.Param1 < KBDLAYER_MAX_LAYERS) {
@@ -1799,8 +1953,15 @@ ResolveModdedKey(
     }
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
+    if (isOverride) {
+        // 条件の修飾キーをOS上で離し（あるべき状態からSuppressedModsが外れたので、安全網がbreakを
+        // 送る。Alt・Winの単独押しにならないようCtrlのタップも挟む）、前の置き換えが離していた修飾キーの
+        // うち今回は離さないものを戻す。
+        ReleaseLeakedModifiers(devExt);
+        SendAddedModifiers(devExt, (UCHAR)(previousSuppressed & ~suppress & devExt->RealModsDown), KEY_MAKE);
+    }
     SendAddedModifiers(devExt, sendMods, KEY_MAKE);
-    if (action.Type == KBDLAYER_ACTION_MODDED_KEY) {
+    if (action.Type != KBDLAYER_ACTION_LAYER_MOD) {
         SendDecodedEvent(devExt, action.Param2, KEY_MAKE);
     }
     if (SystemArgument3 != NULL) {
@@ -1819,8 +1980,11 @@ NeedsSingleEventDispatch(
     BOOLEAN needs;
 
     KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    // Key Overrideの表がある間も1件ずつ（条件の修飾キーの判定と、一時的に離す処理を1件ずつ行うため）。
     needs = (devExt->ModdedHeldCount != 0) ||
-            (devExt->LayerMapEnabled && devExt->LayerMap != NULL && devExt->LayerMap->NeedsSingleEvents);
+            (devExt->LayerMapEnabled && devExt->LayerMap != NULL &&
+             (devExt->LayerMap->NeedsSingleEvents ||
+              (devExt->KeyOverrideCount != 0 && (devExt->EnabledFeatures & KBDLAYER_FEATURE_KEYOVERRIDE))));
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
     return needs;
 }
@@ -2909,6 +3073,7 @@ CopyPersistedSettings(
     if (scratchBytes < KBDLAYER_MACRO_PERSIST_BLOB_BYTES) scratchBytes = KBDLAYER_MACRO_PERSIST_BLOB_BYTES;
     if (scratchBytes < KBDLAYER_COMBO_PERSIST_BLOB_BYTES) scratchBytes = KBDLAYER_COMBO_PERSIST_BLOB_BYTES;
     if (scratchBytes < KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES) scratchBytes = KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES;
+    if (scratchBytes < KBDLAYER_KEY_OVERRIDE_PERSIST_BLOB_BYTES) scratchBytes = KBDLAYER_KEY_OVERRIDE_PERSIST_BLOB_BYTES;
     if (scratchBytes < KBDLAYER_MAX_NICOLA_BLOB_BYTES) scratchBytes = KBDLAYER_MAX_NICOLA_BLOB_BYTES;
 
     scratch = ExAllocatePool2(POOL_FLAG_PAGED, scratchBytes, KBDLAYER_REGTEMP_POOL_TAG);
@@ -2941,8 +3106,10 @@ CopyPersistedSettings(
     }
 
     {
-        static const PCWSTR fixedNames[] = { KBDLAYER_COMBOS_VALUE_NAME, KBDLAYER_TAPDANCES_VALUE_NAME };
-        static const ULONG fixedSizes[] = { KBDLAYER_COMBO_PERSIST_BLOB_BYTES, KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES };
+        static const PCWSTR fixedNames[] = { KBDLAYER_COMBOS_VALUE_NAME, KBDLAYER_TAPDANCES_VALUE_NAME,
+                                             KBDLAYER_KEYOVERRIDES_VALUE_NAME };
+        static const ULONG fixedSizes[] = { KBDLAYER_COMBO_PERSIST_BLOB_BYTES, KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES,
+                                            KBDLAYER_KEY_OVERRIDE_PERSIST_BLOB_BYTES };
         for (ULONG i = 0; i < RTL_NUMBER_OF(fixedNames); i++) {
             actualLength = 0;
             if (NT_SUCCESS(RegReadBinary(KBDLAYER_SERVICE_NAME, srcPath, fixedNames[i],
@@ -2973,9 +3140,16 @@ CopyPersistedSettings(
         CheckPersistResult(devExt, KBDLAYER_TAPDANCETERM_VALUE_NAME,
             RegWriteDword(KBDLAYER_SERVICE_NAME, dstPath, KBDLAYER_TAPDANCETERM_VALUE_NAME, value));
 
-        RegReadDwordEx(KBDLAYER_SERVICE_NAME, srcPath, KBDLAYER_FEATURES_VALUE_NAME, &value, KBDLAYER_FEATURE_ALL);
+        RegReadDwordEx(KBDLAYER_SERVICE_NAME, srcPath, KBDLAYER_FEATURES_VALUE_NAME, &value, KBDLAYER_FEATURE_ALL_V1);
         CheckPersistResult(devExt, KBDLAYER_FEATURES_VALUE_NAME,
             RegWriteDword(KBDLAYER_SERVICE_NAME, dstPath, KBDLAYER_FEATURES_VALUE_NAME, value));
+
+        // EnabledFeaturesEx は、コピー元にあるときだけコピーする（無ければ読み込み側が旧値から決める）。
+        RegReadDwordEx(KBDLAYER_SERVICE_NAME, srcPath, KBDLAYER_FEATURES_EX_VALUE_NAME, &value, 0xFFFFFFFFUL);
+        if (value != 0xFFFFFFFFUL) {
+            CheckPersistResult(devExt, KBDLAYER_FEATURES_EX_VALUE_NAME,
+                RegWriteDword(KBDLAYER_SERVICE_NAME, dstPath, KBDLAYER_FEATURES_EX_VALUE_NAME, value));
+        }
 
         RegReadDwordEx(KBDLAYER_SERVICE_NAME, srcPath, KBDLAYER_TAPHOLDMODE_VALUE_NAME, &value,
                        KBDLAYER_TAPHOLD_MODE_HOLD_ON_OTHER_KEY);
@@ -3312,8 +3486,13 @@ SetFeaturesForDevice(
     KeReleaseSpinLock(&devExt->OutputLock, outputIrql);
 
     BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    // 旧値（3機能のビットだけ。旧ドライバに戻したときに読まれる）と、全ビットの値の両方を書く
+    // （LoadPersistedLayerMapForDevice参照）。
     CheckPersistResult(devExt, KBDLAYER_FEATURES_VALUE_NAME,
-        RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_FEATURES_VALUE_NAME, Features));
+        RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_FEATURES_VALUE_NAME,
+                      Features & KBDLAYER_FEATURE_ALL_V1));
+    CheckPersistResult(devExt, KBDLAYER_FEATURES_EX_VALUE_NAME,
+        RegWriteDword(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_FEATURES_EX_VALUE_NAME, Features));
 
     return STATUS_SUCCESS;
 }
@@ -3678,6 +3857,12 @@ LoadPersistedTapDancesForDevice(
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static VOID
+LoadPersistedKeyOverridesForDevice(
+    _In_ PDEVICE_EXTENSION devExt
+    );
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static VOID
 LoadPersistedNicolaForDevice(
     _In_ PDEVICE_EXTENSION devExt
     );
@@ -3741,15 +3926,27 @@ LoadPersistedLayerMapForDevice(
 
     {
         // 機能別ON/OFF（項番4）。値が無ければ全機能有効（既定、旧バージョンの永続化データも同じ）。
+        // 2026-10-01以降のドライバは、全ビットをEnabledFeaturesExにも書く。旧ドライバが書いた
+        // EnabledFeaturesだけがある場合は、その後に増えた機能（Key Override）を有効として扱う
+        // （旧値の7=「全部有効」で、新しい機能が無効になってしまわないように）。
         ULONG features = KBDLAYER_FEATURE_ALL;
-        RegReadDwordEx(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_FEATURES_VALUE_NAME,
-                        &features, KBDLAYER_FEATURE_ALL);
+        ULONG featuresEx = 0xFFFFFFFFUL; // 値が無いことの印
+        RegReadDwordEx(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_FEATURES_EX_VALUE_NAME,
+                        &featuresEx, 0xFFFFFFFFUL);
+        if (featuresEx != 0xFFFFFFFFUL) {
+            features = featuresEx;
+        } else {
+            RegReadDwordEx(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_FEATURES_VALUE_NAME,
+                            &features, KBDLAYER_FEATURE_ALL);
+            features = (features & KBDLAYER_FEATURE_ALL_V1) | (KBDLAYER_FEATURE_ALL & ~KBDLAYER_FEATURE_ALL_V1);
+        }
         devExt->EnabledFeatures = features & KBDLAYER_FEATURE_ALL;
     }
 
     LoadPersistedMacrosForDevice(devExt);
     LoadPersistedCombosForDevice(devExt);
     LoadPersistedTapDancesForDevice(devExt);
+    LoadPersistedKeyOverridesForDevice(devExt);
     LoadPersistedNicolaForDevice(devExt);
 }
 
@@ -4211,6 +4408,166 @@ GetComboForDevice(
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
     return STATUS_SUCCESS;
+}
+
+// ---------------------------------------------------------------------------
+// Key Override（2026-10-01）の表の設定・取得・永続化。押下時の処理はResolveModdedKey。
+// ---------------------------------------------------------------------------
+
+// devExt->KeyOverrides/KeyOverrideUsed全体を1つのblobへシリアライズしてレジストリへ書き込む
+// （PersistAllCombosと同じ。ベストエフォート）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static VOID
+PersistAllKeyOverrides(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    WCHAR subKeyPath[64];
+    PKBDLAYER_KEY_OVERRIDE_PERSIST_ENTRY buffer;
+    KIRQL oldIrql;
+
+    buffer = (PKBDLAYER_KEY_OVERRIDE_PERSIST_ENTRY)ExAllocatePool2(
+        POOL_FLAG_NON_PAGED, KBDLAYER_KEY_OVERRIDE_PERSIST_BLOB_BYTES, KBDLAYER_REGTEMP_POOL_TAG);
+    if (buffer == NULL) {
+        return;
+    }
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    for (ULONG i = 0; i < KBDLAYER_MAX_KEY_OVERRIDE_COUNT; i++) {
+        buffer[i].Used = devExt->KeyOverrideUsed[i] ? 1 : 0;
+        buffer[i].Entry = devExt->KeyOverrides[i];
+    }
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    CheckPersistResult(devExt, KBDLAYER_KEYOVERRIDES_VALUE_NAME,
+        RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_KEYOVERRIDES_VALUE_NAME,
+                        buffer, KBDLAYER_KEY_OVERRIDE_PERSIST_BLOB_BYTES));
+
+    ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
+}
+
+// Key Overrideの1件が正しい形か（F-3）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static BOOLEAN
+IsValidKeyOverrideEntry(
+    _In_ const KBDLAYER_KEY_OVERRIDE_ENTRY* Entry
+    )
+{
+    if (Entry->TriggerMods == 0 || Entry->Flags != 0 || Entry->TriggerScanCode == 0) {
+        return FALSE;
+    }
+    switch (Entry->Replacement.Type) {
+    case KBDLAYER_ACTION_KEY:
+        return Entry->Replacement.Param2 != 0;
+    case KBDLAYER_ACTION_MODDED_KEY:
+        return Entry->Replacement.Param1 != 0 && Entry->Replacement.Param2 != 0;
+    default:
+        return FALSE;
+    }
+}
+
+// SET_KEY_OVERRIDE: Entry=NULLならそのIdをクリアする。置き換え中のキーは、押下記録に置き換え先を
+// 持っているので、表を書き換えても解放は記録どおりに処理される（打ち切りは不要）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SetKeyOverrideForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG Id,
+    _In_opt_ PKBDLAYER_KEY_OVERRIDE_ENTRY Entry
+    )
+{
+    KIRQL outputIrql;
+    ULONG count = 0;
+
+    if (Id >= KBDLAYER_MAX_KEY_OVERRIDE_COUNT) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (Entry != NULL && !IsValidKeyOverrideEntry(Entry)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    // KeyOverrides/KeyOverrideCountはOutputLockとEngineLockの両方を保持して書く。
+    KeAcquireSpinLock(&devExt->OutputLock, &outputIrql);
+    KeAcquireSpinLockAtDpcLevel(&devExt->EngineLock);
+    if (Entry != NULL) {
+        devExt->KeyOverrides[Id] = *Entry;
+        devExt->KeyOverrideUsed[Id] = TRUE;
+    } else {
+        RtlZeroMemory(&devExt->KeyOverrides[Id], sizeof(devExt->KeyOverrides[Id]));
+        devExt->KeyOverrideUsed[Id] = FALSE;
+    }
+    for (ULONG i = 0; i < KBDLAYER_MAX_KEY_OVERRIDE_COUNT; i++) {
+        if (devExt->KeyOverrideUsed[i]) {
+            count++;
+        }
+    }
+    devExt->KeyOverrideCount = count;
+    KeReleaseSpinLockFromDpcLevel(&devExt->EngineLock);
+    KeReleaseSpinLock(&devExt->OutputLock, outputIrql);
+
+    PersistAllKeyOverrides(devExt);
+    return STATUS_SUCCESS;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+GetKeyOverrideForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG Id,
+    _Out_ PKBDLAYER_KEY_OVERRIDE_ENTRY OutEntry,
+    _Out_ PBOOLEAN OutUsed
+    )
+{
+    KIRQL oldIrql;
+
+    if (Id >= KBDLAYER_MAX_KEY_OVERRIDE_COUNT) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    *OutEntry = devExt->KeyOverrides[Id];
+    *OutUsed = devExt->KeyOverrideUsed[Id];
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+    return STATUS_SUCCESS;
+}
+
+// AddDeviceから呼ばれる: レジストリの"KeyOverrides"値を読む（LoadPersistedCombosForDeviceと同じ理屈で、
+// ロック無しに直接書き込む）。形の正しくないエントリ（手で書き換えた等）は読み込まない。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static VOID
+LoadPersistedKeyOverridesForDevice(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    WCHAR subKeyPath[64];
+    PKBDLAYER_KEY_OVERRIDE_PERSIST_ENTRY buffer;
+    ULONG actualLength = 0;
+    NTSTATUS status;
+
+    buffer = (PKBDLAYER_KEY_OVERRIDE_PERSIST_ENTRY)ExAllocatePool2(
+        POOL_FLAG_PAGED, KBDLAYER_KEY_OVERRIDE_PERSIST_BLOB_BYTES, KBDLAYER_REGTEMP_POOL_TAG);
+    if (buffer == NULL) {
+        return;
+    }
+    BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    status = RegReadBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_KEYOVERRIDES_VALUE_NAME,
+                            buffer, KBDLAYER_KEY_OVERRIDE_PERSIST_BLOB_BYTES, &actualLength);
+    if (NT_SUCCESS(status) && actualLength == KBDLAYER_KEY_OVERRIDE_PERSIST_BLOB_BYTES) {
+        ULONG count = 0;
+        for (ULONG i = 0; i < KBDLAYER_MAX_KEY_OVERRIDE_COUNT; i++) {
+            BOOLEAN used = (buffer[i].Used != 0) && IsValidKeyOverrideEntry(&buffer[i].Entry);
+            devExt->KeyOverrideUsed[i] = used;
+            if (used) {
+                devExt->KeyOverrides[i] = buffer[i].Entry;
+                count++;
+            } else {
+                RtlZeroMemory(&devExt->KeyOverrides[i], sizeof(devExt->KeyOverrides[i]));
+            }
+        }
+        devExt->KeyOverrideCount = count;
+    }
+    ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
 }
 
 // AddDeviceから呼ばれる: レジストリの"Combos"/"ComboTermMs"値を読み、
