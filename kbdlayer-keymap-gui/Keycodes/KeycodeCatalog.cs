@@ -78,6 +78,10 @@ public static class KeycodeCatalog
             {
                 return $"LM{modded.Param1}" + ModSymbols((byte)(modded.Param2 & 0xFF));
             }
+            if (modded.Type == ActionType.OneShotMod)
+            {
+                return "OS" + ModSymbols(modded.Param1);
+            }
         }
         // 別名（KC_ENT等）は正式名（KC_ENTER等）に正規化して引き直す。
         if (KeycodeTable.TryResolve(token, out var action) && action.Type == ActionType.Key)

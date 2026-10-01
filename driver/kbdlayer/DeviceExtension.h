@@ -144,6 +144,17 @@ typedef struct _DEVICE_EXTENSION {
     UCHAR SuppressedMods;
     USHORT SuppressOwnerScanCode;
 
+    // --- One Shot Mod（OSM、2026-10-02。LayerEngine.cのResolveModdedKey参照） ---
+    // OneShotMods: OSMをタップした（別のキーを押さずに離した）後、次のキーのために押したままにしている
+    // 修飾キー（KBDLAYER_MOD_*）。AddedModsUnionに含まれる（OS上では押されたまま）。修飾キーでないキーの
+    // makeを送ったら（ForwardToClass）0に戻し、安全網がbreakを送る。
+    // OsmHeldScanCode/OsmUsedWhileHeld: 最後に押したOSMキーと、それを押している間に別のキーのmakeを
+    // 送ったか（送ったなら、離したときは普通の修飾キーとして戻す）。
+    // いずれもOutputLockで保護する（書くのはすべてOutputLock保持中）。
+    UCHAR OneShotMods;
+    USHORT OsmHeldScanCode;
+    BOOLEAN OsmUsedWhileHeld;
+
     // --- アプリ管理レイヤーとレイヤー変化の通知（common/kbdlayer_ioctl.h参照） ---
     // EngineLock保持中に読み書きすること。
     ULONG AppLayerMask;                 // アプリが立てたレイヤー（実効マスクにORで合成する）

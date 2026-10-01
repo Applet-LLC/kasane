@@ -20,7 +20,7 @@
             <TextBox x:Name="TxtToken" Grid.Column="1" FontFamily="Consolas" FontSize="14" TextChanged="TxtToken_TextChanged" />
             <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="8,0,0,0">
                 <Button x:Name="BtnOk" Content="OK" IsDefault="True" Width="80" Click="BtnOk_Click" />
-                <Button Content="キャンセル" IsCancel="True" Width="80" />
+                <Button x:Name="BtnCancel" Content="キャンセル" IsCancel="True" Width="80" />
             </StackPanel>
             <TextBlock x:Name="TxtValidation" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,4,0,0" TextWrapping="Wrap" />
         </Grid>

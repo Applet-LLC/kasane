@@ -37,7 +37,8 @@ public partial class KeyAssignDialog : Window
 
         for (int bit = 0; bit < 8; bit++)
         {
-            var cb = new CheckBox { Content = ModLabels[bit], Margin = new Thickness(0, 0, 14, 0) };
+            var cb = Id(new CheckBox { Content = ModLabels[bit], Margin = new Thickness(0, 0, 14, 0) },
+                        $"ModCheck_{KeycodeTable.ModifierNames[bit]}"); // 例: ModCheck_MOD_LSFT
             cb.Checked += (_, _) => ApplyModsToToken();
             cb.Unchecked += (_, _) => ApplyModsToToken();
             _modChecks[bit] = cb;
@@ -74,7 +75,7 @@ public partial class KeyAssignDialog : Window
         var panel = new WrapPanel();
         foreach (var kc in keycodes)
         {
-            var b = new Button
+            var b = Id(new Button
             {
                 Content = new TextBlock
                 {
@@ -85,7 +86,7 @@ public partial class KeyAssignDialog : Window
                 Width = 96,
                 Height = 44,
                 ToolTip = kc,
-            };
+            }, $"KeycodeButton_{kc}"); // 例: KeycodeButton_KC_A
             b.Click += (_, _) => TxtToken.Text = WithCheckedMods(kc);
             b.MouseDoubleClick += (_, _) => { TxtToken.Text = WithCheckedMods(kc); Confirm(); };
             panel.Children.Add(b);
@@ -97,8 +98,8 @@ public partial class KeyAssignDialog : Window
 
     private UIElement LayerPanel()
     {
-        var func = Combo(new[] { "MO", "TG", "DF", "OSL", "TO", "TT", "LM" });
-        var layer = Combo(Layers.Select(i => i.ToString()));
+        var func = Combo(new[] { "MO", "TG", "DF", "OSL", "TO", "TT", "LM", "OSM" }, "FuncCombo");
+        var layer = Combo(Layers.Select(i => i.ToString()), "LayerCombo");
         layer.SelectedIndex = Math.Min(1, KbdLayerClient.MaxLayers - 1);
         return Form(
             "MO(n): 押している間だけレイヤーnを有効にする\nTG(n): 押すたびにレイヤーnをON/OFFする\n" +
@@ -106,26 +107,31 @@ public partial class KeyAssignDialog : Window
             "TO(n): レイヤーnだけを有効にする（他のレイヤーはOFF。基本レイヤーはそのまま）\n" +
             "TT(n): 押している間だけレイヤーnを有効にし、続けてタップする（既定5回。「タイミング...」で変更）とON/OFFを固定する\n" +
             "LM(n): 押している間、レイヤーnを有効にし、下で選んだ修飾キーも押す" +
-            "（例: レイヤーnに▽のままのキーを押すと Ctrl+そのキー になる）",
+            "（例: レイヤーnに▽のままのキーを押すと Ctrl+そのキー になる）\n" +
+            "OSM: 下で選んだ修飾キーを、次に押すキー1回だけに掛ける（押したまま使えば普通の修飾キー。" +
+            "もう一度タップで取り消し。レイヤーは使わない）",
             ("種類", func), ("レイヤー", layer),
             () =>
             {
-                if ((string)func.SelectedItem != "LM") return $"{func.SelectedItem}({layer.SelectedItem})";
+                string f = (string)func.SelectedItem;
+                if (f != "LM" && f != "OSM") return $"{f}({layer.SelectedItem})";
                 byte mask = CheckedMask();
                 if (mask == 0)
                 {
                     TxtValidation.Foreground = Brushes.Firebrick;
-                    TxtValidation.Text = "LM では、下の修飾キーを1つ以上チェックしてください";
+                    TxtValidation.Text = $"{f} では、下の修飾キーを1つ以上チェックしてください";
                     return null;
                 }
-                return $"LM({layer.SelectedItem},{KeycodeTable.ModMaskToNames(mask)})";
+                return f == "OSM"
+                    ? $"OSM({KeycodeTable.ModMaskToNames(mask)})"
+                    : $"LM({layer.SelectedItem},{KeycodeTable.ModMaskToNames(mask)})";
             });
     }
 
     private UIElement ModTapPanel()
     {
-        var mod = Combo(KeycodeTable.ModifierNames);
-        var tap = new TextBox { Text = "KC_A", Width = 160, FontFamily = new FontFamily("Consolas") };
+        var mod = Combo(KeycodeTable.ModifierNames, "ModCombo");
+        var tap = Id(new TextBox { Text = "KC_A", Width = 160, FontFamily = new FontFamily("Consolas") }, "TapKeyBox");
         return Form("短く押すとタップのキー、長押し（または他のキーと同時押し）で修飾キーになる。",
             ("修飾キー", mod), ("タップのキー", tap),
             () => $"MT({mod.SelectedItem},{tap.Text.Trim()})");
@@ -133,9 +139,9 @@ public partial class KeyAssignDialog : Window
 
     private UIElement LayerTapPanel()
     {
-        var layer = Combo(Layers.Select(i => i.ToString()));
+        var layer = Combo(Layers.Select(i => i.ToString()), "LayerCombo");
         layer.SelectedIndex = Math.Min(1, KbdLayerClient.MaxLayers - 1);
-        var tap = new TextBox { Text = "KC_SPACE", Width = 160, FontFamily = new FontFamily("Consolas") };
+        var tap = Id(new TextBox { Text = "KC_SPACE", Width = 160, FontFamily = new FontFamily("Consolas") }, "TapKeyBox");
         return Form("短く押すとタップのキー、長押し（または他のキーと同時押し）でレイヤーを有効にする。",
             ("レイヤー", layer), ("タップのキー", tap),
             () => $"LT({layer.SelectedItem},{tap.Text.Trim()})");
@@ -143,8 +149,8 @@ public partial class KeyAssignDialog : Window
 
     private UIElement MacroPanel()
     {
-        var kind = Combo(new[] { "MACRO", "TAPDANCE" });
-        var id = Combo(Enumerable.Range(0, KbdLayerClient.MaxMacroCount).Select(i => i.ToString()));
+        var kind = Combo(new[] { "MACRO", "TAPDANCE" }, "KindCombo");
+        var id = Combo(Enumerable.Range(0, KbdLayerClient.MaxMacroCount).Select(i => i.ToString()), "IdCombo");
         kind.SelectionChanged += (_, _) =>
         {
             int max = (string)kind.SelectedItem == "MACRO" ? KbdLayerClient.MaxMacroCount : KbdLayerClient.MaxTapDanceCount;
@@ -157,9 +163,9 @@ public partial class KeyAssignDialog : Window
             () => $"{kind.SelectedItem}({id.SelectedItem})");
     }
 
-    private static ComboBox Combo(IEnumerable<string> items)
+    private static ComboBox Combo(IEnumerable<string> items, string automationId)
     {
-        var c = new ComboBox { Width = 160, ItemsSource = items.ToList() };
+        var c = Id(new ComboBox { Width = 160, ItemsSource = items.ToList() }, automationId);
         c.SelectedIndex = 0;
         return c;
     }
@@ -175,7 +181,7 @@ public partial class KeyAssignDialog : Window
             row.Children.Add(input);
             panel.Children.Add(row);
         }
-        var set = new Button { Content = "キーコード欄に入れる", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(90, 8, 0, 0) };
+        var set = Id(new Button { Content = "キーコード欄に入れる", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(90, 8, 0, 0) }, "InsertButton");
         set.Click += (_, _) =>
         {
             var token = build();
@@ -183,6 +189,18 @@ public partial class KeyAssignDialog : Window
         };
         panel.Children.Add(set);
         return panel;
+    }
+
+    /// <summary>
+    /// UI Automationの試験用にAutomationIdを付ける（動的に作るコントロールはx:Nameを持たないため）。
+    /// 付けている主なID: ModCheck_MOD_xxx（修飾キーのチェックボックス）、KeycodeButton_KC_xxx（キーのボタン）、
+    /// FuncCombo・LayerCombo・ModCombo・TapKeyBox・KindCombo・IdCombo・InsertButton（各パネル）。
+    /// XAML側: TxtToken・BtnOk・BtnCancel・TxtValidation・LstCategories・ModPanel。
+    /// </summary>
+    private static T Id<T>(T element, string automationId) where T : UIElement
+    {
+        System.Windows.Automation.AutomationProperties.SetAutomationId(element, automationId);
+        return element;
     }
 
     private byte CheckedMask()
@@ -222,6 +240,9 @@ public partial class KeyAssignDialog : Window
             case ActionType.LayerMod when mask != 0:
                 TxtToken.Text = $"LM({action.Param1},{KeycodeTable.ModMaskToNames(mask)})";
                 break;
+            case ActionType.OneShotMod when mask != 0:
+                TxtToken.Text = $"OSM({KeycodeTable.ModMaskToNames(mask)})";
+                break;
         }
     }
 
@@ -232,6 +253,7 @@ public partial class KeyAssignDialog : Window
         {
             ActionType.ModdedKey => action.Param1,
             ActionType.LayerMod => (byte)(action.Param2 & 0xFF),
+            ActionType.OneShotMod => action.Param1,
             ActionType.Key => 0,
             _ => CheckedMask(), // 修飾キーと関係ないキーコードでは今のチェックを保つ
         };

@@ -365,6 +365,14 @@ bool KeycodeTable::Resolve(const std::string& token, KeycodeMapping* out) {
             out->Param2 = 0;
             return true;
         }
+        if (name == "OSM" && parts.size() == 1) {
+            UCHAR mask;
+            if (!ResolveModMask(parts[0], &mask) || mask == 0) return false;
+            out->ActionType = KBDLAYER_ACTION_ONESHOT_MOD;
+            out->Param1 = mask;
+            out->Param2 = 0;
+            return true;
+        }
         if (name == "TO" && parts.size() == 1) {
             UCHAR layer;
             if (!ParseLayerNumber(parts[0], &layer)) return false;
