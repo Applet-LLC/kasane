@@ -15,6 +15,41 @@ public sealed record KeyVisual(
     Brush? MainForeground = null);
 
 /// <summary>
+/// キー面の矩形（主矩形）。BorderはUI Automationの要素として公開されないので、Invoke（クリックと同じ）
+/// できるボタンとして公開するAutomationPeerを持たせる（UI Automationの試験でキーの割り当てを操作するため）。
+/// </summary>
+public sealed class KeyFace : Border
+{
+    private readonly Action _invoke;
+
+    public KeyFace(Action invoke) => _invoke = invoke;
+
+    internal void Invoke() => _invoke();
+
+    protected override System.Windows.Automation.Peers.AutomationPeer OnCreateAutomationPeer() =>
+        new KeyFaceAutomationPeer(this);
+}
+
+internal sealed class KeyFaceAutomationPeer :
+    System.Windows.Automation.Peers.FrameworkElementAutomationPeer,
+    System.Windows.Automation.Provider.IInvokeProvider
+{
+    public KeyFaceAutomationPeer(KeyFace owner) : base(owner) { }
+
+    protected override string GetClassNameCore() => nameof(KeyFace);
+
+    protected override System.Windows.Automation.Peers.AutomationControlType GetAutomationControlTypeCore() =>
+        System.Windows.Automation.Peers.AutomationControlType.Button;
+
+    public override object? GetPattern(System.Windows.Automation.Peers.PatternInterface patternInterface) =>
+        patternInterface == System.Windows.Automation.Peers.PatternInterface.Invoke ? this : base.GetPattern(patternInterface);
+
+    // クリックと同じ処理（キーの割り当てダイアログをShowDialogで開く）を同期で呼ぶと、ダイアログを閉じるまで
+    // UI Automation側のInvokeが戻らない。WPFのButtonと同じく、Dispatcher経由で後から実行してすぐ戻る。
+    public void Invoke() => Owner.Dispatcher.BeginInvoke(new Action(((KeyFace)Owner).Invoke));
+}
+
+/// <summary>
 /// KeyboardLayoutをCanvas上にキーの矩形として描く。nodoka-gui（MainWindow.RenderKeyboard）と同じく
 /// 1キー=固定ピクセル幅の格子に配置し、ISO Enterのような2矩形キーは2つ目の矩形も同じキーとして描く。
 /// </summary>
@@ -53,10 +88,10 @@ public sealed class KeyboardCanvas : Canvas
             if (slot.W2 != null)
             {
                 // 2つ目の矩形（テキスト無し）を先に描き、主矩形を上に重ねる。
-                var second = MakeRect(slot, slot.X + slot.X2!.Value, slot.Y + slot.Y2!.Value, slot.W2.Value, slot.H2!.Value, visual);
+                var second = MakeRect(slot, slot.X + slot.X2!.Value, slot.Y + slot.Y2!.Value, slot.W2.Value, slot.H2!.Value, visual, isMain: false);
                 borders.Add(second);
             }
-            var main = MakeRect(slot, slot.X, slot.Y, slot.W, slot.H, visual);
+            var main = MakeRect(slot, slot.X, slot.Y, slot.W, slot.H, visual, isMain: true);
             main.Child = MakeContent(slot, visual);
             borders.Add(main);
 
@@ -81,19 +116,24 @@ public sealed class KeyboardCanvas : Canvas
     public Rect GetKeyBounds(KeySlot slot) =>
         new(slot.X * Unit + Gap, slot.Y * Unit + Gap, slot.W * Unit - Gap, slot.H * Unit - Gap);
 
-    private Border MakeRect(KeySlot slot, double x, double y, double w, double h, KeyVisual visual)
+    private Border MakeRect(KeySlot slot, double x, double y, double w, double h, KeyVisual visual, bool isMain)
     {
-        var b = new Border
+        // 主矩形はUI Automationから操作できるようにする（AutomationId "Key_<スロット番号>"、Invokeでクリックと同じ）。
+        // 2つ目の矩形（ISO Enter等）は見た目だけなので、普通のBorderのまま。
+        Border b = isMain ? new KeyFace(() => KeyClicked?.Invoke(slot)) : new Border();
+        if (isMain)
         {
-            Width = Math.Max(10, w * Unit - Gap),
-            Height = Math.Max(10, h * Unit - Gap),
-            Background = visual.Background,
-            BorderBrush = visual.BorderBrush,
-            BorderThickness = new Thickness(visual.BorderThickness),
-            CornerRadius = new CornerRadius(4),
-            ToolTip = visual.ToolTip,
-            Cursor = Cursors.Hand,
-        };
+            System.Windows.Automation.AutomationProperties.SetAutomationId(b, $"Key_{slot.Index}");
+            System.Windows.Automation.AutomationProperties.SetName(b, slot.Description);
+        }
+        b.Width = Math.Max(10, w * Unit - Gap);
+        b.Height = Math.Max(10, h * Unit - Gap);
+        b.Background = visual.Background;
+        b.BorderBrush = visual.BorderBrush;
+        b.BorderThickness = new Thickness(visual.BorderThickness);
+        b.CornerRadius = new CornerRadius(4);
+        b.ToolTip = visual.ToolTip;
+        b.Cursor = Cursors.Hand;
         SetLeft(b, x * Unit + Gap);
         SetTop(b, y * Unit + Gap);
         b.MouseLeftButtonUp += (_, e) => { KeyClicked?.Invoke(slot); e.Handled = true; };

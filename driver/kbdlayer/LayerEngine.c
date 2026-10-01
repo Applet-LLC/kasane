@@ -1894,7 +1894,10 @@ ResolveModdedKey(
             // OSM: 押している間に別のキーを押さなかったら、修飾キーを次のキー1つのために押したままにする
             // （OneShotModsはAddedModsUnionに含まれるので、下のsendModsは0になりbreakは送らない）。
             // 別のキーを押していたら、普通の修飾キーとして戻す。
+            // マップがOFFのとき（押している間にOFF・緊急解除された）は、One Shotにしない（実機試験D-2:
+            // OFFの後に離したOSMが、次のキーまで修飾キーを持ち越していた）。
             BOOLEAN toOneShot = (action.Type == KBDLAYER_ACTION_ONESHOT_MOD &&
+                                 devExt->LayerMapEnabled &&
                                  !devExt->OsmUsedWhileHeld && devExt->OsmHeldScanCode == scanCode);
             SetHeldAddedModsLocked(devExt, held, 0);
             SetHeldKeyLocked(devExt, scanCode, KBDLAYER_HELD_NONE, NULL);
@@ -3460,7 +3463,9 @@ SetLayerMapEnabledForDevice(
         devExt->TtTapCount = 0;
         devExt->TtKeyDown = FALSE;
         // OSMの待ち（次のキーのために押したままにしている修飾キー）も消す。breakは下の安全網が送る。
+        // 押しているOSMは、離したときに普通の修飾キーとして戻す（One Shotにしない）。
         devExt->OneShotMods = 0;
+        devExt->OsmUsedWhileHeld = TRUE;
     }
     KeReleaseSpinLockFromDpcLevel(&devExt->EngineLock);
 
