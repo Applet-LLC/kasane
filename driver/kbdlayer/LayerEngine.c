@@ -1752,9 +1752,12 @@ ModifierKindsOf(
 // Key Overrideの表から、出力キーOutScanCodeと今の修飾キーの状態に当てはまるものを探す（最初に
 // 当たったもの）。当たったら、押下記録にするアクション（INTERNAL_KEY_OVERRIDE、Param1=置き換え先の
 // 修飾子マスク、Param2=置き換え先のキー）と、OS上で一時的に離す修飾キーを返す。
-// 条件: TriggerModsの種類（Ctrl・Shift・Alt・Win。左右は区別しない）が全部、OS上で押されている
-// （普通の出力・足した修飾キー。一時的に離しているものは除く）。離すのは、押されている条件の種類の
-// 修飾キー（左右とも）のうち、置き換え先自身が使わないもの。
+// 条件: TriggerModsの種類（Ctrl・Shift・Alt・Win。左右は区別しない）が全部、押されている
+// （普通の出力・足した修飾キー）。別の置き換えが一時的に離している修飾キー（SuppressedMods）も、
+// まだ押され続けていれば（RealModsDown）含める。OS上の状態ではなく、ユーザーが押しているかで
+// 判定する（2026-10-01の実機試験B-4: Shift+2の置き換え中にShift+BSを押すと、Shiftが一時的に
+// 離されていたため条件に当たらず、素のBackspaceになっていた）。
+// 離すのは、押されている条件の種類の修飾キー（左右とも）のうち、置き換え先自身が使わないもの。
 // devExt->EngineLockとOutputLockを保持して呼ぶこと（RealModsDown・SuppressedModsはOutputLockで保護）。
 _IRQL_requires_max_(DISPATCH_LEVEL)
 static BOOLEAN
@@ -1774,7 +1777,7 @@ MatchKeyOverrideLocked(
     if (!(devExt->EnabledFeatures & KBDLAYER_FEATURE_KEYOVERRIDE) || devExt->KeyOverrideCount == 0) {
         return FALSE;
     }
-    down = (UCHAR)((devExt->RealModsDown & ~devExt->SuppressedMods) | AddedModsUnion(devExt));
+    down = (UCHAR)(devExt->RealModsDown | AddedModsUnion(devExt));
 
     for (ULONG i = 0; i < KBDLAYER_MAX_KEY_OVERRIDE_COUNT; i++) {
         const KBDLAYER_KEY_OVERRIDE_ENTRY* entry = &devExt->KeyOverrides[i];
