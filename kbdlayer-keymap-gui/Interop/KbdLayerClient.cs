@@ -23,6 +23,9 @@ public sealed record TapDanceEntry(KeyAction SingleTap, KeyAction SingleHold, Ke
 public sealed record DriverConfig(uint TapTermMs, uint ComboTermMs, uint TapDanceTermMs,
     uint TapHoldMode, uint QuickTapTermMs, uint TappingToggle, bool HasTapHoldOptions);
 
+/// <summary>KBDLAYER_DEVICE_SCOPE。Binding は KbdLayerClient.BindingModel / BindingInstance。</summary>
+public sealed record DeviceScope(uint InstanceKey, uint ModelKey, uint Binding);
+
 /// <summary>KBDLAYER_TAPHOLD_MODE_*（MT/LTのタップ／ホールドの判定方式。タップダンスは対象外）。</summary>
 public static class TapHoldModes
 {
@@ -74,6 +77,14 @@ public sealed class KbdLayerClient : IDisposable
     private static readonly uint IOCTL_GET_TAPDANCE = CtlCode(0x80C, FILE_READ_ACCESS);
     private static readonly uint IOCTL_SET_CAPTURE_SUPPRESS = CtlCode(0x80D, FILE_WRITE_ACCESS);
     private static readonly uint IOCTL_GET_CONFIG = CtlCode(0x80E, FILE_READ_ACCESS);
+    private static readonly uint IOCTL_SET_NICOLA = CtlCode(0x80F, FILE_WRITE_ACCESS);
+    private static readonly uint IOCTL_GET_NICOLA = CtlCode(0x810, FILE_READ_ACCESS);
+    private static readonly uint IOCTL_GET_DEVICE_SCOPE = CtlCode(0x814, FILE_READ_ACCESS);
+    private static readonly uint IOCTL_SET_DEVICE_SCOPE = CtlCode(0x815, FILE_WRITE_ACCESS);
+    private static readonly uint IOCTL_GET_EMERGENCY_RELEASE = CtlCode(0x816, FILE_READ_ACCESS);
+    private static readonly uint IOCTL_SET_EMERGENCY_RELEASE = CtlCode(0x817, FILE_WRITE_ACCESS);
+    private static readonly uint IOCTL_GET_FEATURES = CtlCode(0x818, FILE_READ_ACCESS);
+    private static readonly uint IOCTL_SET_FEATURES = CtlCode(0x819, FILE_WRITE_ACCESS);
     private static readonly uint IOCTL_SET_KEY_OVERRIDE = CtlCode(0x81A, FILE_WRITE_ACCESS);
     private static readonly uint IOCTL_GET_KEY_OVERRIDE = CtlCode(0x81B, FILE_READ_ACCESS);
     public const int MaxKeyOverrideCount = 32;  // KBDLAYER_MAX_KEY_OVERRIDE_COUNT
@@ -362,6 +373,99 @@ public sealed class KbdLayerClient : IDisposable
         var e = new TapDanceEntry(ReadAction(r), ReadAction(r), ReadAction(r), ReadAction(r));
         return used ? e : null;
     }
+
+    // --- 機能別ON/OFF（キーボードごと） ---
+
+    public const uint FeatureMacro = 0x1;       // KBDLAYER_FEATURE_MACRO
+    public const uint FeatureCombo = 0x2;       // KBDLAYER_FEATURE_COMBO
+    public const uint FeatureTapDance = 0x4;    // KBDLAYER_FEATURE_TAPDANCE
+    public const uint FeatureKeyOverride = 0x8; // KBDLAYER_FEATURE_KEYOVERRIDE
+    public const uint FeatureAll = FeatureMacro | FeatureCombo | FeatureTapDance | FeatureKeyOverride;
+
+    public uint GetFeatures(uint uniqId) =>
+        BitConverter.ToUInt32(Ioctl("機能のON/OFFの取得", IOCTL_GET_FEATURES, BitConverter.GetBytes(uniqId), 4), 0);
+
+    /// <summary>未知のビットを含むとドライバに拒否される（Key Override以前のドライバにFeatureKeyOverrideを送った場合も）。</summary>
+    public void SetFeatures(uint uniqId, uint features) =>
+        Ioctl("機能のON/OFFの書き込み", IOCTL_SET_FEATURES, Build(w =>
+        {
+            w.Write(uniqId);
+            w.Write(features);
+        }), 0);
+
+    // --- 設定の共有範囲（E-2。キーボードごと） ---
+
+    public const uint BindingModel = 0;    // KBDLAYER_BINDING_MODEL（同型番で共有。既定）
+    public const uint BindingInstance = 1; // KBDLAYER_BINDING_INSTANCE（この1台だけ）
+
+    public DeviceScope GetDeviceScope(uint uniqId)
+    {
+        var data = Ioctl("共有範囲の取得", IOCTL_GET_DEVICE_SCOPE, BitConverter.GetBytes(uniqId), 12);
+        return new DeviceScope(BitConverter.ToUInt32(data, 0), BitConverter.ToUInt32(data, 4), BitConverter.ToUInt32(data, 8));
+    }
+
+    /// <summary>Model→Instanceでは、ドライバが今の設定をこの1台用にコピーしてから切り替える。</summary>
+    public DeviceScope SetDeviceScope(uint uniqId, uint binding)
+    {
+        var data = Ioctl("共有範囲の変更", IOCTL_SET_DEVICE_SCOPE, Build(w =>
+        {
+            w.Write(uniqId);
+            w.Write(binding);
+        }), 12);
+        return data.Length >= 12
+            ? new DeviceScope(BitConverter.ToUInt32(data, 0), BitConverter.ToUInt32(data, 4), BitConverter.ToUInt32(data, 8))
+            : GetDeviceScope(uniqId);
+    }
+
+    // --- 緊急解除（ドライバ全体で1つ。KBDLAYER_TARGETを取らない） ---
+
+    public const int EmergencyMinKeys = 2;      // KBDLAYER_EMERGENCY_MIN_KEYS
+    public const int EmergencyMaxKeys = 6;      // KBDLAYER_EMERGENCY_MAX_KEYS
+    public const int EmergencyHoldMs = 3000;    // KBDLAYER_EMERGENCY_HOLD_MS
+    private const int EmergencyConfigSize = 4 + EmergencyMaxKeys * 2;
+
+    /// <summary>物理スキャンコード（Enc16）の組み合わせ。</summary>
+    public List<ushort> GetEmergencyRelease()
+    {
+        var data = Ioctl("緊急解除の組み合わせの取得", IOCTL_GET_EMERGENCY_RELEASE, null, EmergencyConfigSize);
+        int count = (int)Math.Min(BitConverter.ToUInt32(data, 0), (uint)EmergencyMaxKeys);
+        var keys = new List<ushort>();
+        for (int i = 0; i < count; i++) keys.Add(BitConverter.ToUInt16(data, 4 + i * 2));
+        return keys;
+    }
+
+    /// <summary>2〜6個の異なるキー。条件を満たさなければドライバが拒否し、設定は変わらない。</summary>
+    public void SetEmergencyRelease(IReadOnlyList<ushort> scanCodes) =>
+        Ioctl("緊急解除の組み合わせの書き込み", IOCTL_SET_EMERGENCY_RELEASE, Build(w =>
+        {
+            w.Write((uint)scanCodes.Count);
+            for (int i = 0; i < EmergencyMaxKeys; i++) w.Write(i < scanCodes.Count ? scanCodes[i] : (ushort)0);
+        }), 0);
+
+    // --- NICOLA（キーボードごと。blob = KBDLAYER_NICOLA_HEADER + KBDLAYER_NICOLA_KEY_ENTRY[]） ---
+
+    public const int NicolaHeaderSize = 44;      // sizeof(KBDLAYER_NICOLA_HEADER)
+    public const int NicolaKeyEntrySize = 160;   // sizeof(KBDLAYER_NICOLA_KEY_ENTRY)
+    public const int NicolaMaxKeys = 64;         // KBDLAYER_NICOLA_MAX_KEYS
+    public const int NicolaMaxSteps = 12;        // KBDLAYER_NICOLA_MAX_STEPS
+    private const int MaxNicolaBlobBytes = NicolaHeaderSize + NicolaMaxKeys * NicolaKeyEntrySize;
+
+    /// <summary>未設定なら空配列。</summary>
+    public byte[] GetNicola(uint uniqId)
+    {
+        var data = Ioctl("NICOLAの設定の取得", IOCTL_GET_NICOLA, BitConverter.GetBytes(uniqId), 4 + MaxNicolaBlobBytes);
+        uint len = BitConverter.ToUInt32(data, 0);
+        return data[4..(4 + (int)len)];
+    }
+
+    /// <summary>blobが空なら設定の消去。</summary>
+    public void SetNicola(uint uniqId, byte[] blob) =>
+        Ioctl(blob.Length == 0 ? "NICOLAの設定の消去" : "NICOLAの設定の書き込み", IOCTL_SET_NICOLA, Build(w =>
+        {
+            w.Write(uniqId);
+            w.Write((uint)blob.Length);
+            w.Write(blob);
+        }), 0);
 
     /// <summary>
     /// ドライバ側の入力抑止（CLIの --suppress と同じ）。GUIのキャリブレーションはLLフックで

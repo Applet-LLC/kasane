@@ -242,7 +242,7 @@ public partial class MainWindow : Window
     private void ChangeLayout(KeyboardLayout layout, bool bundled)
     {
         var r = MessageBox.Show(this,
-            "レイアウトを変えると、キーの割り当て・実測値・コンボはリセットされます（マクロ・タップダンス・タイミングは残ります）。続けますか？",
+            "レイアウトを変えると、キーの割り当て・実測値・コンボはリセットされます（マクロ・タップダンス・キー置換と、設定ダイアログの内容は残ります）。続けますか？",
             Title, MessageBoxButton.OKCancel, MessageBoxImage.Question);
         if (r != MessageBoxResult.OK)
         {
@@ -261,6 +261,9 @@ public partial class MainWindow : Window
         p.TapHoldMode = _project.TapHoldMode;
         p.QuickTapTermMs = _project.QuickTapTermMs;
         p.TappingToggle = _project.TappingToggle;
+        p.EnabledFeatures = _project.EnabledFeatures;
+        p.Nicola = _project.Nicola;
+        p.ClearNicola = _project.ClearNicola;
         SetProject(p, layout, dirty: true);
         SetStatus($"レイアウトを {layout.Name} に変更しました（{layout.Slots.Count}キー）。");
     }
@@ -474,16 +477,10 @@ public partial class MainWindow : Window
         MarkDirty();
     }
 
-    private void BtnTiming_Click(object sender, RoutedEventArgs e)
+    private void BtnSettings_Click(object sender, RoutedEventArgs e)
     {
         if (_project == null) return;
-        DriverConfig? current = null;
-        if (IsOnline)
-        {
-            try { current = _client!.GetConfig(SelectedDevice!.UniqId); }
-            catch (KbdLayerException) { /* 古いドライバ等。現在値の表示を省くだけ */ }
-        }
-        var dlg = new TimingDialog(_project, current) { Owner = this };
+        var dlg = new SettingsDialog(_project, IsOnline ? _client : null, IsOnline ? SelectedDevice!.UniqId : 0, CanWrite) { Owner = this };
         if (dlg.ShowDialog() == true) MarkDirty();
     }
 
