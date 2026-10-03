@@ -80,8 +80,33 @@ Files in this package
 
 Uninstallation
 --------------
-Use "Apps & features" in Windows Settings to remove "kasane
-Subscription", then restart your PC.
+1. Open kasane first and press the "OFF（素通しに戻す）" button so the keyboard
+   returns to its normal behavior (kasane is displayed in Japanese only).
+2. Use "Apps & features" in Windows Settings to remove "kasane Subscription"
+   (administrator rights are required).
+3. Restart your PC. The driver is in use by your keyboard, so its removal
+   completes at the restart. Until then the driver may keep running (if you
+   pressed OFF in step 1, no key remapping is applied).
+
+What is removed:
+- The program (C:\Program Files\applet\kasane) and its Start menu entries
+- The license service (kasaneLicenseSvc)
+- The driver (kbdlayer) and the settings stored in it (keymaps, macros,
+  combos, timing, NICOLA, the emergency release keys, ...)
+
+What is kept (so that a reinstall picks it up again):
+- %ProgramData%\kbdlayer-license ... your license key and logs. After a
+  reinstall the license is re-verified automatically with this key, so you
+  do not need to activate again (an internet connection is required).
+- %LOCALAPPDATA%\applet\kasane ... keymaps saved in kasane. After a reinstall,
+  open kasane and press "キーボードに適用（ON）" (apply) to restore them.
+  (If you used a version named LayerDriver, %LOCALAPPDATA%\LayerDriver is
+  kept as well.)
+To remove everything, delete these folders by hand after uninstalling and
+restarting.
+
+Installing a newer version over an existing one keeps the driver settings
+and the license; you do not need to uninstall first.
 
 
 Support / Purchase
