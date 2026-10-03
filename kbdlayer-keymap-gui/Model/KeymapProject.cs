@@ -74,4 +74,17 @@ public sealed class KeymapProject
     public uint QuickTapTermMs { get; set; }
     /// <summary>TT(layer)の固定に必要なタップ回数。0 = 既定(5)。</summary>
     public uint TappingToggle { get; set; }
+
+    /// <summary>
+    /// 機能別ON/OFF（KbdLayerClient.Feature* のOR）。null = GUIでは管理しない（適用してもドライバの
+    /// 設定を変えない。設定ダイアログを開いた時点でドライバの値（オフラインなら全機能有効）が入る）。
+    /// </summary>
+    public uint? EnabledFeatures { get; set; }
+
+    /// <summary>
+    /// NICOLA（親指シフト）。null = GUIでは管理しない（適用してもドライバの設定を変えない。CLIの
+    /// --set-nicola で入れた設定を消さないため）。ClearNicola = true なら、適用時にドライバの設定を消す。
+    /// </summary>
+    public NicolaDef? Nicola { get; set; }
+    public bool ClearNicola { get; set; }
 }

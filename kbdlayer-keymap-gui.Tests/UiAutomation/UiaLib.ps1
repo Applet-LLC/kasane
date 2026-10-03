@@ -133,3 +133,19 @@ function Set-ToggleState([System.Windows.Automation.AutomationElement]$el, [bool
     $wantOn = if ($checked) { [System.Windows.Automation.ToggleState]::On } else { [System.Windows.Automation.ToggleState]::Off }
     if ($pat.Current.ToggleState -ne $wantOn) { $pat.Toggle() }
 }
+
+# Select a TabItem (by AutomationId) in a TabControl. WPF only puts the selected tab's content into the
+# UIA tree, so select the tab before looking for the controls inside it.
+function Select-TabById([System.Windows.Automation.AutomationElement]$window, [string]$tabId) {
+    $tab = Find-ChildByAutomationId $window $tabId
+    $pat = $tab.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern)
+    $pat.Select()
+    Start-Sleep -Milliseconds 300
+}
+
+# Name (display text) of the selected item of a ComboBox, or $null if nothing is selected.
+function Get-ComboSelectedName([System.Windows.Automation.AutomationElement]$combo) {
+    $sel = $combo.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern).Current.GetSelection()
+    if ($sel.Count -eq 0) { return $null }
+    return $sel[0].Current.Name
+}

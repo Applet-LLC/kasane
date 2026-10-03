@@ -23,6 +23,12 @@ public sealed class LowLevelKeyboardHook : IDisposable
     /// <summary>キー押下を捨てたときに呼ばれる（引数は仮想キーコード）。フックのスレッドで呼ばれる。</summary>
     public event Action<uint>? KeyDownSwallowed;
 
+    /// <summary>
+    /// 押下・解放を捨てたときに呼ばれる（引数はスキャンコード（Enc16。拡張キーは0xE0xx）と押下か）。
+    /// フックのスレッドで呼ばれる。フックが見るのはレイヤーマップで置き換えた後のキー。
+    /// </summary>
+    public event Action<ushort, bool>? KeySwallowed;
+
     public LowLevelKeyboardHook()
     {
         _proc = HookProc;
@@ -60,14 +66,17 @@ public sealed class LowLevelKeyboardHook : IDisposable
                 int msg = wParam.ToInt32();
                 bool isDown = msg == NativeMethods.WM_KEYDOWN || msg == NativeMethods.WM_SYSKEYDOWN;
                 bool isUp = msg == NativeMethods.WM_KEYUP || msg == NativeMethods.WM_SYSKEYUP;
+                ushort scan16 = (ushort)(((info.flags & NativeMethods.LLKHF_EXTENDED) != 0 ? 0xE000u : 0u) | (info.scanCode & 0xFFu));
                 if (isDown)
                 {
                     _swallowedDown.Add(info.vkCode);
                     KeyDownSwallowed?.Invoke(info.vkCode);
+                    KeySwallowed?.Invoke(scan16, true);
                     return (IntPtr)1;
                 }
                 if (isUp && _swallowedDown.Remove(info.vkCode))
                 {
+                    KeySwallowed?.Invoke(scan16, false);
                     return (IntPtr)1;
                 }
             }

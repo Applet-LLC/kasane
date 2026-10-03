@@ -280,7 +280,8 @@ public static class ProjectService
     }
 
     /// <summary>
-    /// ドライバへ一括適用する: 検証 → OFF → レイヤーマップ → タイミング → マクロ/コンボ/タップダンス → ON。
+    /// ドライバへ一括適用する: 検証 → OFF → レイヤーマップ → タイミング → マクロ/コンボ/タップダンス/キー置換
+    /// → 機能のON/OFF → NICOLA → ON。
     /// 検証エラーがあれば何も送らずに例外を投げる。戻り値は警告の一覧。
     /// </summary>
     public static List<string> Apply(KbdLayerClient client, KeymapProject project, KeyboardLayout layout)
@@ -306,6 +307,16 @@ public static class ProjectService
         var combos = project.Combos.ToDictionary(c => c.Id, c => ComboToEntry(project, layout, c, errors));
         var tapDances = project.TapDances.ToDictionary(t => t.Id, t => TapDanceToEntry(t, errors));
         var keyOverrides = project.KeyOverrides.ToDictionary(k => k.Id, k => KeyOverrideToEntry(k, errors));
+
+        byte[]? nicolaBlob = null;
+        if (project.Nicola != null)
+        {
+            nicolaBlob = NicolaService.BuildBlob(project.Nicola, warnings, errors);
+            if (project.Nicola.Layer >= project.Layers.Count)
+                warnings.Add($"NICOLAのレイヤー{project.Nicola.Layer}はキーマップにありません（そのレイヤーに切り替えるキーが無いと、親指シフトは働きません）");
+        }
+        if (project.EnabledFeatures is uint f && (f & ~KbdLayerClient.FeatureAll) != 0)
+            errors.Add($"機能のON/OFFの値 0x{f:X} に未知のビットがあります");
 
         if (errors.Count > 0) throw new InvalidOperationException(string.Join("\n", errors));
 
@@ -343,6 +354,22 @@ public static class ProjectService
                 else if (client.GetKeyOverride(id, k) != null) client.SetKeyOverride(id, k, null);
             }
         }
+
+        // 機能別ON/OFF。キー置換より前のドライバはFeatureKeyOverrideのビットを知らないので、
+        // 対応していなければそのビットを外して送る。
+        if (project.EnabledFeatures is uint features)
+        {
+            if (!SupportsKeyOverride(client, id)) features &= ~KbdLayerClient.FeatureKeyOverride;
+            try { client.SetFeatures(id, features); }
+            catch (KbdLayerException) when ((features | KbdLayerClient.FeatureKeyOverride) == KbdLayerClient.FeatureAll)
+            {
+                // 機能別ON/OFFより前のドライバ。全機能を有効にするだけなら、送れなくても結果は同じ。
+            }
+        }
+
+        // NICOLA。null（GUIでは管理しない）ならドライバの設定はそのまま。
+        if (nicolaBlob != null) client.SetNicola(id, nicolaBlob);
+        else if (project.ClearNicola && client.GetNicola(id).Length > 0) client.SetNicola(id, Array.Empty<byte>());
 
         if (blob != null) client.SetEnabled(id, true);
         else warnings.Add("割り当てのあるキーが無いため、レイヤーマップは消去されOFFのままです");
