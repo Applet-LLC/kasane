@@ -343,9 +343,9 @@ int CmdSetCombo(IoctlClient* client, ULONG uniqId, ULONG comboId, int argc, char
     KBDLAYER_COMBO_ENTRY entry;
     entry.ScanCode1 = member1.Param2;
     entry.ScanCode2 = member2.Param2;
-    entry.OutputAction.Type = KBDLAYER_ACTION_KEY;
-    entry.OutputAction.Param1 = 0;
-    entry.OutputAction.Param2 = output.Param2;
+    // 出力の種類と引数をそのまま渡す（KEY・修飾付きキー・MACRO。2026-10-03の実機試験で、ここがKEY固定のままで
+    // 修飾子マスクやマクロIDが落ちていたのを修正）。
+    entry.OutputAction = { output.ActionType, output.Param1, output.Param2 };
 
     if (!client->SetCombo(uniqId, comboId, &entry)) return 1;
     printf("SET_COMBO ok. UniqId=%08X ComboId=%lu: %s + %s -> %s\n",
@@ -361,8 +361,9 @@ int CmdGetCombo(IoctlClient* client, ULONG uniqId, ULONG comboId) {
     if (!used) {
         printf("UniqId=%08X ComboId=%lu: (not set)\n", uniqId, comboId);
     } else {
-        printf("UniqId=%08X ComboId=%lu: ScanCode1=0x%04X ScanCode2=0x%04X OutputScanCode=0x%04X\n",
-               uniqId, comboId, entry.ScanCode1, entry.ScanCode2, entry.OutputAction.Param2);
+        printf("UniqId=%08X ComboId=%lu: ScanCode1=0x%04X ScanCode2=0x%04X Output Type=%u Param1=0x%02X Param2=0x%04X\n",
+               uniqId, comboId, entry.ScanCode1, entry.ScanCode2,
+               entry.OutputAction.Type, entry.OutputAction.Param1, entry.OutputAction.Param2);
     }
     return 0;
 }
