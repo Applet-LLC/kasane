@@ -110,7 +110,7 @@ typedef struct _KBDLAYER_ACTION {
 // VIA実務上の上限(4)に余裕を持たせる。2026-09-29に8→16へ引き上げ（ヘルパーアプリが
 // アプリごとのレイヤーをSET_LAYER_STATEで切り替える用途に備えて）。レイヤーのビットマスク
 // （ActiveLayerMask等）はULONGなので32まで入るが、Actions[]の容量が比例して増えるため16に留める。
-// 変えるときは kbdlayer-keymap-gui の KbdLayerClient.MaxLayers も合わせること。
+// 変えるときは kasane の KbdLayerClient.MaxLayers も合わせること。
 #define KBDLAYER_MAX_LAYERS 16
 #define KBDLAYER_MAX_KEYS   256 // 既存 KBDADDID_MAX_REMAP_ENTRIES を踏襲
 
@@ -282,7 +282,7 @@ typedef struct _KBDLAYER_SET_CAPTURE_SUPPRESS_INPUT {
 
 // KBDLAYER_ACTION_MACROのParam1(UCHAR)が指せる範囲を実務的に制限。2026-09-30に32→128へ
 // 引き上げた（ドライバはレジストリの旧サイズ（32個分）の"Macros"値も読める）。
-// 変えるときは kbdlayer-keymap-gui の KbdLayerClient.MaxMacroCount も合わせること。
+// 変えるときは kasane の KbdLayerClient.MaxMacroCount も合わせること。
 #define KBDLAYER_MAX_MACRO_COUNT 128
 #define KBDLAYER_MAX_MACRO_STEPS 64  // 1マクロあたりのステップ数上限
 
@@ -676,7 +676,7 @@ typedef struct _KBDLAYER_EMERGENCY_RELEASE_CONFIG {
 // I/Oマネージャが、ハンドルの許可アクセスとIOCTLのアクセスビットを照合して拒否する
 // （ドライバに届く前にSTATUS_ACCESS_DENIEDになる）。
 // アクセスビットはIOCTLのコード値の一部なので、変えるとクライアントの再ビルドが要る
-// （kbdlayer-keymap-gui の KbdLayerClient.cs は値を自前で計算しているので、そちらも合わせる）。
+// （kasane の KbdLayerClient.cs は値を自前で計算しているので、そちらも合わせる）。
 #define IOCTL_KBDLAYER_LIST_DEVICES \
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x800, METHOD_BUFFERED, FILE_READ_ACCESS)
 #define IOCTL_KBDLAYER_GET_LAYERMAP \

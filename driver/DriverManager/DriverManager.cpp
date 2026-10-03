@@ -1,9 +1,9 @@
 // Copyright 2008-2026 applet <applet@bp.iij4u.or.jp>
 // License: EPL-2.0 - https://www.eclipse.org/legal/epl-2.0/
 //
-// Forked from kbdaddid_subscribe's addid/DriverManager/DriverManager.cpp for the LayerDriver
-// project. Renames: kbdaddid -> kbdlayer. mouaddid (mouse) support was removed entirely --
-// LayerDriver has no mouse component, and this tool no longer offers a "mouse" driver_type or
+// Forked from kbdaddid_subscribe's addid/DriverManager/DriverManager.cpp for this project
+// (formerly LayerDriver, now kasane). Renames: kbdaddid -> kbdlayer. mouaddid (mouse) support was removed entirely --
+// kasane has no mouse component, and this tool no longer offers a "mouse" driver_type or
 // carries any mouaddid-specific registry/branch logic. nodokad/nodokad2 interop (a separate,
 // unrelated product by the same author) is left exactly as in the source.
 
@@ -235,7 +235,7 @@ bool IsNativeArm64()
     return GetNativeProcessorArchitecture() == PROCESSOR_ARCHITECTURE_ARM64;
 }
 
-// ドライバパッケージのアーキ別サブフォルダ名（KbdLayerSetup.wixproj/Product.wxsが
+// ドライバパッケージのアーキ別サブフォルダ名（KasaneSetup.wixproj/Product.wxsが
 // KBDDRIVERDIR配下をx64\/arm64\に分けてステージングする構成と対応）。
 std::wstring ArchSubdirName()
 {
@@ -817,7 +817,7 @@ bool InstallDriver(const std::wstring& driverName, const std::wstring& classGuid
 {
     namespace fs = std::filesystem;
     const fs::path exePath = GetExecutablePath();
-    // インストーラ(KbdLayerSetup.wixproj/Product.wxs)がKBDDRIVERDIR配下を
+    // インストーラ(KasaneSetup.wixproj/Product.wxs)がKBDDRIVERDIR配下を
     // x64\/arm64\サブフォルダに分けてステージングしているため、ネイティブアーキで選択する。
     const fs::path infPath = exePath / driverName / ArchSubdirName() / (driverName + L".inf");
 

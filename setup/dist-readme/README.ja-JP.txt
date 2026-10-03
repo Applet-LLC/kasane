@@ -1,4 +1,4 @@
-LayerDriver Subscription インストールガイド 1.00 2026-08-19 Applet LLC
+かさね Subscription インストールガイド 1.00 2026-08-19 Applet LLC
 ================================================================================
 
 このパッケージは、Windowsカーネルモードのキーボードクラスフィルタドライバ
@@ -8,7 +8,7 @@ LayerDriver Subscription インストールガイド 1.00 2026-08-19 Applet LLC
 機能します。キーボードとWindowsの間に常駐するユーザーモードのプロセスを挟み
 ません。
 
-LayerDriverは、同じ作者によるデバイス識別ドライバkbdaddidからフォークされて
+かさね（kasane）は、同じ作者によるデバイス識別ドライバkbdaddidからフォークされて
 おり、そのデバイスごとの識別基盤をそのまま流用しています。これにより、
 複数台のキーボードを同時接続していても、特定の1台にだけレイヤーキーマップを
 適用できます。
@@ -27,10 +27,10 @@ LayerDriverは、同じ作者によるデバイス識別ドライバkbdaddidか�
 
 インストール手順
 ----------------
-1. 「Install-kbdlayerLicense.exe」を実行してください。
+1. 「Install-kasane.exe」を実行してください。
 
 2. セットアップウィザードの指示に従ってください。キーボードドライバ・
-   ライセンス管理サービス(kbdlayerLicenseSvc)・ライセンス管理ツールが
+   ライセンス管理サービス(kasaneLicenseSvc)・ライセンス管理ツールが
    インストールされます。
 
 3. デバイス識別方法として、デバイスインスタンスIDモードと、ハードウェアID
@@ -44,7 +44,7 @@ LayerDriverは、同じ作者によるデバイス識別ドライバkbdaddidか�
 
 4. インストール完了には再起動が必要です。
 
-5. 再起動後、スタートメニューから「LayerDriver License Manager」が
+5. 再起動後、スタートメニューから「kasane License Manager」が
    自動起動しています。Gumroadで購入したライセンスキーを入力して
    アクティベートしてください。
 
@@ -57,11 +57,11 @@ LayerDriverは、同じ作者によるデバイス識別ドライバkbdaddidか�
 
 パッケージ内のファイル
 ----------------------
-- Install-kbdlayerLicense.exe
+- Install-kasane.exe
   インストールランチャー
 
-- KbdLayerSetup-en-US.msi
-- KbdLayerSetup-ja-JP.msi
+- KasaneSetup-en-US.msi
+- KasaneSetup-ja-JP.msi
   ランチャーが自動的に選択して実行します。
 
 - License.en-US.rtf
@@ -75,7 +75,7 @@ LayerDriverは、同じ作者によるデバイス識別ドライバkbdaddidか�
 
 アンインストール
 ----------------
-Windowsの設定「アプリと機能」から「LayerDriver Subscription」を削除して
+Windowsの設定「アプリと機能」から「かさね Subscription」を削除して
 PCを再起動してください。
 
 

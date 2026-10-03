@@ -1,7 +1,7 @@
 # DriverManager
 
-Forked from kbdaddid_subscribe's `addid/DriverManager/README.md` for the LayerDriver project
-(renames: kbdaddid -> kbdlayer; mouaddid/mouse support removed, LayerDriver has no mouse component).
+Forked from kbdaddid_subscribe's `addid/DriverManager/README.md` for this project (formerly LayerDriver, now kasane)
+(renames: kbdaddid -> kbdlayer; mouaddid/mouse support removed, kasane has no mouse component).
 
 ## 概要
 

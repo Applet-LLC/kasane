@@ -1,4 +1,4 @@
-LayerDriver Subscription - Installation Guide 1.00 2026-08-19 Applet LLC
+kasane Subscription - Installation Guide 1.00 2026-08-19 Applet LLC
 ==============================================================
 
 This package installs "kbdlayer.sys", a Windows kernel-mode keyboard class
@@ -8,7 +8,7 @@ level, so the remapped layout works system-wide -- in games, at the login
 screen, and in any application -- without a user-mode background process
 standing between your keyboard and Windows.
 
-LayerDriver is forked from the same author's kbdaddid device-identification
+kasane is forked from the same author's kbdaddid device-identification
 driver and reuses its per-device identification core, so a layer keymap can
 be applied to one specific physical keyboard even when you have several
 connected at once.
@@ -29,10 +29,10 @@ Requirements
 
 Installation
 ------------
-1. Run "Install-kbdlayerLicense.exe".
+1. Run "Install-kasane.exe".
 
 2. Follow the setup wizard. This installs the keyboard driver, the license
-   management service (kbdlayerLicenseSvc), and the license management
+   management service (kasaneLicenseSvc), and the license management
    tool.
 
 3. You can choose how the device is identified: Device Instance ID
@@ -48,7 +48,7 @@ Installation
 
 4. A system reboot is required to complete installation.
 
-5. After reboot, "LayerDriver License Manager" launches automatically
+5. After reboot, "kasane License Manager" launches automatically
    from the Start menu. Enter the license key you purchased on Gumroad
    there to activate it.
 
@@ -62,11 +62,11 @@ remapping is disabled; basic keyboard input is never affected.
 
 Files in this package
 ----------------------
-- Install-kbdlayerLicense.exe
+- Install-kasane.exe
   Installer launcher
 
-- KbdLayerSetup-en-US.msi
-- KbdLayerSetup-ja-JP.msi
+- KasaneSetup-en-US.msi
+- KasaneSetup-ja-JP.msi
   The launcher automatically selects and runs the right one.
 
 - License.en-US.rtf
@@ -80,7 +80,7 @@ Files in this package
 
 Uninstallation
 --------------
-Use "Apps & features" in Windows Settings to remove "LayerDriver
+Use "Apps & features" in Windows Settings to remove "kasane
 Subscription", then restart your PC.
 
 

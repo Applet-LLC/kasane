@@ -149,7 +149,7 @@ const std::unordered_map<std::string, UCHAR>& ModifierBitTable() {
 
 // 修飾付きキー（LCTL(kc)等）の関数名 → 修飾子マスク（KBDLAYER_MOD_*のビット。MT用の
 // ModifierBitTable（ビット番号）とは表し方が違う）。C()/S()/A()/G()はQMKの短い別名。
-// kbdlayer-keymap-gui/Keycodes/KeycodeTable.cs の ModFunctions と同じ内容・並びにすること
+// kasane/Keycodes/KeycodeTable.cs の ModFunctions と同じ内容・並びにすること
 // （tools/Check-KeycodeTables.ps1 が照合する）。
 const std::unordered_map<std::string, UCHAR>& ModFunctionTable() {
     static const std::unordered_map<std::string, UCHAR> table = {

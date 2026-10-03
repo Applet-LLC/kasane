@@ -10,7 +10,7 @@
  *   sig          : ECDSA P-256 raw r||s (64 bytes) over SHA-256(base64url(payloadJSON))
  *
  * Public key is embedded in s_PubKeyBlob below (BCRYPT_ECCPUBLIC_BLOB, 72 bytes).
- * Private key is held by kbdlayer-license-svc (see KEYS.md -- 1st generation,
+ * Private key is held by kasane-license-svc (see KEYS.md -- 1st generation,
  * generated 2026-09-22, distinct from kbdaddid's key pair so the two products'
  * license tokens do not cross-validate).
  *
@@ -36,7 +36,7 @@
 /*   [40..71] Y coordinate (big-endian, 32 bytes)                      */
 /*                                                                      */
 /* 1st generation key, generated 2026-09-22 (see KEYS.md). Public only --    */
-/* the matching private key lives in kbdlayer-license-svc/appsettings.json  */
+/* the matching private key lives in kasane-license-svc/appsettings.json  */
 /* (gitignored, local-only) until TokenSigner.cs's first run DPAPI-protects */
 /* it into %ProgramData%\kbdlayer-license\license-svc\signingkey.dat.       */
 /* ------------------------------------------------------------------ */

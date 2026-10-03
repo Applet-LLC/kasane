@@ -1,5 +1,5 @@
 {
-  "notes": "LayerDriver Phase 4 (Combo, v1: 2-key limited) smoke-test keymap. 10 physical keys, 1 layer, all plain KC_A..KC_J (same shape as test-keymap-macro.json). The combo itself is not embedded in this file -- it is a separate registered resource, set via KeymapTool --set-combo (same pattern as --set-macro). Calibrate positions 0 and 1 as the physical A and B keys so their real scancodes match KC_A/KC_B's standard scancode. See driver/KeymapTool/samples/README.md.",
+  "notes": "kasane Phase 4 (Combo, v1: 2-key limited) smoke-test keymap. 10 physical keys, 1 layer, all plain KC_A..KC_J (same shape as test-keymap-macro.json). The combo itself is not embedded in this file -- it is a separate registered resource, set via KeymapTool --set-combo (same pattern as --set-macro). Calibrate positions 0 and 1 as the physical A and B keys so their real scancodes match KC_A/KC_B's standard scancode. See driver/KeymapTool/samples/README.md.",
   "layout": [
     ["KC_A", "KC_B", "KC_C", "KC_D", "KC_E", "KC_F", "KC_G", "KC_H", "KC_I", "KC_J"]
   ]

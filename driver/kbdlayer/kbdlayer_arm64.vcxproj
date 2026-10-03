@@ -5,7 +5,7 @@ Platform inside kbdlayer.vcxproj, following the same pattern as kbdaddid_arm64.v
 kbdaddid_subscribe repo this project was forked from: it lives in this same directory and every
 ClCompile/ClInclude/Inf/ResourceCompile item below references the exact same source files
 kbdlayer.vcxproj does, by the same relative paths (shares source by reference, does not copy it).
-It is wired into LayerDriver.sln with ONLY an ARM64 project configuration, mapped from every
+It is wired into kasane.sln with ONLY an ARM64 project configuration, mapped from every
 existing (x64) solution configuration via Configuration Manager, so a single ordinary solution
 build produces both the x64 and ARM64 .sys in the same pass without adding a new solution
 Platform.

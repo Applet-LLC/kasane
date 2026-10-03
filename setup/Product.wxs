@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Forked from kbdaddid_subscribe's setup/Product.wxs for the LayerDriver project.
-  Renames: kbdaddid -> kbdlayer, product name "kbdaddid Subscription" -> "LayerDriver Subscription".
+  Forked from kbdaddid_subscribe's setup/Product.wxs for this project (formerly LayerDriver, renamed
+  to kasane / かさね in 2026-10).
+  Renames: kbdaddid -> kbdlayer, product name "kbdaddid Subscription" -> "LayerDriver Subscription"
+  -> "kasane Subscription" (ja: "かさね Subscription", localized via !(loc.ProductName)).
+  The UpgradeCode is unchanged across the rename, so a LayerDriver installation is upgraded in place.
+  Internal identifiers stay kbdlayer: the driver service (kbdlayer / kbdlayer.sys), the license pipe
+  and %ProgramData%\kbdlayer-license (license state survives the upgrade).
   All fixed/hardcoded GUIDs below (UpgradeCode, Component Guids) are NEW; none of kbdaddid's own
   GUIDs are reused, so the two products can be installed side by side and upgrade independently.
   mouaddid (mouse driver) support removed entirely: no F_MouDriver feature, no MOUDRIVERDIR,
-  no MOU_DEVICEIDMODE, no CA_Install/UninstallMouDriver; LayerDriver has no mouse component.
+  no MOU_DEVICEIDMODE, no CA_Install/UninstallMouDriver; this product has no mouse component.
   DriverTestApp is not shipped (superseded by KeymapTool.exe, driver/KeymapTool/; CMP_DriverTestApp
   was removed along with its ComponentRef in F_Main). KeymapTool.exe ships alongside
   DriverManager.exe in CMP_DriverTools (added once driver/KeymapTool/ existed).
@@ -13,7 +18,7 @@
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   <Product
     Id="*"
-    Name="LayerDriver Subscription"
+    Name="!(loc.ProductName)"
     Language="$(var.ProductLanguage)"
     Version="1.0.1"
     Manufacturer="Applet LLC"
@@ -25,7 +30,7 @@
       同バージョンのインストールでアップグレード（旧製品の除去→新規インストール）を発火させる。
     -->
     <MajorUpgrade
-      DowngradeErrorMessage="A newer version of LayerDriver Subscription is already installed."
+      DowngradeErrorMessage="!(loc.DowngradeError)"
       AllowSameVersionUpgrades="yes" />
     <MediaTemplate EmbedCab="yes" />
 
@@ -66,7 +71,7 @@
          手描きではないので、app.icoを差し替えたら再生成すること。 -->
     <WixVariable Id="WixUIBannerBmp" Value="$(var.MSBuildProjectDirectory)\Assets\banner.bmp" />
 
-    <Icon Id="ICO_App" SourceFile="$(var.MSBuildProjectDirectory)\..\kbdlayer-license-gui\Resources\app.ico" />
+    <Icon Id="ICO_App" SourceFile="$(var.MSBuildProjectDirectory)\..\kasane-license\Resources\app.ico" />
     <Property Id="ARPPRODUCTICON" Value="ICO_App" />
 
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
@@ -147,7 +152,9 @@
     -->
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFiles64Folder">
-        <Directory Id="INSTALLFOLDER" Name="layerdriver-subscription">
+        <!-- Program Files\applet\kasane。当社の他のアプリも applet の下に入れる。 -->
+        <Directory Id="APPLETFOLDER" Name="applet">
+        <Directory Id="INSTALLFOLDER" Name="kasane">
           <Directory Id="KBDDRIVERDIR" Name="kbdlayer">
             <Directory Id="KBDDRIVERDIR_X64" Name="x64" />
             <Directory Id="KBDDRIVERDIR_ARM64" Name="arm64" />
@@ -158,19 +165,23 @@
           <Directory Id="KEYMAPGUIDIR" Name="keymap-gui" />
           <Directory Id="SAMPLESDIR" Name="samples" />
         </Directory>
+        </Directory>
       </Directory>
+      <!-- スタートメニュー: applet\かさね Subscription（英語版は applet\kasane Subscription） -->
       <Directory Id="ProgramMenuFolder">
-        <Directory Id="PROGRAMMENUFOLDER" Name="LayerDriver Subscription" />
+        <Directory Id="APPLETMENUFOLDER" Name="applet">
+          <Directory Id="PROGRAMMENUFOLDER" Name="!(loc.ProductName)" />
+        </Directory>
       </Directory>
     </Directory>
 
     <!--
       F_Main: DriverTools（DriverManager.exe）は常に必須。
       F_KbdDriver: kbdlayer ドライバ（QMK/VIAレイヤーキーマップエンジンの核心）。
-      F_LicenseSvc: ライセンス管理サービス（kbdlayer-license-svc.exe）。
-      F_LicenseGui: ライセンス管理 GUI（kbdlayer-license-gui.exe）。
+      F_LicenseSvc: ライセンス管理サービス（kasane-license-svc.exe）。
+      F_LicenseGui: ライセンス管理 GUI（kasane-license.exe）。
     -->
-    <Feature Id="F_Main" Title="LayerDriver Subscription Core" Level="1" Absent="disallow">
+    <Feature Id="F_Main" Title="kasane Subscription Core" Level="1" Absent="disallow">
       <ComponentRef Id="CMP_DriverTools" />
       <ComponentRef Id="CMP_DriverToolsArm64" />
       <ComponentRef Id="CMP_Shortcuts" />
@@ -192,9 +203,9 @@
     </Feature>
 
     <!--
-      F_KeymapGui: キーマップ編集GUI（kbdlayer-keymap-gui.exe + Layouts\*.json）と、
+      F_KeymapGui: キーマップ編集GUI（kasane.exe + Layouts\*.json）と、
       KeymapTool用のサンプルキーマップ（samples\）。どちらもHarvestDirectoryで自動収穫
-      （KbdLayerSetup.wixproj）。スタートメニューのショートカットはCMP_Shortcuts側にある。
+      （KasaneSetup.wixproj）。スタートメニューのショートカットはCMP_Shortcuts側にある。
     -->
     <Feature Id="F_KeymapGui" Title="Keymap Editor" Level="1" Absent="disallow">
       <ComponentGroupRef Id="CG_KeymapGui" />
@@ -222,22 +233,22 @@
     </DirectoryRef>
 
     <!--
-      License Service: kbdlayer-license-svc.exe（単一ファイル publish）
+      License Service: kasane-license-svc.exe（単一ファイル publish）
       ServiceInstall は exe と同じ Component に含めることで WiX が ImagePath を自動設定する。
       ServiceControl: インストール時に自動起動、アンインストール時に停止・削除。
     -->
     <DirectoryRef Id="LICENSESVCDDIR">
       <Component Id="CMP_LicenseSvcExe" Guid="{DFEE663A-6644-4464-AD96-A264A7692DCE}">
         <File Id="FIL_LicenseSvcExe"
-              Source="$(var.StagingLicenseSvc)\kbdlayer-license-svc.exe"
+              Source="$(var.StagingLicenseSvc)\kasane-license-svc.exe"
               KeyPath="yes" />
         <!-- appsettings.json: Gumroad:ProductPermalink など設定値を保持 -->
         <File Id="FIL_LicenseSvcConfig"
               Source="$(var.StagingLicenseSvc)\appsettings.json" />
         <ServiceInstall
           Id="SVC_KbdLayerLicense"
-          Name="kbdlayerLicenseSvc"
-          DisplayName="LayerDriver License Service"
+          Name="kasaneLicenseSvc"
+          DisplayName="kasane License Service"
           Description="!(loc.LicenseSvcDescription)"
           Type="ownProcess"
           Start="auto"
@@ -245,7 +256,7 @@
           Account="LocalSystem" />
         <ServiceControl
           Id="SVC_KbdLayerLicense_Ctrl"
-          Name="kbdlayerLicenseSvc"
+          Name="kasaneLicenseSvc"
           Start="install"
           Stop="both"
           Remove="uninstall"
@@ -253,11 +264,11 @@
       </Component>
     </DirectoryRef>
 
-    <!-- License GUI: kbdlayer-license-gui.exe（単一ファイル publish） -->
+    <!-- License GUI: kasane-license.exe（単一ファイル publish） -->
     <DirectoryRef Id="LICENSEGUIDIR">
       <Component Id="CMP_LicenseGuiExe" Guid="{205AF696-E36B-46A0-AA2E-E06061FD492E}">
         <File Id="FIL_LicenseGuiExe"
-              Source="$(var.StagingLicenseGui)\kbdlayer-license-gui.exe"
+              Source="$(var.StagingLicenseGui)\kasane-license.exe"
               KeyPath="yes" />
       </Component>
       <!--
@@ -271,8 +282,8 @@
       -->
       <Component Id="CMP_RunOnceLicenseGui" Guid="{6C0AF239-6078-4FBF-AF79-9B73E4535821}">
         <RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\RunOnce"
-                       Name="kbdlayerLicenseGui"
-                       Value="&quot;[LICENSEGUIDIR]kbdlayer-license-gui.exe&quot;"
+                       Name="kasaneLicense"
+                       Value="&quot;[LICENSEGUIDIR]kasane-license.exe&quot;"
                        Type="string" KeyPath="yes" />
       </Component>
     </DirectoryRef>
@@ -280,16 +291,18 @@
     <!-- スタートメニューショートカット -->
     <DirectoryRef Id="PROGRAMMENUFOLDER">
       <Component Id="CMP_Shortcuts" Guid="{3A444FE9-C76E-47A9-BC5B-D7E42A15765A}">
-        <Shortcut Id="ShortcutLicenseGui" Name="LayerDriver License Manager"
-                  Target="[LICENSEGUIDIR]kbdlayer-license-gui.exe"
+        <Shortcut Id="ShortcutLicenseGui" Name="kasane License Manager"
+                  Target="[LICENSEGUIDIR]kasane-license.exe"
                   WorkingDirectory="LICENSEGUIDIR"
                   Icon="ICO_App" />
-        <Shortcut Id="ShortcutKeymapGui" Name="LayerDriver Keymap Editor"
-                  Target="[KEYMAPGUIDIR]kbdlayer-keymap-gui.exe"
+        <Shortcut Id="ShortcutKeymapGui" Name="kasane"
+                  Target="[KEYMAPGUIDIR]kasane.exe"
                   WorkingDirectory="KEYMAPGUIDIR"
                   Icon="ICO_App" />
         <RemoveFolder Id="PROGRAMMENUFOLDER" On="uninstall" />
-        <RegistryValue Root="HKCU" Key="Software\kbdlayer-license" Name="Installed"
+        <!-- applet フォルダは他のアプリと共有するので、空のときだけ消える（RemoveFolder は空でなければ何もしない）。 -->
+        <RemoveFolder Id="APPLETMENUFOLDER" Directory="APPLETMENUFOLDER" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\applet\kasane" Name="Installed"
                        Type="integer" Value="1" KeyPath="yes" />
       </Component>
     </DirectoryRef>

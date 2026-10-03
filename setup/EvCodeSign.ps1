@@ -1,9 +1,9 @@
-﻿# EV code signing for KbdLayerSetup (USB token + subject name).
+﻿# EV code signing for KasaneSetup (USB token + subject name).
 # Forked from kbdaddid_subscribe's setup/EvCodeSign.ps1 -- signing tool invocation logic is
 # unchanged (the EV cert/USB token is shared across Applet LLC products); only cosmetic/path
-# renames (kbdaddid -> kbdlayer, mouaddid removed -- LayerDriver has no mouse component).
+# renames (kbdaddid -> kbdlayer, mouaddid removed -- kasane has no mouse component).
 #
-# Signing pipeline (called from KbdLayerSetup.csproj):
+# Signing pipeline (called from KasaneSetup.csproj):
 #   1. -StagingRoot  : sign .exe/.dll (app binaries) and .sys/.cat (driver packages) under staging\
 #                      WHQL-pre-signed drivers (driver/signed/) are skipped automatically.
 #   2. -InstallerMsi : sign the completed MSI file(s). Accepts one or more paths so that
@@ -12,7 +12,7 @@
 #
 # Usage:
 #   .\EvCodeSign.ps1 -StagingRoot "<setup>\staging"
-#   .\EvCodeSign.ps1 -InstallerMsi "<setup>\bin\Release\KbdLayerSetup-en-US.msi;<setup>\bin\Release\KbdLayerSetup-ja-JP.msi"
+#   .\EvCodeSign.ps1 -InstallerMsi "<setup>\bin\Release\KasaneSetup-en-US.msi;<setup>\bin\Release\KasaneSetup-ja-JP.msi"
 #   (semicolon-delimited single string, not an array parameter: when invoked via `powershell -File`,
 #    a second bare token after -InstallerMsi does NOT extend a [string[]] array -- it silently binds
 #    to the next positional parameter (-StagingRoot) instead, so multiple paths must travel as one
@@ -139,7 +139,7 @@ if ($StagingRoot -ne "") {
             $cat = Join-Path $driverDir "$driverLeaf.cat"
             $sys = Join-Path $driverDir "$driverLeaf.sys"
             if ((Test-Path -LiteralPath $sys) -and -not (Test-Path -LiteralPath $cat)) {
-                throw "[$driverLeaf/$arch] Missing $driverLeaf.cat under $driverDir. Run Inf2Cat in the driver project build (Release) before packaging; KbdLayerSetup does not regenerate catalogs."
+                throw "[$driverLeaf/$arch] Missing $driverLeaf.cat under $driverDir. Run Inf2Cat in the driver project build (Release) before packaging; KasaneSetup does not regenerate catalogs."
             }
         }
     }

@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
+    <ProductVersion>3.11</ProductVersion>
+    <ProjectGuid>{254243B4-7F71-4C3D-8487-66FA6435F6E1}</ProjectGuid>
+    <SchemaVersion>2.0</SchemaVersion>
+    <!--
+      言語ごとに独立したMSIをビルドするため、Culture/CultureSuffix/ProductLanguage を
+      呼び出し元（KasaneSetup.csproj）から /p: で上書きする。既定値は従来どおり ja-jp。
+    -->
+    <Culture Condition="'$(Culture)' == ''">ja-jp</Culture>
+    <CultureSuffix Condition="'$(CultureSuffix)' == ''">ja-JP</CultureSuffix>
+    <ProductLanguage Condition="'$(ProductLanguage)' == ''">1041</ProductLanguage>
+    <!-- WixVariable(WixUILicenseRtf) は loc文字列ではなくプリプロセッサ変数で解決するため、ここで直接パスを渡す -->
+    <LicenseRtfFile Condition="'$(LicenseRtfFile)' == ''">License\License.ja-JP.rtf</LicenseRtfFile>
+    <OutputName>KasaneSetup-$(CultureSuffix)</OutputName>
+    <OutputType>Package</OutputType>
+    <WixTargetsPath Condition="'$(WixTargetsPath)'==''">$(MSBuildExtensionsPath32)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
+    <!-- MSBuildExtensionsPath32 が K: ドライブを指す場合の C: フォールバック -->
+    <WixTargetsPath Condition="!Exists('$(WixTargetsPath)')">C:\Program Files (x86)\MSBuild\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
+    <Cultures>$(Culture)</Cultures>
+    <HarvestDirectoryAutogenerateGuids>true</HarvestDirectoryAutogenerateGuids>
+    <HarvestDirectoryGenerateGuidsNow>false</HarvestDirectoryGenerateGuidsNow>
+    <DefineSolutionProperties>false</DefineSolutionProperties>
+    <DefineConstants>StagingKbdDriverX64=$(MSBuildProjectDirectory)\staging\drivers\kbdlayer\x64;StagingKbdDriverArm64=$(MSBuildProjectDirectory)\staging\drivers\kbdlayer\arm64;StagingSymbol=$(MSBuildProjectDirectory)\staging\Symbol;StagingLicenseSvc=$(MSBuildProjectDirectory)\staging\app\license-svc;StagingLicenseGui=$(MSBuildProjectDirectory)\staging\app\license-gui;StagingKeymapGui=$(MSBuildProjectDirectory)\staging\app\keymap-gui;StagingSamples=$(MSBuildProjectDirectory)\staging\samples;MSBuildProjectDirectory=$(MSBuildProjectDirectory);ProductLanguage=$(ProductLanguage);LicenseRtfFile=$(LicenseRtfFile)</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Debug|x64・Release|x64 の両方で使う（以前は Release|x64 だけだったため、ソリューションの構成が
+       Debug|x64 のときに OutputPath が未設定になりビルドが失敗していた）。 -->
+  <PropertyGroup Condition=" '$(Platform)' == 'x64' ">
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <!--
+      Culture ごとに独立した obj フォルダを使う。KasaneSetup.csproj は同じ wixproj を
+      en-us → ja-jp の順に msiexec 相当の別プロセスとして2回呼ぶが、Product.wxs 自体は
+      両ビルドで一切変更されないため、obj パスが Configuration のみだと MSBuild の増分ビルド
+      判定（入力ファイルのタイムスタンプ比較）が「前回とソースが同じだから再コンパイル不要」と
+      誤判定し、2回目（ja-jp）の candle.exe 実行がスキップされて1回目（en-us）の .wixobj が
+      再利用されてしまう。$(var.LicenseRtfFile) 等の /p: で渡すカルチャー依存値は candle.exe の
+      プリプロセッサ変数としてコンパイル時に解決されるため、これが起こると2回目のビルドでも
+      1回目の文言（英語ライセンス文など）が埋め込まれたまま出力される。
+      obj に $(Culture) を含めることで2回目のビルドが必ず新しい出力先を見て再コンパイルされる。
+    -->
+    <IntermediateOutputPath>obj\$(Configuration)\$(Culture)\</IntermediateOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Product.wxs" />
+  </ItemGroup>
+
+  <!-- Culture (en-us / ja-jp) に応じて light.exe が該当する方を -loc として使用する -->
+  <ItemGroup>
+    <EmbeddedResource Include="Product.en-us.wxl" />
+    <EmbeddedResource Include="Product.ja-jp.wxl" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <WixExtension Include="WixUIExtension" />
+  </ItemGroup>
+
+  <!-- kbdlayer ドライバはファイル数が少ないので HarvestDirectory で自動生成。
+       x64/arm64それぞれ別のステージングフォルダ・別のDirectoryRefId/ComponentGroupNameに分ける
+       （Product.wxsのKBDDRIVERDIR配下がx64\/arm64\子ディレクトリを持つ構成に対応）。 -->
+  <ItemGroup>
+    <HarvestDirectory Include="$(MSBuildProjectDirectory)\staging\drivers\kbdlayer\x64">
+      <DirectoryRefId>KBDDRIVERDIR_X64</DirectoryRefId>
+      <ComponentGroupName>CG_KbdDriver_X64</ComponentGroupName>
+      <SuppressRootDirectory>true</SuppressRootDirectory>
+      <PreprocessorVariable>var.StagingKbdDriverX64</PreprocessorVariable>
+    </HarvestDirectory>
+    <HarvestDirectory Include="$(MSBuildProjectDirectory)\staging\drivers\kbdlayer\arm64">
+      <DirectoryRefId>KBDDRIVERDIR_ARM64</DirectoryRefId>
+      <ComponentGroupName>CG_KbdDriver_ARM64</ComponentGroupName>
+      <SuppressRootDirectory>true</SuppressRootDirectory>
+      <PreprocessorVariable>var.StagingKbdDriverArm64</PreprocessorVariable>
+    </HarvestDirectory>
+    <!-- kbdlayer.pdb（存在すれば）をシンボル保管用に Symbol フォルダへ同梱する -->
+    <HarvestDirectory Include="$(MSBuildProjectDirectory)\staging\Symbol">
+      <DirectoryRefId>SYMBOLDIR</DirectoryRefId>
+      <ComponentGroupName>CG_Symbol</ComponentGroupName>
+      <SuppressRootDirectory>true</SuppressRootDirectory>
+      <PreprocessorVariable>var.StagingSymbol</PreprocessorVariable>
+    </HarvestDirectory>
+    <!-- キーマップ編集GUI（exe + Layouts\*.json）。Layoutsサブフォルダごと収穫する。 -->
+    <HarvestDirectory Include="$(MSBuildProjectDirectory)\staging\app\keymap-gui">
+      <DirectoryRefId>KEYMAPGUIDIR</DirectoryRefId>
+      <ComponentGroupName>CG_KeymapGui</ComponentGroupName>
+      <SuppressRootDirectory>true</SuppressRootDirectory>
+      <PreprocessorVariable>var.StagingKeymapGui</PreprocessorVariable>
+    </HarvestDirectory>
+    <!-- KeymapToolのサンプルキーマップ（チュートリアル用を含む） -->
+    <HarvestDirectory Include="$(MSBuildProjectDirectory)\staging\samples">
+      <DirectoryRefId>SAMPLESDIR</DirectoryRefId>
+      <ComponentGroupName>CG_Samples</ComponentGroupName>
+      <SuppressRootDirectory>true</SuppressRootDirectory>
+      <PreprocessorVariable>var.StagingSamples</PreprocessorVariable>
+    </HarvestDirectory>
+  </ItemGroup>
+
+  <!-- KasaneSetup.csproj は Prepare-Staging → EV 署名の後に本プロジェクトをビルドする。再実行すると署名が消えるためスキップ可能にする。 -->
+  <Target Name="PrepareStaging" BeforeTargets="BeforeBuild" Condition="'$(SkipPrepareStaging)' != 'true'">
+    <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Prepare-Staging.ps1&quot;" />
+  </Target>
+
+  <Import Project="$(WixTargetsPath)" Condition="Exists('$(WixTargetsPath)')" />
+
+  <Target Name="CheckWixTargets" BeforeTargets="Build" Condition="!Exists('$(WixTargetsPath)')">
+    <Error Text="WiX Toolset v3 is required. Install WiX and ensure Wix.targets is available." />
+  </Target>
+</Project>

@@ -1,0 +1,42 @@
+<Window x:Class="Kasane.Views.KeyAssignDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="キーの割り当て" Width="760" Height="540"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+    <DockPanel Margin="10">
+        <TextBlock x:Name="TxtHeader" DockPanel.Dock="Top" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8" />
+
+        <Grid DockPanel.Dock="Bottom" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <TextBlock Text="キーコード:" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <TextBox x:Name="TxtToken" Grid.Column="1" FontFamily="Consolas" FontSize="14" TextChanged="TxtToken_TextChanged" />
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="8,0,0,0">
+                <Button x:Name="BtnOk" Content="OK" IsDefault="True" Width="80" Click="BtnOk_Click" />
+                <Button x:Name="BtnCancel" Content="キャンセル" IsCancel="True" Width="80" />
+            </StackPanel>
+            <TextBlock x:Name="TxtValidation" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,4,0,0" TextWrapping="Wrap" />
+        </Grid>
+
+        <!-- 修飾キー。チェックすると、選んだキーが LCTL(KC_C) のような修飾付きキー（ショートカット）になる。
+             レイヤー操作の LM でも、ここで選んだ修飾キーを使う。 -->
+        <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+            <TextBlock Text="修飾キー（チェックすると、選んだキーを Ctrl+C のようなショートカットとして送る。LM でもここで選ぶ）:"
+                       TextWrapping="Wrap" Margin="0,0,0,4" />
+            <WrapPanel x:Name="ModPanel" />
+        </StackPanel>
+
+        <ListBox x:Name="LstCategories" DockPanel.Dock="Left" Width="150" Margin="0,0,8,0"
+                 SelectionChanged="LstCategories_SelectionChanged" />
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <ContentControl x:Name="CategoryContent" />
+        </ScrollViewer>
+    </DockPanel>
+</Window>

@@ -1,7 +1,7 @@
-﻿# Forked from kbdaddid_subscribe's setup/Prepare-Staging.ps1 for the LayerDriver project.
+﻿# Forked from kbdaddid_subscribe's setup/Prepare-Staging.ps1 for this project (formerly LayerDriver, now kasane).
 # Renames: kbdaddid -> kbdlayer; addid/<name>/... source-tree paths -> driver/<name>/... (this
 # repo's actual layout, driver/kbdlayer/ + driver/DriverManager/, set up by the lead agent).
-# mouaddid handling removed entirely (LayerDriver has no mouse component). DriverTestApp staging
+# mouaddid handling removed entirely (kasane has no mouse component). DriverTestApp staging
 # removed (superseded by KeymapTool.exe, driver/KeymapTool/ -- staged below alongside DriverManager.exe).
 
 $ErrorActionPreference = "Stop"
@@ -343,7 +343,7 @@ if (Test-Path $stagingRoot) {
 
 # kbdlayer: x64・arm64それぞれでWHQL署名済みがあればそちらを優先。ステージング先は
 # drivers/kbdlayer/<arch>/ （DriverManager.cppのArchSubdirName()ベースのパス解決・
-# KbdLayerSetup.wixprojのHarvestDirectory・Product.wxsのディレクトリツリーがすべて
+# KasaneSetup.wixprojのHarvestDirectory・Product.wxsのディレクトリツリーがすべて
 # この<arch>サブフォルダ構成に揃えて更新済み）。
 $symbolDir = Join-Path $stagingRoot "Symbol"
 New-Item -ItemType Directory -Path $symbolDir -Force | Out-Null
@@ -384,26 +384,26 @@ Copy-RequiredToolExe -ExeFileName "KeymapTool.exe" -DestDir (Join-Path $stagingR
     (Join-Path $repoRoot "driver/KeymapTool/x64/Release/KeymapTool.exe")
 )
 
-# kbdlayer-license-svc: .NET 8 Worker Service の publish 成果物（exe + appsettings.json）
-Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kbdlayer-license-svc" `
-    -ExeFileName "kbdlayer-license-svc.exe" `
+# kasane-license-svc: .NET 8 Worker Service の publish 成果物（exe + appsettings.json）
+Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kasane-license-svc" `
+    -ExeFileName "kasane-license-svc.exe" `
     -DestDir (Join-Path $stagingRoot "app/license-svc")
 
-# kbdlayer-license-gui: .NET 8 WPF の publish 成果物（exe のみ）
-Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kbdlayer-license-gui" `
-    -ExeFileName "kbdlayer-license-gui.exe" `
+# kasane-license: .NET 8 WPF の publish 成果物（exe のみ）
+Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kasane-license" `
+    -ExeFileName "kasane-license.exe" `
     -DestDir (Join-Path $stagingRoot "app/license-gui")
 
-# kbdlayer-keymap-gui: キーマップ編集GUI（.NET 8 WPF）。Stage-DotNetPublish は publish 出力の
+# kasane: キーマップ編集GUI（.NET 8 WPF）。Stage-DotNetPublish は publish 出力の
 # 直下のファイルしかコピーしないので、KLEレイアウト（Layouts\*.json）はソースから別途コピーする
 # （publish時にもCopyToOutputDirectoryで同じファイルが出力されるが、ソースを正とする）。
 $keymapGuiStaging = Join-Path $stagingRoot "app/keymap-gui"
-Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kbdlayer-keymap-gui" `
-    -ExeFileName "kbdlayer-keymap-gui.exe" `
+Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kasane" `
+    -ExeFileName "kasane.exe" `
     -DestDir $keymapGuiStaging
 New-Item -ItemType Directory -Path (Join-Path $keymapGuiStaging "Layouts") -Force | Out-Null
-Copy-Item -Path (Join-Path $repoRoot "kbdlayer-keymap-gui/Layouts/*.json") -Destination (Join-Path $keymapGuiStaging "Layouts") -Force
-Write-Host "[kbdlayer-keymap-gui] staged layouts: $((Get-ChildItem (Join-Path $keymapGuiStaging 'Layouts')).Name -join ', ')"
+Copy-Item -Path (Join-Path $repoRoot "kasane/Layouts/*.json") -Destination (Join-Path $keymapGuiStaging "Layouts") -Force
+Write-Host "[kasane] staged layouts: $((Get-ChildItem (Join-Path $keymapGuiStaging 'Layouts')).Name -join ', ')"
 
 # KeymapToolのサンプルキーマップ（docs/TUTORIAL-CLI.md で使う tutorial-*.json、動作確認用 test-keymap-*.json、
 # README.md）。samples/temp/ は作業用の参照資料なので含めない。
@@ -414,13 +414,13 @@ Get-ChildItem -LiteralPath (Join-Path $repoRoot "driver/KeymapTool/samples") -Fi
     ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $samplesStaging -Force }
 Write-Host "[samples] staged: $((Get-ChildItem $samplesStaging).Count) files"
 
-# kbdlayer-license-launcher: ユーザーが最初に実行する WinForms ランチャー（kbdaddid-license-launcher
+# kasane-launcher: ユーザーが最初に実行する WinForms ランチャー（kbdaddid-license-launcher
 # / Install-kbdaddidLicense.exe と同じ方針）。ここで staging/launcher に置いておくことで、
 # 他のアプリバイナリと同じ EV 署名パス（Step 3 -StagingRoot）に自然に乗る。
-# ビルド後に KbdLayerSetup.csproj の最終 Copy が staging/launcher から
+# ビルド後に KasaneSetup.csproj の最終 Copy が staging/launcher から
 # bin\<Configuration>\ へコピーし、両言語のMSIと同じフォルダに配置する。
-Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kbdlayer-license-launcher" `
-    -ExeFileName "Install-kbdlayerLicense.exe" `
+Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kasane-launcher" `
+    -ExeFileName "Install-kasane.exe" `
     -DestDir (Join-Path $stagingRoot "launcher")
 
 # EvCodeSign.ps1 向けに WHQL 署名済みドライバ一覧を staging 直下に書き出す。
