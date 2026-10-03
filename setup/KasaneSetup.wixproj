@@ -27,7 +27,9 @@
     <DefineConstants>StagingKbdDriverX64=$(MSBuildProjectDirectory)\staging\drivers\kbdlayer\x64;StagingKbdDriverArm64=$(MSBuildProjectDirectory)\staging\drivers\kbdlayer\arm64;StagingSymbol=$(MSBuildProjectDirectory)\staging\Symbol;StagingLicenseSvc=$(MSBuildProjectDirectory)\staging\app\license-svc;StagingLicenseGui=$(MSBuildProjectDirectory)\staging\app\license-gui;StagingKeymapGui=$(MSBuildProjectDirectory)\staging\app\keymap-gui;StagingSamples=$(MSBuildProjectDirectory)\staging\samples;MSBuildProjectDirectory=$(MSBuildProjectDirectory);ProductLanguage=$(ProductLanguage);LicenseRtfFile=$(LicenseRtfFile)</DefineConstants>
   </PropertyGroup>
 
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
+  <!-- Debug|x64・Release|x64 の両方で使う（以前は Release|x64 だけだったため、ソリューションの構成が
+       Debug|x64 のときに OutputPath が未設定になりビルドが失敗していた）。 -->
+  <PropertyGroup Condition=" '$(Platform)' == 'x64' ">
     <OutputPath>bin\$(Configuration)\</OutputPath>
     <!--
       Culture ごとに独立した obj フォルダを使う。KasaneSetup.csproj は同じ wixproj を
