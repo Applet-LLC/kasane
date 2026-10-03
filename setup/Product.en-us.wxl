@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <WixLocalization Culture="en-us" xmlns="http://schemas.microsoft.com/wix/2006/localization">
-  <String Id="LicenseSvcDescription">LayerDriver subscription license management</String>
+  <String Id="ProductName">kasane Subscription</String>
+  <String Id="DowngradeError">A newer version of kasane Subscription is already installed.</String>
+  <String Id="LicenseSvcDescription">kasane subscription license management</String>
   <String Id="ExitDialogOptionalText">Restart your computer to complete the installation. The License Manager will start automatically the next time you sign in.</String>
 
   <String Id="DeviceIdModeDlg_Title">Device Identification Mode</String>

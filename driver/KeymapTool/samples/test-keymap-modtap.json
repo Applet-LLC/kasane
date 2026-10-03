@@ -1,5 +1,5 @@
 {
-  "notes": "LayerDriver Phase 2 (Mod-Tap/Layer-Tap) smoke-test keymap. 10 physical keys, 2 layers. Pairs with --calibrate-simple / --apply-simple (no info.json needed). See driver/KeymapTool/samples/README.md for the exact test procedure -- the expected behavior differs depending on whether hold is confirmed by another key press vs. by the TapTermMs timeout, which is important to distinguish when testing.",
+  "notes": "kasane Phase 2 (Mod-Tap/Layer-Tap) smoke-test keymap. 10 physical keys, 2 layers. Pairs with --calibrate-simple / --apply-simple (no info.json needed). See driver/KeymapTool/samples/README.md for the exact test procedure -- the expected behavior differs depending on whether hold is confirmed by another key press vs. by the TapTermMs timeout, which is important to distinguish when testing.",
   "layout": [
     ["KC_A",   "KC_B",   "MT(MOD_LCTL,KC_C)", "LT(1,KC_D)", "KC_E",   "KC_F",   "KC_G",   "KC_H",   "KC_I",   "KC_J"],
     ["KC_1",   "KC_2",   "KC_TRNS",           "KC_TRNS",    "KC_TRNS","KC_TRNS","KC_TRNS","KC_TRNS","KC_TRNS","KC_TRNS"]

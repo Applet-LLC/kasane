@@ -1,0 +1,25 @@
+<Window x:Class="Kasane.Views.CalibrationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:layout="clr-namespace:Kasane.Layout"
+        Title="キャリブレーション" Width="1200" Height="620"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Activated="Window_Activated" Deactivated="Window_Deactivated" Closed="Window_Closed">
+    <DockPanel Margin="10">
+        <TextBlock x:Name="TxtInstruction" DockPanel.Dock="Top" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" />
+        <TextBlock x:Name="TxtNote" DockPanel.Dock="Top" Margin="0,4,0,0" Foreground="DimGray" TextWrapping="Wrap"
+                   Text="このウィンドウが前面にある間、キーボードで押したキーはWindowsに送られません（記録だけされます）。操作はマウスで行ってください。" />
+        <TextBlock x:Name="TxtLast" DockPanel.Dock="Top" Margin="0,6,0,6" FontSize="13" TextWrapping="Wrap" />
+
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+            <Button x:Name="BtnBack" Content="1つ戻る" Click="BtnBack_Click" />
+            <Button x:Name="BtnSkip" Content="このキーを飛ばす" Click="BtnSkip_Click" />
+            <Button x:Name="BtnFinish" Content="保存して閉じる" FontWeight="Bold" Click="BtnFinish_Click" />
+            <Button Content="中止（保存しない）" Click="BtnCancel_Click" />
+        </StackPanel>
+
+        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+            <layout:KeyboardCanvas x:Name="KbdCanvas" Margin="4" HorizontalAlignment="Left" VerticalAlignment="Top" />
+        </ScrollViewer>
+    </DockPanel>
+</Window>

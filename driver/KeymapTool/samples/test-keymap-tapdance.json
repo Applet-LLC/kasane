@@ -1,5 +1,5 @@
 {
-  "notes": "LayerDriver Phase 5 (TapDance, v1: up to 3 taps) smoke-test keymap. 10 physical keys, 1 layer. Position 0 is bound to TAPDANCE(0); the tap-dance's actual actions (single/hold/double/triple) are programmed separately via KeymapTool --set-tapdance (same pattern as --set-macro/--set-combo, not embedded in this file). See driver/KeymapTool/samples/README.md.",
+  "notes": "kasane Phase 5 (TapDance, v1: up to 3 taps) smoke-test keymap. 10 physical keys, 1 layer. Position 0 is bound to TAPDANCE(0); the tap-dance's actual actions (single/hold/double/triple) are programmed separately via KeymapTool --set-tapdance (same pattern as --set-macro/--set-combo, not embedded in this file). See driver/KeymapTool/samples/README.md.",
   "layout": [
     ["TAPDANCE(0)", "KC_B", "KC_C", "KC_D", "KC_E", "KC_F", "KC_G", "KC_H", "KC_I", "KC_J"]
   ]

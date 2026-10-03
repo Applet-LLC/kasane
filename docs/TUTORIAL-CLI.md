@@ -1,9 +1,9 @@
 # チュートリアル: CLIでキーを入れ替える（JIS / US キーボード）
 
-LayerDriverをインストールしてから、手元のキーボードに合わせてキャリブレーションを行い、
+kasane（かさね）をインストールしてから、手元のキーボードに合わせてキャリブレーションを行い、
 キーの入れ替え（リマップ）を設定・保存し、実際に動くことを確かめるまでの手順です。
 `KeymapTool.exe`（コマンドライン）だけで完結します。画面で操作したい場合は、同じ設定を
-Keymap Editor（GUI）で行う [TUTORIAL-GUI.md](TUTORIAL-GUI.md) を参照してください
+kasane のGUI（kasane.exe）で行う [TUTORIAL-GUI.md](TUTORIAL-GUI.md) を参照してください
 （インストールとライセンスの手順0〜2は共通です）。
 
 この手順で作る設定は次の2つです。お使いのキーボードに合う方を選んでください。
@@ -45,7 +45,7 @@ Keymap Editor（GUI）で行う [TUTORIAL-GUI.md](TUTORIAL-GUI.md) を参照し�
   キャリブレーション（`--calibrate`・`--capture`系）は**管理者として実行したコマンドプロンプト／PowerShell**で行ってください。
   管理者権限なしで使えるのは、一覧・設定の読み出し（`--list`・`--get`系）とON/OFF（`--on`/`--off`）だけです
   （一般ユーザー権限のアプリにキー入力を盗み見られたり、勝手にキー入力を仕込まれたりしないように、ドライバが制限しています）。
-- 有効なLayerDriverのライセンスキーと、アクティベート時のインターネット接続が必要です。
+- 有効なkasaneのライセンスキーと、アクティベート時のインターネット接続が必要です。
 - **テスト署名モード**: 現在のドライバはWHQL署名を取得していないため、テスト署名モードを
   有効にしたPCでのみ読み込まれます。未設定の場合は、管理者のPowerShellで次を実行して再起動します
   （UEFIのセキュアブートが有効だと設定できません。先にセキュアブートを無効にしてください）。
@@ -70,7 +70,7 @@ Keymap Editor（GUI）で行う [TUTORIAL-GUI.md](TUTORIAL-GUI.md) を参照し�
 
 ## 2. ライセンスを有効にする
 
-1. 再起動してログインすると、**LayerDriver License Manager** が自動で開きます
+1. 再起動してログインすると、**kasane License Manager** が自動で開きます
    （開かない場合はスタートメニューから起動します）。
 2. ライセンスキーを入力して **アクティベート** を押します。
 3. 「OK（ライセンス有効）」と表示されたら、**もう一度PCを再起動** します。
@@ -85,8 +85,8 @@ PowerShellを開き（管理者でなくて構いません）、作業フォル�
 キャリブレーション結果のファイルはこのフォルダに保存されます。
 
 ```powershell
-mkdir $env:USERPROFILE\LayerDriver
-cd $env:USERPROFILE\LayerDriver
+mkdir $env:USERPROFILE\kasane
+cd $env:USERPROFILE\kasane
 Set-Alias KeymapTool "C:\Program Files\layerdriver-subscription\KeymapTool.exe"
 ```
 
@@ -443,7 +443,7 @@ IMEをオンにしてから切り替えキーを押すと親指シフトにな�
 ON/OFFに合わせてIMEもオン/オフしたい場合は、`"onEnter"`/`"onExit"` に、使っているIMEの設定で
 IMEオン/オフに割り当てたキー（例: `KC_HENK`/`KC_MHEN`）を指定します。
 判定の細かい調整（同時打鍵判定時間など）は `samples/README.md` の NICOLA の節を参照してください。
-GUI（Keymap Editor）の **設定...** →「NICOLA」タブでも同じ設定ができ、配列の表を画面で編集して
+GUI（kasane）の **設定...** →「NICOLA」タブでも同じ設定ができ、配列の表を画面で編集して
 `nicola.json` に書き出すこともできます。
 
 やめるときは次を実行します。

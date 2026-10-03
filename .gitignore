@@ -1,6 +1,6 @@
-# Forked from kbdaddid_subscribe's .gitignore for the LayerDriver project.
-# Renames: kbdaddid-license-svc/appsettings.json -> kbdlayer-license-svc/appsettings.json.
-# mouaddid-specific entry removed (LayerDriver has no mouse component / no addid/signed tree).
+# Forked from kbdaddid_subscribe's .gitignore for this project (formerly LayerDriver, now kasane).
+# Renames: kbdaddid-license-svc/appsettings.json -> kbdlayer-license-svc/appsettings.json -> kasane-license-svc/appsettings.json (2026-10).
+# mouaddid-specific entry removed (kasane has no mouse component / no addid/signed tree).
 
 # Visual Studio / MSBuild
 .vs/
@@ -61,9 +61,11 @@ DvlErrLog.txt
 .vscode/
 
 # Licensing secrets — never commit the ECDSA signing private key or Gumroad access
-# token (see driver/kbdlayer/KEYS.md and kbdlayer-license-svc/TokenSigner.cs). Only
+# token (see driver/kbdlayer/KEYS.md and kasane-license-svc/TokenSigner.cs). Only
 # the *.Sample.json template is tracked; each environment supplies its own
 # appsettings.json locally (bootstrap-only, DPAPI-protected on first run).
+kasane-license-svc/appsettings.json
+# old folder name (before the 2026-10 rename to kasane); kept so a stale local copy is never committed
 kbdlayer-license-svc/appsettings.json
 
 # Perplexity research notes and the original planning doc are kept locally for

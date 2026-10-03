@@ -3,14 +3,14 @@
   KeymapTool（C++）とKeymap Editor GUI（C#）のキーコード表が一致しているか確認する。
 
 .DESCRIPTION
-  driver/KeymapTool/KeycodeTable.cpp と kbdlayer-keymap-gui/Keycodes/KeycodeTable.cs から
+  driver/KeymapTool/KeycodeTable.cpp と kasane/Keycodes/KeycodeTable.cs から
   ("KC_xxx", SC1(0x..)) / {"KC_xxx", SCE0(0x..)} / SC(0xE1, 0x..) の組を抜き出して比較する。
   どちらかの表を変更したら実行すること。不一致があれば終了コード1。
 #>
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $cppPath = Join-Path $root 'driver\KeymapTool\KeycodeTable.cpp'
-$csPath = Join-Path $root 'kbdlayer-keymap-gui\Keycodes\KeycodeTable.cs'
+$csPath = Join-Path $root 'kasane\Keycodes\KeycodeTable.cs'
 
 $pattern = '"(KC_\w+)",\s*(SC1\(0x[0-9A-Fa-f]+\)|SCE0\(0x[0-9A-Fa-f]+\)|SC\(0x[0-9A-Fa-f]+,\s*0x[0-9A-Fa-f]+\))'
 

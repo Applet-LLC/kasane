@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <WixLocalization Culture="ja-jp" xmlns="http://schemas.microsoft.com/wix/2006/localization">
-  <String Id="LicenseSvcDescription">LayerDriver サブスクリプションライセンス管理</String>
+  <String Id="ProductName">かさね Subscription</String>
+  <String Id="DowngradeError">新しいバージョンのかさね Subscription がすでにインストールされています。</String>
+  <String Id="LicenseSvcDescription">かさね サブスクリプションライセンス管理</String>
   <String Id="ExitDialogOptionalText">インストールを完了するには、コンピューターを再起動してください。再起動後にログインすると、ライセンス管理ツールが自動的に起動します。</String>
 
   <String Id="DeviceIdModeDlg_Title">デバイス識別モードの設定</String>

@@ -1,5 +1,5 @@
 {
-  "notes": "LayerDriver test fixture: standalone 17-key numeric keypad, simple mode (--calibrate-simple / --apply-simple). Key order follows the keyboard-layout-editor.com (KLE) numpad preset (driver/KeymapTool/samples/temp/keyboard-layout-10key.json, same as the GUI's Layouts/kle-10key.json): row by row from the top, left to right. Layer 0 = native pass-through for every key. Layer 1 = mostly transparent, with the same kind of demo as test-keymap-us104.json: position 1 (normally NumLock) is MO(1) instead of NumLock, and the digit keys 1-9, 0 become F1-F9, F10 while held. See driver/KeymapTool/samples/README.md for the ordered key list.",
+  "notes": "kasane test fixture: standalone 17-key numeric keypad, simple mode (--calibrate-simple / --apply-simple). Key order follows the keyboard-layout-editor.com (KLE) numpad preset (driver/KeymapTool/samples/temp/keyboard-layout-10key.json, same as the GUI's Layouts/kle-10key.json): row by row from the top, left to right. Layer 0 = native pass-through for every key. Layer 1 = mostly transparent, with the same kind of demo as test-keymap-us104.json: position 1 (normally NumLock) is MO(1) instead of NumLock, and the digit keys 1-9, 0 become F1-F9, F10 while held. See driver/KeymapTool/samples/README.md for the ordered key list.",
   "layout": [
     [
       "MO(1)", "KC_KP_SLASH", "KC_KP_ASTERISK", "KC_KP_MINUS",

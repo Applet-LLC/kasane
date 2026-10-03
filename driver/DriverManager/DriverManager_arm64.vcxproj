@@ -6,7 +6,7 @@ relative-path reference (not a copy). This exists solely because SetupInstallSer
 running under x64 emulation on an ARM64 host, even though DiInstallDriverW (DriverStore staging)
 succeeds fine under emulation there (verified on real hardware). The x64 build's wmain() detects a
 native ARM64 host at startup and relays the entire invocation to this binary (DriverManager_arm64.exe,
-shipped alongside it in the same install directory by KbdLayerSetup.wixproj's CMP_DriverTools
+shipped alongside it in the same install directory by KasaneSetup.wixproj's CMP_DriverTools
 component) rather than branching inside InstallDriver/UninstallDriver themselves. When this binary
 itself runs (already native ARM64), that relay branch is compiled out (#if !defined(_M_ARM64)) and
 it just proceeds normally.

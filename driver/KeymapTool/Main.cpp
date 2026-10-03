@@ -101,7 +101,7 @@ int CmdList(IoctlClient* client) {
         printf("  UniqId=%08X HasLayerMap=%d Enabled=%d ActiveLayerMask=0x%04X HardwareId=%ls\n",
                d.UniqId, d.HasLayerMap ? 1 : 0, d.Enabled ? 1 : 0, d.ActiveLayerMask, d.HardwareId.c_str());
         // E-2: 永続化スコープ（--get-scope/--set-scope参照）。LIST_DEVICESの固定長構造体
-        // （kbdlayer-keymap-guiが独自にオフセット計算している）は変えず、別IOCTLで補う。
+        // （kasaneが独自にオフセット計算している）は変えず、別IOCTLで補う。
         KBDLAYER_DEVICE_SCOPE scope;
         if (client->GetDeviceScope(d.UniqId, &scope)) {
             printf("    InstanceKey=%08X ModelKey=%08X Binding=%s\n",

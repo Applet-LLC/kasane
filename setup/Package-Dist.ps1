@@ -16,18 +16,18 @@ $readmeDir = Join-Path $setupDir "dist-readme"
 $licenseDir = Join-Path $setupDir "License"
 $distDir = Join-Path $setupDir "dist"
 $stagingDir = Join-Path $distDir "_staging"
-$zipPath = Join-Path $distDir "layerdriver-subscription.zip"
+$zipPath = Join-Path $distDir "kasane-subscription.zip"
 
 $requiredFiles = @(
-    "Install-kbdlayerLicense.exe",
-    "KbdLayerSetup-ja-JP.msi",
-    "KbdLayerSetup-en-US.msi"
+    "Install-kasane.exe",
+    "KasaneSetup-ja-JP.msi",
+    "KasaneSetup-en-US.msi"
 )
 
 foreach ($name in $requiredFiles) {
     $p = Join-Path $binDir $name
     if (-not (Test-Path -LiteralPath $p)) {
-        throw "Package-Dist: required file missing: $p`nBuild KbdLayerSetup.csproj (Release) first."
+        throw "Package-Dist: required file missing: $p`nBuild KasaneSetup.csproj (Release) first."
     }
 }
 

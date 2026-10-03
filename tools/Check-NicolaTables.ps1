@@ -3,16 +3,16 @@
   KeymapTool（C++）とKeymap Editor GUI（C#）のNICOLAの変換表が一致しているか確認する。
 
 .DESCRIPTION
-  driver/KeymapTool/NicolaTables.cpp と kbdlayer-keymap-gui/Keycodes/NicolaKana.cs から、
+  driver/KeymapTool/NicolaTables.cpp と kasane/Keycodes/NicolaKana.cs から、
   ローマ字の表・JISかなの表・濁音の表・英字のスキャンコード・記号のスキャンコードを抜き出して比較する。
   どちらかを変更したら実行すること。不一致があれば終了コード1。
-  （blobの組み立て全体は、kbdlayer-keymap-gui.Tests の NicolaServiceTests が
+  （blobの組み立て全体は、kasane.Tests の NicolaServiceTests が
    KeymapTool.exe --dump-nicola の出力と照合する。）
 #>
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $cpp = Get-Content (Join-Path $root 'driver\KeymapTool\NicolaTables.cpp') -Raw -Encoding utf8
-$cs = Get-Content (Join-Path $root 'kbdlayer-keymap-gui\Keycodes\NicolaKana.cs') -Raw -Encoding utf8
+$cs = Get-Content (Join-Path $root 'kasane\Keycodes\NicolaKana.cs') -Raw -Encoding utf8
 
 # 表の名前から、その直後の最初の "};" までを切り出す。
 function Get-Section([string]$text, [string]$name) {
