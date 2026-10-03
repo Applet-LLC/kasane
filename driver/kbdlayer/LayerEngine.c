@@ -408,15 +408,16 @@ SetHeldAddedModsLocked(
 }
 
 // 押下中の記録のどれかが足している修飾キー（KBDLAYER_MOD_*のOR）。
-// OSMをタップした後、次のキーのために押したままにしている修飾キー（OneShotMods）も含める。
-// OutputLockを保持して呼ぶこと（OneShotModsはOutputLockで保護。呼び出し元はすべてOutputLock保持中）。
+// OSMをタップした後、次のキーのために押したままにしている修飾キー（OneShotMods）と、コンボの出力・
+// タップダンスの長押しが足している修飾キー（ComboAddedMods・TapDanceAddedMods）も含める。
+// OutputLockを保持して呼ぶこと（これらはOutputLockで保護。呼び出し元はすべてOutputLock保持中）。
 _IRQL_requires_max_(DISPATCH_LEVEL)
 static UCHAR
 AddedModsUnion(
     _In_ PDEVICE_EXTENSION devExt
     )
 {
-    UCHAR mods = devExt->OneShotMods;
+    UCHAR mods = (UCHAR)(devExt->OneShotMods | devExt->ComboAddedMods | devExt->TapDanceAddedMods);
     for (ULONG bit = 0; bit < 8; bit++) {
         if (devExt->AddedModCount[bit] != 0) {
             mods |= (UCHAR)(1u << bit);
@@ -1747,6 +1748,87 @@ run:
     return TRUE;
 }
 
+// タップダンスのタップ側（SingleTap/DoubleTap/TripleTap）の出力。コンボとタップダンスの長押しの
+// MACRO(n)も、確定した時点で1回実行するのにこれを使う。確定した時点で、押下と解放を
+// 続けて送る（押している間の状態は持たない）。PrepareTapDanceTapLocked（EngineLock保持中）で
+// 用意し、EmitTapDanceTap（EngineLock非保持・OutputLock保持中）で送る。
+// マクロのステップ列は、マクロの設定変更と競合しないようEngineLock保持中にコピーしておく。
+typedef struct _KBDLAYER_TAP_OUTPUT {
+    KBDLAYER_ACTION Action;
+    ULONG StepCount; // Action.Type == MACRO のときだけ使う
+    KBDLAYER_MACRO_STEP Steps[KBDLAYER_MAX_MACRO_STEPS];
+} KBDLAYER_TAP_OUTPUT, *PKBDLAYER_TAP_OUTPUT;
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+PrepareTapDanceTapLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ const KBDLAYER_ACTION* Action,
+    _Out_ PKBDLAYER_TAP_OUTPUT Out
+    )
+{
+    Out->Action = *Action;
+    Out->StepCount = 0;
+    if (Action->Type == KBDLAYER_ACTION_MACRO && (devExt->EnabledFeatures & KBDLAYER_FEATURE_MACRO)) {
+        // マクロの機能がOFFなら何も送らない（MACRO(id)のキーと同じ扱い）。
+        Out->StepCount = CopyMacroStepsLocked(devExt, Action->Param1, Out->Steps);
+    }
+}
+
+// 型ごとに送る。
+// - KEY: キーを押して離す。
+// - MODDED_KEY: 「修飾キーのmake（ビット順）→ キーのmake → キーのbreak → 修飾キーのbreak（逆順）」。
+//   マクロで LCTL(KC_C) を展開したのと同じ形で、普通の出力としてForwardToClassを通す。
+//   OSでもう押されている修飾キー（OutputModsDown。物理的に押しているCtrlや、修飾付きキーが
+//   足しているもの）は送らない（押しも離しもしない。QMKのweak modsの考え方）。
+// - MACRO: コピーしておいたステップ列を送る。
+// それ以外の型（読み込んだ古い設定などの想定外）は何もしない。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+EmitTapDanceTap(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ const KBDLAYER_TAP_OUTPUT* Out
+    )
+{
+    const KBDLAYER_ACTION* action = &Out->Action;
+
+    switch (action->Type) {
+    case KBDLAYER_ACTION_KEY:
+        if (action->Param2 != 0) {
+            SendDecodedEvent(devExt, action->Param2, KEY_MAKE);
+            SendDecodedEvent(devExt, action->Param2, KEY_BREAK);
+        }
+        break;
+
+    case KBDLAYER_ACTION_MODDED_KEY:
+    {
+        UCHAR mods = (UCHAR)(action->Param1 & ~devExt->OutputModsDown);
+        for (ULONG bit = 0; bit < RTL_NUMBER_OF(s_ModifierScanCodes); bit++) {
+            if (mods & (1u << bit)) {
+                SendDecodedEvent(devExt, s_ModifierScanCodes[bit], KEY_MAKE);
+            }
+        }
+        if (action->Param2 != 0) {
+            SendDecodedEvent(devExt, action->Param2, KEY_MAKE);
+            SendDecodedEvent(devExt, action->Param2, KEY_BREAK);
+        }
+        for (LONG bit = RTL_NUMBER_OF(s_ModifierScanCodes) - 1; bit >= 0; bit--) {
+            if (mods & (1u << bit)) {
+                SendDecodedEvent(devExt, s_ModifierScanCodes[bit], KEY_BREAK);
+            }
+        }
+        break;
+    }
+
+    case KBDLAYER_ACTION_MACRO:
+        SendMacroSteps(devExt, Out->Steps, Out->StepCount);
+        break;
+
+    default:
+        break;
+    }
+}
+
 // ---------------------------------------------------------------------------
 // 修飾付きキー（MODDED_KEY: QMKのLCTL(kc)等相当）とLM（LAYER_MOD: QMKのLM(layer,mod)相当）
 //
@@ -2276,9 +2358,15 @@ ResolveCombo(
             devExt->ComboDraining = TRUE;
             devExt->ComboDrainingScanCode =
                 (scanCode == entry->ScanCode1) ? entry->ScanCode2 : entry->ScanCode1;
+            // 修飾付きキーの出力で足していた修飾キーは、キーのbreakの後に安全網が離す。
+            devExt->ComboAddedMods = 0;
             KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
-            SendDecodedEvent(devExt, outputAction.Param2, KEY_BREAK);
+            // MACRO(n)の出力は成立時に実行済み（押している間の状態は無い）。
+            if (outputAction.Type != KBDLAYER_ACTION_MACRO && outputAction.Param2 != 0) {
+                SendDecodedEvent(devExt, outputAction.Param2, KEY_BREAK);
+            }
+            ReleaseLeakedModifiers(devExt);
             if (SystemArgument3 != NULL) {
                 *(PULONG)SystemArgument3 = 1;
             }
@@ -2345,15 +2433,35 @@ ResolveCombo(
         }
 
         if (scanCode == partner && !isBreak) {
-            // 相方到着 = コンボ成立。
+            // 相方到着 = コンボ成立。出力の種類ごとに（2026-10-02から KEY 以外も）:
+            // - KEY: そのキーを押し、メンバーの解放で離す。
+            // - MODDED_KEY: 普通の出力として押されていない修飾キーを足して（ComboAddedMods）からキーを押す。
+            //   メンバーの解放でキーを離し、足した修飾キーは安全網が離す。
+            // - MACRO: 成立した時点で1回実行する（マクロの機能がOFFなら何もしない）。
             KBDLAYER_ACTION outputAction = entry->OutputAction;
+            KBDLAYER_TAP_OUTPUT macroOut;
+            UCHAR addMods = 0;
 
+            RtlZeroMemory(&macroOut, sizeof(macroOut));
             devExt->ComboPendingActive = FALSE;
             devExt->ComboConfirmed = TRUE;
+            if (outputAction.Type == KBDLAYER_ACTION_MODDED_KEY) {
+                addMods = (UCHAR)(outputAction.Param1 & ~devExt->RealModsDown);
+                devExt->ComboAddedMods = addMods;
+            } else if (outputAction.Type == KBDLAYER_ACTION_MACRO) {
+                PrepareTapDanceTapLocked(devExt, &outputAction, &macroOut);
+            }
             KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
             KeCancelTimer(&devExt->ComboTimer);
-            SendDecodedEvent(devExt, outputAction.Param2, KEY_MAKE);
+            if (outputAction.Type == KBDLAYER_ACTION_MACRO) {
+                EmitTapDanceTap(devExt, &macroOut);
+            } else {
+                SendAddedModifiers(devExt, addMods, KEY_MAKE); // OSで押されていないビットだけ送る
+                if (outputAction.Param2 != 0) {
+                    SendDecodedEvent(devExt, outputAction.Param2, KEY_MAKE);
+                }
+            }
             if (SystemArgument3 != NULL) {
                 *(PULONG)SystemArgument3 = 1;
             }
@@ -2443,8 +2551,9 @@ TapActionForCount(
     return Entry->TripleTapAction; // TapCount >= 3
 }
 
-// devExt->EngineLock保持中に呼ぶこと。SingleHoldActionがLAYERTAPならActiveLayerMaskの
-// ビットをセットする（Phase 2のConfirmHoldLockedと同じ理屈）。
+// devExt->EngineLock保持中（とOutputLock保持中）に呼ぶこと。SingleHoldActionがLAYERTAP・LAYER_MODなら
+// ActiveLayerMaskのビットをセットする（Phase 2のConfirmHoldLockedと同じ理屈）。MODDED_KEY・LAYER_MODなら、
+// 普通の出力として押されていない修飾キーをTapDanceAddedModsに足す（送るのはEmitTapDanceHoldEventIfApplicable）。
 _IRQL_requires_max_(DISPATCH_LEVEL)
 static VOID
 ConfirmTapDanceHoldLocked(
@@ -2452,15 +2561,21 @@ ConfirmTapDanceHoldLocked(
     _In_ PKBDLAYER_ACTION HoldAction
     )
 {
-    if (HoldAction->Type == KBDLAYER_ACTION_LAYERTAP && HoldAction->Param1 < KBDLAYER_MAX_LAYERS) {
+    if ((HoldAction->Type == KBDLAYER_ACTION_LAYERTAP || HoldAction->Type == KBDLAYER_ACTION_LAYER_MOD) &&
+        HoldAction->Param1 < KBDLAYER_MAX_LAYERS) {
         devExt->ActiveLayerMask |= (1UL << HoldAction->Param1);
+    }
+    if (HoldAction->Type == KBDLAYER_ACTION_MODDED_KEY) {
+        devExt->TapDanceAddedMods = (UCHAR)(HoldAction->Param1 & ~devExt->RealModsDown);
+    } else if (HoldAction->Type == KBDLAYER_ACTION_LAYER_MOD) {
+        devExt->TapDanceAddedMods = (UCHAR)((HoldAction->Param2 & 0xFF) & ~devExt->RealModsDown);
     }
     devExt->TapDancePendingActive = FALSE;
     devExt->TapDanceHoldConfirmed = TRUE;
 }
 
-// devExt->EngineLock保持中に呼ぶこと。SingleHoldActionがLAYERTAPならActiveLayerMaskの
-// ビットをクリアする。
+// devExt->EngineLock保持中（とOutputLock保持中）に呼ぶこと。SingleHoldActionがLAYERTAP・LAYER_MODなら
+// ActiveLayerMaskのビットをクリアし、足していた修飾キーを0にする（breakは安全網が送る）。
 _IRQL_requires_max_(DISPATCH_LEVEL)
 static VOID
 ReleaseTapDanceHoldLocked(
@@ -2468,16 +2583,21 @@ ReleaseTapDanceHoldLocked(
     _In_ PKBDLAYER_ACTION HoldAction
     )
 {
-    if (HoldAction->Type == KBDLAYER_ACTION_LAYERTAP && HoldAction->Param1 < KBDLAYER_MAX_LAYERS) {
+    if ((HoldAction->Type == KBDLAYER_ACTION_LAYERTAP || HoldAction->Type == KBDLAYER_ACTION_LAYER_MOD) &&
+        HoldAction->Param1 < KBDLAYER_MAX_LAYERS) {
         devExt->ActiveLayerMask &= ~(1UL << HoldAction->Param1);
     }
+    devExt->TapDanceAddedMods = 0;
     devExt->TapDanceHoldConfirmed = FALSE;
 }
 
 // HoldActionの種別に応じてイベントを合成送出する。KEYならそのキー、MODTAPなら対応する
-// 修飾キーを送る（EmitModTapEventIfApplicableと違いKEYも扱う。TapDanceのSingleHoldは
-// KEY/MODTAP/LAYERTAPの3種を許可するため）。LAYERTAPはActiveLayerMaskの操作のみで
-// 完結し、キーイベントの合成は不要。devExt->EngineLockを保持していない状態で呼ぶこと。
+// 修飾キーを送る（EmitModTapEventIfApplicableと違いKEYも扱う）。2026-10-02から:
+// - MODDED_KEY: 押下で足した修飾キー（TapDanceAddedMods）のmakeとキーのmake、解放でキーのbreak。
+// - LAYER_MOD: 押下で足した修飾キーのmake（レイヤーはConfirmTapDanceHoldLockedで立てる）。
+// - 解放では最後に安全網（ReleaseLeakedModifiers）を通し、足していた修飾キーのbreakを送る。
+// LAYERTAPはActiveLayerMaskの操作のみで完結する。MACROは確定時にEmitTapDanceTapで実行する（ここでは扱わない）。
+// devExt->EngineLockを保持していない状態（OutputLockは保持）で呼ぶこと。
 _IRQL_requires_max_(DISPATCH_LEVEL)
 static VOID
 EmitTapDanceHoldEventIfApplicable(
@@ -2490,87 +2610,17 @@ EmitTapDanceHoldEventIfApplicable(
         SendDecodedEvent(devExt, s_ModifierScanCodes[HoldAction->Param1], BreakBit);
     } else if (HoldAction->Type == KBDLAYER_ACTION_KEY && HoldAction->Param2 != 0) {
         SendDecodedEvent(devExt, HoldAction->Param2, BreakBit);
+    } else if (HoldAction->Type == KBDLAYER_ACTION_MODDED_KEY || HoldAction->Type == KBDLAYER_ACTION_LAYER_MOD) {
+        if (BreakBit == KEY_MAKE) {
+            SendAddedModifiers(devExt, devExt->TapDanceAddedMods, KEY_MAKE); // OSで押されていないビットだけ送る
+        }
+        if (HoldAction->Type == KBDLAYER_ACTION_MODDED_KEY && HoldAction->Param2 != 0) {
+            SendDecodedEvent(devExt, HoldAction->Param2, BreakBit);
+        }
     }
     // NONE・KEYのスキャンコード0（長押しの動作なし）は何も送らない。
-}
-
-// タップダンスのタップ側（SingleTap/DoubleTap/TripleTap）の出力。確定した時点で、押下と解放を
-// 続けて送る（押している間の状態は持たない）。PrepareTapDanceTapLocked（EngineLock保持中）で
-// 用意し、EmitTapDanceTap（EngineLock非保持・OutputLock保持中）で送る。
-// マクロのステップ列は、マクロの設定変更と競合しないようEngineLock保持中にコピーしておく。
-typedef struct _KBDLAYER_TAP_OUTPUT {
-    KBDLAYER_ACTION Action;
-    ULONG StepCount; // Action.Type == MACRO のときだけ使う
-    KBDLAYER_MACRO_STEP Steps[KBDLAYER_MAX_MACRO_STEPS];
-} KBDLAYER_TAP_OUTPUT, *PKBDLAYER_TAP_OUTPUT;
-
-_IRQL_requires_max_(DISPATCH_LEVEL)
-static VOID
-PrepareTapDanceTapLocked(
-    _In_ PDEVICE_EXTENSION devExt,
-    _In_ const KBDLAYER_ACTION* Action,
-    _Out_ PKBDLAYER_TAP_OUTPUT Out
-    )
-{
-    Out->Action = *Action;
-    Out->StepCount = 0;
-    if (Action->Type == KBDLAYER_ACTION_MACRO && (devExt->EnabledFeatures & KBDLAYER_FEATURE_MACRO)) {
-        // マクロの機能がOFFなら何も送らない（MACRO(id)のキーと同じ扱い）。
-        Out->StepCount = CopyMacroStepsLocked(devExt, Action->Param1, Out->Steps);
-    }
-}
-
-// 型ごとに送る。
-// - KEY: キーを押して離す。
-// - MODDED_KEY: 「修飾キーのmake（ビット順）→ キーのmake → キーのbreak → 修飾キーのbreak（逆順）」。
-//   マクロで LCTL(KC_C) を展開したのと同じ形で、普通の出力としてForwardToClassを通す。
-//   OSでもう押されている修飾キー（OutputModsDown。物理的に押しているCtrlや、修飾付きキーが
-//   足しているもの）は送らない（押しも離しもしない。QMKのweak modsの考え方）。
-// - MACRO: コピーしておいたステップ列を送る。
-// それ以外の型（読み込んだ古い設定などの想定外）は何もしない。
-_IRQL_requires_max_(DISPATCH_LEVEL)
-static VOID
-EmitTapDanceTap(
-    _In_ PDEVICE_EXTENSION devExt,
-    _In_ const KBDLAYER_TAP_OUTPUT* Out
-    )
-{
-    const KBDLAYER_ACTION* action = &Out->Action;
-
-    switch (action->Type) {
-    case KBDLAYER_ACTION_KEY:
-        if (action->Param2 != 0) {
-            SendDecodedEvent(devExt, action->Param2, KEY_MAKE);
-            SendDecodedEvent(devExt, action->Param2, KEY_BREAK);
-        }
-        break;
-
-    case KBDLAYER_ACTION_MODDED_KEY:
-    {
-        UCHAR mods = (UCHAR)(action->Param1 & ~devExt->OutputModsDown);
-        for (ULONG bit = 0; bit < RTL_NUMBER_OF(s_ModifierScanCodes); bit++) {
-            if (mods & (1u << bit)) {
-                SendDecodedEvent(devExt, s_ModifierScanCodes[bit], KEY_MAKE);
-            }
-        }
-        if (action->Param2 != 0) {
-            SendDecodedEvent(devExt, action->Param2, KEY_MAKE);
-            SendDecodedEvent(devExt, action->Param2, KEY_BREAK);
-        }
-        for (LONG bit = RTL_NUMBER_OF(s_ModifierScanCodes) - 1; bit >= 0; bit--) {
-            if (mods & (1u << bit)) {
-                SendDecodedEvent(devExt, s_ModifierScanCodes[bit], KEY_BREAK);
-            }
-        }
-        break;
-    }
-
-    case KBDLAYER_ACTION_MACRO:
-        SendMacroSteps(devExt, Out->Steps, Out->StepCount);
-        break;
-
-    default:
-        break;
+    if (BreakBit == KEY_BREAK) {
+        ReleaseLeakedModifiers(devExt);
     }
 }
 
@@ -2665,6 +2715,9 @@ TapDanceDpcRoutine(
         if (isHoldCase) {
             action = entry->SingleHoldAction;
             ConfirmTapDanceHoldLocked(devExt, &action);
+            if (action.Type == KBDLAYER_ACTION_MACRO) {
+                PrepareTapDanceTapLocked(devExt, &action, &tapOut); // 長押しのマクロは確定時に1回実行
+            }
         } else {
             ULONG finalCount = wasKeyDown ? (tapCountSoFar + 1) : tapCountSoFar;
             action = TapActionForCount(entry, finalCount);
@@ -2680,7 +2733,11 @@ TapDanceDpcRoutine(
     if (shouldFire) {
         if (isHoldCase) {
             KBDLAYER_TRACE("LayerEngine: tapdance TIMEOUT SingleHold confirmed sc=0x%X\n", scanCode);
-            EmitTapDanceHoldEventIfApplicable(devExt, &action, KEY_MAKE);
+            if (action.Type == KBDLAYER_ACTION_MACRO) {
+                EmitTapDanceTap(devExt, &tapOut);
+            } else {
+                EmitTapDanceHoldEventIfApplicable(devExt, &action, KEY_MAKE);
+            }
         } else {
             KBDLAYER_TRACE("LayerEngine: tapdance TIMEOUT tap confirmed sc=0x%X type=%u\n", scanCode, action.Type);
             EmitTapDanceTap(devExt, &tapOut);
@@ -2844,12 +2901,22 @@ ResolveTapDance(
             if (isHoldCase) {
                 // 1回目の押下中の割り込み = SingleHold確定（Phase 2のHold On Other Key
                 // Pressと同じ規律）。
+                KBDLAYER_TAP_OUTPUT holdMacro;
+
+                RtlZeroMemory(&holdMacro, sizeof(holdMacro));
                 action = entry->SingleHoldAction;
                 ConfirmTapDanceHoldLocked(devExt, &action);
+                if (action.Type == KBDLAYER_ACTION_MACRO) {
+                    PrepareTapDanceTapLocked(devExt, &action, &holdMacro); // 長押しのマクロは確定時に1回実行
+                }
                 KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
                 KeCancelTimer(&devExt->TapDanceTimer);
-                EmitTapDanceHoldEventIfApplicable(devExt, &action, KEY_MAKE);
+                if (action.Type == KBDLAYER_ACTION_MACRO) {
+                    EmitTapDanceTap(devExt, &holdMacro);
+                } else {
+                    EmitTapDanceHoldEventIfApplicable(devExt, &action, KEY_MAKE);
+                }
                 return FALSE;
             }
 
@@ -3000,7 +3067,12 @@ AbortComboLocked(
 
     if (devExt->ComboConfirmed) {
         // 成立時は2つのメンバーがどちらも押されたまま（片方の解放でDrainingへ移る）。
-        AppendAbortRelease(Releases, entry->OutputAction.Param2);
+        // 修飾付きキーの出力で足していた修飾キーは、SendAbortReleasesの安全網が離す。MACROの出力は
+        // 成立時に実行済みなので離すものは無い。
+        if (entry->OutputAction.Type != KBDLAYER_ACTION_MACRO) {
+            AppendAbortRelease(Releases, entry->OutputAction.Param2);
+        }
+        devExt->ComboAddedMods = 0;
         SwallowPhysicalKeyLocked(devExt, entry->ScanCode1);
         SwallowPhysicalKeyLocked(devExt, entry->ScanCode2);
     } else if (devExt->ComboDraining) {
@@ -3026,10 +3098,12 @@ AbortTapDanceLocked(
         KBDLAYER_ACTION holdAction = devExt->TapDances[devExt->TapDanceActiveId].SingleHoldAction;
         if (holdAction.Type == KBDLAYER_ACTION_MODTAP && holdAction.Param1 < RTL_NUMBER_OF(s_ModifierScanCodes)) {
             AppendAbortRelease(Releases, s_ModifierScanCodes[holdAction.Param1]);
-        } else if (holdAction.Type == KBDLAYER_ACTION_KEY) {
-            AppendAbortRelease(Releases, holdAction.Param2);
+        } else if (holdAction.Type == KBDLAYER_ACTION_KEY || holdAction.Type == KBDLAYER_ACTION_MODDED_KEY) {
+            AppendAbortRelease(Releases, holdAction.Param2); // 0（動作なし）はAppendAbortReleaseが無視する
         }
-        ReleaseTapDanceHoldLocked(devExt, &holdAction); // LAYERTAPならレイヤーのビットを落とす
+        // LAYERTAP・LAYER_MODならレイヤーのビットを落とし、足していた修飾キーを0にする
+        // （そのbreakはSendAbortReleasesの安全網が送る）。MACROは確定時に実行済み。
+        ReleaseTapDanceHoldLocked(devExt, &holdAction);
         SwallowPhysicalKeyLocked(devExt, devExt->TapDanceScanCode);
     } else if (devExt->TapDanceDraining ||
                (devExt->TapDancePendingActive && devExt->TapDanceKeyDown)) {
@@ -3059,6 +3133,9 @@ SendAbortReleases(
     }
     // MT/LTの判定中に溜めていたイベント（AbortTapHoldLocked参照）。打ち切った後の状態で流し直す。
     ReplayHoldBuffer(devExt, Releases->Replay, Releases->ReplayCount);
+    // コンボ・タップダンスの長押しで足していた修飾キー（Abort*Lockedが0にしたもの）を離す。
+    // キーのbreakを送っていない場合（LMの長押しなど）もあるので、ここで必ず同期する。
+    ReleaseLeakedModifiers(devExt);
 }
 
 // ---------------------------------------------------------------------------
@@ -4399,8 +4476,22 @@ SetComboForDevice(
         if (Entry->ScanCode1 == Entry->ScanCode2) {
             return STATUS_INVALID_PARAMETER;
         }
-        if (Entry->OutputAction.Type != KBDLAYER_ACTION_KEY) {
-            // v1制限: 出力はKEYアクションのみ許可（common/kbdlayer_ioctl.h参照）。
+        // 出力はKEY・MODDED_KEY（修飾子マスクとキーが0でない）・MACRO（IDが範囲内）。2026-10-02にKEYのみから拡張
+        // （common/kbdlayer_ioctl.h参照）。
+        switch (Entry->OutputAction.Type) {
+        case KBDLAYER_ACTION_KEY:
+            break;
+        case KBDLAYER_ACTION_MODDED_KEY:
+            if (Entry->OutputAction.Param1 == 0 || Entry->OutputAction.Param2 == 0) {
+                return STATUS_INVALID_PARAMETER;
+            }
+            break;
+        case KBDLAYER_ACTION_MACRO:
+            if (Entry->OutputAction.Param1 >= KBDLAYER_MAX_MACRO_COUNT || Entry->OutputAction.Param2 != 0) {
+                return STATUS_INVALID_PARAMETER;
+            }
+            break;
+        default:
             return STATUS_INVALID_PARAMETER;
         }
     }
@@ -4735,6 +4826,32 @@ IsValidTapDanceTapAction(
     }
 }
 
+// タップダンスの長押し（SingleHold）に置けるアクションか（F-3）。
+// NONE・KEY（スキャンコード0は動作なし）・MODTAP・LAYERTAP、2026-10-02から MODDED_KEY（修飾子マスクが0でない）・
+// LAYER_MOD（レイヤーが範囲内、修飾子マスクが0でない）・MACRO（IDが範囲内）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static BOOLEAN
+IsValidTapDanceHoldAction(
+    _In_ const KBDLAYER_ACTION* Action
+    )
+{
+    switch (Action->Type) {
+    case KBDLAYER_ACTION_NONE:
+    case KBDLAYER_ACTION_KEY:
+    case KBDLAYER_ACTION_MODTAP:
+    case KBDLAYER_ACTION_LAYERTAP:
+        return TRUE;
+    case KBDLAYER_ACTION_MODDED_KEY:
+        return Action->Param1 != 0;
+    case KBDLAYER_ACTION_LAYER_MOD:
+        return Action->Param1 < KBDLAYER_MAX_LAYERS && (Action->Param2 & 0xFF00) == 0 && (Action->Param2 & 0x00FF) != 0;
+    case KBDLAYER_ACTION_MACRO:
+        return Action->Param1 < KBDLAYER_MAX_MACRO_COUNT && Action->Param2 == 0;
+    default:
+        return FALSE;
+    }
+}
+
 _IRQL_requires_max_(PASSIVE_LEVEL)
 NTSTATUS
 SetTapDanceForDevice(
@@ -4759,10 +4876,7 @@ SetTapDanceForDevice(
             return STATUS_INVALID_PARAMETER;
         }
         // SingleHoldのNONE（とKEYのスキャンコード0）は「長押しの動作なし」: 長押ししても何も出さない。
-        if (Entry->SingleHoldAction.Type != KBDLAYER_ACTION_NONE &&
-            Entry->SingleHoldAction.Type != KBDLAYER_ACTION_KEY &&
-            Entry->SingleHoldAction.Type != KBDLAYER_ACTION_MODTAP &&
-            Entry->SingleHoldAction.Type != KBDLAYER_ACTION_LAYERTAP) {
+        if (!IsValidTapDanceHoldAction(&Entry->SingleHoldAction)) {
             return STATUS_INVALID_PARAMETER;
         }
     }

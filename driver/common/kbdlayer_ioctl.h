@@ -363,7 +363,7 @@ typedef struct _KBDLAYER_GET_KEY_OVERRIDE_OUTPUT {
 // v1のスコープ限定（.plans/...md 検討時の合意事項）:
 //   - メンバーキーは常に2つ（3キー以上の一般化は将来検討）
 //   - 同一の物理スキャンコードが複数のコンボに属することは禁止（Set時に検証）
-//   - 出力アクションはKBDLAYER_ACTION_KEYのみ許可（MO/TG等への拡張は将来検討）
+//   - 出力アクションはKEY・MODDED_KEY・MACRO（2026-10-02にKEYのみから拡張。MO/TG等のレイヤー操作は未対応）
 //   - 出力の解除(release)は、2つのメンバーキーのどちらかが離された時点で行う
 //     （両方が離されるまで待たない）
 // これらの制約により、Phase 2のPendingActive等と同じ「単一保留スロット」の
@@ -377,7 +377,9 @@ typedef struct _KBDLAYER_GET_KEY_OVERRIDE_OUTPUT {
 typedef struct _KBDLAYER_COMBO_ENTRY {
     USHORT ScanCode1;
     USHORT ScanCode2;
-    KBDLAYER_ACTION OutputAction; // v1: Type == KBDLAYER_ACTION_KEY のみ許可
+    // KEY・MODDED_KEY（押している間、修飾キーを足す）・MACRO（成立時に1回実行）を許可
+    // （2026-10-02にKEYのみから拡張。古いドライバはKEY以外をSTATUS_INVALID_PARAMETERで拒否する）。
+    KBDLAYER_ACTION OutputAction;
 } KBDLAYER_COMBO_ENTRY, *PKBDLAYER_COMBO_ENTRY;
 
 // IOCTL_KBDLAYER_SET_COMBO の入力バッファ。
@@ -409,8 +411,8 @@ typedef struct _KBDLAYER_GET_COMBO_OUTPUT {
 //   - ホールド判定は「1回目の押下」にのみ存在する（SingleHold）。2回目以降を
 //     押しっぱなしにしても専用のHoldアクションは無く、その時点のタップ回数の
 //     タップアクションが確定するだけ（DoubleHold/TripleHold相当は非対応）。
-//   - SingleHoldActionのみ KEY/MODTAP/LAYERTAP を許可する（Phase 2のPendingActionと
-//     同じ扱いを再利用するため）。SingleTap/DoubleTap/TripleTapは KEY・MODDED_KEY（修飾付きキー。
+//   - SingleHoldActionは KEY/MODTAP/LAYERTAP（Phase 2のPendingActionと同じ扱いを再利用）と、
+//     2026-10-02から MODDED_KEY/LAYER_MOD/MACRO を許可する。SingleTap/DoubleTap/TripleTapは KEY・MODDED_KEY（修飾付きキー。
 //     修飾子マスクは0以外）・MACRO（IDは範囲内、Param2は0）を許可する（2026-09-30にKEYのみから拡張。
 //     タップ側は確定した時点で押下と解放を続けて送るので、押している間の状態を持たない）。
 //     古いドライバはKEY以外のタップ側をSTATUS_INVALID_PARAMETERで拒否する。
@@ -428,7 +430,9 @@ typedef struct _KBDLAYER_TAPDANCE_ENTRY {
     // 「動作なし」は、KEYのスキャンコード0（KC_NO）で表す。SingleHoldとDouble/TripleTapはNONEも可
     // （SingleTapのNONEはSET時に「クリア」の意味になるため、KEY・スキャンコード0を使うこと）。
     KBDLAYER_ACTION SingleTapAction;  // KEY/MODDED_KEY/MACROを許可
-    KBDLAYER_ACTION SingleHoldAction; // NONE/KEY/MODTAP/LAYERTAPを許可
+    // NONE/KEY/MODTAP/LAYERTAP、2026-10-02からMODDED_KEY/LAYER_MOD（押している間、修飾キーを足す）/
+    // MACRO（長押しの確定時に1回実行）を許可。
+    KBDLAYER_ACTION SingleHoldAction;
     KBDLAYER_ACTION DoubleTapAction;  // NONE/KEY/MODDED_KEY/MACROを許可
     KBDLAYER_ACTION TripleTapAction;  // NONE/KEY/MODDED_KEY/MACROを許可
 } KBDLAYER_TAPDANCE_ENTRY, *PKBDLAYER_TAPDANCE_ENTRY;

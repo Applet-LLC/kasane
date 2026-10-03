@@ -38,10 +38,25 @@ public class ProjectServiceComboTests
     }
 
     [Theory]
-    [InlineData("MO(1)")]
-    [InlineData("LCTL(KC_C)")]  // combo output must be a plain KEY, unlike macro/tap-dance slots
-    [InlineData("MACRO(0)")]
-    public void NonPlainKeyOutput_IsRejected(string badOutput)
+    [InlineData("LCTL(KC_C)")]  // since feature/combo-td-extend (2026-10-02): held while the combo is held
+    [InlineData("MACRO(0)")]    // played once when the combo fires
+    public void ModdedKeyAndMacroOutput_AreAccepted(string output)
+    {
+        var project = EmptyProject();
+        var layout = LayoutFixture.TenKey;
+        var combo = new ComboDef { Id = 0, Slot1 = 0, Slot2 = 1, Output = output };
+        var errors = new List<string>();
+
+        var entry = ProjectService.ComboToEntry(project, layout, combo, errors);
+
+        Assert.Empty(errors);
+        Assert.NotNull(entry);
+    }
+
+    [Theory]
+    [InlineData("MO(1)")]        // layer actions are still not allowed as combo output
+    [InlineData("TAPDANCE(0)")]
+    public void UnsupportedOutput_IsRejected(string badOutput)
     {
         var project = EmptyProject();
         var layout = LayoutFixture.TenKey;
@@ -52,7 +67,7 @@ public class ProjectServiceComboTests
 
         Assert.Null(entry);
         Assert.Single(errors);
-        Assert.Contains("単純なキー", errors[0]);
+        Assert.Contains("出力", errors[0]);
     }
 
     [Fact]
