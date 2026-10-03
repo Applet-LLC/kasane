@@ -152,7 +152,7 @@
     -->
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFiles64Folder">
-        <!-- Program Filespplet\kasane。当社の他のアプリも applet の下に入れる。 -->
+        <!-- Program Files\applet\kasane。当社の他のアプリも applet の下に入れる。 -->
         <Directory Id="APPLETFOLDER" Name="applet">
         <Directory Id="INSTALLFOLDER" Name="kasane">
           <Directory Id="KBDDRIVERDIR" Name="kbdlayer">
@@ -302,7 +302,7 @@
         <RemoveFolder Id="PROGRAMMENUFOLDER" On="uninstall" />
         <!-- applet フォルダは他のアプリと共有するので、空のときだけ消える（RemoveFolder は空でなければ何もしない）。 -->
         <RemoveFolder Id="APPLETMENUFOLDER" Directory="APPLETMENUFOLDER" On="uninstall" />
-        <RegistryValue Root="HKCU" Key="Softwarepplet\kasane" Name="Installed"
+        <RegistryValue Root="HKCU" Key="Software\applet\kasane" Name="Installed"
                        Type="integer" Value="1" KeyPath="yes" />
       </Component>
     </DirectoryRef>
