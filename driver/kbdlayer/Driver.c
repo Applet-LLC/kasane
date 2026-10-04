@@ -702,6 +702,20 @@ ResolveAndForward(
     // 処理するキーかに関係なく記録する（LayerEngine.cのHandleTapToggleLocked参照）。
     LayerEngineObserveKeyEvents(devExt, InputDataStart, InputDataEnd);
 
+    // 先に始まった判定に、割り込んだキーを先に渡す: タップダンスが判定中で、そのキー以外が押されたら、
+    // NICOLA・コンボ・MT/LTが新しい判定を始める前に、タップダンスを割り込みとして確定させる
+    // （タップの出力、または長押しの確定）。以前はResolveTapDanceが連鎖の後ろにあったため、
+    // 割り込んだキーがMT/LTやコンボのメンバーだと、そちらが先に保留を始めてタップダンスに届かず、
+    // 出力の順序が逆になっていた（2026-09-30の外部レビューで指摘、2026-10-04に修正）。
+    // 割り込んだキー自体が別のタップダンスキーで、新しい判定を始めた場合だけ、ここで完結する。
+    // それ以外は確定させた後、このキーを以降の連鎖で通常どおり解決する（後段のResolveTapDanceは、
+    // もう判定中ではないので何もしない）。
+    if ((features & KBDLAYER_FEATURE_TAPDANCE) &&
+        TapDanceInterruptedBy(devExt, InputDataStart, InputDataEnd) &&
+        ResolveTapDance(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
+        return FALSE;
+    }
+
     // Phase 6: NICOLA（親指シフト）。判定が有効な間、文字キー・親指キーは物理キー単位で
     // ここが先に受け取る（コンボ等より優先）。詳細はLayerEngine.cのResolveNicola参照。
     if (ResolveNicola(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
