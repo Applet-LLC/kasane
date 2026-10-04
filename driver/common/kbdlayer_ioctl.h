@@ -633,12 +633,13 @@ typedef struct _KBDLAYER_DEVICE_SCOPE {
 } KBDLAYER_DEVICE_SCOPE, *PKBDLAYER_DEVICE_SCOPE;
 
 // IOCTL_KBDLAYER_SET_DEVICE_SCOPE の入力バッファ。
-// Model→Instanceへ切り替える場合、現在Model側にある設定をInstance側へコピーしてから
-// 切り替える（設定が消えたように見えないようにするため）。Instance→Modelはビットを
-// 書き替えるだけ（Model側の内容は変えない）。Globalへ切り替える場合は、Global側にすでに
-// レイヤーマップがあればそれを使い（ほかのキーボードの設定を上書きしない。Instance→Modelと同じ）、
-// 無ければ現在の設定をGlobal側へコピーする。出力バッファがKBDLAYER_DEVICE_SCOPE以上
-// あれば、変更後の状態を返す（任意）。古いドライバはBinding=2を知らず、Modelとして扱う。
+// 切り替えるときは、現在の保存先にある設定を、切替先へコピーしてから切り替える（設定が消えたように
+// 見えないようにするため）。切替先にすでにある設定は、コピーで上書きされる。たとえばGlobalやInstanceから
+// Modelへ戻すと、そのModelKeyの保存先（同じ型番のキーボードで共有している設定）が、この1台の設定で
+// 置き換わる。例外はGlobalへの切替だけで、Global側にすでにレイヤーマップがあれば、コピーせずにそれを使う
+// （複数のキーボードが共有する保存先を、1台の設定で上書きしないため）。切替直後のこの1台のライブの設定は
+// 変わらず、次のAddDeviceで新しい保存先から読む。出力バッファがKBDLAYER_DEVICE_SCOPE以上あれば、
+// 変更後の状態を返す（任意）。古いドライバはBinding=2を知らず、Modelとして扱う。
 typedef struct _KBDLAYER_SET_DEVICE_SCOPE_INPUT {
     KBDLAYER_TARGET Target;
     ULONG Binding; // KBDLAYER_BINDING_*

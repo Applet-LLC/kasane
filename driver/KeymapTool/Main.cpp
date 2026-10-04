@@ -552,10 +552,9 @@ int CmdGetScope(IoctlClient* client, ULONG uniqId) {
 }
 
 // --set-scope <UniqIdHex> model|instance|global: レイヤーマップ等の永続化先を切り替える。
-// modelへ戻す場合はビットを書き替えるだけ。instanceへ切り替える場合は、現在の設定を
-// この1台専用のコピーへ複製してから切り替える（設定が消えたように見えないため）。
-// globalは、すべてのキーボードで1つの設定を共有する。すでに共有の設定があればそれを使い、
-// 無ければ現在の設定を共有の保存先へコピーする。
+// 切り替えるときは、現在の設定を切替先へコピーしてから切り替える（設定が消えたように見えないため。
+// 切替先の既存の設定は上書きされる。たとえばmodelへ戻すと、その型番で共有している設定が置き換わる）。
+// globalだけは、すべてのキーボードで1つの設定を共有するので、すでに共有の設定があればコピーせずにそれを使う。
 int CmdSetScope(IoctlClient* client, ULONG uniqId, const char* bindingName) {
     ULONG binding;
     if (strcmp(bindingName, "model") == 0) {
