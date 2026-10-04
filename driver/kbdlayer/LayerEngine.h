@@ -165,8 +165,7 @@ InitializeComboState(
 // 位置づける）。単一イベントのバッチのみを対象とする（他のResolve*と同じ制約）。
 // 戻り値: ResolveTapHoldと同じ意味（TRUE=処理済み、FALSE=対象外）。
 // 他キー割り込みによる確定の場合、Phase 2のHold On Other Key Pressと同じ方式
-// （確定イベントを合成送出したあと、割り込みバッチをそのまま生スキャンコードで
-// 転送する）を踏襲する。
+// （確定イベントを合成送出したあと、割り込んだキーは後段で通常どおり解決する）。
 _IRQL_requires_max_(DISPATCH_LEVEL)
 BOOLEAN
 ResolveTapDance(
@@ -174,6 +173,19 @@ ResolveTapDance(
     _In_ PKEYBOARD_INPUT_DATA InputDataStart,
     _In_ PKEYBOARD_INPUT_DATA InputDataEnd,
     _Inout_opt_ PVOID SystemArgument3
+    );
+
+// タップダンスが判定中で、このイベント（1件バッチ）がそのキー以外の押下か。Driver.cの
+// ResolveAndForwardの先頭で使い、TRUEならResolveNicola・ResolveCombo・ResolveTapHoldより先に
+// ResolveTapDanceを呼んで、タップダンスを割り込みとして確定させる（先に始まった判定に、
+// 割り込んだキーを先に渡す。後ろの機能が新しい判定を始めて、タップダンスより先に出力するのを防ぐ）。
+// OutputLock保持中・EngineLock非保持で呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+TapDanceInterruptedBy(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd
     );
 
 // AddDeviceから呼ばれる: devExt->TapDanceTimer/TapDanceDpcを初期化し、TapDanceTermMsを
@@ -251,9 +263,11 @@ ResolveAndForwardTail(
     _Inout_opt_ PVOID SystemArgument3
     );
 
-// ServiceCallbackが複数件バッチを1件ずつに分けて流すべきか。修飾付きキー・LMを含む
-// マップが有効なとき、またはそれらとして押下中のキーがあるとき（マップを差し替えた後の
-// 解放も1件ずつ処理して、足した修飾キーを必ず戻すため）。OutputLock保持中に呼ぶこと。
+// ServiceCallbackが複数件バッチを1件ずつに分けて流すべきか。時間や押下状態で判定する
+// アクション（修飾付きキー・LM・MT/LT・タップダンス・OSM等）を含むマップが有効なとき、
+// キー置換・コンボ（レイヤーマップとは別の表）が登録されていて機能がONのとき、
+// それらとして押下中・判定中の状態が残っているとき（マップを差し替えた後の解放も1件ずつ処理して、
+// 足した修飾キーやコンボの出力を必ず戻すため）。OutputLock保持中に呼ぶこと。
 _IRQL_requires_max_(DISPATCH_LEVEL)
 BOOLEAN
 NeedsSingleEventDispatch(

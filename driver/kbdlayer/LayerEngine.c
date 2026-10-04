@@ -2120,12 +2120,26 @@ NeedsSingleEventDispatch(
 {
     KIRQL oldIrql;
     BOOLEAN needs;
+    BOOLEAN anyCombo = FALSE;
 
     KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    // コンボはレイヤーマップの型ではなく別の表なので、NeedsSingleEventsには現れない。登録がある間
+    // （機能がON）と、判定中・成立中・後始末中は1件ずつにする。分けないと、メンバーの解放と次のキーの
+    // 押下が1つのバッチで届いたとき、ResolveComboが素通りして解放を見落とし、相方待ちのタイムアウトで
+    // 復元のmakeだけが出る、または成立中の出力キー（足した修飾キーを含む）が押しっぱなしになる。
+    if (devExt->EnabledFeatures & KBDLAYER_FEATURE_COMBO) {
+        for (ULONG i = 0; i < KBDLAYER_MAX_COMBO_COUNT; i++) {
+            if (devExt->ComboUsed[i]) {
+                anyCombo = TRUE;
+                break;
+            }
+        }
+    }
     // Key Overrideの表がある間も1件ずつ（条件の修飾キーの判定と、一時的に離す処理を1件ずつ行うため）。
     needs = (devExt->ModdedHeldCount != 0) ||
+            devExt->ComboPendingActive || devExt->ComboConfirmed || devExt->ComboDraining ||
             (devExt->LayerMapEnabled && devExt->LayerMap != NULL &&
-             (devExt->LayerMap->NeedsSingleEvents ||
+             (devExt->LayerMap->NeedsSingleEvents || anyCombo ||
               (devExt->KeyOverrideCount != 0 && (devExt->EnabledFeatures & KBDLAYER_FEATURE_KEYOVERRIDE))));
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
     return needs;
@@ -2488,7 +2502,14 @@ ResolveCombo(
 
     // --- Idle: このキー自体がコンボメンバーなら新しい保留サイクルを開始する
     //     （押下時の記録があるキーのオートリピートは対象外） ---
-    if (!isBreak && HeldKeyFor(devExt, scanCode)->State == KBDLAYER_HELD_NONE) {
+    // ただし、MT/LTの判定が決まっていない間は始めない。このキーはMT/LTにとっての「別のキー」なので、
+    // 後段のResolveTapHoldに渡して、先に始まったMT/LTの判定に使わせる（ホールドの確定、または
+    // PERMISSIVE_HOLD/TAP_PREFERREDで溜める）。ここでコンボを始めると、MT/LTの判定がこのキーを
+    // 見ないまま進み、コンボの復元がMT/LTのタップより先に出て出力の順序が逆になっていた
+    // （2026-09-30の外部レビューで指摘、2026-10-04に修正）。この押下は通常のキーとして解決される。
+    // タップダンスの判定中の割り込みは、Driver.cのResolveAndForwardがここより前に確定させている。
+    if (!isBreak && HeldKeyFor(devExt, scanCode)->State == KBDLAYER_HELD_NONE &&
+        !(devExt->PendingActive && !devExt->HoldConfirmed)) {
         LONG idx = FindComboIndexForScanCode(devExt, scanCode);
         if (idx >= 0) {
             LARGE_INTEGER dueTime;
@@ -2976,6 +2997,30 @@ ResolveTapDance(
 
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
     return FALSE;
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+BOOLEAN
+TapDanceInterruptedBy(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd
+    )
+{
+    KIRQL oldIrql;
+    BOOLEAN interrupted;
+    USHORT scanCode;
+
+    if ((InputDataEnd - InputDataStart) != 1 || (InputDataStart->Flags & KEY_BREAK) != 0) {
+        return FALSE;
+    }
+    scanCode = EncodeScancode16(InputDataStart->MakeCode, InputDataStart->Flags);
+
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    interrupted = devExt->LayerMapEnabled && devExt->LayerMap != NULL &&
+                  devExt->TapDancePendingActive && scanCode != devExt->TapDanceScanCode;
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+    return interrupted;
 }
 
 // ---------------------------------------------------------------------------
