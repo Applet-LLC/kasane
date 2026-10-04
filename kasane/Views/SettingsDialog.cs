@@ -462,26 +462,42 @@ public sealed class SettingsDialog : Window
             "ドライバがこのキーボードの設定（レイヤーマップ・タイミング・マクロ等）を保存する単位です。\n" +
             "・同じ型番で共有（既定）: 同じ型番のキーボードは、差し込み口が変わっても同じ設定を使います。\n" +
             "・この1台だけ: この差し込み口のこのキーボードだけの設定にします。切り替えると、今の設定をこの1台用にコピーします。\n" +
+            "・すべてのキーボードで共有: 型番も差し込み口も区別せず、1つの設定をすべてのキーボードで使います（後から接続したキーボードも、" +
+            "この設定にしていれば同じ設定になります）。すでに共有の設定があれば、それを使います。" +
+            "配列の違うキーボード（JISとテンキーなど）を混ぜると、意図しない割り当てになることがあります。\n" +
+            "切り替えるときは、今の設定が切替先へコピーされ、切替先にすでにある設定は上書きされます（たとえば「すべて」や「この1台」から「同じ型番」へ戻すと、" +
+            "同じ型番で共有している設定が置き換わります）。\n" +
             "「変更する」を押すとすぐに反映します（OK・キャンセルとは関係しません）。共有している他の台へは、その台を接続し直すまで反映されません。"));
 
         var model = new RadioButton { Name = "ScopeModel", Content = "同じ型番で共有", GroupName = "Scope", Margin = new Thickness(0, 3, 0, 3) };
         var instance = new RadioButton { Name = "ScopeInstance", Content = "この1台だけ", GroupName = "Scope", Margin = new Thickness(0, 3, 0, 3) };
+        var global = new RadioButton { Name = "ScopeGlobal", Content = "すべてのキーボードで共有", GroupName = "Scope", Margin = new Thickness(0, 3, 0, 3) };
         panel.Children.Add(model);
         panel.Children.Add(instance);
+        panel.Children.Add(global);
 
         var status = Status("ScopeStatus");
         void Show(DeviceScope s)
         {
-            model.IsChecked = s.Binding != KbdLayerClient.BindingInstance;
+            model.IsChecked = s.Binding != KbdLayerClient.BindingInstance && s.Binding != KbdLayerClient.BindingGlobal;
             instance.IsChecked = s.Binding == KbdLayerClient.BindingInstance;
-            ShowStatus(status, $"現在: {(s.Binding == KbdLayerClient.BindingInstance ? "この1台だけ" : "同じ型番で共有")}" +
-                               $"（InstanceKey {s.InstanceKey:X8} / ModelKey {s.ModelKey:X8}）", false);
+            global.IsChecked = s.Binding == KbdLayerClient.BindingGlobal;
+            string name = s.Binding switch
+            {
+                KbdLayerClient.BindingInstance => "この1台だけ",
+                KbdLayerClient.BindingGlobal => "すべてのキーボードで共有",
+                _ => "同じ型番で共有",
+            };
+            ShowStatus(status, $"現在: {name}（InstanceKey {s.InstanceKey:X8} / ModelKey {s.ModelKey:X8}）", false);
         }
 
         var apply = new Button { Name = "ScopeApplyButton", Content = "変更する", IsEnabled = IsOnline && _canWrite, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6, 0, 0), Padding = new Thickness(8, 2, 8, 2) };
         apply.Click += (_, _) =>
         {
-            uint binding = instance.IsChecked == true ? KbdLayerClient.BindingInstance : KbdLayerClient.BindingModel;
+            uint binding = global.IsChecked == true ? KbdLayerClient.BindingGlobal
+                         : instance.IsChecked == true ? KbdLayerClient.BindingInstance
+                         : KbdLayerClient.BindingModel;
+            if (binding == KbdLayerClient.BindingGlobal && !ConfirmGlobalScope()) return;
             try { Show(_client!.SetDeviceScope(_uniqId, binding)); }
             catch (KbdLayerException ex) { ShowStatus(status, ex.Message, true); }
         };
@@ -499,11 +515,32 @@ public sealed class SettingsDialog : Window
         }
         else
         {
-            model.IsEnabled = instance.IsEnabled = false;
+            model.IsEnabled = instance.IsEnabled = global.IsEnabled = false;
             ShowStatus(status, "ドライバに接続していないため、表示・変更できません。", true);
         }
         panel.Children.Add(status);
         return panel;
+    }
+
+    /// <summary>
+    /// 「すべてのキーボードで共有」に切り替える前の確認。キーマップは物理スキャンコードで決まるので、
+    /// 接続中のキーボードに型番（HardwareId）の違うものが複数あると、意図しない割り当てになりうる。
+    /// 1種類だけなら確認せずに進む（後から接続するキーボードのことは、タブの説明に書いてある）。
+    /// </summary>
+    private bool ConfirmGlobalScope()
+    {
+        List<DeviceInfo> devices;
+        try { devices = _client!.ListDevices(); }
+        catch (KbdLayerException) { return true; } // 一覧を取れなければ確認を省く（変更自体の失敗は別に表示される）
+        var models = devices.Where(d => d.UniqId != 0).Select(d => d.HardwareId).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (models.Count <= 1) return true;
+        var r = MessageBox.Show(this,
+            $"接続中のキーボードに、型番の違うものが{models.Count}種類あります。\n\n" +
+            "「すべてのキーボードで共有」にすると、これらのキーボードで同じ設定を使います。キーマップは物理キーの位置（スキャンコード）で" +
+            "決まるので、配列の違うキーボード（JISとテンキーなど）では、意図しないキーに割り当てられることがあります。\n\n" +
+            "共有にしてよいですか。",
+            Title, MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+        return r == MessageBoxResult.OK;
     }
 
     // ------------------------------------------------------------------

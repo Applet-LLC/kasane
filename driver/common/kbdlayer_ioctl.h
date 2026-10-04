@@ -609,15 +609,21 @@ typedef struct _KBDLAYER_SET_LAYER_STATE_INPUT {
 // これとは別に、ドライバは常に以下の2つを計算して持つ:
 //   - InstanceKey: DeviceInstanceIdのハッシュ。差し込み口ごとに一意。
 //   - ModelKey:    HardwareIdのハッシュ。同型番のキーボードは同じ値になる。
-// レイヤーマップ等の永続化設定（LayerMap/Enabled/TapTermMs/.../Nicola）は、この2つの
-// どちらをキーにレジストリへ保存するかを選べる（KBDLAYER_BINDING_*）。
+// レイヤーマップ等の永続化設定（LayerMap/Enabled/TapTermMs/.../Nicola）は、次のどれを
+// 保存先にするかを選べる（KBDLAYER_BINDING_*）。
 //   - Model（既定）: 同型番のキーボードは差し込み口が変わっても同じ設定を共有する。
 //   - Instance:      この1台（この差し込み口）だけの設定にする。
+//   - Global:        すべてのキーボードで1つの設定を共有する（型番も差し込み口も区別しない。
+//                    2026-10-04追加。後から接続したキーボードにも、Globalにしていれば同じ設定が効く）。
+// いずれも保存先の選択だけで、すでに接続中の別のキーボードへは、そのキーボードを接続し直す
+// （AddDevice）まで反映されない。キーマップは物理スキャンコードで決まるので、配列の違う
+// キーボード（JISとテンキー等）をGlobalで共有すると、意図しない割り当てになりうる。
 // 詳細は .plans/device-id-scope.md 参照。
 
 // KBDLAYER_DEVICE_SCOPE.Binding / KBDLAYER_SET_DEVICE_SCOPE_INPUT.Binding
 #define KBDLAYER_BINDING_MODEL    0 // 同型番で共有（既定）
 #define KBDLAYER_BINDING_INSTANCE 1 // この1台（差し込み口）だけ
+#define KBDLAYER_BINDING_GLOBAL   2 // すべてのキーボードで共有
 
 // IOCTL_KBDLAYER_GET_DEVICE_SCOPE の入力は KBDLAYER_TARGET のみ。出力は KBDLAYER_DEVICE_SCOPE。
 typedef struct _KBDLAYER_DEVICE_SCOPE {
@@ -627,10 +633,13 @@ typedef struct _KBDLAYER_DEVICE_SCOPE {
 } KBDLAYER_DEVICE_SCOPE, *PKBDLAYER_DEVICE_SCOPE;
 
 // IOCTL_KBDLAYER_SET_DEVICE_SCOPE の入力バッファ。
-// Model→Instanceへ切り替える場合、現在Model側にある設定をInstance側へコピーしてから
-// 切り替える（設定が消えたように見えないようにするため）。Instance→Modelはビットを
-// 書き替えるだけ（Model側の内容は変えない）。出力バッファがKBDLAYER_DEVICE_SCOPE以上
-// あれば、変更後の状態を返す（任意）。
+// 切り替えるときは、現在の保存先にある設定を、切替先へコピーしてから切り替える（設定が消えたように
+// 見えないようにするため）。切替先にすでにある設定は、コピーで上書きされる。たとえばGlobalやInstanceから
+// Modelへ戻すと、そのModelKeyの保存先（同じ型番のキーボードで共有している設定）が、この1台の設定で
+// 置き換わる。例外はGlobalへの切替だけで、Global側にすでにレイヤーマップがあれば、コピーせずにそれを使う
+// （複数のキーボードが共有する保存先を、1台の設定で上書きしないため）。切替直後のこの1台のライブの設定は
+// 変わらず、次のAddDeviceで新しい保存先から読む。出力バッファがKBDLAYER_DEVICE_SCOPE以上あれば、
+// 変更後の状態を返す（任意）。古いドライバはBinding=2を知らず、Modelとして扱う。
 typedef struct _KBDLAYER_SET_DEVICE_SCOPE_INPUT {
     KBDLAYER_TARGET Target;
     ULONG Binding; // KBDLAYER_BINDING_*

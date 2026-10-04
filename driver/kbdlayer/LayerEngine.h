@@ -638,8 +638,8 @@ GetDeviceScopeForDevice(
     );
 
 // SET_DEVICE_SCOPE: devExt->PersistBindingを切り替える。
-// Model→Instanceのときは、現在Model側にある設定をInstance側へコピーしてから切り替える
-// （設定が消えたように見えないようにするため）。Instance→Modelはビットを書き替えるだけ。
+// 現在の保存先の設定を切替先へコピーしてから切り替える（設定が消えたように見えないようにするため。
+// 切替先の既存の設定は上書きされる）。Globalへの切替だけは、Global側にレイヤーマップがあればコピーしない。
 // NewBindingがKBDLAYER_BINDING_*以外ならSTATUS_INVALID_PARAMETER。InstanceKeyが
 // 取得できていないデバイスをInstanceへ切り替えようとした場合もSTATUS_INVALID_DEVICE_STATE。
 _IRQL_requires_max_(PASSIVE_LEVEL)

@@ -366,6 +366,10 @@ NTSTATUS AddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT PhysicalDev
             RtlStringCchPrintfW(instanceKeyHex, RTL_NUMBER_OF(instanceKeyHex), L"%08X", devExt->InstanceKey);
             RegReadDwordEx(L"kbdlayer", L"DeviceBinding", instanceKeyHex, &bindingValue, KBDLAYER_BINDING_MODEL);
         }
+        // 知らない値（将来の拡張・壊れた値）は既定のModelとして扱う。
+        if (bindingValue != KBDLAYER_BINDING_INSTANCE && bindingValue != KBDLAYER_BINDING_GLOBAL) {
+            bindingValue = KBDLAYER_BINDING_MODEL;
+        }
         devExt->PersistBinding = bindingValue;
 
         MigrateLegacyPersistedSettingsIfNeeded(devExt);
