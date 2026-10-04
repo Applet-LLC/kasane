@@ -28,6 +28,15 @@
 
 namespace {
 
+// KBDLAYER_BINDING_*の表示名（--list / --get-scope）。
+const char* BindingName(ULONG binding) {
+    switch (binding) {
+    case KBDLAYER_BINDING_INSTANCE: return "instance";
+    case KBDLAYER_BINDING_GLOBAL: return "global";
+    default: return "model";
+    }
+}
+
 bool ParseHexU32(const char* s, ULONG* out) {
     if (!s || !*s) return false;
     char* end = nullptr;
@@ -106,7 +115,7 @@ int CmdList(IoctlClient* client) {
         if (client->GetDeviceScope(d.UniqId, &scope)) {
             printf("    InstanceKey=%08X ModelKey=%08X Binding=%s\n",
                    scope.InstanceKey, scope.ModelKey,
-                   scope.Binding == KBDLAYER_BINDING_INSTANCE ? "instance" : "model");
+                   BindingName(scope.Binding));
         }
     }
     return 0;
@@ -530,7 +539,7 @@ int CmdGetLayerState(IoctlClient* client, ULONG uniqId) {
 void PrintDeviceScope(const KBDLAYER_DEVICE_SCOPE& s) {
     printf("InstanceKey=%08X ModelKey=%08X Binding=%s\n",
            s.InstanceKey, s.ModelKey,
-           s.Binding == KBDLAYER_BINDING_INSTANCE ? "instance" : "model");
+           BindingName(s.Binding));
 }
 
 // --get-scope <UniqIdHex>: このキーボードの永続化スコープ（E-2）を表示する。
@@ -542,17 +551,21 @@ int CmdGetScope(IoctlClient* client, ULONG uniqId) {
     return 0;
 }
 
-// --set-scope <UniqIdHex> model|instance: レイヤーマップ等の永続化先を切り替える。
+// --set-scope <UniqIdHex> model|instance|global: レイヤーマップ等の永続化先を切り替える。
 // modelへ戻す場合はビットを書き替えるだけ。instanceへ切り替える場合は、現在の設定を
 // この1台専用のコピーへ複製してから切り替える（設定が消えたように見えないため）。
+// globalは、すべてのキーボードで1つの設定を共有する。すでに共有の設定があればそれを使い、
+// 無ければ現在の設定を共有の保存先へコピーする。
 int CmdSetScope(IoctlClient* client, ULONG uniqId, const char* bindingName) {
     ULONG binding;
     if (strcmp(bindingName, "model") == 0) {
         binding = KBDLAYER_BINDING_MODEL;
     } else if (strcmp(bindingName, "instance") == 0) {
         binding = KBDLAYER_BINDING_INSTANCE;
+    } else if (strcmp(bindingName, "global") == 0) {
+        binding = KBDLAYER_BINDING_GLOBAL;
     } else {
-        fprintf(stderr, "--set-scope: binding must be model / instance\n");
+        fprintf(stderr, "--set-scope: binding must be model / instance / global\n");
         return 1;
     }
     KBDLAYER_DEVICE_SCOPE scope;
@@ -1019,10 +1032,15 @@ void PrintUsage() {
         "  KeymapTool.exe --get-scope <UniqIdHex>\n"
         "      Show whether this keyboard's persisted settings (layer map, macros, combos,\n"
         "      NICOLA, ...) are shared by model (same InstanceKey/ModelKey for every\n"
-        "      keyboard of this model) or bound to this one instance (port).\n"
-        "  KeymapTool.exe --set-scope <UniqIdHex> model|instance\n"
+        "      keyboard of this model), bound to this one instance (port), or shared by\n"
+        "      every keyboard (global).\n"
+        "  KeymapTool.exe --set-scope <UniqIdHex> model|instance|global\n"
         "      Switch the persisted-settings scope. Switching from model to instance first\n"
-        "      copies the current settings so nothing appears to disappear.\n"
+        "      copies the current settings so nothing appears to disappear. Switching to\n"
+        "      global uses the shared settings if some keyboard already has them, otherwise\n"
+        "      copies the current ones. Other keyboards that are already connected pick the\n"
+        "      change up when they reconnect; keymaps are per physical scan code, so mixing\n"
+        "      keyboards with different layouts under global can give unintended mappings.\n"
         "  KeymapTool.exe --get-features <UniqIdHex>\n"
         "      Show which optional features are enabled on this keyboard.\n"
         "  KeymapTool.exe --set-key-override <UniqIdHex> <Id> [<TriggerMods> <TriggerKey> <Replacement>]\n"

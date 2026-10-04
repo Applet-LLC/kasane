@@ -23,7 +23,7 @@ public sealed record TapDanceEntry(KeyAction SingleTap, KeyAction SingleHold, Ke
 public sealed record DriverConfig(uint TapTermMs, uint ComboTermMs, uint TapDanceTermMs,
     uint TapHoldMode, uint QuickTapTermMs, uint TappingToggle, bool HasTapHoldOptions);
 
-/// <summary>KBDLAYER_DEVICE_SCOPE。Binding は KbdLayerClient.BindingModel / BindingInstance。</summary>
+/// <summary>KBDLAYER_DEVICE_SCOPE。Binding は KbdLayerClient.BindingModel / BindingInstance / BindingGlobal。</summary>
 public sealed record DeviceScope(uint InstanceKey, uint ModelKey, uint Binding);
 
 /// <summary>KBDLAYER_TAPHOLD_MODE_*（MT/LTのタップ／ホールドの判定方式。タップダンスは対象外）。</summary>
@@ -397,6 +397,7 @@ public sealed class KbdLayerClient : IDisposable
 
     public const uint BindingModel = 0;    // KBDLAYER_BINDING_MODEL（同型番で共有。既定）
     public const uint BindingInstance = 1; // KBDLAYER_BINDING_INSTANCE（この1台だけ）
+    public const uint BindingGlobal = 2;   // KBDLAYER_BINDING_GLOBAL（すべてのキーボードで共有）
 
     public DeviceScope GetDeviceScope(uint uniqId)
     {

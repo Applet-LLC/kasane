@@ -3189,6 +3189,7 @@ SendAbortReleases(
 
 // devExt->PersistBindingに従って、レイヤーマップ等の永続化先サブキーパスを組み立てる
 // （E-2: DeviceIdは一意でない前提で設計する。common/kbdlayer_ioctl.hのコメント参照）。
+// - Global: "LayerMaps\G_All"（すべてのキーボードで共有。キーに依存しないので常に使える）
 // - Instance: "LayerMaps\I_<InstanceKeyHex>"（この1台＝差し込み口だけ）
 // - Model（既定）: "LayerMaps\M_<ModelKeyHex>"（同型番で共有）
 // - 対応するキーが取得できなかった場合（InstanceKey/ModelKeyが0）は、旧形式
@@ -3202,7 +3203,9 @@ BuildLayerMapsSubKeyPath(
     _In_ ULONG PathLengthInChars
     )
 {
-    if (devExt->PersistBinding == KBDLAYER_BINDING_INSTANCE && devExt->InstanceKey != 0) {
+    if (devExt->PersistBinding == KBDLAYER_BINDING_GLOBAL) {
+        RtlStringCchPrintfW(PathBuffer, PathLengthInChars, L"LayerMaps\\G_All");
+    } else if (devExt->PersistBinding == KBDLAYER_BINDING_INSTANCE && devExt->InstanceKey != 0) {
         RtlStringCchPrintfW(PathBuffer, PathLengthInChars, L"LayerMaps\\I_%08X", devExt->InstanceKey);
     } else if (devExt->ModelKey != 0) {
         RtlStringCchPrintfW(PathBuffer, PathLengthInChars, L"LayerMaps\\M_%08X", devExt->ModelKey);
@@ -3364,6 +3367,12 @@ MigrateLegacyPersistedSettingsIfNeeded(
     WCHAR newPath[64];
     ULONG migrated = 0;
 
+    // Globalは、すべてのキーボードで1つの設定を共有する保存先。旧形式（キーボードごとの
+    // "LayerMaps\<DeviceIdHex>"）からの移行先にはしない（1台の古い設定で全台の設定を上書きしないため）。
+    if (devExt->PersistBinding == KBDLAYER_BINDING_GLOBAL) {
+        return;
+    }
+
     RtlStringCchPrintfW(legacyPath, RTL_NUMBER_OF(legacyPath), L"LayerMaps\\%08X", devExt->DeviceId);
     BuildLayerMapsSubKeyPath(devExt, newPath, RTL_NUMBER_OF(newPath));
 
@@ -3395,9 +3404,28 @@ GetDeviceScopeForDevice(
     OutScope->Binding = devExt->PersistBinding;
 }
 
+// 保存先subKeyPathにレイヤーマップが保存されているか（Globalへ切り替えるとき、ほかのキーボードが
+// すでに作った共有設定を上書きしないための判定）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static BOOLEAN
+PersistedStoreHasLayerMap(
+    _In_ PCWSTR subKeyPath
+    )
+{
+    ULONG actualLength = 0;
+
+    // Buffer=NULLなら、値の長さだけを調べる（RegReadBinaryはActualLengthを返す）。
+    if (NT_SUCCESS(RegReadBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_MAP_VALUE_NAME,
+                                 NULL, 0, &actualLength))) {
+        return actualLength > 0;
+    }
+    return FALSE;
+}
+
 // SET_DEVICE_SCOPE の実体。Model<->Instanceの切替時、現在の保存先の内容を新しい
 // 保存先へコピーしてから devExt->PersistBinding を確定させる（設定が消えたように
-// 見えないようにするため）。
+// 見えないようにするため）。Globalへの切替は、Global側にレイヤーマップがあればそれを使い
+// （上書きしない）、無ければ現在の設定をコピーする。
 _IRQL_requires_max_(PASSIVE_LEVEL)
 NTSTATUS
 SetDeviceScopeForDevice(
@@ -3409,7 +3437,8 @@ SetDeviceScopeForDevice(
     WCHAR newPath[64];
     WCHAR instanceKeyHex[16];
 
-    if (NewBinding != KBDLAYER_BINDING_MODEL && NewBinding != KBDLAYER_BINDING_INSTANCE) {
+    if (NewBinding != KBDLAYER_BINDING_MODEL && NewBinding != KBDLAYER_BINDING_INSTANCE &&
+        NewBinding != KBDLAYER_BINDING_GLOBAL) {
         return STATUS_INVALID_PARAMETER;
     }
     if (NewBinding == KBDLAYER_BINDING_INSTANCE && devExt->InstanceKey == 0) {
@@ -3425,7 +3454,11 @@ SetDeviceScopeForDevice(
     BuildLayerMapsSubKeyPath(devExt, newPath, RTL_NUMBER_OF(newPath));
 
     if (wcscmp(oldPath, newPath) != 0) {
-        CopyPersistedSettings(devExt, oldPath, newPath);
+        // Globalは複数のキーボードが共有する。すでに設定があれば、それを使う（この1台の設定で上書きして、
+        // ほかのキーボードの設定を消さない）。
+        if (NewBinding != KBDLAYER_BINDING_GLOBAL || !PersistedStoreHasLayerMap(newPath)) {
+            CopyPersistedSettings(devExt, oldPath, newPath);
+        }
     }
 
     // Bindingそのものは差し込み口（InstanceKey）に紐づく設定として、
