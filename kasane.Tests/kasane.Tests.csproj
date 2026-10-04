@@ -24,6 +24,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- トレイ（kasane-tray）の一時停止の中身。WinFormsに依存しない2ファイルだけを取り込む
+         （kasane-trayをプロジェクト参照すると、KbdLayerClientなどの型がkasaneと重複して曖昧になるため）。 -->
+    <Compile Include="..\kasane-tray\PauseController.cs" Link="Tray\PauseController.cs" />
+    <Compile Include="..\kasane-tray\PauseStateStore.cs" Link="Tray\PauseStateStore.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- 10キーのKLEレイアウト（テスト用フィクスチャ）。同梱レイアウトと同じ形式のものを
          テスト専用にコピーし、出力ディレクトリへ配置する。 -->
     <None Include="Fixtures\kle-10key.json" CopyToOutputDirectory="PreserveNewest" />

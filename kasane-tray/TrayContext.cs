@@ -1,0 +1,129 @@
+namespace Kasane.Tray;
+
+/// <summary>
+/// トレイアイコンとメニュー。
+///  - 左クリック: エディタ（kasane.exe）を開く（起動済みなら前面へ）。
+///  - 右クリックのメニュー（上から）: 設定（＝エディタを開く）／一時停止（チェック付き。全キーボードをOFFにし、再開で戻す）／
+///    ライセンス（ライセンス管理を開く）／終了（トレイを終える。一時停止中でも、停止のまま終了する）。
+///  - ツールチップに、動作中・一時停止中・ドライバに接続できない、を出す。状態はタイマーで読み直す。
+/// UI Automation（kasane.Tests/UiAutomation/T10-TrayMenu.ps1）では、メニュー項目は表示名（設定・一時停止・ライセンス・終了）で探す
+/// （ToolStripの項目のNameは、UIAのAutomationIdにはならない）。
+/// </summary>
+public sealed class TrayContext : ApplicationContext
+{
+    private const int PollIntervalMs = 3000;
+
+    private readonly PauseController _pause;
+    private readonly NotifyIcon _notifyIcon;
+    private readonly ContextMenuStrip _menu = new();
+    private readonly ToolStripMenuItem _settingsItem = new("設定") { Name = "TraySettings" };
+    private readonly ToolStripMenuItem _pauseItem = new("一時停止") { Name = "TrayPause" };
+    private readonly ToolStripMenuItem _licenseItem = new("ライセンス") { Name = "TrayLicense" };
+    private readonly ToolStripMenuItem _exitItem = new("終了") { Name = "TrayExit" };
+    private readonly System.Windows.Forms.Timer _timer = new() { Interval = PollIntervalMs };
+
+    private readonly Icon _normalIcon;
+    private readonly Icon _pausedIcon;
+    private readonly Icon _unavailableIcon;
+    private TraySnapshot _snapshot = new(TrayStatus.DriverUnavailable, 0, 0);
+
+    public TrayContext()
+    {
+        _pause = new PauseController(new KbdLayerDriverAccess(), new JsonPauseStateStore());
+
+        _normalIcon = TrayIcons.Load();
+        _pausedIcon = TrayIcons.Gray(_normalIcon, pauseMarks: true);
+        _unavailableIcon = TrayIcons.Gray(_normalIcon, pauseMarks: false);
+
+        // 「設定」は左クリックと同じ動作なので、既定の項目として太字にする（Windowsの慣習）。
+        _settingsItem.Font = new Font(_settingsItem.Font, FontStyle.Bold);
+        _settingsItem.Click += (_, _) => OpenEditor();
+        _pauseItem.Click += (_, _) => TogglePause();
+        _licenseItem.Click += (_, _) => Notify(AppLauncher.OpenOrActivate(AppLauncher.FindLicense(), "ライセンス管理"));
+        _exitItem.Click += (_, _) => ExitTray();
+        _menu.Items.AddRange(new ToolStripItem[] { _settingsItem, _pauseItem, _licenseItem, new ToolStripSeparator(), _exitItem });
+        _menu.Opening += (_, _) => RefreshState(); // 開く直前に、最新の状態にする
+
+        _notifyIcon = new NotifyIcon
+        {
+            Icon = _unavailableIcon,
+            Text = "kasane",
+            ContextMenuStrip = _menu,
+            Visible = true,
+        };
+        _notifyIcon.MouseClick += (_, e) =>
+        {
+            if (e.Button == MouseButtons.Left) OpenEditor();
+        };
+
+        _timer.Tick += (_, _) => RefreshState();
+        _timer.Start();
+        RefreshState();
+    }
+
+    private void OpenEditor() => Notify(AppLauncher.OpenOrActivate(AppLauncher.FindEditor(), "kasane"));
+
+    /// <summary>失敗の理由があれば、バルーンで知らせる。</summary>
+    private void Notify(string? error)
+    {
+        if (error != null) _notifyIcon.ShowBalloonTip(5000, "kasane", error, ToolTipIcon.Warning);
+    }
+
+    private void TogglePause()
+    {
+        try
+        {
+            ApplySnapshot(_snapshot.Status == TrayStatus.Paused ? _pause.Resume() : _pause.Pause());
+        }
+        catch (Exception ex)
+        {
+            TrayLog.Write("TogglePause: " + ex);
+            Notify($"一時停止・再開に失敗しました: {ex.Message}");
+        }
+    }
+
+    private void RefreshState()
+    {
+        try { ApplySnapshot(_pause.Refresh()); }
+        catch (Exception ex) { TrayLog.Write("Refresh: " + ex); } // 常駐中に落ちないよう、読み直しの失敗は記録だけにする
+    }
+
+    private void ApplySnapshot(TraySnapshot snapshot)
+    {
+        _snapshot = snapshot;
+        _pauseItem.Checked = snapshot.Status == TrayStatus.Paused;
+        _pauseItem.Enabled = snapshot.CanTogglePause;
+
+        (Icon icon, string text) = snapshot.Status switch
+        {
+            TrayStatus.Paused => (_pausedIcon, "kasane — 一時停止中"),
+            TrayStatus.DriverUnavailable => (_unavailableIcon, "kasane — ドライバに接続できません"),
+            _ when snapshot.ActiveCount == 0 => (_normalIcon, "kasane — リマップ中のキーボードはありません"),
+            _ => (_normalIcon, $"kasane — 動作中（{snapshot.ActiveCount}台）"),
+        };
+        if (!ReferenceEquals(_notifyIcon.Icon, icon)) _notifyIcon.Icon = icon;
+        _notifyIcon.Text = text; // 127文字まで
+    }
+
+    private void ExitTray()
+    {
+        _timer.Stop();
+        _notifyIcon.Visible = false;
+        _notifyIcon.Dispose();
+        ExitThread();
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _timer.Dispose();
+            _notifyIcon.Dispose();
+            _menu.Dispose();
+            _normalIcon.Dispose();
+            _pausedIcon.Dispose();
+            _unavailableIcon.Dispose();
+        }
+        base.Dispose(disposing);
+    }
+}

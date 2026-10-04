@@ -405,6 +405,11 @@ New-Item -ItemType Directory -Path (Join-Path $keymapGuiStaging "Layouts") -Forc
 Copy-Item -Path (Join-Path $repoRoot "kasane/Layouts/*.json") -Destination (Join-Path $keymapGuiStaging "Layouts") -Force
 Write-Host "[kasane] staged layouts: $((Get-ChildItem (Join-Path $keymapGuiStaging 'Layouts')).Name -join ', ')"
 
+# kasane-tray: タスクトレイ常駐ツール（.NET 8 WinForms、exe のみ）。ログイン時の自動起動は Product.wxs が登録する。
+Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kasane-tray" `
+    -ExeFileName "kasane-tray.exe" `
+    -DestDir (Join-Path $stagingRoot "app/tray")
+
 # KeymapToolのサンプルキーマップ（docs/TUTORIAL-CLI.md で使う tutorial-*.json、動作確認用 test-keymap-*.json、
 # README.md）。samples/temp/ は作業用の参照資料なので含めない。
 $samplesStaging = Join-Path $stagingRoot "samples"

@@ -56,6 +56,15 @@ Installation
    reconnecting your keyboard (the driver picks up the current license
    status when a device is (re)attached).
 
+Tray icon
+---------
+After you sign in, the kasane icon appears in the notification area of the
+taskbar (inside the "^" flyout when hidden).
+- Left click: opens kasane (the keymap editor).
+- Right click: the menu 設定 (Settings) / 一時停止 (Pause) / ライセンス
+  (License) / 終了 (Exit). "Pause" temporarily stops the remapping on all
+  keyboards (press it again to resume).
+
 Important: if your subscription license becomes inactive, layer
 remapping is disabled; basic keyboard input is never affected.
 
