@@ -27,7 +27,7 @@ public sealed class KbdLayerImeLayerDriver : IImeLayerDriver
             if (blob.Length < KbdLayerClient.NicolaHeaderSize) continue;
             bool enabled = BitConverter.ToUInt32(blob, 4) != 0;
             uint layer = BitConverter.ToUInt32(blob, 8);
-            if (enabled && layer < KbdLayerClient.MaxLayers) targets.Add(new NicolaTarget(d.UniqId, (int)layer));
+            if (enabled && layer < KbdLayerClient.MaxLayers) targets.Add(new NicolaTarget(d.UniqId, (int)layer, d.Enabled));
         }
         return targets;
     }

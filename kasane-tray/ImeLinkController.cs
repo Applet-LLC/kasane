@@ -17,8 +17,11 @@ public readonly record struct ImeState(bool Known, bool Open, uint ConversionMod
     public bool IsKanaInput => Known && Open && (ConversionMode & ImeConversion.Native) != 0;
 }
 
-/// <summary>IME連動の対象: NICOLAが設定されて有効なキーボードと、そのNICOLAのレイヤー。</summary>
-public sealed record NicolaTarget(uint UniqId, int Layer);
+/// <summary>
+/// IME連動の対象: NICOLAが設定されて有効なキーボードと、そのNICOLAのレイヤー。MapEnabled は、そのキーボードのレイヤーマップがONか
+/// （NICOLAはレイヤーマップがONのときだけ動く。OFF＝緊急解除・一時停止のキーボードでは、レイヤーを立てても入力は変わらない）。
+/// </summary>
+public sealed record NicolaTarget(uint UniqId, int Layer, bool MapEnabled = true);
 
 /// <summary>IME連動が使うドライバの操作（テストでは偽物に差し替える）。失敗は例外で知らせる。</summary>
 public interface IImeLayerDriver
@@ -50,7 +53,7 @@ public sealed record ImeLinkStatus(bool Linked, bool NicolaOn, int TargetCount)
 public sealed class ImeLinkController
 {
     public const long VerifyIntervalMs = 1000;
-    public const long TargetRefreshIntervalMs = 3000;
+    public const long TargetRefreshIntervalMs = 1000;
 
     private readonly IImeLayerDriver _driver;
     private readonly Func<long> _nowMs;
@@ -61,6 +64,8 @@ public sealed class ImeLinkController
     private long _lastTargetRefresh = long.MinValue;
     private IReadOnlyList<NicolaTarget> _targets = Array.Empty<NicolaTarget>();
     private bool _lastApplied;
+    // 私たちがレイヤーを操作したキーボードとレイヤー。NICOLAをクリアして対象から外れたキーボードのレイヤーを戻すために覚える。
+    private readonly HashSet<(uint UniqId, int Layer)> _driven = new();
 
     public ImeLinkController(IImeLayerDriver driver, Func<long>? nowMs = null)
     {
@@ -85,8 +90,9 @@ public sealed class ImeLinkController
         if (now - _lastTargetRefresh >= TargetRefreshIntervalMs || _lastTargetRefresh == long.MinValue)
         {
             _lastTargetRefresh = now;
-            try { _targets = _driver.FindTargets(); }
-            catch (Exception ex) when (IsDriverFailure(ex)) { _targets = Array.Empty<NicolaTarget>(); }
+            // 一覧を取れなかったときは、前の一覧のまま続ける（一瞬の失敗で、全キーボードのレイヤーとハンドルを手放さない）。
+            try { _targets = _driver.FindTargets(); DropRemovedTargets(); }
+            catch (Exception ex) when (IsDriverFailure(ex)) { }
         }
 
         if (_targets.Count == 0)
@@ -94,6 +100,7 @@ public sealed class ImeLinkController
             // 対象が無いので、ハンドルを持ち続けない（ドライバの更新・アンインストールを妨げないため）。
             if (_holding) { SafeRelease(); }
             _holding = false;
+            _driven.Clear();
             _lastVerify = long.MinValue;
             return new ImeLinkStatus(true, false, 0);
         }
@@ -108,6 +115,7 @@ public sealed class ImeLinkController
                 {
                     if (_driver.IsAppLayerOn(t.UniqId, t.Layer) != _imeOn) _driver.SetAppLayer(t.UniqId, t.Layer, _imeOn);
                     _holding = true;
+                    _driven.Add((t.UniqId, t.Layer));
                 }
                 catch (Exception ex) when (IsDriverFailure(ex))
                 {
@@ -116,7 +124,27 @@ public sealed class ImeLinkController
                 }
             }
         }
-        return new ImeLinkStatus(true, _imeOn, _targets.Count);
+        // NICOLAが入力中なのは、IMEがかなモードで、レイヤーマップがONのキーボードがあるとき。
+        return new ImeLinkStatus(true, _imeOn && _targets.Any(t => t.MapEnabled), _targets.Count);
+    }
+
+    /// <summary>
+    /// 対象から外れたキーボード（NICOLAをクリアした、NICOLAのレイヤーを変えた）のレイヤーを戻す。ハンドルを閉じると全部戻るが、
+    /// 別のキーボードの対象が残っている間は閉じないので、1つずつ下ろす。
+    /// </summary>
+    private void DropRemovedTargets()
+    {
+        if (_driven.Count == 0) return;
+        foreach (var key in _driven.ToList())
+        {
+            if (_targets.Any(t => t.UniqId == key.UniqId && t.Layer == key.Layer)) continue;
+            if (_targets.Count > 0)
+            {
+                try { _driver.SetAppLayer(key.UniqId, key.Layer, false); }
+                catch (Exception ex) when (IsDriverFailure(ex)) { /* 外されたキーボード。無くなっていれば、レイヤーも無い */ }
+            }
+            _driven.Remove(key);
+        }
     }
 
     /// <summary>連動をやめる（トレイの終了時を含む）。立てていたレイヤーはドライバが戻す。</summary>
@@ -131,6 +159,7 @@ public sealed class ImeLinkController
         _lastVerify = long.MinValue;
         _lastTargetRefresh = long.MinValue;
         _targets = Array.Empty<NicolaTarget>();
+        _driven.Clear();
     }
 
     private void SafeRelease()

@@ -36,43 +36,95 @@ public sealed class Win32ImeSource : IImeSource
         "MultitaskingViewFrame", "TaskListThumbnailWnd", "SysShadow",
     };
 
-    private readonly uint _ownPid = (uint)Environment.ProcessId;
+    // クラス名が取れない・見慣れないシェルのウィンドウでも除外できるよう、プロセス名でも除外する
+    // （エクスプローラー本体のタスクバー・フライアウト・メニュー、スタートメニュー、検索、ロック画面など）。
+    // エクスプローラーのファイル窓（名前の変更・検索ボックスで文字を打つ）は除く。
+    private static readonly string[] IgnoredProcesses =
+    {
+        "StartMenuExperienceHost", "SearchHost", "SearchApp", "ShellExperienceHost", "TextInputHost", "LockApp", "ShellHost",
+    };
+    private static readonly string[] ExplorerFileWindowClasses = { "CabinetWClass", "ExploreWClass", "#32770" };
 
-    public ImeState Read() => ReadWithDetail(out _);
+    private readonly uint _ownPid = (uint)Environment.ProcessId;
+    private readonly Dictionary<uint, string> _processNames = new();
+    private long _processNamesClearedAt = Environment.TickCount64;
+
+    /// <summary>毎回呼ぶ経路（100msごと）。診断用の文字列は作らず、プロセス名も、前に調べたものを使う。</summary>
+    public ImeState Read() => ReadCore(wantDetail: false, out _);
 
     /// <summary>診断用（kasane-tray.exe --probe-ime）。どのウィンドウを見て、どう判断したかを返す。</summary>
-    public ImeState ReadWithDetail(out string detail)
+    public ImeState ReadWithDetail(out string detail) => ReadCore(wantDetail: true, out detail);
+
+    private ImeState ReadCore(bool wantDetail, out string detail)
     {
+        detail = "";
         IntPtr foreground = GetForegroundWindow();
-        if (foreground == IntPtr.Zero) { detail = "前面のウィンドウがありません"; return ImeState.Unknown; }
+        if (foreground == IntPtr.Zero) { if (wantDetail) detail = "前面のウィンドウがありません"; return ImeState.Unknown; }
 
         uint threadId = GetWindowThreadProcessId(foreground, out uint pid);
+        if (pid == _ownPid) { if (wantDetail) detail = $"前面はトレイ自身（{ClassOf(foreground)}）なので見ません"; return ImeState.Unknown; }
         string cls = ClassOf(foreground);
-        string process = ProcessName(pid);
-        if (pid == _ownPid) { detail = $"前面はトレイ自身（{cls}）なので見ません"; return ImeState.Unknown; }
-        if (IgnoredClasses.Contains(cls)) { detail = $"前面はシェルのウィンドウ（{cls}、{process}）なので見ません"; return ImeState.Unknown; }
+        string process = ProcessNameCached(pid);
+        if (IsShellWindow(cls, process))
+        {
+            if (wantDetail) detail = $"前面はシェルのウィンドウ（{cls}、{process}）なので見ません";
+            return ImeState.Unknown;
+        }
 
         IntPtr target = foreground;
         var info = new GUITHREADINFO { cbSize = (uint)Marshal.SizeOf<GUITHREADINFO>() };
         if (GetGUIThreadInfo(threadId, ref info) && info.hwndFocus != IntPtr.Zero) target = info.hwndFocus;
 
         IntPtr imeWindow = ImmGetDefaultIMEWnd(target);
-        if (imeWindow == IntPtr.Zero) { detail = $"{process}（{cls}）: IMEのウィンドウがありません"; return ImeState.Unknown; }
+        if (imeWindow == IntPtr.Zero) { if (wantDetail) detail = $"{process}（{cls}）: IMEのウィンドウがありません"; return ImeState.Unknown; }
 
         if (!Query(imeWindow, IMC_GETOPENSTATUS, out long open))
         {
-            detail = $"{process}（{cls}）: IMEのON/OFFを問い合わせられません（管理者として動いている・応答しない等）";
+            if (wantDetail) detail = $"{process}（{cls}）: IMEのON/OFFを問い合わせられません（管理者として動いている・応答しない等）";
             return ImeState.Unknown;
+        }
+        if (open == 0)
+        {
+            // IMEがOFFなら、変換モードは関係しない（かな入力にならない）ので聞かない。相手のアプリへのメッセージを半分にする。
+            if (wantDetail) detail = $"{process}（{cls}）: IME OFF";
+            return new ImeState(true, false, 0);
         }
         if (!Query(imeWindow, IMC_GETCONVERSIONMODE, out long mode))
         {
-            detail = $"{process}（{cls}）: IMEの変換モードを問い合わせられません";
+            if (wantDetail) detail = $"{process}（{cls}）: IMEの変換モードを問い合わせられません";
             return ImeState.Unknown;
         }
 
         var state = new ImeState(true, open != 0, (uint)mode);
-        detail = $"{process}（{cls}）: IME {(state.Open ? "ON" : "OFF")}、変換モード 0x{state.ConversionMode:X}、かな入力 {(state.IsKanaInput ? "はい" : "いいえ")}";
+        if (wantDetail)
+            detail = $"{process}（{cls}）: IME {(state.Open ? "ON" : "OFF")}、変換モード 0x{state.ConversionMode:X}、かな入力 {(state.IsKanaInput ? "はい" : "いいえ")}";
         return state;
+    }
+
+    /// <summary>前面でもIMEの状態を見ないウィンドウか（クラス名、またはプロセス名で判断する）。</summary>
+    internal static bool IsShellWindow(string windowClass, string processName)
+    {
+        if (IgnoredClasses.Contains(windowClass)) return true;
+        if (IgnoredProcesses.Contains(processName, StringComparer.OrdinalIgnoreCase)) return true;
+        return string.Equals(processName, "explorer", StringComparison.OrdinalIgnoreCase)
+               && !ExplorerFileWindowClasses.Contains(windowClass);
+    }
+
+    /// <summary>プロセス名は、同じPIDなら前の結果を使う（Process.GetProcessByIdは重いので、100msごとには呼ばない）。30秒ごとに作り直す。</summary>
+    private string ProcessNameCached(uint pid)
+    {
+        long now = Environment.TickCount64;
+        if (now - _processNamesClearedAt > 30_000 || _processNames.Count > 64)
+        {
+            _processNames.Clear();
+            _processNamesClearedAt = now;
+        }
+        if (!_processNames.TryGetValue(pid, out var name))
+        {
+            name = ProcessName(pid);
+            _processNames[pid] = name;
+        }
+        return name;
     }
 
     private static bool Query(IntPtr imeWindow, int command, out long value)

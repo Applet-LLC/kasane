@@ -11,9 +11,14 @@ public class ImeLinkControllerTests
         public List<NicolaTarget> Targets = new();
         public Dictionary<(uint Id, int Layer), bool> Bits = new();
         public int SetCalls, ReleaseCalls, FindCalls;
-        public bool FailNext;
+        public bool FailNext, FailFind;
 
-        public IReadOnlyList<NicolaTarget> FindTargets() { FindCalls++; return Targets.ToList(); }
+        public IReadOnlyList<NicolaTarget> FindTargets()
+        {
+            FindCalls++;
+            if (FailFind) throw new KbdLayerException("find", 6);
+            return Targets.ToList();
+        }
 
         public bool IsAppLayerOn(uint uniqId, int layer)
         {
@@ -217,6 +222,84 @@ public class ImeLinkControllerTests
         _now += 100;
         c.Tick(Kana, true, true);
         Assert.True(_driver.Bit(1, 1));
+    }
+
+    // ------------------------------------------------------------------
+    // 対象から外れたキーボード・一覧の取得失敗・レイヤーマップOFF
+    // ------------------------------------------------------------------
+
+    [Fact]
+    public void A_Keyboard_That_Loses_Nicola_Gets_Its_Layer_Lowered_While_Others_Stay()
+    {
+        // 2台とも対象のとき、1台のNICOLAをクリアしても、その台のレイヤーが残っていた（ハンドルは、もう1台のために開いたまま）。
+        var c = Make(new NicolaTarget(1, 1), new NicolaTarget(2, 1));
+        c.Tick(Kana, true, true);
+        Assert.True(_driver.Bit(1, 1));
+        Assert.True(_driver.Bit(2, 1));
+
+        _driver.Targets.RemoveAll(t => t.UniqId == 1); // --clear-nicola 1
+        _now += ImeLinkController.TargetRefreshIntervalMs;
+        var s = c.Tick(Kana, true, true);
+
+        Assert.False(_driver.Bit(1, 1));
+        Assert.True(_driver.Bit(2, 1));
+        Assert.Equal(0, _driver.ReleaseCalls);
+        Assert.Equal(1, s.TargetCount);
+    }
+
+    [Fact]
+    public void Changing_The_Nicola_Layer_Lowers_The_Old_Layer()
+    {
+        var c = Make(new NicolaTarget(1, 1), new NicolaTarget(2, 1));
+        c.Tick(Kana, true, true);
+        _driver.Targets[0] = new NicolaTarget(1, 3);
+        _now += ImeLinkController.TargetRefreshIntervalMs;
+        c.Tick(Kana, true, true);
+        Assert.False(_driver.Bit(1, 1));
+        Assert.True(_driver.Bit(1, 3));
+    }
+
+    [Fact]
+    public void A_Dropped_Keyboard_That_Is_Gone_Does_Not_Break_The_Tick()
+    {
+        var c = Make(new NicolaTarget(1, 1), new NicolaTarget(2, 1));
+        c.Tick(Kana, true, true);
+        _driver.Targets.RemoveAll(t => t.UniqId == 1);
+        _driver.FailNext = true; // 下ろす操作（IsAppLayerOn/SetAppLayer）が失敗しても、例外にしない
+        _now += ImeLinkController.TargetRefreshIntervalMs;
+        var ex = Record.Exception(() => c.Tick(Kana, true, true));
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public void A_Transient_Failure_To_List_Keyboards_Keeps_The_Layers_And_The_Handle()
+    {
+        var c = Make(new NicolaTarget(1, 1));
+        c.Tick(Kana, true, true);
+        _driver.FailFind = true;
+        _now += ImeLinkController.TargetRefreshIntervalMs;
+        var s = c.Tick(Kana, true, true);
+
+        Assert.Equal(0, _driver.ReleaseCalls);
+        Assert.True(_driver.Bit(1, 1));
+        Assert.Equal(1, s.TargetCount);
+        Assert.True(s.NicolaOn);
+    }
+
+    [Fact]
+    public void Nicola_Is_Reported_On_Only_While_A_Keyboard_Has_Its_Layer_Map_On()
+    {
+        // 緊急解除・一時停止のキーボードは、レイヤーを立てても入力は変わらない。表示は「入力中」にしない。
+        var c = Make(new NicolaTarget(1, 1, MapEnabled: false));
+        var s = c.Tick(Kana, true, true);
+        Assert.True(_driver.Bit(1, 1));   // レイヤーは立てておく（マップがONになった瞬間から効く）
+        Assert.False(s.NicolaOn);
+        Assert.Equal(1, s.TargetCount);
+
+        _driver.Targets[0] = new NicolaTarget(1, 1, MapEnabled: true);
+        _now += ImeLinkController.TargetRefreshIntervalMs;
+        s = c.Tick(Kana, true, true);
+        Assert.True(s.NicolaOn);
     }
 
     [Fact]
