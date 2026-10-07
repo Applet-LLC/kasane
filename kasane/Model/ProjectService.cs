@@ -251,7 +251,7 @@ public static class ProjectService
     /// </summary>
     public static List<string> MacroTokensFromSteps(IReadOnlyList<MacroStep> steps)
     {
-        string Name(ushort sc) => KeycodeTable.NameForScanCode(sc) ?? $"KC_UNKNOWN_{sc:X4}";
+        string Name(ushort sc) => KeycodeTable.KeyToken(sc);
         int ModBit(ushort sc) => Array.IndexOf(KeycodeTable.ModifierScanCodes, sc);
 
         var tokens = new List<string>();
@@ -514,7 +514,7 @@ public static class ProjectService
                 {
                     Id = k,
                     Mods = KeycodeTable.ModMaskToNames(ko.TriggerMods),
-                    Key = KeycodeTable.NameForScanCode(ko.TriggerScanCode) ?? $"KC_UNKNOWN_{ko.TriggerScanCode:X4}",
+                    Key = KeycodeTable.KeyToken(ko.TriggerScanCode),
                     Replacement = KeycodeTable.ToToken(ko.Replacement),
                 });
             }

@@ -28,7 +28,7 @@ try {
     $dlg1 = Find-NewTopWindow $proc.Id $before -timeoutMs 6000
     "  key-assign dialog opened: $($dlg1.Current.Name)"
 
-    # LstCategories order: 10 KeycodeCatalog categories (0=基本..9=メディア), then
+    # LstCategories order: 10 KeycodeCatalog categories (0=基本..9=メディア・システム), then
     # レイヤー操作(10)/Mod-Tap(11)/Layer-Tap(12)/マクロ・タップダンス(13). Default SelectedIndex=0
     # shows 基本, so レイヤー操作 must be selected explicitly before FuncCombo exists.
     Select-ListItemByIndex (Find-ChildByAutomationId $dlg1 "LstCategories") 10
