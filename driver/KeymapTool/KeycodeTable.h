@@ -11,7 +11,7 @@
 
   基本キー（KC_A〜KC_Z, 数字, 記号, ファンクションキー, ナビゲーションクラスタ,
   テンキー, 主要メディアキー）と、レイヤーアクション（MO/TG/DF/OSL, MT/LT[Phase 2],
-  MACRO(id)[Phase 3], TAPDANCE(id)[Phase 5]）を扱う。カバーしていないキーコードは
+  MACRO(id)[Phase 3], TAPDANCE(id)[Phase 5], HLP(id)[ヘルパーイベント]）を扱う。カバーしていないキーコードは
   Resolve()がfalseを返すので、呼び出し側でエラー表示すること。
 */
 

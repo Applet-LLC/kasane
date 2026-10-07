@@ -864,6 +864,35 @@ int CmdWatchLayer(IoctlClient* client, ULONG uniqId) {
     }
 }
 
+// --watch-helper: ヘルパーイベント（HLP(id)＝CUSTOMアクションのキーの押下・解放）を1件ずつ表示する
+// （Ctrl+Cで終了）。全キーボードのイベントが届く。起動より前のイベントは表示しない。
+int CmdWatchHelper(IoctlClient* client) {
+    ULONG lastSeq = KBDLAYER_HELPER_SEQ_LATEST;
+    printf("Watching helper events (HLP keys) on all keyboards (Ctrl+C to stop)\n");
+    fflush(stdout);
+    for (;;) {
+        KBDLAYER_WAIT_HELPER_EVENT_OUTPUT header;
+        std::vector<KBDLAYER_HELPER_EVENT> events;
+        bool cancelled = false;
+        bool unsupported = false;
+        if (!client->WaitHelperEvent(lastSeq, &header, &events, &cancelled, &unsupported)) {
+            return cancelled ? 0 : 1;
+        }
+        if (header.Dropped != 0) {
+            printf("(%lu event(s) were dropped: the queue overflowed)\n", header.Dropped);
+        }
+        for (const KBDLAYER_HELPER_EVENT& e : events) {
+            printf("Seq=%lu UniqId=%08X HLP(%u) %s%s Mods=0x%02X TimeMs=%lu\n",
+                   e.Seq, e.UniqId, e.CustomId, e.IsBreak ? "up" : "down",
+                   (e.Flags & KBDLAYER_HELPER_EVENT_FLAG_REPEAT) ? " (repeat)" : "",
+                   e.Modifiers, e.TimeMs);
+        }
+        // 出力をファイルへリダイレクトしても、強制終了で行が失われないように（試験のT-23）。
+        fflush(stdout);
+        lastSeq = header.Seq;
+    }
+}
+
 // --set-layer <UniqIdHex> on|off|toggle <layer> / mask <hexMask> [--no-nicola-keys]
 // アプリ管理レイヤーは、立てたハンドルを閉じると下ろされる。そのため、Enterを押すまで
 // ハンドルを開いたまま待つ（そのままKeymapToolを強制終了すると、ハンドルのクローズで
@@ -1156,6 +1185,9 @@ void PrintUsage() {
         "      Show the current layer state (keyboard layers, app-managed layers, NICOLA on/off).\n"
         "  KeymapTool.exe --watch-layer <UniqIdHex>\n"
         "      Print a line every time the layer state changes (Ctrl+C to stop).\n"
+        "  KeymapTool.exe --watch-helper\n"
+        "      Print a line for every press/release of an HLP(id) key (helper event) on any\n"
+        "      keyboard (Ctrl+C to stop). HLP keys output nothing themselves.\n"
         "  KeymapTool.exe --set-layer <UniqIdHex> on|off|toggle <layer> [--no-nicola-keys]\n"
         "  KeymapTool.exe --set-layer <UniqIdHex> mask <hexMask> [--no-nicola-keys]\n"
         "      Turn app-managed layers on/off. They stay on until you press Enter (or this\n"
@@ -1356,6 +1388,10 @@ int main(int rawArgc, char** rawArgv) {
         ULONG uniqId;
         if (argc < 3 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
         return CmdWatchLayer(&client, uniqId);
+    }
+
+    if (strcmp(cmd, "--watch-helper") == 0) {
+        return CmdWatchHelper(&client);
     }
 
     if (strcmp(cmd, "--set-layer") == 0) {

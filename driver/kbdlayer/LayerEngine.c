@@ -234,6 +234,10 @@ ParseLayerMapBlob(
                 }
                 needsSingleEvents = TRUE;
             }
+            // CUSTOM（ヘルパーイベント）: Param1は予約で0。Param2（ヘルパー動作のID）は任意。
+            if (a->Type == KBDLAYER_ACTION_CUSTOM && a->Param1 != 0) {
+                return STATUS_INVALID_PARAMETER;
+            }
             // TO/TT: レイヤー番号は範囲内、Param2は0。
             if (a->Type == KBDLAYER_ACTION_LAYER_TO || a->Type == KBDLAYER_ACTION_LAYER_TAP_TOGGLE) {
                 if (a->Param1 >= KBDLAYER_MAX_LAYERS || a->Param2 != 0) {
@@ -781,11 +785,26 @@ apply:
         }
         return FALSE;
 
+    case KBDLAYER_ACTION_CUSTOM:
+        // ヘルパーイベント: キーは出力せず、押下（オートリピートを含む）と解放をHelperNotify.cの
+        // キューに積む。解放とリピートは押下時の記録（HeldKeys）から来るので、押している間に
+        // レイヤーが変わっても、マップをOFFにしても、同じIDで届く。待っているIRPの完了は、
+        // ServiceCallback・DPCの末尾のLayerNotifyIfChanged（→HelperNotifyFlushIfNeeded）で行う。
+        // Modifiersは、普通の出力として押されている修飾キー（RealModsDown。OutputLockで保護され、
+        // 呼び出し元はすべてOutputLock保持中）。
+        HelperNotifyQueueEvent(devExt->DeviceId, action->Param2, isBreak, isRepeat, devExt->RealModsDown);
+        if (!isBreak && devExt->OneShotLayerPending) {
+            // KEYと同じく、OSL(layer)発動後に最初に解決された実キーとしてワンショットを消費する。
+            devExt->ActiveLayerMask &= ~devExt->OneShotLayerBit;
+            devExt->OneShotLayerPending = FALSE;
+        }
+        return TRUE; // 出力しない（解放も対で出力しない）
+
     default:
         // MACROはResolveMacro、TAPDANCEはResolveTapDance
         // （いずれもServiceCallbackからResolveLayerActionより前に呼ばれる、Driver.c参照）が
-        // 先に横取りして処理するため、通常はここに到達しない。ここに来るのはOSM/CUSTOM
-        // （未実装、予約のみ）、機能別ON/OFFで無効にしたMACRO/TAPDANCE、複数件バッチの一部
+        // 先に横取りして処理するため、通常はここに到達しない。ここに来るのはOSM、
+        // 機能別ON/OFFで無効にしたMACRO/TAPDANCE、複数件バッチの一部
         // として届いたMACRO/TAPDANCE、タップダンスの判定中（次のタップ待ちで確定できない
         // とき）に押された別のタップダンスキーなど。
         // 安全側に倒して「何もしない」として扱う（ParseLayerMapBlobで型自体は
@@ -2199,7 +2218,8 @@ ComboPartnerScanCode(
 // devExt->EngineLock保持中に呼ぶこと。保留を始める時点（= 押下時点）のレイヤーで、
 // コンボ不成立時に復元する押下の内容を決めておく。
 // - KEYアクション → その出力キー（例: 物理AをKC_Zにしていればz）
-// - KC_NO・全レイヤー透過 → 何も送らない
+// - KC_NO・全レイヤー透過・CUSTOM（ヘルパーイベント） → 何も送らない（CUSTOMはヘルパーへも
+//   知らせない。生のスキャンコードを出すと、CUSTOMにしたキーが意図せず文字を打つため）
 // - それ以外（MO/MT/LT/マクロ等）、またはレイヤーマップに無いキー → 生のスキャンコード
 //   （KEY以外のアクションを後から通常経路で再現することはしない。既知の制約）
 _IRQL_requires_max_(DISPATCH_LEVEL)
@@ -2215,7 +2235,7 @@ ResolveComboRestoreLocked(
     RtlZeroMemory(&devExt->ComboPendingAction, sizeof(devExt->ComboPendingAction));
     if (keyEntry != NULL) {
         PKBDLAYER_ACTION action = ResolveEffectiveAction(devExt, devExt->LayerMap, keyEntry);
-        if (action == NULL || action->Type == KBDLAYER_ACTION_NONE) {
+        if (action == NULL || action->Type == KBDLAYER_ACTION_NONE || action->Type == KBDLAYER_ACTION_CUSTOM) {
             devExt->ComboPendingRestore = KBDLAYER_HELD_SWALLOWED;
         } else if (action->Type == KBDLAYER_ACTION_KEY) {
             devExt->ComboPendingRestore = KBDLAYER_HELD_ACTION;
@@ -6265,6 +6285,11 @@ LayerNotifyIfChanged(
 {
     KIRQL oldIrql;
     BOOLEAN changed;
+
+    // このバッチ・DPCでCUSTOMキー（ヘルパーイベント）が積まれていれば、待っているアプリへ渡す。
+    // LayerNotifyIfChangedは、キーを処理しうるすべての経路の末尾（ロックの外）で呼ばれるので、
+    // ここに相乗りする。
+    HelperNotifyFlushIfNeeded();
 
     KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
     changed = RefreshLayerStateLocked(devExt);

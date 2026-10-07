@@ -387,6 +387,53 @@ LayerNotifyCleanupOwner(
     _In_ PFILE_OBJECT FileObject
     );
 
+// --- ヘルパーイベント（CUSTOMアクションの通知、HelperNotify.c） ---
+
+// DriverEntryから呼ぶ。イベントのリングと保留IRPのキャンセル安全キューを初期化する。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+InitializeHelperNotify(
+    VOID
+    );
+
+// CUSTOMアクションのキーの押下・オートリピート・解放を1件積む。EngineLockを保持したまま
+// 呼んでよい（中では別のスピンロックだけを取る）。待っているIRPの完了は、ロックを放した後の
+// HelperNotifyFlushIfNeededで行う。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+HelperNotifyQueueEvent(
+    _In_ ULONG UniqId,
+    _In_ USHORT CustomId,
+    _In_ BOOLEAN IsBreak,
+    _In_ BOOLEAN IsRepeat,
+    _In_ UCHAR Modifiers
+    );
+
+// 積んだイベントがあれば、待っているIRPを完了させる。EngineLock・OutputLockを保持していない
+// 状態で呼ぶこと（LayerNotifyIfChangedの先頭から呼ぶ）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+HelperNotifyFlushIfNeeded(
+    VOID
+    );
+
+// WAIT_HELPER_EVENTのIRPを保留にする。成功時はSTATUS_PENDINGを返し、以後の完了はHelperNotify.cが
+// 行う（返せるイベントが既にあれば、この中で完了させる）。STATUS_PENDING以外を返したときは、
+// IRPの完了は呼び出し元が行う。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+StartWaitHelperEvent(
+    _In_ PIRP Irp,
+    _In_ ULONG LastSeq
+    );
+
+// ハンドルのクローズ（IRP_MJ_CLEANUP）時に、そのハンドルの保留IRPをSTATUS_CANCELLEDで完了させる。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+HelperNotifyCleanupOwner(
+    _In_ PFILE_OBJECT FileObject
+    );
+
 // AddDeviceから呼ばれる: devExt->NicolaTimer/NicolaDpcとNicolaStateを初期化する。
 _IRQL_requires_max_(PASSIVE_LEVEL)
 VOID

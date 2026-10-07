@@ -1,0 +1,7 @@
+{
+  "notes": "kasane helper-event (HLP / CUSTOM action) smoke-test keymap. 4 physical keys, 2 layers. Key 1 = HLP(1), key 2 = HLP(258), key 3 = MO(1), key 4 = KC_X (layer 1: HLP(3) / passthrough / - / HLP(4)). HLP keys output nothing; watch them with --watch-helper. Pairs with --calibrate-simple / --apply-simple. See driver/KeymapTool/samples/README.md.",
+  "layout": [
+    ["HLP(1)", "HLP(0x102)", "MO(1)",   "KC_X"],
+    ["HLP(3)", "KC_TRNS",    "KC_TRNS", "HLP(4)"]
+  ]
+}

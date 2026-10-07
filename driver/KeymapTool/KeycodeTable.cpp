@@ -216,6 +216,16 @@ bool ParseTapDanceId(const std::string& s, UCHAR* out) {
     return true;
 }
 
+// HLP(id)のid用（ヘルパーイベント。CUSTOMアクションのParam2）。10進または0x付きの16進で0〜65535。
+bool ParseHelperId(const std::string& s, USHORT* out) {
+    if (s.empty()) return false;
+    char* end = nullptr;
+    unsigned long v = strtoul(s.c_str(), &end, 0);
+    if (end != s.c_str() + s.size() || s[0] == '-' || v > 0xFFFF) return false;
+    *out = (USHORT)v;
+    return true;
+}
+
 // "LCTL(LSFT(KC_T))" のような修飾付きキーを、修飾子マスクと基本キーに分解する
 // （入れ子を1段ずつ外す）。修飾関数が1つも無い（ただの基本キー）場合はfalse。
 bool ParseModdedKey(const std::string& token, UCHAR* outMask, USHORT* outScanCode16) {
@@ -415,6 +425,15 @@ bool KeycodeTable::Resolve(const std::string& token, KeycodeMapping* out) {
             out->ActionType = KBDLAYER_ACTION_MACRO;
             out->Param1 = macroId;
             out->Param2 = 0;
+            return true;
+        }
+        if (name == "HLP" && parts.size() == 1) {
+            // ヘルパーイベント（CUSTOM）: キーは出さず、押下・解放をトレイ等のアプリへ知らせる。
+            USHORT helperId;
+            if (!ParseHelperId(parts[0], &helperId)) return false;
+            out->ActionType = KBDLAYER_ACTION_CUSTOM;
+            out->Param1 = 0;
+            out->Param2 = helperId;
             return true;
         }
         if (name == "TAPDANCE" && parts.size() == 1) {
