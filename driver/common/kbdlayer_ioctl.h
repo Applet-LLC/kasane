@@ -668,6 +668,47 @@ typedef struct _KBDLAYER_EMERGENCY_RELEASE_CONFIG {
     USHORT ScanCodes[KBDLAYER_EMERGENCY_MAX_KEYS];
 } KBDLAYER_EMERGENCY_RELEASE_CONFIG, *PKBDLAYER_EMERGENCY_RELEASE_CONFIG;
 
+// --- i8042prt の Parameters を、キーボードの接続時に書き換える／初期化する（2026-10） ---
+//
+// PS/2(ACPI)キーボードのレイアウトは HKLM\SYSTEM\CurrentControlSet\Services\i8042prt\Parameters の
+// OverrideKeyboardType/Subtype(DWORD)・OverrideKeyboardIdentifier・LayerDriver JPN・LayerDriver KOR
+// (SZ) でしか指定できない。HIDキーボードは、これらが残っていると個別指定が無効になる。
+// Enabled=1 のとき、AddDevice（キーボードの接続時）が次のように i8042prt を書き換える:
+//   - そのキーボードのModelKeyのプロファイルがある → Flagsで指定された値を書き、指定の無い値は削除する。
+//   - プロファイルが無い（未指定のキーボード）      → 上の5値をすべて削除する（OSの既定へ戻す）。
+// Enabled=0（既定）なら何もしない。ドライバ全体で1つの設定なので KBDLAYER_TARGET は取らない。
+// SETは全体置換。変更は次のキーボード接続（AddDevice）から効く。接続中のキーボードへは即時適用しない。
+// LayerDriver の値はパスではなくレイアウトDLL名なので、\ / : などの文字を含むものは拒否する。
+
+#define KBDLAYER_I8042_MAX_PROFILES 16
+#define KBDLAYER_I8042_STR_CHARS    32 // 終端のNULを含む。PCAT_106KEY / kbd106.dll などが収まる長さ
+
+// KBDLAYER_I8042_PROFILE.Flags: 立っているビットの値だけを書く（無いものは削除）
+#define KBDLAYER_I8042_HAS_TYPE       0x00000001
+#define KBDLAYER_I8042_HAS_SUBTYPE    0x00000002
+#define KBDLAYER_I8042_HAS_IDENTIFIER 0x00000004
+#define KBDLAYER_I8042_HAS_LAYER_JPN  0x00000008
+#define KBDLAYER_I8042_HAS_LAYER_KOR  0x00000010
+#define KBDLAYER_I8042_HAS_ALL        0x0000001F
+
+typedef struct _KBDLAYER_I8042_PROFILE {
+    ULONG ModelKey; // KBDLAYER_DEVICE_SCOPE.ModelKey（HardwareIdのハッシュ）。0は不可
+    ULONG Flags;    // KBDLAYER_I8042_HAS_*
+    ULONG Type;     // OverrideKeyboardType（0〜0xFFFF）
+    ULONG Subtype;  // OverrideKeyboardSubtype（0〜0xFFFF）
+    WCHAR Identifier[KBDLAYER_I8042_STR_CHARS]; // OverrideKeyboardIdentifier（例: PCAT_106KEY）
+    WCHAR LayerJpn[KBDLAYER_I8042_STR_CHARS];   // "LayerDriver JPN"（例: kbd106.dll）
+    WCHAR LayerKor[KBDLAYER_I8042_STR_CHARS];   // "LayerDriver KOR"
+} KBDLAYER_I8042_PROFILE, *PKBDLAYER_I8042_PROFILE;
+
+// IOCTL_KBDLAYER_GET/SET_I8042_CONFIG の入出力（常にこのサイズ全体）。
+// Profiles は ProfileCount 個が有効。
+typedef struct _KBDLAYER_I8042_CONFIG {
+    ULONG Enabled;      // 0 / 1
+    ULONG ProfileCount; // 0〜KBDLAYER_I8042_MAX_PROFILES
+    KBDLAYER_I8042_PROFILE Profiles[KBDLAYER_I8042_MAX_PROFILES];
+} KBDLAYER_I8042_CONFIG, *PKBDLAYER_I8042_CONFIG;
+
 #pragma pack(pop)
 
 // IOCTL_INTERNAL_KEYBOARD_CONNECT 等の既存IOCTLと衝突しないよう、
@@ -751,5 +792,9 @@ typedef struct _KBDLAYER_EMERGENCY_RELEASE_CONFIG {
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x81A, METHOD_BUFFERED, FILE_WRITE_ACCESS)
 #define IOCTL_KBDLAYER_GET_KEY_OVERRIDE \
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x81B, METHOD_BUFFERED, FILE_READ_ACCESS)
+// i8042prt の書き換え設定（2026-10）。レジストリのシステム設定を書き換えさせる設定なので、
+// SET側は管理者のみ（FILE_WRITE_ACCESS）。
+#define IOCTL_KBDLAYER_GET_I8042_CONFIG     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x81C, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_KBDLAYER_SET_I8042_CONFIG     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x81D, METHOD_BUFFERED, FILE_WRITE_ACCESS)
 
 #endif // _KBDLAYER_COMMON_IOCTL_H_

@@ -716,6 +716,138 @@ int CmdSetEmergencyRelease(IoctlClient* client, int argc, char** argv) {
     return 0;
 }
 
+void PrintI8042Config(const KBDLAYER_I8042_CONFIG& c) {
+    printf("Enabled=%lu ProfileCount=%lu\n", c.Enabled, c.ProfileCount);
+    for (ULONG i = 0; i < c.ProfileCount && i < KBDLAYER_I8042_MAX_PROFILES; i++) {
+        const KBDLAYER_I8042_PROFILE& p = c.Profiles[i];
+        printf("  ModelKey=%08X", p.ModelKey);
+        if (p.Flags & KBDLAYER_I8042_HAS_TYPE) printf(" type=%lu", p.Type);
+        if (p.Flags & KBDLAYER_I8042_HAS_SUBTYPE) printf(" subtype=%lu", p.Subtype);
+        if (p.Flags & KBDLAYER_I8042_HAS_IDENTIFIER) printf(" id=%ls", p.Identifier);
+        if (p.Flags & KBDLAYER_I8042_HAS_LAYER_JPN) printf(" jpn=%ls", p.LayerJpn);
+        if (p.Flags & KBDLAYER_I8042_HAS_LAYER_KOR) printf(" kor=%ls", p.LayerKor);
+        printf("\n");
+    }
+}
+
+// --get-i8042: i8042prt書き換え設定（ドライバ全体）を表示する。
+int CmdGetI8042(IoctlClient* client) {
+    KBDLAYER_I8042_CONFIG config;
+    if (!client->GetI8042Config(&config)) return 1;
+    PrintI8042Config(config);
+    return 0;
+}
+
+// --set-i8042-enabled 0|1
+int CmdSetI8042Enabled(IoctlClient* client, const char* arg) {
+    if (strcmp(arg, "0") != 0 && strcmp(arg, "1") != 0) {
+        fprintf(stderr, "--set-i8042-enabled: need 0 or 1\n");
+        return 1;
+    }
+    KBDLAYER_I8042_CONFIG config;
+    if (!client->GetI8042Config(&config)) return 1;
+    config.Enabled = (arg[0] == '1') ? 1 : 0;
+    if (!client->SetI8042Config(config)) return 1;
+    printf("SET_I8042_CONFIG ok. ");
+    PrintI8042Config(config);
+    return 0;
+}
+
+// 文字列引数(ASCII)を固定長のWCHAR配列へ。長すぎる・空・ASCII以外ならfalse。
+static bool CopyAsciiToWide(const char* src, WCHAR* dst) {
+    size_t n = strlen(src);
+    if (n == 0 || n >= KBDLAYER_I8042_STR_CHARS) return false;
+    for (size_t i = 0; i < n; i++) {
+        if ((unsigned char)src[i] > 0x7E) return false;
+        dst[i] = (WCHAR)(unsigned char)src[i];
+    }
+    dst[n] = 0;
+    return true;
+}
+
+// --set-i8042-profile <ModelKeyHex> [type=N] [subtype=N] [id=STR] [jpn=DLL] [kor=DLL]
+// 指定したModelKeyのプロファイルを、指定した値だけで置き換える（無ければ追加する）。
+// 指定しなかった値は、そのキーボードの接続時にi8042prtから削除される。
+int CmdSetI8042Profile(IoctlClient* client, int argc, char** argv) {
+    ULONG modelKey = 0;
+    if (argc < 1 || !ParseHexU32(argv[0], &modelKey) || modelKey == 0) {
+        fprintf(stderr, "--set-i8042-profile: need a non-zero ModelKeyHex (see --list / --get-scope)\n");
+        return 1;
+    }
+
+    KBDLAYER_I8042_PROFILE p;
+    RtlZeroMemory(&p, sizeof(p));
+    p.ModelKey = modelKey;
+    for (int i = 1; i < argc; i++) {
+        const char* a = argv[i];
+        if (strncmp(a, "type=", 5) == 0) {
+            p.Flags |= KBDLAYER_I8042_HAS_TYPE;
+            p.Type = (ULONG)strtoul(a + 5, nullptr, 10);
+        } else if (strncmp(a, "subtype=", 8) == 0) {
+            p.Flags |= KBDLAYER_I8042_HAS_SUBTYPE;
+            p.Subtype = (ULONG)strtoul(a + 8, nullptr, 10);
+        } else if (strncmp(a, "id=", 3) == 0) {
+            if (!CopyAsciiToWide(a + 3, p.Identifier)) { fprintf(stderr, "--set-i8042-profile: bad id\n"); return 1; }
+            p.Flags |= KBDLAYER_I8042_HAS_IDENTIFIER;
+        } else if (strncmp(a, "jpn=", 4) == 0) {
+            if (!CopyAsciiToWide(a + 4, p.LayerJpn)) { fprintf(stderr, "--set-i8042-profile: bad jpn\n"); return 1; }
+            p.Flags |= KBDLAYER_I8042_HAS_LAYER_JPN;
+        } else if (strncmp(a, "kor=", 4) == 0) {
+            if (!CopyAsciiToWide(a + 4, p.LayerKor)) { fprintf(stderr, "--set-i8042-profile: bad kor\n"); return 1; }
+            p.Flags |= KBDLAYER_I8042_HAS_LAYER_KOR;
+        } else {
+            fprintf(stderr, "--set-i8042-profile: unknown argument \"%s\"\n", a);
+            return 1;
+        }
+    }
+
+    KBDLAYER_I8042_CONFIG config;
+    if (!client->GetI8042Config(&config)) return 1;
+    ULONG index = config.ProfileCount;
+    for (ULONG i = 0; i < config.ProfileCount && i < KBDLAYER_I8042_MAX_PROFILES; i++) {
+        if (config.Profiles[i].ModelKey == modelKey) { index = i; break; }
+    }
+    if (index >= KBDLAYER_I8042_MAX_PROFILES) {
+        fprintf(stderr, "--set-i8042-profile: too many profiles (max %d)\n", KBDLAYER_I8042_MAX_PROFILES);
+        return 1;
+    }
+    config.Profiles[index] = p;
+    if (index == config.ProfileCount) config.ProfileCount++;
+    if (!client->SetI8042Config(config)) return 1;
+    printf("SET_I8042_CONFIG ok. ");
+    PrintI8042Config(config);
+    return 0;
+}
+
+// --del-i8042-profile <ModelKeyHex>
+int CmdDelI8042Profile(IoctlClient* client, const char* arg) {
+    ULONG modelKey = 0;
+    if (!ParseHexU32(arg, &modelKey) || modelKey == 0) {
+        fprintf(stderr, "--del-i8042-profile: need a non-zero ModelKeyHex\n");
+        return 1;
+    }
+    KBDLAYER_I8042_CONFIG config;
+    if (!client->GetI8042Config(&config)) return 1;
+    ULONG out = 0;
+    for (ULONG i = 0; i < config.ProfileCount && i < KBDLAYER_I8042_MAX_PROFILES; i++) {
+        if (config.Profiles[i].ModelKey != modelKey) {
+            config.Profiles[out++] = config.Profiles[i];
+        }
+    }
+    if (out == config.ProfileCount) {
+        fprintf(stderr, "--del-i8042-profile: no such profile\n");
+        return 1;
+    }
+    for (ULONG i = out; i < KBDLAYER_I8042_MAX_PROFILES; i++) {
+        RtlZeroMemory(&config.Profiles[i], sizeof(config.Profiles[i]));
+    }
+    config.ProfileCount = out;
+    if (!client->SetI8042Config(config)) return 1;
+    printf("SET_I8042_CONFIG ok. ");
+    PrintI8042Config(config);
+    return 0;
+}
+
 // --watch-layer <UniqIdHex>: レイヤー状態が変わるたびに1行表示する（Ctrl+Cで終了）。
 int CmdWatchLayer(IoctlClient* client, ULONG uniqId) {
     KBDLAYER_LAYER_STATE state;
@@ -1066,6 +1198,20 @@ void PrintUsage() {
         "      works no matter how broken the current layer map is, since it is checked\n"
         "      on the raw physical scancodes before any layer/macro/combo resolution.\n"
         "      Default if never set: KC_LCTL KC_RCTL KC_LSFT KC_RSFT.\n"
+        "  KeymapTool.exe --get-i8042\n"
+        "      Show the i8042prt override settings (driver-wide).\n"
+        "  KeymapTool.exe --set-i8042-enabled 0|1\n"
+        "      When 1, every time a keyboard is attached the driver rewrites\n"
+        "      HKLM\\SYSTEM\\CurrentControlSet\\Services\\i8042prt\\Parameters: a keyboard with a\n"
+        "      profile gets the profile's values; any other keyboard gets all five values\n"
+        "      (OverrideKeyboardType/Subtype/Identifier, LayerDriver JPN/KOR) deleted.\n"
+        "      When 0 (default) nothing is touched. Takes effect from the next attach.\n"
+        "  KeymapTool.exe --set-i8042-profile <ModelKeyHex> [type=N] [subtype=N] [id=STR] [jpn=DLL] [kor=DLL]\n"
+        "      Add/replace the profile of a keyboard model (ModelKey from --list). Values left\n"
+        "      out are deleted from i8042prt when that keyboard attaches.\n"
+        "      e.g. type=7 subtype=2 id=PCAT_106KEY jpn=kbd106.dll\n"
+        "  KeymapTool.exe --del-i8042-profile <ModelKeyHex>\n"
+        "      Remove a profile (that model is then treated as unspecified).\n"
         "\n"
         "  UniqIdHex is the value shown by --list (e.g. A1B20000).\n");
 }
@@ -1263,6 +1409,24 @@ int main(int rawArgc, char** rawArgv) {
 
     if (strcmp(cmd, "--set-emergency-release") == 0) {
         return CmdSetEmergencyRelease(&client, argc - 2, argv + 2);
+    }
+
+    if (strcmp(cmd, "--get-i8042") == 0) {
+        return CmdGetI8042(&client);
+    }
+
+    if (strcmp(cmd, "--set-i8042-enabled") == 0) {
+        if (argc < 3) { PrintUsage(); return 1; }
+        return CmdSetI8042Enabled(&client, argv[2]);
+    }
+
+    if (strcmp(cmd, "--set-i8042-profile") == 0) {
+        return CmdSetI8042Profile(&client, argc - 2, argv + 2);
+    }
+
+    if (strcmp(cmd, "--del-i8042-profile") == 0) {
+        if (argc < 3) { PrintUsage(); return 1; }
+        return CmdDelI8042Profile(&client, argv[2]);
     }
 
     if (strcmp(cmd, "--clear-nicola") == 0) {

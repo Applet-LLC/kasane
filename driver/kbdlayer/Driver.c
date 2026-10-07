@@ -22,6 +22,7 @@
 #include "..\\common\\kbdlayer_ioctl.h"
 #include "DeviceExtension.h"
 #include "LayerEngine.h"
+#include "I8042Override.h"
 #include "ControlDevice.h"
 #include "token.h"
 
@@ -131,6 +132,7 @@ NTSTATUS DriverEntry(IN PDRIVER_OBJECT DriverObject, IN PUNICODE_STRING Registry
     InitializeListHead(&g_deviceList);
     KeInitializeSpinLock(&g_listLock);
     InitializeLayerNotify(); // WAIT_LAYER_CHANGEの保留IRPのキュー（LayerNotify.c）
+    InitializeI8042Override(); // i8042prt書き換えの直列化用ミューテックス（I8042Override.c）
 
     DriverObject->DriverExtension->AddDevice = AddDevice;
     DriverObject->DriverUnload = Unload;
@@ -314,6 +316,11 @@ NTSTATUS AddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT PhysicalDev
     if (NT_SUCCESS(hwidStatus) && hwidBuf[0]) {
         devExt->ModelKey = Fnv1aHash16Upper(hwidBuf);
     }
+
+    // i8042prtのParametersを、このキーボードの型番に合わせて書き換える／初期化する
+    // （オプションが無効なら何もしない）。port driverがStartされる前の、PASSIVE_LEVELのここで行う。
+    // 失敗してもAddDeviceは続ける。
+    ApplyI8042OverrideForDevice(devExt->ModelKey);
 
     // デバイスインスタンスパスモード (DeviceIdMode=0)
     if (deviceIdMode == 0 && devExt->InstanceKey != 0) {

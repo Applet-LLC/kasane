@@ -147,6 +147,7 @@ Platform.
     <ClCompile Include="ControlDevice.c" />
     <ClCompile Include="NicolaCore.c" />
     <ClCompile Include="LayerNotify.c" />
+    <ClCompile Include="I8042Override.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\devprop.h" />

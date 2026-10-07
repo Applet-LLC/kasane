@@ -491,6 +491,57 @@ RegWriteDword(
     ZwClose(regKey);
     return status;
 }
+
+/*
+ RegWriteString - REG_SZ 値を書き込む。サブキーが無ければ作成する。
+ NUL終端を含めて書く。長さは65535バイト未満に限る（UNICODE_STRINGの上限）。
+*/
+#if defined(ALLOC_PRAGMA)
+#pragma alloc_text(PAGE, RegWriteString)
+#endif
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+RegWriteString(
+    _In_ PCWSTR serviceName,
+    _In_opt_ PCWSTR subKeyPath,
+    _In_ PCWSTR valueName,
+    _In_ PCWSTR value
+)
+{
+    PAGED_CODE();
+
+    UNICODE_STRING valueUni;
+    WCHAR keyPath[256];
+    HANDLE regKey = NULL;
+    NTSTATUS status;
+    size_t chars = 0;
+
+    if (!serviceName || !valueName || !value) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    status = RtlStringCchLengthW(value, NTSTRSAFE_UNICODE_STRING_MAX_CCH - 1, &chars);
+    if (!NT_SUCCESS(status)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    status = BuildParametersKeyPath(serviceName, subKeyPath, keyPath, RTL_NUMBER_OF(keyPath));
+    if (!NT_SUCCESS(status)) {
+        return status;
+    }
+
+    status = CreateKeyWithParents(keyPath, KEY_SET_VALUE, &regKey);
+    if (!NT_SUCCESS(status)) {
+        return status;
+    }
+
+    RtlInitUnicodeString(&valueUni, valueName);
+    status = ZwSetValueKey(regKey, &valueUni, 0, REG_SZ, (PVOID)value, (ULONG)((chars + 1) * sizeof(WCHAR)));
+    ZwClose(regKey);
+    return status;
+}
+
 _IRQL_requires_max_(PASSIVE_LEVEL)
 _Success_(return == STATUS_SUCCESS)
 NTSTATUS

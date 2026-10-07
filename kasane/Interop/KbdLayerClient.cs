@@ -26,6 +26,12 @@ public sealed record DriverConfig(uint TapTermMs, uint ComboTermMs, uint TapDanc
 /// <summary>KBDLAYER_DEVICE_SCOPE。Binding は KbdLayerClient.BindingModel / BindingInstance / BindingGlobal。</summary>
 public sealed record DeviceScope(uint InstanceKey, uint ModelKey, uint Binding);
 
+/// <summary>型番（ModelKey）ごとの i8042prt\Parameters の値。null の値は「書かない（削除する）」。</summary>
+public sealed record I8042Profile(uint ModelKey, uint? Type, uint? Subtype,
+    string? Identifier, string? LayerJpn, string? LayerKor);
+
+public sealed record I8042Config(bool Enabled, IReadOnlyList<I8042Profile> Profiles);
+
 /// <summary>KBDLAYER_TAPHOLD_MODE_*（MT/LTのタップ／ホールドの判定方式。タップダンスは対象外）。</summary>
 public static class TapHoldModes
 {
@@ -87,6 +93,8 @@ public sealed class KbdLayerClient : IDisposable
     private static readonly uint IOCTL_SET_FEATURES = CtlCode(0x819, FILE_WRITE_ACCESS);
     private static readonly uint IOCTL_SET_KEY_OVERRIDE = CtlCode(0x81A, FILE_WRITE_ACCESS);
     private static readonly uint IOCTL_GET_KEY_OVERRIDE = CtlCode(0x81B, FILE_READ_ACCESS);
+    private static readonly uint IOCTL_GET_I8042_CONFIG = CtlCode(0x81C, FILE_READ_ACCESS);
+    private static readonly uint IOCTL_SET_I8042_CONFIG = CtlCode(0x81D, FILE_WRITE_ACCESS);
     public const int MaxKeyOverrideCount = 32;  // KBDLAYER_MAX_KEY_OVERRIDE_COUNT
 
     public const int MaxLayers = 16;            // KBDLAYER_MAX_LAYERS（ドライバの値と必ず一致させる）
@@ -442,6 +450,74 @@ public sealed class KbdLayerClient : IDisposable
             w.Write((uint)scanCodes.Count);
             for (int i = 0; i < EmergencyMaxKeys; i++) w.Write(i < scanCodes.Count ? scanCodes[i] : (ushort)0);
         }), 0);
+
+    // --- i8042prt の書き換え設定（ドライバ全体で1つ。KBDLAYER_I8042_CONFIG） ---
+
+    public const int I8042MaxProfiles = 16;     // KBDLAYER_I8042_MAX_PROFILES
+    public const int I8042StrChars = 32;        // KBDLAYER_I8042_STR_CHARS（終端のNULを含む）
+    private const int I8042ProfileSize = 16 + 3 * I8042StrChars * 2;
+    private const int I8042ConfigSize = 8 + I8042MaxProfiles * I8042ProfileSize;
+    private const uint I8042HasType = 1, I8042HasSubtype = 2, I8042HasIdentifier = 4, I8042HasLayerJpn = 8, I8042HasLayerKor = 16;
+
+    public I8042Config GetI8042Config()
+    {
+        var data = Ioctl("i8042prt設定の取得", IOCTL_GET_I8042_CONFIG, null, I8042ConfigSize);
+        bool enabled = BitConverter.ToUInt32(data, 0) != 0;
+        int count = (int)Math.Min(BitConverter.ToUInt32(data, 4), (uint)I8042MaxProfiles);
+        var list = new List<I8042Profile>();
+        for (int i = 0; i < count; i++)
+        {
+            int o = 8 + i * I8042ProfileSize;
+            uint flags = BitConverter.ToUInt32(data, o + 4);
+            string? Str(uint bit, int index)
+            {
+                if ((flags & bit) == 0) return null;
+                var chars = Encoding.Unicode.GetString(data, o + 16 + index * I8042StrChars * 2, I8042StrChars * 2);
+                int nul = chars.IndexOf('\0');
+                return nul >= 0 ? chars[..nul] : chars;
+            }
+            list.Add(new I8042Profile(BitConverter.ToUInt32(data, o),
+                (flags & I8042HasType) != 0 ? BitConverter.ToUInt32(data, o + 8) : null,
+                (flags & I8042HasSubtype) != 0 ? BitConverter.ToUInt32(data, o + 12) : null,
+                Str(I8042HasIdentifier, 0), Str(I8042HasLayerJpn, 1), Str(I8042HasLayerKor, 2)));
+        }
+        return new I8042Config(enabled, list);
+    }
+
+    /// <summary>全体置換。不正な入力（文字・長さ・重複・個数）はドライバが拒否し、設定は変わらない。</summary>
+    public void SetI8042Config(I8042Config config)
+    {
+        if (config.Profiles.Count > I8042MaxProfiles)
+            throw new ArgumentException($"プロファイルは{I8042MaxProfiles}個までです。", nameof(config));
+        Ioctl("i8042prt設定の書き込み", IOCTL_SET_I8042_CONFIG, Build(w =>
+        {
+            w.Write(config.Enabled ? 1u : 0u);
+            w.Write((uint)config.Profiles.Count);
+            for (int i = 0; i < I8042MaxProfiles; i++)
+            {
+                var p = i < config.Profiles.Count ? config.Profiles[i] : null;
+                uint flags = 0;
+                if (p?.Type != null) flags |= I8042HasType;
+                if (p?.Subtype != null) flags |= I8042HasSubtype;
+                if (!string.IsNullOrEmpty(p?.Identifier)) flags |= I8042HasIdentifier;
+                if (!string.IsNullOrEmpty(p?.LayerJpn)) flags |= I8042HasLayerJpn;
+                if (!string.IsNullOrEmpty(p?.LayerKor)) flags |= I8042HasLayerKor;
+                w.Write(p?.ModelKey ?? 0u);
+                w.Write(flags);
+                w.Write(p?.Type ?? 0u);
+                w.Write(p?.Subtype ?? 0u);
+                foreach (var str in new[] { p?.Identifier, p?.LayerJpn, p?.LayerKor })
+                {
+                    var buf = new byte[I8042StrChars * 2];
+                    var text = str ?? "";
+                    // 長すぎる値は切らずに拒否させる（ドライバ側で終端が無く不正になる長さにする）
+                    var bytes = Encoding.Unicode.GetBytes(text);
+                    Array.Copy(bytes, buf, Math.Min(bytes.Length, buf.Length));
+                    w.Write(buf);
+                }
+            }
+        }), 0);
+    }
 
     // --- NICOLA（キーボードごと。blob = KBDLAYER_NICOLA_HEADER + KBDLAYER_NICOLA_KEY_ENTRY[]） ---
 

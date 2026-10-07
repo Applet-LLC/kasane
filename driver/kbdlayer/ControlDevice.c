@@ -8,6 +8,7 @@
 #include "DeviceExtension.h"
 #include "LayerEngine.h"
 #include "ControlDevice.h"
+#include "I8042Override.h"
 #include "..\\common\\kbdlayer_ioctl.h"
 
 #ifndef DBG
@@ -535,6 +536,49 @@ HandleSetEmergencyRelease(
     }
 
     return SetEmergencyReleaseConfig(input);
+}
+
+// i8042prtの書き換え設定。ドライバ全体の設定なので、特定のキーボード（Target）を取らない。
+// 入出力は常にKBDLAYER_I8042_CONFIG全体（METHOD_BUFFEREDなので、SETの入力を検証・保存し終えてから
+// 何も書き戻さない。出力は無し）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleGetI8042Config(
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG outputLen = IrpSp->Parameters.DeviceIoControl.OutputBufferLength;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || outputLen < sizeof(KBDLAYER_I8042_CONFIG)) {
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+
+    GetI8042OverrideConfig((PKBDLAYER_I8042_CONFIG)SystemBuffer);
+    *BytesReturned = sizeof(KBDLAYER_I8042_CONFIG);
+    return STATUS_SUCCESS;
+}
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleSetI8042Config(
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_I8042_CONFIG)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    return SetI8042OverrideConfig((const KBDLAYER_I8042_CONFIG*)SystemBuffer);
 }
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
@@ -1391,6 +1435,12 @@ DispatchControlIoctl(
         break;
     case IOCTL_KBDLAYER_SET_FEATURES:
         status = HandleSetFeatures(Irp, irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_GET_I8042_CONFIG:
+        status = HandleGetI8042Config(irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_SET_I8042_CONFIG:
+        status = HandleSetI8042Config(irpSp, systemBuffer, &bytesReturned);
         break;
     default:
         status = STATUS_INVALID_DEVICE_REQUEST;

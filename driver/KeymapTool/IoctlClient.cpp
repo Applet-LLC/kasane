@@ -601,6 +601,36 @@ bool IoctlClient::SetEmergencyRelease(const KBDLAYER_EMERGENCY_RELEASE_CONFIG& c
     return true;
 }
 
+bool IoctlClient::GetI8042Config(KBDLAYER_I8042_CONFIG* out) {
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_GET_I8042_CONFIG,
+                              NULL, 0,
+                              out, sizeof(*out),
+                              &bytesReturned, NULL);
+    if (!ok) {
+        fprintf(stderr, "IOCTL_KBDLAYER_GET_I8042_CONFIG failed. Error: %lu\n", GetLastError());
+        return false;
+    }
+    return true;
+}
+
+bool IoctlClient::SetI8042Config(const KBDLAYER_I8042_CONFIG& config) {
+    if (!RequireWriteAccess("IOCTL_KBDLAYER_SET_I8042_CONFIG")) return false;
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_SET_I8042_CONFIG,
+                              (LPVOID)&config, sizeof(config),
+                              NULL, 0,
+                              &bytesReturned, NULL);
+    if (!ok) {
+        fprintf(stderr, "IOCTL_KBDLAYER_SET_I8042_CONFIG failed. Error: %lu "
+                "(87 = invalid: names must be 1-%d chars of plain ASCII without \\ / : and ..; "
+                "at most %d profiles; Type/Subtype 0-65535)\n",
+                GetLastError(), KBDLAYER_I8042_STR_CHARS - 1, KBDLAYER_I8042_MAX_PROFILES);
+        return false;
+    }
+    return true;
+}
+
 bool IoctlClient::GetFeatures(ULONG uniqId, ULONG* outFeatures) {
     KBDLAYER_TARGET target;
     target.UniqId = uniqId;
