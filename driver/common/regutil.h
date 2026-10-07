@@ -97,4 +97,18 @@ RegWriteDword(
     _In_ ULONG value
 );
 
+/*
+ RegWriteString - REG_SZ 値を書き込む。サブキーが無ければ作成する（RegWriteDwordと同じ）。
+ - value は NUL 終端の文字列（終端を含めて書く）。
+ - 値の削除は RegWriteBinary(..., NULL, 0) を使う（型に依らず値を削除する）。
+*/
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+RegWriteString(
+    _In_ PCWSTR serviceName,
+    _In_opt_ PCWSTR subKeyPath,
+    _In_ PCWSTR valueName,
+    _In_ PCWSTR value
+);
+
 #endif // _ADDID_COMMON_REGUTIL_H_

@@ -110,6 +110,10 @@ public:
     bool GetEmergencyRelease(KBDLAYER_EMERGENCY_RELEASE_CONFIG* out);
     bool SetEmergencyRelease(const KBDLAYER_EMERGENCY_RELEASE_CONFIG& config);
 
+    // i8042prtの書き換え設定（ドライバ全体）。SETは全体置換。GETは昇格していなくても使える。
+    bool GetI8042Config(KBDLAYER_I8042_CONFIG* out);
+    bool SetI8042Config(const KBDLAYER_I8042_CONFIG& config);
+
     // 機能別ON/OFF（項番4）。features は KBDLAYER_FEATURE_* のOR。
     bool GetFeatures(ULONG uniqId, ULONG* outFeatures);
     bool SetFeatures(ULONG uniqId, ULONG features);

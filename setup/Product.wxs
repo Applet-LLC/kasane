@@ -163,6 +163,7 @@
           <Directory Id="LICENSESVCDDIR" Name="license-svc" />
           <Directory Id="LICENSEGUIDIR" Name="license-gui" />
           <Directory Id="KEYMAPGUIDIR" Name="keymap-gui" />
+          <Directory Id="TRAYDIR" Name="tray" />
           <Directory Id="SAMPLESDIR" Name="samples" />
         </Directory>
         </Directory>
@@ -191,6 +192,14 @@
     <Feature Id="F_KbdDriver" Title="Keyboard Driver (kbdlayer)" Level="1" Absent="disallow">
       <ComponentGroupRef Id="CG_KbdDriver_X64" />
       <ComponentGroupRef Id="CG_KbdDriver_ARM64" />
+    </Feature>
+
+    <!--
+      F_Tray: タスクトレイ常駐ツール（kasane-tray.exe）。ログイン時に自動起動する（HKLM の Run に登録するので、
+      すべてのユーザーで起動する）。左クリックでエディタ、右クリックでメニュー（設定・一時停止・ライセンス・終了）。
+    -->
+    <Feature Id="F_Tray" Title="Tray (kasane-tray)" Level="1" Absent="disallow">
+      <ComponentRef Id="CMP_TrayExe" />
     </Feature>
 
     <Feature Id="F_LicenseSvc" Title="License Service" Level="1" Absent="disallow">
@@ -261,6 +270,19 @@
           Stop="both"
           Remove="uninstall"
           Wait="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- Tray: kasane-tray.exe（単一ファイル publish）。Run キーでログイン時に自動起動する。 -->
+    <DirectoryRef Id="TRAYDIR">
+      <Component Id="CMP_TrayExe" Guid="{7D2E9B54-3A61-4C8F-B0E2-5F1A6C93D8A7}">
+        <File Id="FIL_TrayExe"
+              Source="$(var.StagingTray)\kasane-tray.exe"
+              KeyPath="yes" />
+        <RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                       Name="kasane-tray"
+                       Value="&quot;[TRAYDIR]kasane-tray.exe&quot;"
+                       Type="string" />
       </Component>
     </DirectoryRef>
 
@@ -358,8 +380,22 @@ End If
       Return="ignore"
       Impersonate="no" />
 
+    <!--
+      起動中のトレイを終了する。起動中のままだとファイルを入れ替え・削除できず（再起動まで残る）、
+      旧版のトレイが動き続けるため。アップグレード（RemoveExistingProducts）・アンインストール・修復の前に行う。
+      Return="ignore": 起動していなければ taskkill が失敗するが、それは問題ではない。
+      トレイは次回のログインで自動起動する（Run キー）。
+    -->
+    <CustomAction
+      Id="CA_StopTray"
+      Directory="TARGETDIR"
+      ExeCommand="&quot;[System64Folder]taskkill.exe&quot; /F /IM kasane-tray.exe"
+      Execute="immediate"
+      Return="ignore" />
+
     <!-- InstallFiles is not atomic in the deferred script: Before InstallFinalize runs after all file operations have been scripted. -->
     <InstallExecuteSequence>
+      <Custom Action="CA_StopTray" Before="RemoveExistingProducts" />
       <Custom Action="CA_InstallKbdDriver" Before="InstallFinalize">NOT REMOVE~="ALL" AND &amp;F_KbdDriver=3</Custom>
       <ScheduleReboot After="CA_InstallKbdDriver">NOT REMOVE~="ALL" AND &amp;F_KbdDriver=3</ScheduleReboot>
 

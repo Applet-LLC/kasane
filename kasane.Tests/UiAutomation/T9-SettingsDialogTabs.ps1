@@ -1,7 +1,7 @@
 # GUI-T9: UI Automation test for the settings dialog (feature/gui-settings): the Features tab round-trip,
 # the NICOLA tab + NICOLA table editor (validation, round-trip of an edit), the Emergency tab's input
 # validation and the simultaneous-press check window (opened and closed without pressing keys), and that
-# the Scope tab shows a status line.
+# the Scope tab shows a status line, and the i8042prt tab's controls exist.
 # Nothing here writes to the driver: Features/NICOLA only change the in-memory project (applied by
 # "キーボードに適用", which this test never presses); the Emergency/Scope "apply" buttons are NOT pressed.
 . "$PSScriptRoot\UiaLib.ps1"
@@ -147,6 +147,17 @@ try {
     # The three choices exist (ScopeApplyButton is NOT pressed: it would change the keyboard's persisted scope).
     Chk "scope tab has the three radio buttons (model / instance / global)" (
         (Find-ChildByAutomationId $dlg "ScopeModel") -and (Find-ChildByAutomationId $dlg "ScopeInstance") -and (Find-ChildByAutomationId $dlg "ScopeGlobal"))
+
+    # ---- i8042prt tab (display only; I8042ApplyButton is NOT pressed: it would write the driver-wide setting) ----
+    Select-TabById $dlg "TabI8042"
+    $i8042 = (Find-ChildByAutomationId $dlg "I8042Status").Current.Name
+    "  i8042 status: '$i8042'"
+    Chk "i8042 tab shows a status line" ($i8042.Length -gt 0)
+    Chk "i8042 tab has the enable / profile checkboxes and the apply button" (
+        (Find-ChildByAutomationId $dlg "I8042Enabled") -and (Find-ChildByAutomationId $dlg "I8042ProfileEnabled") -and (Find-ChildByAutomationId $dlg "I8042ApplyButton"))
+    Chk "i8042 tab has the preset and the five value boxes" (
+        (Find-ChildByAutomationId $dlg "I8042Preset") -and (Find-ChildByAutomationId $dlg "I8042Type") -and (Find-ChildByAutomationId $dlg "I8042Subtype") -and
+        (Find-ChildByAutomationId $dlg "I8042Identifier") -and (Find-ChildByAutomationId $dlg "I8042LayerJpn") -and (Find-ChildByAutomationId $dlg "I8042LayerKor"))
 
     Invoke-Element (Find-ChildByAutomationId $dlg "CancelButton")
     Start-Sleep -Milliseconds 300
