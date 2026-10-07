@@ -64,6 +64,9 @@ taskbar (inside the "^" flyout when hidden).
 - Right click: the menu 設定 (Settings) / 一時停止 (Pause) / ライセンス
   (License) / 終了 (Exit). "Pause" temporarily stops the remapping on all
   keyboards (press it again to resume).
+- If you use NICOLA (thumb-shift input), it switches on automatically only
+  while the IME is in kana mode (IME link; turn it on/off in kasane under
+  Settings > NICOLA).
 
 Important: if your subscription license becomes inactive, layer
 remapping is disabled; basic keyboard input is never affected.

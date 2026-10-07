@@ -141,6 +141,45 @@ public static class ProjectService
         return result;
     }
 
+    /// <summary>
+    /// ドライバへ送るレイヤーマップのキーとレイヤー数。<see cref="ResolveMappedSlots"/> の結果に、NICOLAを使うときは、
+    /// NICOLAのレイヤーへ親指キーの割り当てを足す（<see cref="NicolaService.ThumbLayerEntries"/> の理由）。
+    ///  - キーマップにそのキーがあれば、NICOLAのレイヤーが透過（KC_TRNS）のときだけ入れる（利用者が割り当てていれば触らない）。
+    ///  - キーマップに無ければ、そのキーだけのエントリを足す。
+    /// NICOLAのレイヤーが、キーマップのレイヤー数以上でもよい（IME連動ではトレイがそのレイヤーを立てる）ので、レイヤー数を
+    /// その分まで広げる（足りない分は透過）。
+    /// </summary>
+    public static (List<BlobBuilder.KeyInput> Inputs, int LayerCount) BuildMapInputs(KeymapProject project, IReadOnlyList<SlotMapping> mapped)
+    {
+        var nicola = project.Nicola is { Enabled: true } n ? n : null;
+        var thumbs = nicola != null ? NicolaService.ThumbLayerEntries(nicola) : new List<(ushort ScanCode, string Token)>();
+        int layerCount = project.Layers.Count;
+        if (nicola != null && thumbs.Count > 0 && nicola.Layer >= 0 && nicola.Layer < KbdLayerClient.MaxLayers)
+            layerCount = Math.Max(layerCount, nicola.Layer + 1);
+
+        List<string> Tokens(IEnumerable<string> own) => own.Concat(Enumerable.Repeat("KC_TRNS", Math.Max(0, layerCount - project.Layers.Count))).ToList();
+
+        var inputs = new List<BlobBuilder.KeyInput>();
+        var present = new HashSet<ushort>();
+        foreach (var m in mapped)
+        {
+            var tokens = Tokens(project.Layers.Select(l => l[m.Slot.Index]));
+            if (nicola != null && thumbs.FirstOrDefault(t => t.ScanCode == m.ScanCode) is { ScanCode: not 0 } thumb
+                && nicola.Layer < tokens.Count && tokens[nicola.Layer] == "KC_TRNS")
+                tokens[nicola.Layer] = thumb.Token;
+            inputs.Add(new BlobBuilder.KeyInput(m.ScanCode, tokens));
+            present.Add(m.ScanCode);
+        }
+        foreach (var (scanCode, token) in thumbs)
+        {
+            if (present.Contains(scanCode) || nicola == null || nicola.Layer >= layerCount) continue;
+            var tokens = Enumerable.Repeat("KC_TRNS", layerCount).ToList();
+            tokens[nicola.Layer] = token;
+            inputs.Add(new BlobBuilder.KeyInput(scanCode, tokens));
+        }
+        return (inputs, layerCount);
+    }
+
     /// <summary>存在しないレイヤーへの切り替え（エラー）と、中身の無いマクロ/タップダンスの参照（警告）を調べる。</summary>
     private static void CheckReferences(KeymapProject project, KeyboardLayout layout, List<string> warnings, List<string> errors)
     {
@@ -314,13 +353,10 @@ public static class ProjectService
 
         var mapped = ResolveMappedSlots(project, layout, warnings, errors);
         byte[]? blob = null;
-        if (mapped.Count > 0)
+        var (mapInputs, mapLayerCount) = BuildMapInputs(project, mapped);
+        if (mapInputs.Count > 0)
         {
-            try
-            {
-                blob = BlobBuilder.Build(project.Layers.Count,
-                    mapped.Select(m => new BlobBuilder.KeyInput(m.ScanCode, project.Layers.Select(l => l[m.Slot.Index]).ToList())).ToList());
-            }
+            try { blob = BlobBuilder.Build(mapLayerCount, mapInputs); }
             catch (InvalidOperationException ex) { errors.Add(ex.Message); }
         }
 
@@ -335,8 +371,9 @@ public static class ProjectService
         if (project.Nicola != null)
         {
             nicolaBlob = NicolaService.BuildBlob(project.Nicola, warnings, errors);
-            if (project.Nicola.Layer >= project.Layers.Count)
-                warnings.Add($"NICOLAのレイヤー{project.Nicola.Layer}はキーマップにありません（そのレイヤーに切り替えるキーが無いと、親指シフトは働きません）");
+            // IME連動（トレイ）が、IMEがかなモードのときにそのレイヤーを立てる。使わない場合は、そのレイヤーに切り替えるキーが要る。
+            if (project.Nicola.Layer >= project.Layers.Count && !TrayConfig.Load().ImeLink)
+                warnings.Add($"NICOLAのレイヤー{project.Nicola.Layer}はキーマップにありません（IME連動を使わない場合は、そのレイヤーに切り替えるキー（TG({project.Nicola.Layer})等）が無いと、親指シフトは働きません）");
         }
         if (project.EnabledFeatures is uint f && (f & ~KbdLayerClient.FeatureAll) != 0)
             errors.Add($"機能のON/OFFの値 0x{f:X} に未知のビットがあります");
