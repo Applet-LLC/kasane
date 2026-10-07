@@ -26,6 +26,10 @@ public sealed record DriverConfig(uint TapTermMs, uint ComboTermMs, uint TapDanc
 /// <summary>KBDLAYER_DEVICE_SCOPE。Binding は KbdLayerClient.BindingModel / BindingInstance / BindingGlobal。</summary>
 public sealed record DeviceScope(uint InstanceKey, uint ModelKey, uint Binding);
 
+/// <summary>KBDLAYER_LAYER_STATE。AppLayerMaskは、アプリ（IME連動など）が立てたレイヤー。</summary>
+public sealed record LayerState(uint Seq, uint ActiveLayerMask, uint AppLayerMask, uint DefaultLayer,
+    uint EffectiveLayerMask, bool LayerMapEnabled, bool NicolaActive);
+
 /// <summary>型番（ModelKey）ごとの i8042prt\Parameters の値。null の値は「書かない（削除する）」。</summary>
 public sealed record I8042Profile(uint ModelKey, uint? Type, uint? Subtype,
     string? Identifier, string? LayerJpn, string? LayerKor);
@@ -91,6 +95,8 @@ public sealed class KbdLayerClient : IDisposable
     private static readonly uint IOCTL_SET_EMERGENCY_RELEASE = CtlCode(0x817, FILE_WRITE_ACCESS);
     private static readonly uint IOCTL_GET_FEATURES = CtlCode(0x818, FILE_READ_ACCESS);
     private static readonly uint IOCTL_SET_FEATURES = CtlCode(0x819, FILE_WRITE_ACCESS);
+    private static readonly uint IOCTL_GET_LAYER_STATE = CtlCode(0x811, FILE_READ_ACCESS);
+    private static readonly uint IOCTL_SET_LAYER_STATE = CtlCode(0x813, FILE_READ_ACCESS);
     private static readonly uint IOCTL_SET_KEY_OVERRIDE = CtlCode(0x81A, FILE_WRITE_ACCESS);
     private static readonly uint IOCTL_GET_KEY_OVERRIDE = CtlCode(0x81B, FILE_READ_ACCESS);
     private static readonly uint IOCTL_GET_I8042_CONFIG = CtlCode(0x81C, FILE_READ_ACCESS);
@@ -380,6 +386,42 @@ public sealed class KbdLayerClient : IDisposable
         bool used = r.ReadUInt32() != 0;
         var e = new TapDanceEntry(ReadAction(r), ReadAction(r), ReadAction(r), ReadAction(r));
         return used ? e : null;
+    }
+
+    // --- レイヤー状態とアプリ管理レイヤー（IME連動） ---
+
+    public const uint LayerOpOn = 1;      // KBDLAYER_LAYER_OP_ON（Layerのビットを立てる）
+    public const uint LayerOpOff = 2;     // KBDLAYER_LAYER_OP_OFF
+    public const uint LayerOpToggle = 3;  // KBDLAYER_LAYER_OP_TOGGLE
+    public const uint LayerOpSetMask = 4; // KBDLAYER_LAYER_OP_SET_MASK
+    /// <summary>この変更でNICOLAのON/OFFが切り替わっても、OnEnterKey/OnExitKeyを送らない（IME側の変化を起点にするとき）。</summary>
+    public const uint LayerFlagNoNicolaKeys = 1; // KBDLAYER_LAYER_STATE_FLAG_NO_NICOLA_KEYS
+    private const int LayerStateSize = 7 * 4;
+
+    private static LayerState ParseLayerState(byte[] data)
+    {
+        uint U(int i) => BitConverter.ToUInt32(data, i * 4);
+        return new LayerState(U(0), U(1), U(2), U(3), U(4), U(5) != 0, U(6) != 0);
+    }
+
+    public LayerState GetLayerState(uint uniqId) =>
+        ParseLayerState(Ioctl("レイヤー状態の取得", IOCTL_GET_LAYER_STATE, BitConverter.GetBytes(uniqId), LayerStateSize));
+
+    /// <summary>
+    /// アプリ管理レイヤーの操作（読み取り側のIOCTLなので昇格は要らない）。最後に呼んだハンドルが所有者になり、
+    /// そのハンドルを閉じる（プロセスの終了を含む）と、アプリ管理レイヤーは0に戻る。変更後の状態を返す。
+    /// </summary>
+    public LayerState SetLayerState(uint uniqId, uint op, uint layer, uint mask = 0, uint flags = 0)
+    {
+        var data = Ioctl("アプリ管理レイヤーの変更", IOCTL_SET_LAYER_STATE, Build(w =>
+        {
+            w.Write(uniqId);
+            w.Write(op);
+            w.Write(layer);
+            w.Write(mask);
+            w.Write(flags);
+        }), LayerStateSize);
+        return data.Length >= LayerStateSize ? ParseLayerState(data) : GetLayerState(uniqId);
     }
 
     // --- 機能別ON/OFF（キーボードごと） ---

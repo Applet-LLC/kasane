@@ -3,8 +3,18 @@ namespace Kasane.Tray;
 internal static class Program
 {
     [STAThread]
-    private static void Main()
+    private static void Main(string[] args)
     {
+        // 診断: 3秒待って（その間に、IMEを調べたいウィンドウを前面にする）、IMEの状態を %TEMP%\kasane-ime-probe.txt に書く。
+        if (args.Contains("--probe-ime"))
+        {
+            Thread.Sleep(3000);
+            var state = new Win32ImeSource().ReadWithDetail(out string detail);
+            File.WriteAllText(Path.Combine(Path.GetTempPath(), "kasane-ime-probe.txt"),
+                $"{DateTime.Now:HH:mm:ss} Known={state.Known} Open={state.Open} ConversionMode=0x{state.ConversionMode:X} KanaInput={state.IsKanaInput}{Environment.NewLine}{detail}{Environment.NewLine}");
+            return;
+        }
+
         // 1つのログインセッションに、トレイは1つだけ（2つ目を起動しても、何もせずに終わる）。
         using var mutex = new Mutex(initiallyOwned: true, @"Local\kasane-tray", out bool createdNew);
         if (!createdNew) return;

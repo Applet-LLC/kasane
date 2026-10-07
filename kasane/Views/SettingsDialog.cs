@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -47,6 +48,8 @@ public sealed class SettingsDialog : Window
     // NICOLA
     private NicolaDef? _nicola;
     private ComboBox _nicolaMode = null!;
+    private CheckBox _imeLink = null!;
+    private readonly TrayConfig _trayConfig = TrayConfig.Load();
     private TextBlock _nicolaSummary = null!;
 
     public SettingsDialog(KeymapProject project, KbdLayerClient? client, uint onlineUniqId, bool canWrite)
@@ -243,10 +246,13 @@ public sealed class SettingsDialog : Window
     {
         var panel = new StackPanel();
         panel.Children.Add(Help(
-            "NICOLA（親指シフト）は、指定したレイヤーがアクティブな間だけ働きます（そのレイヤーに切り替えるキー、" +
-            "例えば TG(1) をキーマップに置いてください）。配列の表は「表を編集...」で変えられます。" +
+            "NICOLA（親指シフト）は、指定したレイヤーがアクティブな間だけ働きます。「IME連動」を使うと、IMEがかなモードのときだけ、" +
+            "タスクトレイの kasane が自動でそのレイヤーを立てます（切り替えるキーは要りません）。使わない場合は、そのレイヤーに" +
+            "切り替えるキー、例えば TG(1) をキーマップに置いてください。配列の表は「表を編集...」で変えられます。" +
             "nicola.json（CLIの --set-nicola と同じ形式）の読み込み・書き出しもできます。\n" +
-            "ここでの変更は「キーボードに適用」で反映します。"));
+            "NICOLAを使うと、親指キーの単独打鍵のキー（Enter・Spaceなど）が、Ctrl・Shiftなどを押している間のために、" +
+            "NICOLAのレイヤーのキー割り当てとして自動で足されます。\n" +
+            "キーボードへの反映は「キーボードに適用」で行います。IME連動の設定は、OKでこのPCの利用者ごとに保存され、数秒でトレイに反映されます。"));
 
         if (IsOnline)
         {
@@ -255,6 +261,16 @@ public sealed class SettingsDialog : Window
             catch (KbdLayerException ex) { driverText = ex.Message; }
             panel.Children.Add(new TextBlock { Name = "NicolaDriverStatus", Text = "キーボードの現在の設定: " + driverText, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) });
         }
+
+        _imeLink = new CheckBox
+        {
+            Name = "NicolaImeLinkCheck",
+            Content = "IME連動: IMEがかなモードのときだけNICOLAにする（タスクトレイの kasane が必要）",
+            IsChecked = _trayConfig.ImeLink,
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        _imeLink.Click += (_, _) => RefreshNicola();
+        panel.Children.Add(_imeLink);
 
         _nicolaMode = new ComboBox { Name = "NicolaModeBox", Width = 360, ItemsSource = NicolaModeLabels };
         _nicolaMode.SelectedIndex = _project.Nicola != null ? 1 : _project.ClearNicola ? 2 : 0;
@@ -327,8 +343,8 @@ public sealed class SettingsDialog : Window
                 string text = $"{(_nicola.Output == "jis-kana" ? "JISかな入力" : "ローマ字入力")}、レイヤー{_nicola.Layer}、" +
                               $"文字キー{_nicola.Keys.Count}個、親指 {_nicola.ThumbLeft} / {_nicola.ThumbRight}" +
                               (_nicola.Enabled ? "" : "（判定しない設定）");
-                if (_nicola.Layer >= _project.Layers.Count)
-                    warnings.Add($"レイヤー{_nicola.Layer}はキーマップにありません（レイヤーを追加し、切り替えるキーを置いてください）");
+                if (_nicola.Layer >= _project.Layers.Count && _imeLink.IsChecked != true)
+                    warnings.Add($"レイヤー{_nicola.Layer}はキーマップにありません（IME連動を使わない場合は、そのレイヤーに切り替えるキー（TG({_nicola.Layer})等）を置いてください）");
                 if (errors.Count > 0) ShowStatus(_nicolaSummary, text + "\n" + string.Join("\n", errors), true);
                 else ShowStatus(_nicolaSummary, text + (warnings.Count > 0 ? "\n注意: " + string.Join("\n", warnings) : ""), false);
                 break;
@@ -780,6 +796,22 @@ public sealed class SettingsDialog : Window
 
         _project.Nicola = _nicolaMode.SelectedIndex == 1 ? _nicola : null;
         _project.ClearNicola = _nicolaMode.SelectedIndex == 2;
+
+        // IME連動はプロジェクトではなく、このPCの利用者の設定（トレイが数秒ごとに読む）。変えたときだけ保存する。
+        bool imeLink = _imeLink.IsChecked == true;
+        if (imeLink != _trayConfig.ImeLink)
+        {
+            try
+            {
+                _trayConfig.ImeLink = imeLink;
+                _trayConfig.Save();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Fail("TabNicola", $"IME連動の設定を保存できませんでした: {ex.Message}");
+                return false;
+            }
+        }
         return true;
     }
 }

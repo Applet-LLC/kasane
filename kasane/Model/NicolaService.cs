@@ -161,6 +161,32 @@ public static class NicolaService
     }
 
     // ------------------------------------------------------------------
+    // 親指キーのレイヤーマップ上の割り当て
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// NICOLAのレイヤーのレイヤーマップに入れる、親指キーの割り当て（スキャンコード、割り当てるキーコード）。
+    /// ドライバは、NICOLAが判定するキー（親指・文字キー）を、レイヤーマップより先に取る。そのため、この割り当てが
+    /// 使われるのは、NICOLAが判定しないとき（Ctrl・Shift・Alt・Winを押している間）だけで、次の2つに効く。
+    ///  - Ctrl+無変換、Shift+変換などが、無変換・変換のままではなく、単独打鍵のキー（Enter・Space等）になる。
+    ///  - NICOLAはレイヤーマップがONのときだけ動くので、キー割り当てが1つも無い人でも、マップが空にならない。
+    /// 割り当てるのは、親指キーの単独打鍵のキー（nicola.jsonの thumbLeftTap / thumbRightTap）。空なら親指キー自身
+    /// （＝そのまま通す）。
+    /// </summary>
+    public static List<(ushort ScanCode, string Token)> ThumbLayerEntries(NicolaDef def)
+    {
+        var entries = new List<(ushort, string)>();
+        foreach (var (key, tap) in new[] { (def.ThumbLeft, def.ThumbLeftTap), (def.ThumbRight, def.ThumbRightTap) })
+        {
+            string k = key.Trim(), t = tap.Trim();
+            if (!KeycodeTable.TryResolve(k, out var thumb) || thumb.Type != ActionType.Key || thumb.Param2 == 0) continue;
+            string token = t.Length > 0 && t != "KC_NO" && KeycodeTable.TryResolve(t, out var a) && a.Type == ActionType.Key ? t : k;
+            if (entries.All(e => e.Item1 != thumb.Param2)) entries.Add((thumb.Param2, token));
+        }
+        return entries;
+    }
+
+    // ------------------------------------------------------------------
     // blob の組み立て
     // ------------------------------------------------------------------
 

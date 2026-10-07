@@ -6,6 +6,8 @@ namespace Kasane.Tray;
 ///  - 右クリックのメニュー（上から）: 設定（＝エディタを開く）／一時停止（チェック付き。全キーボードをOFFにし、再開で戻す）／
 ///    ライセンス（ライセンス管理を開く）／終了（トレイを終える。一時停止中でも、停止のまま終了する）。
 ///  - ツールチップに、動作中・一時停止中・ドライバに接続できない、を出す。状態はタイマーで読み直す。
+///  - IME連動（<see cref="ImeLinkHost"/>）: IMEがかなモードのときだけNICOLAのレイヤーを自動で立てる。メニューは変えず、
+///    ON/OFFはエディタの設定（NICOLAのタブ）で選ぶ。ツールチップにNICOLAの状態を足す。
 /// UI Automation（kasane.Tests/UiAutomation/T10-TrayMenu.ps1）では、メニュー項目は表示名（設定・一時停止・ライセンス・終了）で探す
 /// （ToolStripの項目のNameは、UIAのAutomationIdにはならない）。
 /// </summary>
@@ -25,11 +27,13 @@ public sealed class TrayContext : ApplicationContext
     private readonly Icon _normalIcon;
     private readonly Icon _pausedIcon;
     private readonly Icon _unavailableIcon;
+    private readonly ImeLinkHost _imeLink;
     private TraySnapshot _snapshot = new(TrayStatus.DriverUnavailable, 0, 0);
 
     public TrayContext()
     {
         _pause = new PauseController(new KbdLayerDriverAccess(), new JsonPauseStateStore());
+        _imeLink = new ImeLinkHost();
 
         _normalIcon = TrayIcons.Load();
         _pausedIcon = TrayIcons.Gray(_normalIcon, pauseMarks: true);
@@ -84,7 +88,11 @@ public sealed class TrayContext : ApplicationContext
 
     private void RefreshState()
     {
-        try { ApplySnapshot(_pause.Refresh()); }
+        try
+        {
+            _imeLink.ReloadConfig();
+            ApplySnapshot(_pause.Refresh());
+        }
         catch (Exception ex) { TrayLog.Write("Refresh: " + ex); } // 常駐中に落ちないよう、読み直しの失敗は記録だけにする
     }
 
@@ -101,6 +109,9 @@ public sealed class TrayContext : ApplicationContext
             _ when snapshot.ActiveCount == 0 => (_normalIcon, "kasane — リマップ中のキーボードはありません"),
             _ => (_normalIcon, $"kasane — 動作中（{snapshot.ActiveCount}台）"),
         };
+        var ime = _imeLink.Status;
+        if (snapshot.Status == TrayStatus.Running && ime.Linked && ime.TargetCount > 0)
+            text += ime.NicolaOn ? "・NICOLA 入力中" : "・NICOLA 待機（IME連動）";
         if (!ReferenceEquals(_notifyIcon.Icon, icon)) _notifyIcon.Icon = icon;
         _notifyIcon.Text = text; // 127文字まで
     }
@@ -108,6 +119,7 @@ public sealed class TrayContext : ApplicationContext
     private void ExitTray()
     {
         _timer.Stop();
+        _imeLink.Dispose(); // 立てていたレイヤーを戻す
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
         ExitThread();
@@ -118,6 +130,7 @@ public sealed class TrayContext : ApplicationContext
         if (disposing)
         {
             _timer.Dispose();
+            _imeLink.Dispose();
             _notifyIcon.Dispose();
             _menu.Dispose();
             _normalIcon.Dispose();
