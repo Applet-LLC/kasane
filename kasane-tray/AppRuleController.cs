@@ -227,13 +227,19 @@ public sealed class AppRuleController
         RefreshDevicesNow();
         var device = _deviceList.FirstOrDefault(d => d.UniqId == id);
         if (device == null || !device.HasLayerMap || !device.Enabled) return; // すでに OFF（ユーザーや一時停止が止めた）なら触らない
+        // 記録を先に書く（write-ahead）。OFF にしてから書くと、その間に落ちたとき「OFF なのに記録なし」になり、戻せなくなる。
+        _mapOff.Add(id);
+        SaveMapOff();
         try
         {
             _devices.SetEnabled(id, false);
-            _mapOff.Add(id);
             SetCachedEnabled(id, false);
         }
-        catch (Exception ex) when (IsDriverFailure(ex)) { }
+        catch (Exception ex) when (IsDriverFailure(ex))
+        {
+            _mapOff.Remove(id);
+            SaveMapOff();
+        }
     }
 
     private void RestoreMapOff(uint id)

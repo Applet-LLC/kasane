@@ -14,11 +14,15 @@ public class AppRuleControllerTests
     {
         public List<DeviceInfo> Devices = new();
         public List<(uint Id, bool Enabled)> SetCalls = new();
+        public Func<uint, bool, bool>? OnSet;       // SetEnabled の直前に呼ぶ（順序の確認用）
+        public bool FailNextOff;
 
         public List<DeviceInfo> ListDevices() => Devices.ToList();
 
         public void SetEnabled(uint uniqId, bool enabled)
         {
+            OnSet?.Invoke(uniqId, enabled);
+            if (!enabled && FailNextOff) { FailNextOff = false; throw new KbdLayerException("set", 6); }
             SetCalls.Add((uniqId, enabled));
             int i = Devices.FindIndex(d => d.UniqId == uniqId);
             if (i >= 0) Devices[i] = Devices[i] with { Enabled = enabled };
@@ -286,6 +290,32 @@ public class AppRuleControllerTests
             Assert.True(_devices.Enabled(Kb1));
         }
         Assert.Empty(_store.Saved);
+    }
+
+    [Fact]
+    public void MapOff_RecordIsWrittenBeforeTheKeyboardIsTurnedOff()
+    {
+        // P2.1 の所見: OFF にした直後に落ちると、記録が無く戻せなかった。OFF にする時点で、記録がすでにある。
+        var c = Make(Device(Kb1));
+        var cfg = Rules(new AppLayerRule { Match = { Exe = "game.exe" }, MapOff = true });
+        bool recordedAtOff = false;
+        _devices.OnSet = (id, enabled) => { if (!enabled) recordedAtOff = _store.Saved.Contains(id); return true; };
+
+        Settle(c, Window(@"C:\g\game.exe"), cfg);
+        Assert.True(recordedAtOff);
+        Assert.False(_devices.Enabled(Kb1));
+    }
+
+    [Fact]
+    public void MapOff_FailedTurnOff_LeavesNoRecord()
+    {
+        var c = Make(Device(Kb1));
+        var cfg = Rules(new AppLayerRule { Match = { Exe = "game.exe" }, MapOff = true });
+        _devices.FailNextOff = true;
+        Settle(c, Window(@"C:\g\game.exe"), cfg);
+        Assert.True(_devices.Enabled(Kb1));
+        Assert.Empty(_store.Saved);
+        Assert.Empty(c.MapOffDevices);
     }
 
     [Fact]
