@@ -15,6 +15,13 @@
    - 試験の手法で新しく分かったことは、dev-notes にも追記する（由来にこのファイル名を書く）。
 4. 開発担当が結果を読み、直すか次のフェーズへ進む。次のフェーズに進むのは、結果が返ってきてから。
 
+## 試験の注意（フェーズをまたいで使うもの）
+
+- GUI（kasane）に「ドライバから読み込ませる」試験では、`%LOCALAPPDATA%\applet\kasane\<UniqId>\project.json` に加えて、
+  古い保存先 `%LOCALAPPDATA%\LayerDriver\<UniqId>\project.json` も退避する（`ProjectService.MigrateLegacyProject` が
+  古い保存先から読み込むため）。由来: `phase-1-results.md` の K7。
+- 試験中に nodoka などの常駐ソフトが起動し直すことがある。各ステップの直前に確認する（dev-notes の T-2）。
+
 ## ファイル
 
 | ファイル | 書く人 | 内容 |
