@@ -66,9 +66,21 @@ public static class KeycodeCatalog
         ["KC_MSTP"] = "Stop", ["KC_MNXT"] = "Next", ["KC_MPRV"] = "Prev", ["KC_CALC"] = "Calc",
         ["KC_WSCH"] = "Search", ["KC_WHOM"] = "WebHome", ["KC_WBAK"] = "Back", ["KC_WFWD"] = "Fwd",
         ["KC_WSTP"] = "WebStop", ["KC_WREF"] = "Reload", ["KC_WFAV"] = "Fav", ["KC_MAIL"] = "Mail",
-        ["KC_MSEL"] = "Media", ["KC_MYCM"] = "PC", ["KC_SLEP"] = "Sleep", ["KC_WAKE"] = "Wake",
-        ["KC_PWR"] = "Power",
+        ["KC_MSEL"] = "Media", ["KC_MYCM"] = "PC", ["KC_SLEP"] = "⚠Sleep", ["KC_WAKE"] = "⚠Wake",
+        ["KC_PWR"] = "⚠Power",
     };
+
+    // 電源キー（KC_PWR / KC_SLEP / KC_WAKE）のスキャンコード。押すとPCがシャットダウン・スリープしうる。
+    private static readonly ushort[] PowerScanCodes = { 0xE05E, 0xE05F, 0xE063 };
+
+    /// <summary>
+    /// 押すとPCの状態が変わりうる電源キー（単独・修飾付き、名前でも SC_XXXX でも）か。
+    /// キー割り当て画面が、割り当ての前に確認を出すのに使う（2026-10-08、P1の試験の所見）。
+    /// </summary>
+    public static bool IsPowerKey(string token) =>
+        KeycodeTable.TryResolve(token, out var a) &&
+        (a.Type is ActionType.Key or ActionType.ModdedKey) &&
+        Array.IndexOf(PowerScanCodes, a.Param2) >= 0;
 
     /// <summary>キートップに表示する短い名前。別名は正式名に寄せてから引く。</summary>
     public static string ShortName(string token)

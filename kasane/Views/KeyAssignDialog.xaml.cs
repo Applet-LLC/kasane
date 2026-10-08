@@ -232,8 +232,8 @@ public partial class KeyAssignDialog : Window
             case ActionType.Key:
             case ActionType.ModdedKey:
             {
-                var baseName = KeycodeTable.NameForScanCode(action.Param2);
-                if (baseName == null) return;
+                // 名前の無いキー（SC_XXXX）にも修飾キーを付け外しできるよう、KeyTokenで名前を作る。
+                var baseName = KeycodeTable.KeyToken(action.Param2);
                 TxtToken.Text = mask == 0 ? baseName : KeycodeTable.WrapWithMods(mask, baseName);
                 break;
             }
@@ -274,6 +274,8 @@ public partial class KeyAssignDialog : Window
             string? warn = null;
             if (ActionType.ReferencesLayer(action.Type) && action.Param1 >= _layerCount)
                 warn = $"レイヤー{action.Param1}はまだありません（レイヤーを追加してから適用してください）";
+            else if (KeycodeCatalog.IsPowerKey(token))
+                warn = "注意: 電源キーです。押すとPCがスリープ・シャットダウンすることがあります";
             TxtValidation.Foreground = warn == null ? Brushes.DarkGreen : Brushes.DarkOrange;
             TxtValidation.Text = warn ?? "OK: " + KeycodeCatalog.ShortName(token);
             BtnOk.IsEnabled = true;
@@ -292,6 +294,17 @@ public partial class KeyAssignDialog : Window
     {
         var token = TxtToken.Text.Trim();
         if (!KeycodeTable.TryResolve(token, out _)) return;
+        // 電源キーは、割り当てたキーを押すだけでPCの状態が変わるので、確かめてから割り当てる
+        // （元から同じキーだったときは聞かない）。
+        if (KeycodeCatalog.IsPowerKey(token) && token != ResultToken &&
+            MessageBox.Show(this,
+                $"「{KeycodeCatalog.ShortName(token).TrimStart('⚠')}」（{token}）は電源キーです。\n" +
+                "このキーを押すと、Windows の電源の設定によって、PCがスリープ・休止・シャットダウンすることがあります。\n\n" +
+                "割り当てますか？",
+                "電源キーの割り当て", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes)
+        {
+            return;
+        }
         ResultToken = token;
         DialogResult = true;
     }

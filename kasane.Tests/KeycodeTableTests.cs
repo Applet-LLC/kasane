@@ -245,6 +245,21 @@ public class KeycodeTableTests
         Assert.NotNull(error);
     }
 
+    [Theory]
+    [InlineData("KC_PWR", true)]
+    [InlineData("KC_SYSTEM_SLEEP", true)]
+    [InlineData("KC_WAKE", true)]
+    [InlineData("SC_E05F", true)]
+    [InlineData("LCTL(KC_SLEP)", true)]
+    [InlineData("KC_A", false)]
+    [InlineData("KC_MAIL", false)]
+    [InlineData("MO(1)", false)]
+    [InlineData("not a token", false)]
+    public void IsPowerKey_DetectsPowerKeysInAnyForm(string token, bool expected)
+    {
+        Assert.Equal(expected, KeycodeCatalog.IsPowerKey(token));
+    }
+
     [Fact]
     public void EveryCatalogKeycode_Resolves()
     {
