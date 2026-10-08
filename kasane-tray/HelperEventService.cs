@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Kasane.Interop;
+using Kasane.Model;
 
 namespace Kasane.Tray;
 

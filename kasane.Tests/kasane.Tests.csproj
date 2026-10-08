@@ -32,7 +32,6 @@
     <Compile Include="..\kasane-tray\Win32ImeSource.cs" Link="Tray\Win32ImeSource.cs" />
     <Compile Include="..\kasane-tray\AppLayerArbiter.cs" Link="Tray\AppLayerArbiter.cs" />
     <Compile Include="..\kasane-tray\AppRuleController.cs" Link="Tray\AppRuleController.cs" />
-    <Compile Include="..\kasane-tray\HelperActions.cs" Link="Tray\HelperActions.cs" />
     <Compile Include="..\kasane-tray\ActionLayerController.cs" Link="Tray\ActionLayerController.cs" />
   </ItemGroup>
 

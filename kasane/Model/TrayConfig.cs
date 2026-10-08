@@ -43,6 +43,8 @@ public sealed class TrayConfig
     {
         path ??= DefaultPath;
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+        string tmp = path + ".tmp"; // トレイが読む途中の、書きかけのファイルを見ないように
+        File.WriteAllText(tmp, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+        File.Move(tmp, path, overwrite: true);
     }
 }

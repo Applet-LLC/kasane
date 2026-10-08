@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Kasane.Interop;
+using Kasane.Model;
 
 namespace Kasane.Tray;
 

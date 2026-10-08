@@ -21,7 +21,7 @@ public sealed class HelperConfigStore
         string stamp = Stamp(config);
         if (stamp == _stamp) return false;
         _stamp = stamp;
-        Volatile.Write(ref _current, HelperConfigSet.Load(config.Helper));
+        Volatile.Write(ref _current, HelperConfigSet.Load(config.Helper, log: TrayLog.Write));
         return true;
     }
 

@@ -48,16 +48,28 @@ public sealed class HelperConfig
         Path.Combine(baseDirectory ?? BaseDirectory, uniqId.ToString("X8"), FileName);
 
     /// <summary>読めない・壊れている・無いときは null（呼び出し側が「設定なし」として扱う）。</summary>
-    public static HelperConfig? Load(string path)
+    public static HelperConfig? Load(string path) => TryLoad(path, out var config, out _) ? config : null;
+
+    /// <summary>
+    /// 読み込む。ファイルが無いのは成功（<paramref name="config"/> は null）。ファイルがあるのに読めない（構文エラー・アクセス拒否など）
+    /// ときだけ false で、理由を <paramref name="error"/> に入れる。エディタは、壊れたファイルを黙って上書きしないために使う。
+    /// </summary>
+    public static bool TryLoad(string path, out HelperConfig? config, out string? error)
     {
+        config = null;
+        error = null;
         try
         {
-            if (!File.Exists(path)) return null;
-            return FromJson(File.ReadAllText(path));
+            if (!File.Exists(path)) return true;
+            config = FromJson(File.ReadAllText(path));
+            if (config == null) { error = "中身が空です"; return false; }
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
-            return null;
+            config = null;
+            error = ex.Message;
+            return false;
         }
     }
 
@@ -65,10 +77,13 @@ public sealed class HelperConfig
 
     public string ToJson() => JsonSerializer.Serialize(this, JsonOptions);
 
+    /// <summary>一時ファイルに書いてから置き換える（トレイが読む途中の、書きかけのファイルを見ないように）。</summary>
     public void Save(string path)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, ToJson());
+        string tmp = path + ".tmp";
+        File.WriteAllText(tmp, ToJson());
+        File.Move(tmp, path, overwrite: true);
     }
 }
 
@@ -316,7 +331,7 @@ public sealed class HelperConfigSet
     /// <summary>
     /// フォルダ（%LOCALAPPDATA%\applet\kasane）の下の &lt;UniqId:X8&gt;\helper.json をすべて読み、共通の分と合わせる。
     /// </summary>
-    public static HelperConfigSet Load(HelperConfig? global, string? baseDirectory = null)
+    public static HelperConfigSet Load(HelperConfig? global, string? baseDirectory = null, Action<string>? log = null)
     {
         var perDevice = new Dictionary<uint, HelperConfig>();
         string dir = baseDirectory ?? HelperConfig.BaseDirectory;
@@ -329,7 +344,8 @@ public sealed class HelperConfigSet
                     string name = Path.GetFileName(sub);
                     if (name.Length != 8 || !uint.TryParse(name, System.Globalization.NumberStyles.AllowHexSpecifier, null, out var id))
                         continue;
-                    var cfg = HelperConfig.Load(Path.Combine(sub, HelperConfig.FileName));
+                    string path = Path.Combine(sub, HelperConfig.FileName);
+                    if (!HelperConfig.TryLoad(path, out var cfg, out var error)) log?.Invoke($"{path}: 読めないため無視します（{error}）");
                     if (cfg != null) perDevice[id] = cfg;
                 }
             }

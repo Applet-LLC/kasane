@@ -1,7 +1,6 @@
 using Kasane.Keycodes;
-using Kasane.Model;
 
-namespace Kasane.Tray;
+namespace Kasane.Model;
 
 // ヘルパー動作（P3、2026-10-08）の、Windows に依存しない部分。手順の展開（SequenceCompiler）、キーフックのトリガーの引き当て
 // （TriggerTable）、HLP(id) の引き当て（HelperActionResolver）、動作の実行（ActionExecutor。実際の入力・起動は
