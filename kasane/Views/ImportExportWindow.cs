@@ -261,8 +261,11 @@ public sealed class ImportExportWindow : Window
 
         var pick = new Button { Name = "ImportPickButton", Content = "ファイルを選ぶ...", Width = 130 };
         pick.Click += (_, _) => PickFile();
+        var nodoka = new Button { Name = "ImportNodokaButton", Content = "のどかの設定を取り込む...", Width = 190, Margin = new Thickness(8, 0, 0, 0) };
+        nodoka.Click += (_, _) => PickNodoka();
         var pickRow = new StackPanel { Orientation = Orientation.Horizontal };
         pickRow.Children.Add(pick);
+        pickRow.Children.Add(nodoka);
         pickRow.Children.Add(_imPath);
         p.Children.Add(pickRow);
         p.Children.Add(_imSummary);
@@ -322,10 +325,25 @@ public sealed class ImportExportWindow : Window
             _imPreview.IsEnabled = _imDo.IsEnabled = false;
             return;
         }
+        ShowLoaded(file!, path);
+    }
+
+    private void PickNodoka()
+    {
+        var dlg = new NodokaImportWindow { Owner = this };
+        if (dlg.ShowDialog() != true || dlg.Result == null) return;
+        _imReport.Text = "";
+        ShowLoaded(dlg.Result, "(のどか) " + dlg.SourceLabel);
+        // のどかの設定は、今の設定に足す（「置き換え」だと、のどかに無い項目も消える）のを既定にする。
+        _imAppend.IsChecked = true;
+    }
+
+    private void ShowLoaded(PortableFile file, string path)
+    {
         _file = file;
         _imPath.Text = path;
         _imSummary.Foreground = Brushes.Black;
-        var scope = file!.ParsedScope!.Value;
+        var scope = file.ParsedScope!.Value;
 
         var lines = new List<string> { $"{ScopeText(scope)}（{file.Exported ?? "日時不明"}、{file.App ?? "?"}）" };
         foreach (var kb in file.Keyboards)
@@ -398,12 +416,15 @@ public sealed class ImportExportWindow : Window
         foreach (var kb in file.Keyboards)
             if (kb.UniqIdValue is uint u && targets.All(t => t.Id != u)) targets.Add(new Target(u, $"{u:X8}  (新規に作る)"));
 
+        if (_uniqId != 0 && targets.All(t => t.Id != _uniqId)) targets.Add(new Target(_uniqId, $"{_uniqId:X8}  (今のキーボード)"));
         var auto = PortableService.AutoMap(file, _devices.Where(d => d.UniqId != 0).ToList());
         for (int i = 0; i < file.Keyboards.Count; i++)
         {
             var kb = file.Keyboards[i];
+            // UniqId の無い（どのキーボードにも使う）設定は、今のキーボードを既定の行き先にする（のどかの取り込みなど）。
+            uint? defaultTarget = auto[i].TargetUniqId ?? (kb.UniqIdValue == null && _uniqId != 0 ? _uniqId : null);
             var combo = new ComboBox { Name = $"ImportMapCombo{i}", Width = 430, ItemsSource = targets, Margin = new Thickness(6, 0, 0, 0) };
-            combo.SelectedItem = targets.First(t => t.Id == auto[i].TargetUniqId);
+            combo.SelectedItem = targets.First(t => t.Id == defaultTarget);
             _mapCombos.Add(combo);
             var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
             row.Children.Add(new TextBlock { Text = $"{kb.UniqId ?? "?"}  {kb.LayoutName} →", Width = 230, VerticalAlignment = VerticalAlignment.Center });
