@@ -82,8 +82,16 @@ public sealed class HelperConfig
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         string tmp = path + ".tmp";
-        File.WriteAllText(tmp, ToJson());
-        File.Move(tmp, path, overwrite: true);
+        try
+        {
+            File.WriteAllText(tmp, ToJson());
+            File.Move(tmp, path, overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            try { File.Delete(tmp); } catch (Exception) { /* 片付けられなくても、元の失敗を返す */ }
+            throw;
+        }
     }
 }
 
@@ -96,6 +104,7 @@ public sealed class AppLayerRule
     public bool Enabled { get; set; } = true;
 
     /// <summary>どの規則にも一致しなかったときに使う規則（<see cref="Match"/> は見ない）。</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool Default { get; set; }
 
     public AppMatch Match { get; set; } = new();
@@ -104,6 +113,7 @@ public sealed class AppLayerRule
     public List<int> Layers { get; set; } = new();
 
     /// <summary>このアプリが前面の間、そのキーボードのリマップをOFF（素通し）にする（ゲームなど）。</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool MapOff { get; set; }
 }
 
@@ -124,6 +134,7 @@ public sealed class AppMatch
     public string? Class { get; set; }
     public string? NodokaClass { get; set; }
     public string? NodokaTitle { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool NodokaOr { get; set; }
 
     // 正規表現は、最初に使うときに作って持つ（不正な式は「一致しない」）。
@@ -258,6 +269,7 @@ public sealed class HelperActionBody
     public string? WorkDir { get; set; }
     public List<int>? Layers { get; set; }
     public string? LayerOp { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool Repeat { get; set; }
     public List<HelperStep>? Steps { get; set; }
     /// <summary>キーを離したときに実行する手順（マウスのボタンを押している間だけ押す、など）。</summary>
@@ -285,6 +297,7 @@ public sealed class HelperStep
     public string? MouseAction { get; set; }
     public int? MoveX { get; set; }
     public int? MoveY { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool Absolute { get; set; }
     public int? Wheel { get; set; }
     public int? HWheel { get; set; }

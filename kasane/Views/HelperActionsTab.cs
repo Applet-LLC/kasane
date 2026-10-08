@@ -10,8 +10,8 @@ namespace Kasane.Views;
 /// </summary>
 internal sealed class HelperActionsTab : HelperTabBase
 {
-    private readonly ListBox _actions = ListBoxOf("ActionsList", 150);
-    private readonly ListBox _triggers = ListBoxOf("TriggersList", 150);
+    private readonly ListBox _actions = ListBoxOf("ActionsList", 100);
+    private readonly ListBox _triggers = ListBoxOf("TriggersList", 100);
     private readonly Button _addAction, _editAction, _copyAction, _deleteAction;
     private readonly Button _addTrigger, _editTrigger, _copyTrigger, _deleteTrigger;
 

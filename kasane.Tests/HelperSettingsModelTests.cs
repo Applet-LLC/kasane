@@ -152,6 +152,36 @@ public sealed class HelperSettingsModelTests : IDisposable
         m.Device.Actions.Add(Launch(1));
         Assert.False(m.TrySave(out var error));
         Assert.False(string.IsNullOrEmpty(error));
+        Assert.False(File.Exists(DevicePath + ".tmp")); // 失敗しても、一時ファイルを残さない
+    }
+
+    [Fact]
+    public void Json_OmitsDefaults_ButKeepsEnabledFalseAndRepeatTrue()
+    {
+        var cfg = new HelperConfig
+        {
+            Actions = { new HelperAction { Id = 1, Action = new HelperActionBody { Type = HelperActionBody.Sequence, Repeat = true, Steps = new() { new HelperStep { Key = "KC_A" } } } } },
+            AppLayerRules = { new AppLayerRule { Enabled = false, Match = { Exe = "x.exe" } } },
+        };
+        string json = cfg.ToJson();
+        Assert.DoesNotContain("Absolute", json);
+        Assert.DoesNotContain("MapOff", json);
+        Assert.DoesNotContain("NodokaOr", json);
+        Assert.Contains("\"Enabled\": false", json);   // 既定が true の項目は、false を省かない（省くと true に戻ってしまう）
+        var back = HelperConfig.FromJson(json)!;
+        Assert.True(back.Actions[0].Action.Repeat);
+        Assert.False(back.AppLayerRules[0].Enabled);
+        Assert.False(back.AppLayerRules[0].MapOff);
+    }
+
+    [Fact]
+    public void TrayJson_OmitsNulls()
+    {
+        var tray = new TrayConfig { Helper = new HelperConfig { Actions = { Launch(1) } } };
+        tray.Save(TrayPath);
+        string json = File.ReadAllText(TrayPath);
+        Assert.DoesNotContain("null", json);
+        Assert.Equal("notepad.exe", TrayConfig.Load(TrayPath).Helper!.Actions.Single().Action.Path);
     }
 
     // ------------------------------------------------------------------

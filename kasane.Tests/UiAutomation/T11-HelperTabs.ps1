@@ -12,6 +12,11 @@ function Chk([string]$label, [bool]$cond) {
 function Count-Items([System.Windows.Automation.AutomationElement]$list) {
     return $list.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition).Count
 }
+# ラジオボタンは InvokePattern ではなく SelectionItemPattern で選ぶ。
+function Select-Radio([System.Windows.Automation.AutomationElement]$el) {
+    $p = $el.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern)
+    $p.Select()
+}
 function Open-Settings($main, $procId) {
     $before = Get-AllTopWindowHandles $procId
     Invoke-Element (Find-ChildByAutomationId $main "BtnSettings")
@@ -32,7 +37,7 @@ try {
     $n0 = Count-Items $list
     "  rules before: $n0"
     Chk "rules tab has the scope radio buttons and the list" ((Find-ChildByAutomationId $dlg "RulesScopeGlobal") -and $list)
-    Invoke-Element (Find-ChildByAutomationId $dlg "RulesScopeGlobal")
+    Select-Radio (Find-ChildByAutomationId $dlg "RulesScopeGlobal")
 
     $before = Get-AllTopWindowHandles $proc.Id
     Invoke-Element (Find-ChildByAutomationId $dlg "AddRuleButton")
@@ -63,7 +68,7 @@ try {
     $triggers = Find-ChildByAutomationId $dlg "TriggersList"
     $a0 = Count-Items $actions
     $t0 = Count-Items $triggers
-    Invoke-Element (Find-ChildByAutomationId $dlg "HelperScopeGlobal")
+    Select-Radio (Find-ChildByAutomationId $dlg "HelperScopeGlobal")
 
     $before = Get-AllTopWindowHandles $proc.Id
     Invoke-Element (Find-ChildByAutomationId $dlg "AddActionButton")

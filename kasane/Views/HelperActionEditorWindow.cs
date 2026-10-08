@@ -77,7 +77,8 @@ public sealed class HelperActionEditorWindow : Window
         _idInUse = idInUse ?? (_ => false);
         Title = title;
         Width = 820;
-        Height = 760;
+        SizeToContent = SizeToContent.Height; // 入力欄の数（種類で変わる）に合わせる。高すぎれば、中でスクロールする
+        MaxHeight = 800;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         ShowInTaskbar = false;
 
@@ -125,7 +126,7 @@ public sealed class HelperActionEditorWindow : Window
             "1行が1手順です。書き方:\n" +
             "  key LCTL(KC_C)   キーを押して離す（KC_A、LCTL(KC_C)、SC_E06A など）\n" +
             "  down KC_A / up KC_A   押す / 離す\n" +
-            "  text こんにちは\\n   文字列を打つ（\\n = Enter、\\t = Tab、\\\\ = バックスラッシュ）\n" +
+            "  text こんにちは\\n   文字列を打つ（\\n = Enter、\\t = Tab、\\\\ = バックスラッシュ。日本語のフォントでは \\ が ¥ に見えますが、入力するのは半角のバックスラッシュです）\n" +
             "  delay 50   待つ（ミリ秒、0〜10000）\n" +
             "  mouse left / mouse right down / mouse x1 up   ボタン（left right middle x1 x2、click down up）\n" +
             "  move 10 -5 / moveto 100 200   マウスを動かす（今の位置から / 画面の座標へ）\n" +

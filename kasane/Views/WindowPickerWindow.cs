@@ -65,7 +65,11 @@ public sealed class WindowPickerWindow : Window
     {
         _windows = OpenWindowList.Enumerate();
         _list.Items.Clear();
-        foreach (var w in _windows) _list.Items.Add($"{w.ExeName,-24} {w.ClassName,-28} {w.Title}");
+        foreach (var w in _windows)
+        {
+            string title = w.Title.Length > 48 ? w.Title[..47] + "…" : w.Title; // 長いタイトルで横スクロールが要らないように
+            _list.Items.Add($"{w.ExeName,-24} {w.ClassName,-28} {title}");
+        }
         if (_list.Items.Count > 0) _list.SelectedIndex = 0;
     }
 

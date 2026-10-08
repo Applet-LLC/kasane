@@ -38,14 +38,12 @@ public sealed class ImeLinkHost : IDisposable
     private readonly AppRuleTick _ruleTick;
     private readonly ActionLayerController _actions;
     private volatile bool _enabled;
-    private volatile bool _sessionActive;
     private bool _disposed;
 
     public ImeLinkHost()
     {
         var config = TrayConfig.Load();
         _enabled = config.ImeLink;
-        _sessionActive = IsActiveConsoleSession() && InputDesktopAccessible();
 
         _arbiter = new AppLayerArbiter(new KbdLayerAppLayerDriver());
         _actions = new ActionLayerController(_arbiter, new KbdLayerDriverAccess());
@@ -60,7 +58,7 @@ public sealed class ImeLinkHost : IDisposable
             new ImeLinkController(new ImeLayerSource(_arbiter)),
             new Win32ImeSource(),
             () => _enabled,
-            () => _sessionActive,
+            () => SessionActive,
             _ruleTick);
 
         _winEventProc = (_, _, _, _, _, _, _) => _service.Poke();
@@ -83,22 +81,30 @@ public sealed class ImeLinkHost : IDisposable
     public HelperConfigStore Store { get; } = new();
 
     /// <summary>
-    /// 自分のセッションがアクティブなコンソールで、ロック画面でもないか。イベントで追う値（<c>_sessionActive</c>）に加えて、
-    /// 入力デスクトップに触れるかをその場で確かめる（150ms だけ覚える）。SessionLock の通知は 0.2〜3.4 秒遅れることがあり、
-    /// その間にドライバのイベント（ロック画面でも出る）で動作が実行されるのを防ぐ。
+    /// 自分のセッションがアクティブなコンソールで、ロック画面でもないか。**イベントに頼らず、その場で確かめる**（150ms だけ覚える）。
+    /// SessionSwitch の通知は、遅れる・届かない・順序が入れ替わることがあり（P4 の試験で、起動から時間のたったトレイで
+    /// ロックが反映されなかった／ロック解除が先に処理されて24分間止まったままだった）、イベントで持った状態は信用できない。
+    /// ロックの判断は、(1) セッションの状態（WTSSessionInfoEx の SessionFlags）、(2) 入力デスクトップに触れるか、
+    /// (3) 前面が LockApp.exe（ロック画面）か、のどれかが「ロック」なら、ロックとする。
     /// </summary>
-    public bool SessionActive => _sessionActive && DesktopAccessibleNow();
+    public bool SessionActive => SessionActiveNow();
 
-    private long _desktopCheckedAt = long.MinValue;
-    private volatile bool _desktopAccessible = true;
+    private long _activeCheckedAt;
+    private volatile bool _activeCache;
+    private volatile bool _activeCached;
 
-    private bool DesktopAccessibleNow()
+    private bool SessionActiveNow()
     {
         long now = Environment.TickCount64;
-        if (now - Volatile.Read(ref _desktopCheckedAt) < 150) return _desktopAccessible;
-        _desktopAccessible = InputDesktopAccessible(); // 競合しても、どちらも正しい値を入れるだけ
-        Volatile.Write(ref _desktopCheckedAt, now);
-        return _desktopAccessible;
+        if (_activeCached && unchecked(now - Volatile.Read(ref _activeCheckedAt)) < 150) return _activeCache;
+        bool console = IsActiveConsoleSession(), wts = WtsSessionLocked(), desktop = !InputDesktopAccessible(), lockApp = LockAppInFront();
+        bool active = console && !wts && !desktop && !lockApp;
+        if (!_activeCached || active != _activeCache)
+            TrayLog.Write($"Session: active={active} (console={console}, wtsLocked={wts}, desktopDenied={desktop}, lockApp={lockApp})"); // 切り替わりだけ記録する（原因の切り分け用）
+        _activeCache = active; // 競合しても、どちらも今の正しい値を入れるだけ
+        Volatile.Write(ref _activeCheckedAt, now);
+        _activeCached = true;
+        return active;
     }
 
     /// <summary>一時停止中か。</summary>
@@ -130,27 +136,10 @@ public sealed class ImeLinkHost : IDisposable
         set { if (_ruleTick.Paused != value) { _ruleTick.Paused = value; _service.Poke(); StateChanged?.Invoke(); } }
     }
 
+    // セッションの変化は、状態を持つのではなく、「今すぐ確かめ直す」きっかけにする。
     private void OnSessionSwitch(object? sender, SessionSwitchEventArgs e)
     {
-        switch (e.Reason)
-        {
-            case SessionSwitchReason.SessionLock:
-            case SessionSwitchReason.ConsoleDisconnect:
-            case SessionSwitchReason.RemoteDisconnect:
-            case SessionSwitchReason.SessionLogoff:
-                _sessionActive = false;
-                break;
-            case SessionSwitchReason.SessionUnlock:
-                _sessionActive = IsActiveConsoleSession();
-                break;
-            case SessionSwitchReason.ConsoleConnect:
-            case SessionSwitchReason.RemoteConnect:
-            case SessionSwitchReason.SessionLogon:
-                // ユーザーを切り替えて戻ったときは、ロック画面が出たまま接続される（SessionLock は来ない）。
-                // ロック画面の間は動かさず、SessionUnlock で戻す。
-                _sessionActive = IsActiveConsoleSession() && InputDesktopAccessible();
-                break;
-        }
+        _activeCached = false;
         _service.Poke();
         StateChanged?.Invoke();
     }
@@ -166,6 +155,42 @@ public sealed class ImeLinkHost : IDisposable
             return true;
         }
         return Marshal.GetLastWin32Error() != ERROR_ACCESS_DENIED;
+    }
+
+    // セッションがロックされているか。Windows 8 以降は SessionFlags が WTS_SESSIONSTATE_LOCK(0) / UNLOCK(1)。
+    // 構造体のずれに備えて、SessionId の位置で配置を確かめてから読む。
+    private static bool WtsSessionLocked()
+    {
+        const int WTSSessionInfoEx = 25;
+        if (!WTSQuerySessionInformationW(IntPtr.Zero, 0xFFFFFFFF, WTSSessionInfoEx, out IntPtr buffer, out uint bytes) || buffer == IntPtr.Zero)
+            return false;
+        try
+        {
+            if (bytes < 24 || Marshal.ReadInt32(buffer, 0) != 1) return false; // Level 1
+            if (!ProcessIdToSessionId((uint)Environment.ProcessId, out uint mine)) return false;
+            int dataOffset = Marshal.ReadInt32(buffer, 4) == (int)mine ? 4 : Marshal.ReadInt32(buffer, 8) == (int)mine ? 8 : -1;
+            if (dataOffset < 0 || bytes < dataOffset + 12) return false;
+            return Marshal.ReadInt32(buffer, dataOffset + 8) == 0;
+        }
+        finally { WTSFreeMemory(buffer); }
+    }
+
+    // 前面のウィンドウが、ロック画面（LockApp.exe）か。
+    private static bool LockAppInFront()
+    {
+        IntPtr hwnd = GetForegroundWindow();
+        if (hwnd == IntPtr.Zero) return false;
+        GetWindowThreadProcessId(hwnd, out uint pid);
+        IntPtr process = OpenProcess(0x1000 /* PROCESS_QUERY_LIMITED_INFORMATION */, false, pid);
+        if (process == IntPtr.Zero) return false;
+        try
+        {
+            var sb = new System.Text.StringBuilder(512);
+            int size = sb.Capacity;
+            return QueryFullProcessImageNameW(process, 0, sb, ref size) &&
+                   sb.ToString().EndsWith("\\LockApp.exe", StringComparison.OrdinalIgnoreCase);
+        }
+        finally { CloseHandle(process); }
     }
 
     private static bool IsActiveConsoleSession() =>
@@ -188,6 +213,14 @@ public sealed class ImeLinkHost : IDisposable
         uint idProcess, uint idThread, uint flags);
     [DllImport("user32.dll")] private static extern bool UnhookWinEvent(IntPtr hook);
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
+    [DllImport("kernel32.dll", SetLastError = true)] private static extern IntPtr OpenProcess(uint access, bool inherit, uint processId);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool QueryFullProcessImageNameW(IntPtr process, uint flags, System.Text.StringBuilder name, ref int size);
+    [DllImport("kernel32.dll")] private static extern bool CloseHandle(IntPtr handle);
+    [DllImport("wtsapi32.dll", SetLastError = true)]
+    private static extern bool WTSQuerySessionInformationW(IntPtr server, uint sessionId, int infoClass, out IntPtr buffer, out uint bytesReturned);
+    [DllImport("wtsapi32.dll")] private static extern void WTSFreeMemory(IntPtr memory);
     [DllImport("user32.dll", SetLastError = true)] private static extern IntPtr OpenInputDesktop(uint flags, bool inherit, uint desiredAccess);
     [DllImport("user32.dll")] private static extern bool CloseDesktop(IntPtr desktop);
     [DllImport("kernel32.dll")] private static extern uint WTSGetActiveConsoleSessionId();

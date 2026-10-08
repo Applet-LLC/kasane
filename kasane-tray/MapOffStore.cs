@@ -43,7 +43,15 @@ public sealed class JsonMapOffStore : IMapOffStore
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
         // 一時ファイルに書いてから置き換える（書きかけのファイルを、読む側や落ちた後の起動が見ないように）。
         var tmp = _path + ".tmp";
-        File.WriteAllText(tmp, JsonSerializer.Serialize(new State { MapOffDevices = uniqIds.Distinct().ToList() }));
-        File.Move(tmp, _path, overwrite: true);
+        try
+        {
+            File.WriteAllText(tmp, JsonSerializer.Serialize(new State { MapOffDevices = uniqIds.Distinct().ToList() }));
+            File.Move(tmp, _path, overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            try { File.Delete(tmp); } catch (Exception) { /* 片付けられなくても、元の失敗を返す */ }
+            throw;
+        }
     }
 }

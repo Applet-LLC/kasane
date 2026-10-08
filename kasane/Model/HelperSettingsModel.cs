@@ -34,7 +34,7 @@ public sealed class HelperSettingsModel
         Device = new HelperConfig();
         if (uniqId != 0)
         {
-            if (HelperConfig.TryLoad(DevicePath, out var loaded, out var error)) Device = Clone(loaded);
+            if (HelperConfig.TryLoad(HelperConfig.DevicePath(uniqId, baseDirectory), out var loaded, out var error)) Device = Clone(loaded);
             else DeviceLoadError = error;
         }
         _deviceSnapshot = Device.ToJson();

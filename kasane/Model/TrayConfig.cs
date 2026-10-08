@@ -44,7 +44,16 @@ public sealed class TrayConfig
         path ??= DefaultPath;
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         string tmp = path + ".tmp"; // トレイが読む途中の、書きかけのファイルを見ないように
-        File.WriteAllText(tmp, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
-        File.Move(tmp, path, overwrite: true);
+        try
+        {
+            var options = new JsonSerializerOptions { WriteIndented = true, DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull };
+            File.WriteAllText(tmp, JsonSerializer.Serialize(this, options));
+            File.Move(tmp, path, overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            try { File.Delete(tmp); } catch (Exception) { /* 片付けられなくても、元の失敗を返す */ }
+            throw;
+        }
     }
 }

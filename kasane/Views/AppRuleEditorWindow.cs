@@ -35,7 +35,8 @@ public sealed class AppRuleEditorWindow : Window
     {
         Title = "前面のアプリの規則";
         Width = 760;
-        Height = 700;
+        SizeToContent = SizeToContent.Height;
+        MaxHeight = 800;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         ShowInTaskbar = false;
 
