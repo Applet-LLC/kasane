@@ -125,7 +125,7 @@ public sealed class KeyHookService : IDisposable
             if (up)
             {
                 _swallowed.Remove(scan);
-                _dispatch(pressed with { IsBreak = true, IsRepeat = false });
+                if (ActionExecutor.NeedsRelease(pressed.Body)) _dispatch(pressed with { IsBreak = true, IsRepeat = false });
             }
             else if (pressed.Body.Repeat) _dispatch(pressed with { IsBreak = false, IsRepeat = true });
             return true; // 押している間のオートリピートも、解放も飲み込む

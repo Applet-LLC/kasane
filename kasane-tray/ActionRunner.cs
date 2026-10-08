@@ -17,9 +17,12 @@ namespace Kasane.Tray;
 /// </summary>
 public sealed class ActionRunner : IDisposable
 {
-    private const int QueueCapacity = 64;
+    // 押下は 64 件で打ち切る。解放は、押下が入ったのに捨てられると（マウスのボタンを押したままになるなど）困るので、
+    // その分の余裕（256 件まで）を持つ。
+    private const int PressCapacity = 64;
+    private const int TotalCapacity = 256;
 
-    private readonly BlockingCollection<ActionRequest> _queue = new(QueueCapacity);
+    private readonly BlockingCollection<ActionRequest> _queue = new(TotalCapacity);
     private readonly Func<HelperActionBody, bool> _allow;
     private readonly Thread _thread;
     private readonly CancellationTokenSource _cts = new();
@@ -40,7 +43,8 @@ public sealed class ActionRunner : IDisposable
         if (_disposed) return;
         try
         {
-            if (!_queue.TryAdd(request)) TrayLog.Write("ActionRunner: キューが満杯のため、動作を捨てました");
+            if ((!request.IsBreak && _queue.Count >= PressCapacity) || !_queue.TryAdd(request))
+                TrayLog.Write("ActionRunner: キューが満杯のため、動作を捨てました");
         }
         catch (InvalidOperationException) { /* 終了中 */ }
     }

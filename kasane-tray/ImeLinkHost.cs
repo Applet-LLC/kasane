@@ -23,6 +23,8 @@ public sealed class ImeLinkHost : IDisposable
     private const uint EVENT_OBJECT_NAMECHANGE = 0x800C;
     private const int OBJID_WINDOW = 0;
     private const uint WINEVENT_OUTOFCONTEXT = 0x0000;
+    private const uint DESKTOP_SWITCHDESKTOP = 0x0100;
+    private const int ERROR_ACCESS_DENIED = 5;
 
     private delegate void WinEventProc(IntPtr hook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint threadId, uint eventTime);
 
@@ -43,7 +45,7 @@ public sealed class ImeLinkHost : IDisposable
     {
         var config = TrayConfig.Load();
         _enabled = config.ImeLink;
-        _sessionActive = IsActiveConsoleSession();
+        _sessionActive = IsActiveConsoleSession() && InputDesktopAccessible();
 
         _arbiter = new AppLayerArbiter(new KbdLayerAppLayerDriver());
         _actions = new ActionLayerController(_arbiter, new KbdLayerDriverAccess());
@@ -123,14 +125,31 @@ public sealed class ImeLinkHost : IDisposable
                 _sessionActive = false;
                 break;
             case SessionSwitchReason.SessionUnlock:
+                _sessionActive = IsActiveConsoleSession();
+                break;
             case SessionSwitchReason.ConsoleConnect:
             case SessionSwitchReason.RemoteConnect:
             case SessionSwitchReason.SessionLogon:
-                _sessionActive = IsActiveConsoleSession();
+                // ユーザーを切り替えて戻ったときは、ロック画面が出たまま接続される（SessionLock は来ない）。
+                // ロック画面の間は動かさず、SessionUnlock で戻す。
+                _sessionActive = IsActiveConsoleSession() && InputDesktopAccessible();
                 break;
         }
         _service.Poke();
         StateChanged?.Invoke();
+    }
+
+    // 入力を受けるデスクトップに触れるか。ロック画面・UAC の画面（Winlogon のデスクトップ）の間は、通常のユーザーには
+    // アクセス拒否になる。ほかのエラーは「触れる」とみなす（判定できないときに、動作を止めたままにしないため）。
+    private static bool InputDesktopAccessible()
+    {
+        IntPtr desktop = OpenInputDesktop(0, false, DESKTOP_SWITCHDESKTOP);
+        if (desktop != IntPtr.Zero)
+        {
+            CloseDesktop(desktop);
+            return true;
+        }
+        return Marshal.GetLastWin32Error() != ERROR_ACCESS_DENIED;
     }
 
     private static bool IsActiveConsoleSession() =>
@@ -153,6 +172,8 @@ public sealed class ImeLinkHost : IDisposable
         uint idProcess, uint idThread, uint flags);
     [DllImport("user32.dll")] private static extern bool UnhookWinEvent(IntPtr hook);
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll", SetLastError = true)] private static extern IntPtr OpenInputDesktop(uint flags, bool inherit, uint desiredAccess);
+    [DllImport("user32.dll")] private static extern bool CloseDesktop(IntPtr desktop);
     [DllImport("kernel32.dll")] private static extern uint WTSGetActiveConsoleSessionId();
     [DllImport("kernel32.dll")] private static extern bool ProcessIdToSessionId(uint processId, out uint sessionId);
 }

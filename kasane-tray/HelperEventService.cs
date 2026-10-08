@@ -11,12 +11,10 @@ namespace Kasane.Tray;
 ///    設定が変わったら <see cref="Poke"/> で見直す。
 ///  - 初回は「今より後」から受ける（<see cref="KbdLayerClient.HelperSeqLatest"/>）。押し出された分（Dropped）はログに残す。
 ///  - ドライバが古くて IOCTL を知らなければ（ERROR_INVALID_FUNCTION）、止めて <see cref="Unsupported"/> を true にする。
-///  - 押下で古すぎるもの（<see cref="StaleMs"/> より前）は渡さない。解放は常に渡す（Hold の取りこぼしを防ぐ）。
+///  - 押下で古すぎるもの（<see cref="HelperEventTiming.StaleMs"/> より前。比べ方は <see cref="HelperEventTiming.IsStale"/>）は渡さない。解放は常に渡す（Hold の取りこぼしを防ぐ）。
 /// </summary>
 public sealed class HelperEventService : IDisposable
 {
-    public const long StaleMs = 5000;
-
     private const int ErrorOperationAborted = 995;
     private const uint ThreadTerminate = 0x0001;
 
@@ -72,7 +70,7 @@ public sealed class HelperEventService : IDisposable
                     if (batch.Dropped > 0) TrayLog.Write($"HelperEvents: {batch.Dropped} 件が押し出されました");
                     foreach (var e in batch.Events)
                     {
-                        if (!e.IsBreak && (uint)(Environment.TickCount64 - e.TimeMs) > StaleMs) continue;
+                        if (!e.IsBreak && HelperEventTiming.IsStale(Environment.TickCount64, e.TimeMs)) continue;
                         try { _onEvent(e); }
                         catch (Exception ex) { TrayLog.Write("HelperEvents: " + ex); }
                     }

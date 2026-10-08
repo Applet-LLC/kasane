@@ -457,6 +457,58 @@ public class HelperActionsTests
         Assert.Single(env.Log);
     }
 
+    [Fact]
+    public void AppLayer_WithoutLayers_LogsOnPressOnly()
+    {
+        var env = new FakeEnv();
+        var body = new HelperActionBody { Type = HelperActionBody.AppLayer, Layers = new() };
+        var ex = new ActionExecutor(env);
+        ex.Execute(Press(body));
+        ex.Execute(Release(body));
+        Assert.Single(env.Log);
+    }
+
+    [Fact]
+    public void NeedsRelease_OnlyForReleaseStepsAndHold()
+    {
+        Assert.False(ActionExecutor.NeedsRelease(new HelperActionBody { Type = HelperActionBody.Launch }));
+        Assert.False(ActionExecutor.NeedsRelease(new HelperActionBody { Type = HelperActionBody.Open }));
+        Assert.False(ActionExecutor.NeedsRelease(new HelperActionBody { Type = HelperActionBody.PauseToggle }));
+        Assert.False(ActionExecutor.NeedsRelease(new HelperActionBody { Type = HelperActionBody.Sequence, Steps = new() { new HelperStep { Key = "KC_A" } } }));
+        Assert.False(ActionExecutor.NeedsRelease(new HelperActionBody { Type = HelperActionBody.Sequence, ReleaseSteps = new() }));
+        Assert.True(ActionExecutor.NeedsRelease(new HelperActionBody { Type = HelperActionBody.Sequence, ReleaseSteps = new() { new HelperStep { Key = "KC_A" } } }));
+        Assert.False(ActionExecutor.NeedsRelease(new HelperActionBody { Type = HelperActionBody.AppLayer, LayerOp = "Toggle" }));
+        Assert.True(ActionExecutor.NeedsRelease(new HelperActionBody { Type = HelperActionBody.AppLayer, LayerOp = "hold" }));
+        Assert.False(ActionExecutor.NeedsRelease(new HelperActionBody { Type = "Teleport" }));
+    }
+
+    // ------------------------------------------------------------------
+    // ヘルパーイベントの時刻
+    // ------------------------------------------------------------------
+
+    [Theory]
+    [InlineData(4_700_796L, 4_700_808u, false)]   // 実機: ドライバの時刻が 12ms 先（TickCount64 の刻みの差）。古くない
+    [InlineData(4_700_890L, 4_700_888u, false)]   // 2ms 前
+    [InlineData(10_000L, 5_000u, false)]          // ちょうど StaleMs（5000ms）は、まだ古くない
+    [InlineData(10_001L, 5_000u, true)]           // 5001ms 前は古い
+    [InlineData(10_000L, 0u, true)]
+    [InlineData(10_000L, 10_000u, false)]
+    [InlineData(10_000L, 20_000u, false)]         // 10 秒先でも、古くはない（未来のイベントは通す）
+    public void IsStale_UsesTheSignedDifference(long tick, uint timeMs, bool expected)
+    {
+        Assert.Equal(expected, HelperEventTiming.IsStale(tick, timeMs));
+    }
+
+    [Fact]
+    public void IsStale_SurvivesThe32BitWrapAfter49Days()
+    {
+        long wrapped = (1L << 32) + 100;                 // TickCount64 は 64bit、TimeMs は 32bit で巻き戻っている
+        Assert.False(HelperEventTiming.IsStale(wrapped, 90));
+        Assert.False(HelperEventTiming.IsStale(wrapped, 112));
+        Assert.True(HelperEventTiming.IsStale(wrapped, 0xFFFFFFFFu - 10_000));
+        Assert.False(HelperEventTiming.IsStale((1L << 32) - 5, 3)); // 巻き戻る直前の TickCount64 と、巻き戻った直後の時刻
+    }
+
     // ------------------------------------------------------------------
     // ActionLayerController
     // ------------------------------------------------------------------

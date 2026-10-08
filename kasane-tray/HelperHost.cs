@@ -66,7 +66,7 @@ public sealed class HelperHost : IDisposable
     {
         var body = HelperActionResolver.Resolve(_ime.Store.Current, e.UniqId, e.CustomId);
         if (body == null) return;
-        if (!e.IsBreak && !Allow(body)) return;
+        if (e.IsBreak ? !ActionExecutor.NeedsRelease(body) : !Allow(body)) return;
         _runner.Enqueue(new ActionRequest(body, e.UniqId, (ushort)(e.UniqId >> 16), e.IsBreak, e.IsRepeat));
     }
 

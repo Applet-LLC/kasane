@@ -280,6 +280,25 @@ public static class HelperActionResolver
     }
 }
 
+/// <summary>ドライバのヘルパーイベントの時刻（TimeMs）の扱い。</summary>
+public static class HelperEventTiming
+{
+    /// <summary>押下のイベントを、これより古ければ実行しない（ミリ秒）。</summary>
+    public const long StaleMs = 5000;
+
+    /// <summary>
+    /// イベントが古すぎるか。TimeMs はドライバの時刻（起動からのミリ秒を 32bit に丸めたもの）で、ユーザーモードの
+    /// <c>Environment.TickCount64</c>（約15.6ms刻み）より数〜十数 ms 先に進むことがある。そのため、32bit の差を
+    /// 符号付きで見る（負 = 新しい）。符号なしで引くと、少し先の時刻が 4294967284 付近に巻き戻って「古い」と判定され、
+    /// 押下がほぼ毎回捨てられる。32bit のままなので、起動から 49.7 日を超えて巻き戻っても正しい。
+    /// </summary>
+    public static bool IsStale(long tickCount64, uint timeMs)
+    {
+        int age = unchecked((int)((uint)tickCount64 - timeMs));
+        return age > StaleMs;
+    }
+}
+
 public enum LayerOp { On, Off, Toggle, Hold }
 
 public static class LayerOps
@@ -321,6 +340,17 @@ public sealed class ActionExecutor
 
     public ActionExecutor(IActionEnvironment env) => _env = env;
 
+    /// <summary>
+    /// キーを離したときに、実行することがあるか（無ければ、解放を実行の列に積まない）。
+    /// <see cref="HelperActionBody.ReleaseSteps"/> のある Sequence と、Hold の AppLayer だけ。
+    /// </summary>
+    public static bool NeedsRelease(HelperActionBody body) => body.Type switch
+    {
+        HelperActionBody.Sequence => body.ReleaseSteps is { Count: > 0 },
+        HelperActionBody.AppLayer => LayerOps.Parse(body.LayerOp) == LayerOp.Hold,
+        _ => false,
+    };
+
     public void Execute(ActionRequest r)
     {
         var body = r.Body;
@@ -344,7 +374,11 @@ public sealed class ActionExecutor
             {
                 var op = LayerOps.Parse(body.LayerOp);
                 var layers = (body.Layers ?? new List<int>()).Where(l => l is >= 0 and < 16).Distinct().ToList();
-                if (layers.Count == 0) { _env.Log("AppLayer: Layers が空です"); return; }
+                if (layers.Count == 0)
+                {
+                    if (!r.IsBreak) _env.Log("AppLayer: Layers が空です");
+                    return;
+                }
                 if (op == LayerOp.Hold)
                 {
                     if (r.IsRepeat) return;
