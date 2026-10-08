@@ -82,8 +82,24 @@ public sealed class ImeLinkHost : IDisposable
     /// <summary>読み込んだヘルパー設定（前面のアプリの規則・HLP の動作・キーフックのトリガー）。</summary>
     public HelperConfigStore Store { get; } = new();
 
-    /// <summary>自分のセッションがアクティブなコンソールか（ロック・ユーザー切り替え・リモート接続中は false）。</summary>
-    public bool SessionActive => _sessionActive;
+    /// <summary>
+    /// 自分のセッションがアクティブなコンソールで、ロック画面でもないか。イベントで追う値（<c>_sessionActive</c>）に加えて、
+    /// 入力デスクトップに触れるかをその場で確かめる（150ms だけ覚える）。SessionLock の通知は 0.2〜3.4 秒遅れることがあり、
+    /// その間にドライバのイベント（ロック画面でも出る）で動作が実行されるのを防ぐ。
+    /// </summary>
+    public bool SessionActive => _sessionActive && DesktopAccessibleNow();
+
+    private long _desktopCheckedAt = long.MinValue;
+    private volatile bool _desktopAccessible = true;
+
+    private bool DesktopAccessibleNow()
+    {
+        long now = Environment.TickCount64;
+        if (now - Volatile.Read(ref _desktopCheckedAt) < 150) return _desktopAccessible;
+        _desktopAccessible = InputDesktopAccessible(); // 競合しても、どちらも正しい値を入れるだけ
+        Volatile.Write(ref _desktopCheckedAt, now);
+        return _desktopAccessible;
+    }
 
     /// <summary>一時停止中か。</summary>
     public bool IsPaused => _ruleTick.Paused;
