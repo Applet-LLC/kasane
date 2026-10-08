@@ -250,6 +250,44 @@ public class AppRuleControllerTests
         Assert.Empty(_store.Saved);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(100)]
+    [InlineData(250)]
+    [InlineData(500)]
+    public void MapOff_ReturningQuicklyToTheWindow_TurnsOffAgain(int gapMs)
+    {
+        // P2 の所見1: 離れて 1 秒以内に戻ると、控えの一覧が古くて「ユーザーが止めた」と取り違え、OFF にならなかった。
+        var c = Make(Device(Kb1));
+        var cfg = Rules(new AppLayerRule { Match = { Exe = "game.exe" }, MapOff = true });
+
+        Settle(c, Window(@"C:\g\game.exe"), cfg);
+        _now += AppRuleController.DeviceRefreshIntervalMs + 200;
+        c.Tick(Window(@"C:\g\game.exe"), cfg, true, false); // 一覧が「OFF」で更新される
+        Settle(c, Window(@"C:\x\other.exe"), cfg);
+        Assert.True(_devices.Enabled(Kb1));
+
+        _now += gapMs; // 一覧はまだ更新されない（古い「OFF」のまま）
+        Settle(c, Window(@"C:\g\game.exe"), cfg);
+        Assert.False(_devices.Enabled(Kb1));
+        Assert.Contains(Kb1, c.MapOffDevices);
+    }
+
+    [Fact]
+    public void MapOff_RapidBackAndForth_EndsInTheStateOfTheFrontWindow()
+    {
+        var c = Make(Device(Kb1));
+        var cfg = Rules(new AppLayerRule { Match = { Exe = "game.exe" }, MapOff = true });
+        for (int i = 0; i < 6; i++)
+        {
+            Settle(c, Window(@"C:\g\game.exe"), cfg);
+            Assert.False(_devices.Enabled(Kb1));
+            Settle(c, Window(@"C:\x\other.exe"), cfg);
+            Assert.True(_devices.Enabled(Kb1));
+        }
+        Assert.Empty(_store.Saved);
+    }
+
     [Fact]
     public void MapOff_DoesNotTouchKeyboardsAlreadyOff()
     {

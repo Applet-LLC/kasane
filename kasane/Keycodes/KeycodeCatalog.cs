@@ -66,8 +66,8 @@ public static class KeycodeCatalog
         ["KC_MSTP"] = "Stop", ["KC_MNXT"] = "Next", ["KC_MPRV"] = "Prev", ["KC_CALC"] = "Calc",
         ["KC_WSCH"] = "Search", ["KC_WHOM"] = "WebHome", ["KC_WBAK"] = "Back", ["KC_WFWD"] = "Fwd",
         ["KC_WSTP"] = "WebStop", ["KC_WREF"] = "Reload", ["KC_WFAV"] = "Fav", ["KC_MAIL"] = "Mail",
-        ["KC_MSEL"] = "Media", ["KC_MYCM"] = "PC", ["KC_SLEP"] = "⚠Sleep", ["KC_WAKE"] = "⚠Wake",
-        ["KC_PWR"] = "⚠Power",
+        ["KC_MSEL"] = "Media", ["KC_MYCM"] = "PC", ["KC_SLEP"] = "⚠Slp", ["KC_WAKE"] = "⚠Wake",
+        ["KC_PWR"] = "⚠Pwr",
     };
 
     // 電源キー（KC_PWR / KC_SLEP / KC_WAKE）のスキャンコード。押すとPCがシャットダウン・スリープしうる。
