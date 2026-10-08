@@ -174,6 +174,21 @@ public sealed class AppRuleController
         catch (Exception ex) when (IsDriverFailure(ex)) { }
     }
 
+    // 一覧を、間隔を待たずに取り直す（取れなければ前の一覧のまま）。
+    private void RefreshDevicesNow()
+    {
+        _lastDeviceRefresh = _nowMs();
+        try { _deviceList = _devices.ListDevices(); }
+        catch (Exception ex) when (IsDriverFailure(ex)) { }
+    }
+
+    // 自分で ON/OFF を変えたら、次に一覧を取り直すまでの間も合うように、控えの一覧を直す。
+    private void SetCachedEnabled(uint id, bool enabled)
+    {
+        int i = _deviceList.FindIndex(d => d.UniqId == id);
+        if (i >= 0) _deviceList[i] = _deviceList[i] with { Enabled = enabled };
+    }
+
     // 起動の前に（前回のトレイが落ちて）OFF のまま残ったキーボードを、最初の 1 回だけ戻す。
     private void RecoverMapOffOnce()
     {
@@ -207,12 +222,16 @@ public sealed class AppRuleController
 
     private void TurnMapOff(uint id)
     {
+        // 「すでに OFF か」は、今の実際の状態で見る。1 秒ごとの一覧は、直前に自分が戻した台を古いまま（OFF）と見て、
+        // 「ユーザーが止めた」と取り違える（MapOff の窓を離れてすぐ戻ると OFF にならない、P2 の所見1）。
+        RefreshDevicesNow();
         var device = _deviceList.FirstOrDefault(d => d.UniqId == id);
         if (device == null || !device.HasLayerMap || !device.Enabled) return; // すでに OFF（ユーザーや一時停止が止めた）なら触らない
         try
         {
             _devices.SetEnabled(id, false);
             _mapOff.Add(id);
+            SetCachedEnabled(id, false);
         }
         catch (Exception ex) when (IsDriverFailure(ex)) { }
     }
@@ -224,6 +243,7 @@ public sealed class AppRuleController
         {
             _devices.SetEnabled(id, true);
             _mapOff.Remove(id);
+            SetCachedEnabled(id, true);
         }
         catch (Exception ex) when (IsDriverFailure(ex))
         {
