@@ -93,9 +93,18 @@ public sealed class ImeLinkHost : IDisposable
     private volatile bool _activeCache;
     private volatile bool _activeCached;
 
+    private readonly object _activeLock = new();
+
     private bool SessionActiveNow()
     {
         long now = Environment.TickCount64;
+        if (_activeCached && unchecked(now - Volatile.Read(ref _activeCheckedAt)) < 150) return _activeCache;
+        lock (_activeLock) return RecheckSessionActive(now);
+    }
+
+    private bool RecheckSessionActive(long now)
+    {
+        // 別のスレッドが先に確かめ終えていたら、それを使う（切り替わりの記録が、二重にならないように）。
         if (_activeCached && unchecked(now - Volatile.Read(ref _activeCheckedAt)) < 150) return _activeCache;
         bool console = IsActiveConsoleSession(), wts = WtsSessionLocked(), desktop = !InputDesktopAccessible(), lockApp = LockAppInFront();
         bool active = console && !wts && !desktop && !lockApp;
