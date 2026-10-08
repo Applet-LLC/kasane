@@ -186,6 +186,9 @@ public sealed class ImportExportWindow : Window
         p.Children.Add(_exMeasured);
 
         (startScope switch { PortableScope.All => _exAll, PortableScope.Layer => _exLayer, _ => _exKeyboard }).IsChecked = true;
+        _exLayerCombo.IsEnabled = _exLayer.IsChecked == true; // レイヤー1枚のときだけ選べる
+        _exLayer.Checked += (_, _) => _exLayerCombo.IsEnabled = true;
+        _exLayer.Unchecked += (_, _) => _exLayerCombo.IsEnabled = false;
 
         var go = new Button { Name = "ExportDoButton", Content = "書き出す...", Width = 110, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 10, 0, 0) };
         go.Click += (_, _) => DoExport();
@@ -388,7 +391,7 @@ public sealed class ImportExportWindow : Window
         });
 
         var targets = new List<Target> { new(null, "(読み込まない)") };
-        foreach (var d in _devices) if (d.UniqId != 0) targets.Add(new Target(d.UniqId, $"{d.UniqId:X8}  {d.DisplayName}"));
+        foreach (var d in _devices) if (d.UniqId != 0) targets.Add(new Target(d.UniqId, d.DisplayName)); // DisplayName は UniqId から始まる
         foreach (var s in PortableService.LoadAll(null, new PortableReport()))
             if (targets.All(t => t.Id != s.UniqId)) targets.Add(new Target(s.UniqId, $"{s.UniqId:X8}  (保存済みの設定)"));
         // ファイルの UniqId が候補に無くても、そのまま新規に作れるようにする。
@@ -399,7 +402,7 @@ public sealed class ImportExportWindow : Window
         for (int i = 0; i < file.Keyboards.Count; i++)
         {
             var kb = file.Keyboards[i];
-            var combo = new ComboBox { Name = $"ImportMapCombo{i}", Width = 340, ItemsSource = targets, Margin = new Thickness(6, 0, 0, 0) };
+            var combo = new ComboBox { Name = $"ImportMapCombo{i}", Width = 430, ItemsSource = targets, Margin = new Thickness(6, 0, 0, 0) };
             combo.SelectedItem = targets.First(t => t.Id == auto[i].TargetUniqId);
             _mapCombos.Add(combo);
             var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
@@ -421,6 +424,8 @@ public sealed class ImportExportWindow : Window
         void Set(CheckBox c, Func<PortableKeyboard, bool> has)
         {
             bool avail = all ? file.Keyboards.Any(has) : SelectedSource is { } kb && has(kb);
+            if (!avail) c.IsChecked = false;
+            else if (!c.IsEnabled && c != _imMeasured) c.IsChecked = true;
             c.IsEnabled = avail;
         }
         Set(_imLayers, k => k.Layers is { Count: > 0 });
@@ -432,7 +437,10 @@ public sealed class ImportExportWindow : Window
         Set(_imFeatures, k => k.EnabledFeatures != null);
         Set(_imNicola, k => k.Nicola != null);
         Set(_imMeasured, k => k.MeasuredScanCodes is { Count: > 0 });
-        _imHelper.IsEnabled = all ? file.Tray?.Helper != null || file.Keyboards.Any(k => k.Helper != null) : SelectedSource?.Helper != null;
+        bool helperAvail = all ? file.Tray?.Helper != null || file.Keyboards.Any(k => k.Helper != null) : SelectedSource?.Helper != null;
+        if (!helperAvail) _imHelper.IsChecked = false;
+        else if (!_imHelper.IsEnabled) _imHelper.IsChecked = true;
+        _imHelper.IsEnabled = helperAvail;
     }
 
     private ImportOptions BuildOptions()
@@ -486,6 +494,7 @@ public sealed class ImportExportWindow : Window
 
         if (res.Report.HasErrors)
         {
+            res.Report.Lines.RemoveAll(l => l.Level != ReportLevel.Error); // 失敗したときは、理由だけを見せる（「足しました」などの行は紛らわしい）
             ShowReport(_imReport, res.Report, "読み込めません。");
             return;
         }

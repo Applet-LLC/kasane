@@ -125,7 +125,7 @@ public class PortableTests : IDisposable
         Assert.Equal("MO(1)", target.Layers[0][SlotOf(small, "KC_KP_7")]);
         Assert.Equal("KC_A", target.Layers[0][SlotOf(small, "KC_A")]); // ファイルに無いキーは、そのキー本来の動作のまま
         Assert.Contains(res.Report.Lines, l => l.Level == ReportLevel.Warning && l.Text.Contains("レイアウトに無いキー") && l.Text.Contains("SC_0045"));
-        Assert.Empty(res.Report.Lines.Where(l => l.Level == ReportLevel.Error));
+        Assert.DoesNotContain(res.Report.Lines, l => l.Level == ReportLevel.Error);
     }
 
     [Fact]
@@ -229,7 +229,7 @@ public class PortableTests : IDisposable
         var kb = PortableExporter.ExportLayer(Sample(), Ten, 1, SampleHelper(), null, report);
 
         Assert.Single(kb.Layers!);
-        Assert.Equal(1, kb.Layers[0].Index);
+        Assert.Equal(1, kb.Layers![0].Index);
         Assert.Equal(new[] { 2 }, kb.TapDances!.Select(t => t.Id));
         Assert.Equal(new[] { 3 }, kb.Macros!.Select(m => m.Id)); // タップダンスから参照されるマクロ
         Assert.Equal(new[] { 7 }, kb.Helper!.Actions.Select(a => a.Id));

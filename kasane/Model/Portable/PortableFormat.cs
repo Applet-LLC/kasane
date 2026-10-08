@@ -143,7 +143,10 @@ public static class PortableIO
         }
         catch (JsonException ex)
         {
-            error = ex.Message;
+            // .NET のメッセージは英語なので、場所だけを日本語で添える。
+            error = ex.LineNumber is long line
+                ? $"JSON として読めません（{line + 1}行目付近）。kasane が書き出したファイルを選んでください"
+                : "JSON として読めません。kasane が書き出したファイルを選んでください";
             return false;
         }
     }
