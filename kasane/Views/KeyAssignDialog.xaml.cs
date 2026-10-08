@@ -186,8 +186,7 @@ public partial class KeyAssignDialog : Window
         {
             Text = "HLP(Id) を割り当てたキーは、キー自体は何も出さず、トレイ（kasane-tray）が動作を実行します" +
                    "（プログラムの起動・文字列の入力・マウス操作・レイヤーの操作など）。動作はこのキーボード用か、全キーボード共通です。\n" +
-                   "HLP は、対応したドライバとトレイが動いているときだけ働きます。古いドライバでは何も起きません" +
-                   "（F13〜F24 などのトリガーは、設定の「ヘルパー動作」タブで作れます）。",
+                   "HLP は、トレイ（kasane-tray）が動いているときだけ働きます。",
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, 8),
         });
