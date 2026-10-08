@@ -29,6 +29,7 @@
     <Compile Include="..\kasane\Interop\NativeMethods.cs" Link="Shared\NativeMethods.cs" />
     <Compile Include="..\kasane\Keycodes\KeycodeTable.cs" Link="Shared\KeycodeTable.cs" />
     <Compile Include="..\kasane\Model\TrayConfig.cs" Link="Shared\TrayConfig.cs" />
+    <Compile Include="..\kasane\Model\HelperConfig.cs" Link="Shared\HelperConfig.cs" />
     <EmbeddedResource Include="..\kasane-license\Resources\app.ico" Link="app.ico" />
   </ItemGroup>
 

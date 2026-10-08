@@ -1,6 +1,20 @@
 namespace Kasane.Tray;
 
 /// <summary>
+/// IME連動と同じスレッドで、一緒に動かすもの（前面のアプリの規則など。2026-10-08）。アプリ管理レイヤーのハンドルを
+/// 1つのスレッドだけで使うため、IME連動のスレッドに相乗りさせる。
+/// </summary>
+public interface ILinkedTick
+{
+    /// <summary>毎回の周期（IME連動のTickの後）で呼ぶ。</summary>
+    void Tick(bool sessionActive);
+    /// <summary>次に呼んでほしいまでの時間（ms）。急がなければ null。</summary>
+    long? DueInMs { get; }
+    /// <summary>スレッドを止める前に呼ぶ（立てたものを戻す）。</summary>
+    void Shutdown();
+}
+
+/// <summary>
 /// IME連動を動かす専用スレッド。UIスレッドを止めないため（IMEウィンドウへの問い合わせは、相手が応答しないと最大100ms待つ）と、
 /// ドライバのハンドルをこのスレッドだけで使うため。
 ///  - 連動していてNICOLAの対象があるときは100msごとにIMEの状態を読む。そうでなければ1秒ごと（読まない）。
@@ -15,14 +29,17 @@ public sealed class ImeLinkService : IDisposable
     private readonly IImeSource _source;
     private readonly Func<bool> _enabled;
     private readonly Func<bool> _sessionActive;
+    private readonly ILinkedTick? _linked;
     private readonly AutoResetEvent _poke = new(false);
     private readonly Thread _thread;
     private volatile bool _stop;
     private bool _disposed;
     private ImeLinkStatus _status = ImeLinkStatus.Off;
 
-    public ImeLinkService(ImeLinkController controller, IImeSource source, Func<bool> enabled, Func<bool> sessionActive)
+    public ImeLinkService(ImeLinkController controller, IImeSource source, Func<bool> enabled, Func<bool> sessionActive,
+                          ILinkedTick? linked = null)
     {
+        _linked = linked;
         _controller = controller;
         _source = source;
         _enabled = enabled;
@@ -55,8 +72,20 @@ public sealed class ImeLinkService : IDisposable
                 Thread.Sleep(1000);
             }
 
+            if (_linked != null)
+            {
+                try { _linked.Tick(_sessionActive()); }
+                catch (Exception ex)
+                {
+                    TrayLog.Write("LinkedTick: " + ex);
+                    Thread.Sleep(1000);
+                }
+            }
+
             var s = Status;
-            _poke.WaitOne(s.Linked && s.TargetCount > 0 ? ActivePollMs : IdlePollMs);
+            long wait = s.Linked && s.TargetCount > 0 ? ActivePollMs : IdlePollMs;
+            if (_linked?.DueInMs is long due) wait = Math.Clamp(due, 10, wait);
+            _poke.WaitOne((int)wait);
         }
     }
 
@@ -67,6 +96,8 @@ public sealed class ImeLinkService : IDisposable
         _stop = true;
         _poke.Set();
         _thread.Join(2000);
+        try { _linked?.Shutdown(); } // 前面のアプリの規則で立てたレイヤー・OFFにしたキーボードを戻す
+        catch (Exception ex) { TrayLog.Write("LinkedTick.Shutdown: " + ex); }
         _controller.Shutdown(); // 立てていたレイヤーを戻す（ハンドルを閉じる）
         _poke.Dispose();
     }

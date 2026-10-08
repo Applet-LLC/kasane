@@ -30,6 +30,8 @@
     <Compile Include="..\kasane-tray\PauseStateStore.cs" Link="Tray\PauseStateStore.cs" />
     <Compile Include="..\kasane-tray\ImeLinkController.cs" Link="Tray\ImeLinkController.cs" />
     <Compile Include="..\kasane-tray\Win32ImeSource.cs" Link="Tray\Win32ImeSource.cs" />
+    <Compile Include="..\kasane-tray\AppLayerArbiter.cs" Link="Tray\AppLayerArbiter.cs" />
+    <Compile Include="..\kasane-tray\AppRuleController.cs" Link="Tray\AppRuleController.cs" />
   </ItemGroup>
 
   <ItemGroup>
