@@ -34,6 +34,7 @@ public sealed class ImeLinkHost : IDisposable
     private readonly IntPtr _nameChangeHook;
     private readonly AppLayerArbiter _arbiter;
     private readonly AppRuleTick _ruleTick;
+    private readonly ActionLayerController _actions;
     private volatile bool _enabled;
     private volatile bool _sessionActive;
     private bool _disposed;
@@ -45,10 +46,13 @@ public sealed class ImeLinkHost : IDisposable
         _sessionActive = IsActiveConsoleSession();
 
         _arbiter = new AppLayerArbiter(new KbdLayerAppLayerDriver());
+        _actions = new ActionLayerController(_arbiter, new KbdLayerDriverAccess());
         _ruleTick = new AppRuleTick(
             new AppRuleController(_arbiter, new KbdLayerDriverAccess(), new JsonMapOffStore()),
-            new ForegroundInfo());
-        _ruleTick.Reload(config);
+            _actions,
+            new ForegroundInfo(),
+            Store);
+        Store.Reload(config);
 
         _service = new ImeLinkService(
             new ImeLinkController(new ImeLayerSource(_arbiter)),
@@ -73,18 +77,39 @@ public sealed class ImeLinkHost : IDisposable
 
     public ImeLinkStatus Status => _service.Status;
 
-    /// <summary>tray.json と helper.json を読み直す（エディタの設定画面での変更を、数秒で反映するため、トレイのタイマーから呼ぶ）。</summary>
-    public void ReloadConfig()
+    /// <summary>読み込んだヘルパー設定（前面のアプリの規則・HLP の動作・キーフックのトリガー）。</summary>
+    public HelperConfigStore Store { get; } = new();
+
+    /// <summary>自分のセッションがアクティブなコンソールか（ロック・ユーザー切り替え・リモート接続中は false）。</summary>
+    public bool SessionActive => _sessionActive;
+
+    /// <summary>一時停止中か。</summary>
+    public bool IsPaused => _ruleTick.Paused;
+
+    /// <summary>セッションの状態か一時停止の状態が変わった（キーフックを見直すため）。UI スレッドで起こる。</summary>
+    public event Action? StateChanged;
+
+    /// <summary>ヘルパー動作（AppLayer）のレイヤー操作を頼む（どのスレッドからでもよい）。反映は IME 連動のスレッド。</summary>
+    public void RequestLayer(LayerRequest request)
+    {
+        _actions.Request(request);
+        _service.Poke();
+    }
+
+    /// <summary>tray.json と helper.json を読み直す（エディタの設定画面での変更を、数秒で反映するため、トレイのタイマーから呼ぶ）。ヘルパー設定が変わったら true。</summary>
+    public bool ReloadConfig()
     {
         var config = TrayConfig.Load();
         _enabled = config.ImeLink;
-        if (_ruleTick.Reload(config)) _service.Poke();
+        if (!Store.Reload(config)) return false;
+        _service.Poke();
+        return true;
     }
 
     /// <summary>一時停止中か（トレイのタイマーから伝える）。一時停止中は、前面のアプリの規則を止める。</summary>
     public bool Paused
     {
-        set { if (_ruleTick.Paused != value) { _ruleTick.Paused = value; _service.Poke(); } }
+        set { if (_ruleTick.Paused != value) { _ruleTick.Paused = value; _service.Poke(); StateChanged?.Invoke(); } }
     }
 
     private void OnSessionSwitch(object? sender, SessionSwitchEventArgs e)
@@ -105,6 +130,7 @@ public sealed class ImeLinkHost : IDisposable
                 break;
         }
         _service.Poke();
+        StateChanged?.Invoke();
     }
 
     private static bool IsActiveConsoleSession() =>
@@ -132,69 +158,51 @@ public sealed class ImeLinkHost : IDisposable
 }
 
 /// <summary>
-/// 前面のアプリの規則を、IME連動のスレッドで動かす部分。前面のウィンドウを読み、設定（UI スレッドが読み直して差し替える）と
-/// 一時停止の状態を添えて <see cref="AppRuleController"/> に渡す。
+/// 前面のアプリの規則とヘルパー動作のレイヤー操作（AppLayer）を、IME連動のスレッドで動かす部分。前面のウィンドウを読み、設定
+/// （<see cref="HelperConfigStore"/>。UI スレッドが読み直して差し替える）と一時停止の状態を添えて <see cref="AppRuleController"/> に渡す。
 /// </summary>
 internal sealed class AppRuleTick : ILinkedTick
 {
     private readonly AppRuleController _controller;
+    private readonly ActionLayerController _actions;
     private readonly ForegroundInfo _foreground;
-    private HelperConfigSet _config = HelperConfigSet.Empty;
-    private string _configStamp = "";
+    private readonly HelperConfigStore _store;
     private volatile bool _paused;
 
-    public AppRuleTick(AppRuleController controller, ForegroundInfo foreground)
+    public AppRuleTick(AppRuleController controller, ActionLayerController actions, ForegroundInfo foreground, HelperConfigStore store)
     {
         _controller = controller;
+        _actions = actions;
         _foreground = foreground;
+        _store = store;
     }
 
     public bool Paused { get => _paused; set => _paused = value; }
 
-    public bool HasRules => Volatile.Read(ref _config).HasAnyRules;
-
-    /// <summary>
-    /// 設定を読み直す（UI スレッドから）。helper.json の更新時刻と tray.json の Helper が変わったときだけ作り直す。
-    /// 変わったら true。
-    /// </summary>
-    public bool Reload(TrayConfig config)
-    {
-        string stamp = Stamp(config);
-        if (stamp == _configStamp) return false;
-        _configStamp = stamp;
-        Volatile.Write(ref _config, HelperConfigSet.Load(config.Helper));
-        return true;
-    }
-
-    // 各 helper.json の更新時刻と大きさ、共通の分の JSON をつないだもの（読み直すかどうかの判定だけに使う）。
-    private static string Stamp(TrayConfig config)
-    {
-        var sb = new System.Text.StringBuilder(config.Helper?.ToJson() ?? "");
-        try
-        {
-            string dir = HelperConfig.BaseDirectory;
-            if (Directory.Exists(dir))
-            {
-                foreach (var path in Directory.EnumerateFiles(dir, HelperConfig.FileName, SearchOption.AllDirectories).OrderBy(p => p))
-                {
-                    var info = new FileInfo(path);
-                    sb.Append('|').Append(path).Append('@').Append(info.LastWriteTimeUtc.Ticks).Append(':').Append(info.Length);
-                }
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
-        return sb.ToString();
-    }
+    public bool HasRules => _store.Current.HasAnyRules;
 
     public void Tick(bool sessionActive)
     {
-        var config = Volatile.Read(ref _config);
+        var config = _store.Current;
         // 規則が無ければ、前面のウィンドウも読まない（何も決めていなければ、何もしない）。
         var foreground = config.HasAnyRules ? _foreground.Read() : null;
         _controller.Tick(foreground, config, sessionActive, _paused);
+        _actions.Tick(sessionActive && !_paused);
     }
 
-    public long? DueInMs => _controller.PendingDueInMs;
+    public long? DueInMs
+    {
+        get
+        {
+            long? rule = _controller.PendingDueInMs, action = _actions.DueInMs;
+            if (rule == null) return action;
+            return action == null ? rule : Math.Min(rule.Value, action.Value);
+        }
+    }
 
-    public void Shutdown() => _controller.Shutdown();
+    public void Shutdown()
+    {
+        _controller.Shutdown();
+        _actions.Shutdown();
+    }
 }

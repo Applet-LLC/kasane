@@ -59,7 +59,7 @@ public sealed class KbdLayerException : Exception
 /// driver/KeymapTool/IoctlClient.cpp の移植。構造体はすべて #pragma pack(1) なので、
 /// BinaryWriter/BinaryReader で同じ順序・同じ幅のまま手で直列化する。
 /// </summary>
-public sealed class KbdLayerClient : IDisposable
+public sealed partial class KbdLayerClient : IDisposable
 {
     public const string ControlDevicePath = @"\\.\KbdLayerControl";
 

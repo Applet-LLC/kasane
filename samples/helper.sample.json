@@ -1,0 +1,24 @@
+{
+  // kasane-tray のヘルパー動作の例。%LOCALAPPDATA%\applet\kasane\<UniqId:X8>\helper.json に置く
+  // （全キーボード共通の分は、tray.json の "Helper" に同じ形で書く）。トレイが数秒ごとに読み直す。
+  "Version": 1,
+
+  // HLP(id) を置いたキー（レイヤーマップ）で動かす動作。ドライバが対応していて、トレイが動いているときだけ動く。
+  "Actions": [
+    { "Id": 1, "Name": "メモ帳", "Action": { "Type": "Launch", "Path": "notepad.exe" } },
+    { "Id": 2, "Name": "サイト", "Action": { "Type": "Open", "Path": "https://example.com" } },
+    { "Id": 3, "Name": "あいさつ", "Action": { "Type": "Sequence", "Steps": [
+        { "Key": "LCTL(KC_A)" }, { "DelayMs": 50 }, { "Text": "こんにちは\n" } ] } },
+    { "Id": 4, "Name": "ドラッグ（押している間だけボタンを押す）", "Action": { "Type": "Sequence",
+        "Steps": [ { "Mouse": "Left", "MouseAction": "Down" } ],
+        "ReleaseSteps": [ { "Mouse": "Left", "MouseAction": "Up" } ] } },
+    { "Id": 5, "Name": "レイヤー2（押している間）", "Action": { "Type": "AppLayer", "Layers": [2], "LayerOp": "Hold" } },
+    { "Id": 6, "Name": "一時停止", "Action": { "Type": "PauseToggle" } }
+  ],
+
+  // F13〜F24 などのキー（＋修飾キー）で動かす動作。1つでもあると、トレイはキーボードフックを張る。
+  "Triggers": [
+    { "Key": "KC_F13", "Action": { "Type": "Launch", "Path": "calc.exe" } },
+    { "Key": "KC_F14", "Mods": "MOD_LSFT", "Action": { "Type": "Sequence", "Repeat": true, "Steps": [ { "Wheel": -120 } ] } }
+  ]
+}

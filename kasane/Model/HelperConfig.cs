@@ -219,9 +219,24 @@ public sealed class HelperTrigger
     public HelperActionBody Action { get; set; } = new();
 }
 
-/// <summary>動作の中身（P3 で実装する。種類: Launch / Open / Sequence / AppLayer / PauseToggle）。</summary>
+/// <summary>
+/// 動作の中身（P3）。種類（<see cref="Type"/>）:
+///  - Launch: <see cref="Path"/> のプログラムを <see cref="Args"/> 付きで起動する（<see cref="WorkDir"/> が作業フォルダ。昇格はしない）。
+///  - Open: <see cref="Path"/> の URL・ファイル・フォルダを、関連付けられたアプリで開く。
+///  - Sequence: <see cref="Steps"/> を順に実行する（キー・文字列・遅延・マウス）。キーを離したときは <see cref="ReleaseSteps"/>。
+///  - AppLayer: <see cref="Layers"/> のアプリ管理レイヤーを、<see cref="LayerOp"/>（On / Off / Toggle / Hold）で操作する
+///    （Hold は、キーを押している間だけ立てる）。対象は、そのキーを押したキーボード。
+///  - PauseToggle: トレイの一時停止・再開を切り替える（一時停止中でも効く）。
+/// <see cref="Repeat"/> が true のときだけ、キーのオートリピートで繰り返し実行する。
+/// </summary>
 public sealed class HelperActionBody
 {
+    public const string Launch = "Launch";
+    public const string Open = "Open";
+    public const string Sequence = "Sequence";
+    public const string AppLayer = "AppLayer";
+    public const string PauseToggle = "PauseToggle";
+
     public string Type { get; set; } = "";
     public string? Path { get; set; }
     public string? Args { get; set; }
@@ -229,7 +244,35 @@ public sealed class HelperActionBody
     public List<int>? Layers { get; set; }
     public string? LayerOp { get; set; }
     public bool Repeat { get; set; }
-    public List<JsonElement>? Steps { get; set; }
+    public List<HelperStep>? Steps { get; set; }
+    /// <summary>キーを離したときに実行する手順（マウスのボタンを押している間だけ押す、など）。</summary>
+    public List<HelperStep>? ReleaseSteps { get; set; }
+}
+
+/// <summary>
+/// <see cref="HelperActionBody.Steps"/> の1手順。指定した項目を、下の順に実行する（普通は1つだけ書く）。
+///  - Key: キーを押して離す（"KC_A"、"LCTL(KC_C)"、"SC_E06A" など。ドライバのキーコードと同じ書き方）。
+///  - Down / Up: キーを押す / 離す（修飾付きなら、修飾キーも）。
+///  - Text: 文字列を打つ（Unicode のまま。改行は Enter、タブは Tab）。
+///  - DelayMs: 待つ（0〜10000ms）。
+///  - Mouse: ボタン（Left / Right / Middle / X1 / X2）を <see cref="MouseAction"/>（Click（既定）/ Down / Up）する。
+///  - MoveX / MoveY: マウスを動かす。<see cref="Absolute"/> が true なら画面（仮想デスクトップ）の座標、そうでなければ今の位置からの相対。
+///  - Wheel / HWheel: ホイール（120 で1ノッチ。縦は奥へ回すと正）。
+/// </summary>
+public sealed class HelperStep
+{
+    public string? Key { get; set; }
+    public string? Down { get; set; }
+    public string? Up { get; set; }
+    public string? Text { get; set; }
+    public int? DelayMs { get; set; }
+    public string? Mouse { get; set; }
+    public string? MouseAction { get; set; }
+    public int? MoveX { get; set; }
+    public int? MoveY { get; set; }
+    public bool Absolute { get; set; }
+    public int? Wheel { get; set; }
+    public int? HWheel { get; set; }
 }
 
 /// <summary>
@@ -261,6 +304,12 @@ public sealed class HelperConfigSet
             .Where(r => r.Enabled);
         return rules;
     }
+
+    /// <summary>HLP(id) の動作が1つでもあるか（トレイがドライバのヘルパーイベントを待つかどうかの判定）。</summary>
+    public bool HasAnyActions => (Global?.Actions.Count ?? 0) > 0 || PerDevice.Values.Any(c => c.Actions.Count > 0);
+
+    /// <summary>キーフックで受けるトリガーが1つでもあるか（無ければ、トレイはキーボードフックを張らない）。</summary>
+    public bool HasAnyTriggers => (Global?.Triggers.Count ?? 0) > 0 || PerDevice.Values.Any(c => c.Triggers.Count > 0);
 
     public bool HasAnyRules => (Global?.AppLayerRules.Count ?? 0) > 0 || PerDevice.Values.Any(c => c.AppLayerRules.Count > 0);
 
