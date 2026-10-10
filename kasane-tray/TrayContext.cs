@@ -1,3 +1,6 @@
+using Kasane.Interop;
+using Kasane.Model;
+
 namespace Kasane.Tray;
 
 /// <summary>
@@ -31,6 +34,10 @@ public sealed class TrayContext : ApplicationContext
     private readonly ImeLinkHost _imeLink;
     private readonly HelperHost _helper;
     private readonly Control _ui = new(); // 動作の実行スレッドから、UI スレッドへ処理を渡すため
+    private readonly LayerWatchService _layerWatch;
+    private readonly Dictionary<char, Icon> _badgeIcons = new(); // レイヤー番号つきのアイコン（最大16個。GDIハンドルを増やさないよう使い回す）
+    private volatile bool _showLayer = true;
+    private LayerBadge? _layerBadge;
     private TraySnapshot _snapshot = new(TrayStatus.DriverUnavailable, 0, 0);
 
     public TrayContext()
@@ -43,6 +50,8 @@ public sealed class TrayContext : ApplicationContext
             try { _ui.BeginInvoke(new Action(TogglePause)); }
             catch (InvalidOperationException) { /* 終了中 */ }
         });
+
+        _layerWatch = new LayerWatchService(new KbdLayerWatchSource(), () => _showLayer && _imeLink.SessionActive, OnLayersChanged, TrayLog.Write);
 
         _normalIcon = TrayIcons.Load();
         _pausedIcon = TrayIcons.Gray(_normalIcon, pauseMarks: true);
@@ -100,9 +109,35 @@ public sealed class TrayContext : ApplicationContext
         try
         {
             if (_imeLink.ReloadConfig()) _helper.OnConfigChanged();
-            ApplySnapshot(_pause.Refresh());
+            _showLayer = TrayConfig.Load().ShowLayerOnIcon;
+            var snapshot = _pause.Refresh();
+            _layerWatch.Sync(); // キーボードの増減・設定・セッションの変化に追従する
+            ApplySnapshot(snapshot);
         }
         catch (Exception ex) { TrayLog.Write("Refresh: " + ex); } // 常駐中に落ちないよう、読み直しの失敗は記録だけにする
+    }
+
+    // 待機スレッドから呼ばれる。UI スレッドで表示を更新する。
+    private void OnLayersChanged(IReadOnlyDictionary<uint, LayerState> states)
+    {
+        var badge = LayerDisplay.Compute(states);
+        try
+        {
+            _ui.BeginInvoke(new Action(() =>
+            {
+                if (Equals(badge, _layerBadge)) return;
+                _layerBadge = badge;
+                ApplySnapshot(_snapshot);
+            }));
+        }
+        catch (InvalidOperationException) { /* 終了中 */ }
+    }
+
+    private Icon BadgeIcon(LayerBadge badge)
+    {
+        if (!_badgeIcons.TryGetValue(badge.Badge, out var icon))
+            _badgeIcons[badge.Badge] = icon = TrayIcons.WithBadge(_normalIcon, badge.Badge);
+        return icon;
     }
 
     private void ApplySnapshot(TraySnapshot snapshot)
@@ -122,6 +157,11 @@ public sealed class TrayContext : ApplicationContext
         var ime = _imeLink.Status;
         if (snapshot.Status == TrayStatus.Running && ime.Linked && ime.TargetCount > 0)
             text += ime.NicolaOn ? "・NICOLA 入力中" : "・NICOLA 待機（IME連動）";
+        if (snapshot.Status == TrayStatus.Running && snapshot.ActiveCount > 0 && _showLayer && _layerBadge != null)
+        {
+            icon = BadgeIcon(_layerBadge);
+            text = LayerDisplay.AppendToTooltip(text, _layerBadge);
+        }
         if (!ReferenceEquals(_notifyIcon.Icon, icon)) _notifyIcon.Icon = icon;
         _notifyIcon.Text = text; // 127文字まで
     }
@@ -129,6 +169,7 @@ public sealed class TrayContext : ApplicationContext
     private void ExitTray()
     {
         _timer.Stop();
+        _layerWatch.Dispose();
         _helper.Dispose();  // キーフックと動作の実行を止める
         _imeLink.Dispose(); // 立てていたレイヤーを戻す
         _notifyIcon.Visible = false;
@@ -141,6 +182,7 @@ public sealed class TrayContext : ApplicationContext
         if (disposing)
         {
             _timer.Dispose();
+            _layerWatch.Dispose();
             _helper.Dispose();
             _imeLink.Dispose();
             _ui.Dispose();
@@ -149,6 +191,7 @@ public sealed class TrayContext : ApplicationContext
             _normalIcon.Dispose();
             _pausedIcon.Dispose();
             _unavailableIcon.Dispose();
+            foreach (var icon in _badgeIcons.Values) icon.Dispose();
         }
         base.Dispose(disposing);
     }
