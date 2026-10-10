@@ -67,7 +67,8 @@ public static class NodokaConverter
         if (file.Keyboards.Count > 1) file.Scope = nameof(PortableScope.All);
 
         var conversion = new NodokaConversion { File = file };
-        conversion.Lines.AddRange(lines);
+        // 同じ行が、キーマップごとに（親の割り当てを引き継ぐため）何度も出ることがある。件数と一覧が合うよう、重複を除く。
+        conversion.Lines.AddRange(lines.Distinct());
         return conversion;
     }
 }

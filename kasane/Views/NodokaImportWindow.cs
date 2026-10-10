@@ -81,7 +81,7 @@ public sealed class NodokaImportWindow : Window
 
         var filterRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
         filterRow.Children.Add(new TextBlock { Text = "表示:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
-        foreach (var item in new[] { "すべて", "変換できなかったもの", "近似したもの", "変換できたもの", "情報" }) _filter.Items.Add(item);
+        foreach (var item in new[] { "すべて", "変換できないもの", "近似したもの", "変換できたもの", "情報" }) _filter.Items.Add(item);
         _filter.SelectedIndex = 1;
         _filter.SelectionChanged += (_, _) => RefreshList();
         filterRow.Children.Add(_filter);
@@ -192,7 +192,9 @@ public sealed class NodokaImportWindow : Window
                 ConvLevel.Error => "[エラー]",
                 _ => "[情報]",
             };
-            _list.Items.Add($"{mark} {l}");
+            // 絶対パスで始まると理由が右へ隠れるので、ファイル名だけを見せる。
+            string where = l.Src != null ? $"{Path.GetFileName(l.Src.File)}:{l.Src.Line}: " : "";
+            _list.Items.Add($"{mark} {where}{l.Text}");
         }
         if (_list.Items.Count == 0) _list.Items.Add("(該当する項目はありません)");
     }

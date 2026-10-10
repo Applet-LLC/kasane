@@ -15,11 +15,14 @@ public sealed class NodokaDiskFiles : INodokaFiles
             if (!string.IsNullOrWhiteSpace(d) && !_dirs.Contains(d, StringComparer.OrdinalIgnoreCase)) _dirs.Add(d);
         }
         Add(Path.GetDirectoryName(Path.GetFullPath(mainFile)));
+        Add(NodokaRegistry.CurrentSettingsDirectory());   // のどかの現在の設定ファイルのフォルダ（getHomeDirectories の①）
         Add(Environment.GetEnvironmentVariable("NODOKA"));
         Add(Environment.GetEnvironmentVariable("HOME"));
         Add(Environment.GetEnvironmentVariable("USERPROFILE"));
         string? drive = Environment.GetEnvironmentVariable("HOMEDRIVE"), path = Environment.GetEnvironmentVariable("HOMEPATH");
         if (drive != null && path != null) Add(drive + path);
+        // のどかの実行ファイルのフォルダ（⑥。read-keyboard-define.nodoka などがここにある）
+        Add(NodokaRegistry.InstallDirectory());
         foreach (var d in extraDirs ?? Enumerable.Empty<string>()) Add(d);
     }
 
@@ -63,11 +66,42 @@ public static class NodokaRegistry
                 if (p != null) list.Add(p);
             }
         }
-        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException or PlatformNotSupportedException)
         {
             // 読めなければ、一覧は空（ファイルを直接選べる）
         }
         return list;
+    }
+
+    /// <summary>のどかが今使っている設定ファイルのフォルダ（無い・読めなければ null）。</summary>
+    public static string? CurrentSettingsDirectory()
+    {
+        var active = ListProfiles().FirstOrDefault(p => p.IsActive);
+        if (active == null || string.IsNullOrWhiteSpace(active.Path) || !System.IO.Path.IsPathRooted(active.Path)) return null;
+        return System.IO.Path.GetDirectoryName(active.Path);
+    }
+
+    /// <summary>
+    /// のどかをインストールしたフォルダ。のどかが起動時にレジストリ（currentPath）に書く値を使い、無ければ Program Files の nodoka。
+    /// 設定が include する read-keyboard-define.nodoka などは、ここにある。見つからなければ null。
+    /// </summary>
+    public static string? InstallDirectory()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(Key);
+            if (key?.GetValue("currentPath") is string p && Directory.Exists(p)) return p;
+        }
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException or PlatformNotSupportedException)
+        {
+        }
+        foreach (var root in new[] { Environment.GetEnvironmentVariable("ProgramFiles"), Environment.GetEnvironmentVariable("ProgramFiles(x86)") })
+        {
+            if (string.IsNullOrEmpty(root)) continue;
+            string candidate = System.IO.Path.Combine(root, "nodoka");
+            if (Directory.Exists(candidate)) return candidate;
+        }
+        return null;
     }
 
     /// <summary>"表示名;パス;-DSYM1;-DSYM2" を読む。形が違えば null。</summary>

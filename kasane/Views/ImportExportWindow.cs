@@ -427,7 +427,7 @@ public sealed class ImportExportWindow : Window
             combo.SelectedItem = targets.First(t => t.Id == defaultTarget);
             _mapCombos.Add(combo);
             var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-            row.Children.Add(new TextBlock { Text = $"{kb.UniqId ?? "?"}  {kb.LayoutName} →", Width = 230, VerticalAlignment = VerticalAlignment.Center });
+            row.Children.Add(new TextBlock { Text = $"{kb.UniqId ?? "(共通)"}  {kb.LayoutName} →", Width = 230, VerticalAlignment = VerticalAlignment.Center });
             row.Children.Add(combo);
             _imMapPanel.Children.Add(row);
         }
