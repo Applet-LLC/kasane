@@ -31,7 +31,7 @@ public static class NodokaText
         for (int i = 0; i < text.Length; i++)
         {
             char c = text[i];
-            if (c == '\n' || c == ' ')
+            if (c == '\n' || c == '\u2028')
             {
                 lines.Add(text[start..i]);
                 start = i + 1;
