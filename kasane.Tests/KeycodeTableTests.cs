@@ -162,8 +162,121 @@ public class KeycodeTableTests
     }
 
     [Theory]
+    [InlineData("KC_F13", 0x0064)]
+    [InlineData("KC_F23", 0x006E)]
+    [InlineData("KC_F24", 0x0076)]   // F24 is not contiguous with F13-F23
+    [InlineData("KC_WSCH", 0xE065)]
+    [InlineData("KC_WWW_BACK", 0xE06A)]
+    [InlineData("KC_MAIL", 0xE06C)]
+    [InlineData("KC_SLEP", 0xE05F)]
+    public void ExtendedKeys_ResolveToTheirScanCodes(string token, int expectedScanCode)
+    {
+        Assert.True(KeycodeTable.TryResolve(token, out var action, out var error));
+        Assert.Null(error);
+        Assert.Equal(ActionType.Key, action.Type);
+        Assert.Equal((ushort)expectedScanCode, action.Param2);
+    }
+
+    [Theory]
+    [InlineData("SC_E06A", 0xE06A)]
+    [InlineData("SC_0064", 0x0064)]
+    [InlineData("SC_e06a", 0xE06A)]  // hex digits are case-insensitive
+    [InlineData("SC_E11D", 0xE11D)]
+    public void RawScanCode_ResolvesToKey(string token, int expectedScanCode)
+    {
+        Assert.True(KeycodeTable.TryResolve(token, out var action, out var error));
+        Assert.Null(error);
+        Assert.Equal(ActionType.Key, action.Type);
+        Assert.Equal((ushort)expectedScanCode, action.Param2);
+    }
+
+    [Fact]
+    public void RawScanCode_WorksInsideModdedKeyAndTapArguments()
+    {
+        Assert.True(KeycodeTable.TryResolve("LCTL(SC_E06A)", out var modded, out _));
+        Assert.Equal(new KeyAction(ActionType.ModdedKey, 0x01, 0xE06A), modded);
+        Assert.True(KeycodeTable.TryResolve("MT(MOD_LSFT,SC_0064)", out var modTap, out _));
+        Assert.Equal(new KeyAction(ActionType.ModTap, 1, 0x0064), modTap);
+    }
+
+    [Fact]
+    public void UnnamedScanCode_RoundTripsAsRawScanCodeToken()
+    {
+        // A scan code with no name in the table (e.g. read back from the driver) is shown as SC_XXXX,
+        // which resolves back to the same action (it used to be KC_UNKNOWN_XXXX, which did not).
+        var action = new KeyAction(ActionType.Key, 0, 0xE07F);
+        var token = KeycodeTable.ToToken(action);
+        Assert.Equal("SC_E07F", token);
+        Assert.True(KeycodeTable.TryResolve(token, out var reResolved, out _));
+        Assert.Equal(action, reResolved);
+        Assert.Equal("KC_F13", KeycodeTable.KeyToken(0x0064)); // named keys keep their name
+        Assert.Equal("KC_NO", KeycodeTable.KeyToken(0));
+    }
+
+    [Theory]
+    [InlineData("HLP(1)", 1)]
+    [InlineData("HLP(0x102)", 0x102)]
+    [InlineData("HLP(010)", 10)]     // leading zero is decimal, not octal (same as KeymapTool)
+    [InlineData("HLP(65535)", 65535)]
+    public void Helper_ResolvesToCustomAndRoundTrips(string token, int expectedId)
+    {
+        Assert.True(KeycodeTable.TryResolve(token, out var action, out var error));
+        Assert.Null(error);
+        Assert.Equal(ActionType.Custom, action.Type);
+        Assert.Equal((byte)0, action.Param1);
+        Assert.Equal((ushort)expectedId, action.Param2);
+        Assert.Equal($"HLP({expectedId})", KeycodeTable.ToToken(action));
+    }
+
+    [Theory]
+    [InlineData("SC_1234")]   // prefix must be 00, E0 or E1
+    [InlineData("SC_0000")]
+    [InlineData("SC_E000")]   // make code 0
+    [InlineData("SC_E06")]
+    [InlineData("SC_GGGG")]
+    [InlineData("sc_E06A")]
+    [InlineData("HLP(65536)")]
+    [InlineData("HLP(-1)")]
+    [InlineData("HLP()")]
+    [InlineData("HLP(0x)")]
+    public void InvalidExtendedTokens_AreRejected(string token)
+    {
+        Assert.False(KeycodeTable.TryResolve(token, out _, out var error));
+        Assert.NotNull(error);
+    }
+
+    [Theory]
+    [InlineData("KC_PWR", true)]
+    [InlineData("KC_SYSTEM_SLEEP", true)]
+    [InlineData("KC_WAKE", true)]
+    [InlineData("SC_E05F", true)]
+    [InlineData("LCTL(KC_SLEP)", true)]
+    [InlineData("KC_A", false)]
+    [InlineData("KC_MAIL", false)]
+    [InlineData("MO(1)", false)]
+    [InlineData("not a token", false)]
+    public void IsPowerKey_DetectsPowerKeysInAnyForm(string token, bool expected)
+    {
+        Assert.Equal(expected, KeycodeCatalog.IsPowerKey(token));
+    }
+
+    [Fact]
+    public void EveryCatalogKeycode_Resolves()
+    {
+        foreach (var category in KeycodeCatalog.Categories)
+        {
+            foreach (var token in category.Keycodes)
+            {
+                Assert.True(KeycodeTable.TryResolve(token, out _, out var error), $"{category.Name}: {token}: {error}");
+            }
+        }
+    }
+
+    [Theory]
     [InlineData("KC_A")]
     [InlineData("KC_1")]
+    [InlineData("SC_E06A")]
+    [InlineData("HLP(7)")]
     [InlineData("LCTL(KC_C)")]
     [InlineData("LSFT(KC_1)")]
     [InlineData("LCTL(LSFT(KC_T))")]

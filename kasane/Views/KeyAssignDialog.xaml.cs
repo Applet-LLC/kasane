@@ -4,6 +4,7 @@ using System.Windows.Media;
 using Kasane.Interop;
 using Kasane.Keycodes;
 using Kasane.Layout;
+using Kasane.Model;
 
 namespace Kasane.Views;
 
@@ -17,8 +18,11 @@ public partial class KeyAssignDialog : Window
     private const string CatModTap = "Mod-Tap (MT)";
     private const string CatLayerTap = "Layer-Tap (LT)";
     private const string CatMacro = "マクロ / タップダンス";
+    private const string CatHelper = "ヘルパー動作";
 
     private readonly int _layerCount;
+    private readonly uint _uniqId;                 // このキーボード（0 = 決まっていない。共通の動作だけ使える）
+    private HelperSettingsModel? _helperModel;     // 「ヘルパー動作」を開いたときに読む
 
     // 修飾キーのチェックボックス（ビット番号 = KBDLAYER_MOD_*のビット。0=左Ctrl ... 7=右Win）。
     private static readonly string[] ModLabels =
@@ -28,10 +32,11 @@ public partial class KeyAssignDialog : Window
 
     public string ResultToken { get; private set; }
 
-    public KeyAssignDialog(KeySlot slot, int layer, string currentToken, int layerCount)
+    public KeyAssignDialog(KeySlot slot, int layer, string currentToken, int layerCount, uint uniqId = 0)
     {
         InitializeComponent();
         _layerCount = layerCount;
+        _uniqId = uniqId;
         ResultToken = currentToken;
         TxtHeader.Text = $"{slot.Description} ／ レイヤー{layer}";
 
@@ -52,6 +57,7 @@ public partial class KeyAssignDialog : Window
         LstCategories.Items.Add(CatModTap);
         LstCategories.Items.Add(CatLayerTap);
         LstCategories.Items.Add(CatMacro);
+        LstCategories.Items.Add(CatHelper);
         LstCategories.SelectedIndex = 0;
 
         Loaded += (_, _) => { TxtToken.Focus(); TxtToken.SelectAll(); };
@@ -66,6 +72,7 @@ public partial class KeyAssignDialog : Window
             CatLayer => LayerPanel(),
             CatModTap => ModTapPanel(),
             CatLayerTap => LayerTapPanel(),
+            CatHelper => HelperPanel(),
             _ => MacroPanel(),
         };
     }
@@ -163,6 +170,96 @@ public partial class KeyAssignDialog : Window
             () => $"{kind.SelectedItem}({id.SelectedItem})");
     }
 
+    // ------------------------------------------------------------------
+    // ヘルパー動作（HLP(id)。helper.json の Actions）
+    // ------------------------------------------------------------------
+
+    private HelperSettingsModel Helper => _helperModel ??= new HelperSettingsModel(_uniqId, TrayConfig.Load());
+
+    private bool HelperIdTaken(int id) =>
+        Helper.Device.Actions.Any(a => a.Id == id) || Helper.Global.Actions.Any(a => a.Id == id);
+
+    private UIElement HelperPanel()
+    {
+        var panel = new StackPanel { Margin = new Thickness(4) };
+        panel.Children.Add(new TextBlock
+        {
+            Text = "HLP(Id) を割り当てたキーは、キー自体は何も出さず、トレイ（kasane-tray）が動作を実行します" +
+                   "（プログラムの起動・文字列の入力・マウス操作・レイヤーの操作など）。動作はこのキーボード用か、全キーボード共通です。\n" +
+                   "HLP は、トレイ（kasane-tray）が動いているときだけ働きます。",
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 8),
+        });
+
+        var list = Id(new ListBox { Height = 230, FontFamily = new FontFamily("Consolas") }, "HelperActionList");
+        var ids = new List<int>();
+        void Fill()
+        {
+            list.Items.Clear();
+            ids.Clear();
+            if (Helper.DeviceWritable)
+                foreach (var a in Helper.Device.Actions) { list.Items.Add("[このキーボード] " + HelperSummary.Action(a)); ids.Add(a.Id); }
+            foreach (var a in Helper.Global.Actions) { list.Items.Add("[共通] " + HelperSummary.Action(a)); ids.Add(a.Id); }
+        }
+        Fill();
+        panel.Children.Add(list);
+
+        var assign = Id(new Button { Content = "選んだ動作を割り当てる", Width = 170, Margin = new Thickness(0, 0, 8, 0) }, "AssignHelperButton");
+        var create = Id(new Button { Content = "新しい動作...", Width = 120 }, "NewHelperActionButton");
+        void Assign()
+        {
+            if (list.SelectedIndex >= 0 && list.SelectedIndex < ids.Count) TxtToken.Text = $"HLP({ids[list.SelectedIndex]})";
+        }
+        assign.Click += (_, _) => Assign();
+        list.MouseDoubleClick += (_, _) => { Assign(); Confirm(); };
+        create.Click += (_, _) =>
+        {
+            if (NewHelperAction()) Fill();
+        };
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
+        buttons.Children.Add(assign);
+        buttons.Children.Add(create);
+        panel.Children.Add(buttons);
+        if (Helper.DeviceLoadError != null)
+        {
+            panel.Children.Add(new TextBlock
+            {
+                Text = "このキーボードの helper.json を読めないため、このキーボード用の動作は使えません。新しい動作は共通に作ります。",
+                Foreground = Brushes.Firebrick,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 8, 0, 0),
+            });
+        }
+        return panel;
+    }
+
+    /// <summary>新しい動作を作って、すぐ helper.json（このキーボードが使えなければ共通）に保存し、HLP(Id) をキーコード欄に入れる。</summary>
+    private bool NewHelperAction()
+    {
+        int id = Helper.NextFreeActionId();
+        if (id < 0)
+        {
+            MessageBox.Show(this, "使える Id がありません。", "動作の追加");
+            return false;
+        }
+        var dlg = new HelperActionEditorWindow("動作の追加", HelperEditMode.Action, id, null, null, null,
+            new HelperActionBody { Type = HelperActionBody.Launch }, HelperIdTaken) { Owner = this };
+        if (dlg.ShowDialog() != true) return false;
+
+        var scope = Helper.DeviceWritable ? HelperScope.Device : HelperScope.Global;
+        var added = new HelperAction { Id = dlg.ResultId, Name = dlg.ResultName, Action = dlg.ResultBody };
+        var actions = Helper.Config(scope).Actions;
+        actions.Add(added);
+        if (!Helper.TrySave(out var error))
+        {
+            actions.Remove(added);
+            MessageBox.Show(this, $"保存できませんでした: {error}", "動作の追加", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return false;
+        }
+        TxtToken.Text = $"HLP({added.Id})";
+        return true;
+    }
+
     private static ComboBox Combo(IEnumerable<string> items, string automationId)
     {
         var c = Id(new ComboBox { Width = 160, ItemsSource = items.ToList() }, automationId);
@@ -232,8 +329,8 @@ public partial class KeyAssignDialog : Window
             case ActionType.Key:
             case ActionType.ModdedKey:
             {
-                var baseName = KeycodeTable.NameForScanCode(action.Param2);
-                if (baseName == null) return;
+                // 名前の無いキー（SC_XXXX）にも修飾キーを付け外しできるよう、KeyTokenで名前を作る。
+                var baseName = KeycodeTable.KeyToken(action.Param2);
                 TxtToken.Text = mask == 0 ? baseName : KeycodeTable.WrapWithMods(mask, baseName);
                 break;
             }
@@ -274,6 +371,10 @@ public partial class KeyAssignDialog : Window
             string? warn = null;
             if (ActionType.ReferencesLayer(action.Type) && action.Param1 >= _layerCount)
                 warn = $"レイヤー{action.Param1}はまだありません（レイヤーを追加してから適用してください）";
+            else if (KeycodeCatalog.IsPowerKey(token))
+                warn = "注意: 電源キーです。押すとPCがスリープ・シャットダウンすることがあります";
+            else if (action.Type == ActionType.Custom && !HelperIdTaken(action.Param2))
+                warn = $"HLP({action.Param2}) の動作がまだありません（「ヘルパー動作」で作ると、キーを押したときに動きます）";
             TxtValidation.Foreground = warn == null ? Brushes.DarkGreen : Brushes.DarkOrange;
             TxtValidation.Text = warn ?? "OK: " + KeycodeCatalog.ShortName(token);
             BtnOk.IsEnabled = true;
@@ -292,6 +393,17 @@ public partial class KeyAssignDialog : Window
     {
         var token = TxtToken.Text.Trim();
         if (!KeycodeTable.TryResolve(token, out _)) return;
+        // 電源キーは、割り当てたキーを押すだけでPCの状態が変わるので、確かめてから割り当てる
+        // （元から同じキーだったときは聞かない）。
+        if (KeycodeCatalog.IsPowerKey(token) && token != ResultToken &&
+            MessageBox.Show(this,
+                $"「{KeycodeCatalog.ShortName(token).TrimStart('⚠')}」（{token}）は電源キーです。\n" +
+                "このキーを押すと、Windows の電源の設定によって、PCがスリープ・休止・シャットダウンすることがあります。\n\n" +
+                "割り当てますか？",
+                "電源キーの割り当て", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes)
+        {
+            return;
+        }
         ResultToken = token;
         DialogResult = true;
     }

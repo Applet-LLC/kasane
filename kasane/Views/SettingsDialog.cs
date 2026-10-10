@@ -51,6 +51,8 @@ public sealed class SettingsDialog : Window
     private CheckBox _imeLink = null!;
     private readonly TrayConfig _trayConfig = TrayConfig.Load();
     private TextBlock _nicolaSummary = null!;
+    // ヘルパー動作・アプリ別レイヤー（このキーボードの helper.json と、共通の tray.json の Helper。OKで直接保存する）
+    private readonly HelperSettingsModel _helper;
 
     public SettingsDialog(KeymapProject project, KbdLayerClient? client, uint onlineUniqId, bool canWrite)
     {
@@ -59,6 +61,7 @@ public sealed class SettingsDialog : Window
         _uniqId = client != null ? onlineUniqId : 0;
         _canWrite = canWrite;
         _nicola = project.Nicola?.Clone();
+        _helper = new HelperSettingsModel(project.UniqId != 0 ? project.UniqId : _uniqId, _trayConfig);
 
         Title = "設定";
         Width = 760;
@@ -69,6 +72,8 @@ public sealed class SettingsDialog : Window
         AddTab("TabFeatures", "機能", BuildFeaturesTab());
         AddTab("TabTiming", "タイミング", BuildTimingTab());
         AddTab("TabNicola", "NICOLA", BuildNicolaTab());
+        AddTab("TabHelper", "ヘルパー動作", new HelperActionsTab(_helper, this).Root);
+        AddTab("TabAppRules", "アプリ別レイヤー", new AppRulesTab(_helper, this).Root);
         AddTab("TabEmergency", "緊急解除", BuildEmergencyTab());
         AddTab("TabScope", "共有範囲", BuildScopeTab());
         AddTab("TabI8042", "i8042prt", BuildI8042Tab());
@@ -783,6 +788,14 @@ public sealed class SettingsDialog : Window
             }
         }
 
+        var helperErrors = _helper.Validate();
+        if (helperErrors.Count > 0)
+        {
+            Fail(helperErrors.Any(e => e.Contains("の規則")) && !helperErrors.Any(e => !e.Contains("の規則")) ? "TabAppRules" : "TabHelper",
+                 string.Join("\n", helperErrors));
+            return false;
+        }
+
         _project.TapTermMs = t;
         _project.ComboTermMs = c;
         _project.TapDanceTermMs = d;
@@ -796,6 +809,13 @@ public sealed class SettingsDialog : Window
 
         _project.Nicola = _nicolaMode.SelectedIndex == 1 ? _nicola : null;
         _project.ClearNicola = _nicolaMode.SelectedIndex == 2;
+
+        // ヘルパー動作・アプリ別レイヤーも、プロジェクトではなく利用者の設定（トレイが数秒ごとに読む）。変えた分だけ直接保存する。
+        if (!_helper.TrySave(out var helperError))
+        {
+            Fail("TabHelper", $"ヘルパー設定を保存できませんでした: {helperError}");
+            return false;
+        }
 
         // IME連動はプロジェクトではなく、このPCの利用者の設定（トレイが数秒ごとに読む）。変えたときだけ保存する。
         bool imeLink = _imeLink.IsChecked == true;

@@ -15,6 +15,12 @@ public sealed class TrayConfig
     /// </summary>
     public bool ImeLink { get; set; } = true;
 
+    /// <summary>
+    /// 全キーボード共通のヘルパー設定（前面のアプリの規則、HLP の動作など。2026-10-08）。キーボードごとの分は
+    /// &lt;UniqId:X8&gt;\helper.json（<see cref="HelperConfig"/>）。無ければ null。
+    /// </summary>
+    public HelperConfig? Helper { get; set; }
+
     public static string DefaultPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "applet", "kasane", "tray.json");
 
@@ -37,6 +43,17 @@ public sealed class TrayConfig
     {
         path ??= DefaultPath;
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+        string tmp = path + ".tmp"; // トレイが読む途中の、書きかけのファイルを見ないように
+        try
+        {
+            var options = new JsonSerializerOptions { WriteIndented = true, DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull };
+            File.WriteAllText(tmp, JsonSerializer.Serialize(this, options));
+            File.Move(tmp, path, overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            try { File.Delete(tmp); } catch (Exception) { /* 片付けられなくても、元の失敗を返す */ }
+            throw;
+        }
     }
 }

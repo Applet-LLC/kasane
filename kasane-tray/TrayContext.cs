@@ -8,6 +8,7 @@ namespace Kasane.Tray;
 ///  - ツールチップに、動作中・一時停止中・ドライバに接続できない、を出す。状態はタイマーで読み直す。
 ///  - IME連動（<see cref="ImeLinkHost"/>）: IMEがかなモードのときだけNICOLAのレイヤーを自動で立てる。メニューは変えず、
 ///    ON/OFFはエディタの設定（NICOLAのタブ）で選ぶ。ツールチップにNICOLAの状態を足す。
+///  - 前面のアプリの規則（アプリ別レイヤー・リマップOFF）も <see cref="ImeLinkHost"/> の中で動かす（helper.json）。
 /// UI Automation（kasane.Tests/UiAutomation/T10-TrayMenu.ps1）では、メニュー項目は表示名（設定・一時停止・ライセンス・終了）で探す
 /// （ToolStripの項目のNameは、UIAのAutomationIdにはならない）。
 /// </summary>
@@ -28,12 +29,20 @@ public sealed class TrayContext : ApplicationContext
     private readonly Icon _pausedIcon;
     private readonly Icon _unavailableIcon;
     private readonly ImeLinkHost _imeLink;
+    private readonly HelperHost _helper;
+    private readonly Control _ui = new(); // 動作の実行スレッドから、UI スレッドへ処理を渡すため
     private TraySnapshot _snapshot = new(TrayStatus.DriverUnavailable, 0, 0);
 
     public TrayContext()
     {
         _pause = new PauseController(new KbdLayerDriverAccess(), new JsonPauseStateStore());
         _imeLink = new ImeLinkHost();
+        _ = _ui.Handle; // このスレッド（UI スレッド）にハンドルを作っておく
+        _helper = new HelperHost(_imeLink, () =>
+        {
+            try { _ui.BeginInvoke(new Action(TogglePause)); }
+            catch (InvalidOperationException) { /* 終了中 */ }
+        });
 
         _normalIcon = TrayIcons.Load();
         _pausedIcon = TrayIcons.Gray(_normalIcon, pauseMarks: true);
@@ -90,7 +99,7 @@ public sealed class TrayContext : ApplicationContext
     {
         try
         {
-            _imeLink.ReloadConfig();
+            if (_imeLink.ReloadConfig()) _helper.OnConfigChanged();
             ApplySnapshot(_pause.Refresh());
         }
         catch (Exception ex) { TrayLog.Write("Refresh: " + ex); } // 常駐中に落ちないよう、読み直しの失敗は記録だけにする
@@ -99,6 +108,7 @@ public sealed class TrayContext : ApplicationContext
     private void ApplySnapshot(TraySnapshot snapshot)
     {
         _snapshot = snapshot;
+        _imeLink.Paused = snapshot.Status == TrayStatus.Paused; // 一時停止中は、前面のアプリの規則を止める
         _pauseItem.Checked = snapshot.Status == TrayStatus.Paused;
         _pauseItem.Enabled = snapshot.CanTogglePause;
 
@@ -119,6 +129,7 @@ public sealed class TrayContext : ApplicationContext
     private void ExitTray()
     {
         _timer.Stop();
+        _helper.Dispose();  // キーフックと動作の実行を止める
         _imeLink.Dispose(); // 立てていたレイヤーを戻す
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
@@ -130,7 +141,9 @@ public sealed class TrayContext : ApplicationContext
         if (disposing)
         {
             _timer.Dispose();
+            _helper.Dispose();
             _imeLink.Dispose();
+            _ui.Dispose();
             _notifyIcon.Dispose();
             _menu.Dispose();
             _normalIcon.Dispose();

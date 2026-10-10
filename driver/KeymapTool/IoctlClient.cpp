@@ -535,6 +535,56 @@ bool IoctlClient::WaitLayerChange(ULONG uniqId, ULONG lastSeq, KBDLAYER_LAYER_ST
     return true;
 }
 
+bool IoctlClient::WaitHelperEvent(ULONG lastSeq, KBDLAYER_WAIT_HELPER_EVENT_OUTPUT* outHeader,
+                                  std::vector<KBDLAYER_HELPER_EVENT>* outEvents, bool* outCancelled,
+                                  bool* outUnsupported) {
+    KBDLAYER_WAIT_HELPER_EVENT_INPUT input;
+    input.LastSeq = lastSeq;
+    input.Flags = 0;
+
+    std::vector<unsigned char> buffer(sizeof(KBDLAYER_WAIT_HELPER_EVENT_OUTPUT) +
+                                      KBDLAYER_HELPER_EVENT_QUEUE_SIZE * sizeof(KBDLAYER_HELPER_EVENT));
+    *outCancelled = false;
+    *outUnsupported = false;
+    outEvents->clear();
+
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_WAIT_HELPER_EVENT,
+                              &input, sizeof(input),
+                              buffer.data(), (DWORD)buffer.size(),
+                              &bytesReturned, NULL);
+    if (!ok) {
+        DWORD error = GetLastError();
+        if (error == ERROR_OPERATION_ABORTED) {
+            *outCancelled = true;
+            fprintf(stderr, "The wait was cancelled.\n");
+            return false;
+        }
+        if (error == ERROR_INVALID_FUNCTION) {
+            // STATUS_INVALID_DEVICE_REQUEST: ヘルパーイベントより前のドライバ。
+            *outUnsupported = true;
+            fprintf(stderr, "This driver does not support helper events (HLP). Update kbdlayer.sys.\n");
+            return false;
+        }
+        fprintf(stderr, "IOCTL_KBDLAYER_WAIT_HELPER_EVENT failed. Error: %lu\n", error);
+        return false;
+    }
+    if (bytesReturned < sizeof(KBDLAYER_WAIT_HELPER_EVENT_OUTPUT)) {
+        fprintf(stderr, "IOCTL_KBDLAYER_WAIT_HELPER_EVENT returned too few bytes (%lu).\n", bytesReturned);
+        return false;
+    }
+
+    const KBDLAYER_WAIT_HELPER_EVENT_OUTPUT* header = (const KBDLAYER_WAIT_HELPER_EVENT_OUTPUT*)buffer.data();
+    ULONG count = header->Count;
+    ULONG fits = (bytesReturned - (ULONG)sizeof(KBDLAYER_WAIT_HELPER_EVENT_OUTPUT)) / (ULONG)sizeof(KBDLAYER_HELPER_EVENT);
+    if (count > fits) count = fits;
+    *outHeader = *header;
+    const KBDLAYER_HELPER_EVENT* events =
+        (const KBDLAYER_HELPER_EVENT*)(buffer.data() + sizeof(KBDLAYER_WAIT_HELPER_EVENT_OUTPUT));
+    outEvents->assign(events, events + count);
+    return true;
+}
+
 bool IoctlClient::SetLayerState(ULONG uniqId, ULONG op, ULONG layer, ULONG mask, ULONG flags,
                                 KBDLAYER_LAYER_STATE* out) {
     KBDLAYER_SET_LAYER_STATE_INPUT input;

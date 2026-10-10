@@ -1,4 +1,4 @@
-# GUI-T4: UI Automation test -- feature/layer-to-tt added "no action" tap-dance slots (blank or
+﻿# GUI-T4: UI Automation test -- feature/layer-to-tt added "no action" tap-dance slots (blank or
 # KC_NO). Leaving SingleHold and TripleTap blank must validate OK, and the typed blank must survive
 # a reopen of the same in-memory (not-yet-applied) edit unchanged.
 #

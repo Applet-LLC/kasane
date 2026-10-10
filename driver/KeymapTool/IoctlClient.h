@@ -98,6 +98,12 @@ public:
     // アプリ管理レイヤーの操作。このハンドル（IoctlClient）を閉じると、立てたレイヤーは下ろされる。
     bool SetLayerState(ULONG uniqId, ULONG op, ULONG layer, ULONG mask, ULONG flags, KBDLAYER_LAYER_STATE* out);
 
+    // ヘルパーイベント（HLP(id)＝CUSTOMアクションの押下・解放）を待つ。FILE_READ_ACCESS。
+    // lastSeqより新しいイベントが来るまで戻らない（同期呼び出し）。初回はKBDLAYER_HELPER_SEQ_LATEST。
+    // *outCancelled = キャンセルで戻った。*outUnsupported = このIOCTLを知らない古いドライバ。
+    bool WaitHelperEvent(ULONG lastSeq, KBDLAYER_WAIT_HELPER_EVENT_OUTPUT* outHeader,
+                         std::vector<KBDLAYER_HELPER_EVENT>* outEvents, bool* outCancelled, bool* outUnsupported);
+
     // E-2: DeviceIdは一意でない前提で設計する（common/kbdlayer_ioctl.hのコメント参照）。
     // GET/SET_DEVICE_SCOPE: このキーボードのレイヤーマップ等を「同型番で共有」
     // (KBDLAYER_BINDING_MODEL) と「この1台だけ」(KBDLAYER_BINDING_INSTANCE) の

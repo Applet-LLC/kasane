@@ -76,6 +76,49 @@ KeymapTool.exe --off <UniqIdHex>
 KeymapTool.exe --clear <UniqIdHex>
 ```
 
+## test-keymap-helper.json — ヘルパーイベント（HLP / CUSTOM）動作確認用
+
+`HLP(id)`（id は 0〜65535。10進または `0x` 付きの16進）を置いたキーは、キーを何も出さず、
+押下・オートリピート・解放をトレイ（kasane-tray）などのアプリへ「ヘルパーイベント」として知らせる
+（`IOCTL_KBDLAYER_WAIT_HELPER_EVENT`。`common/kbdlayer_ioctl.h` 参照）。キーマップの4キーは
+`[HLP(1), HLP(0x102), MO(1), KC_X]`、レイヤー1は `[HLP(3), 透過, -, HLP(4)]`。
+
+### 手順
+
+```
+KeymapTool.exe --list
+KeymapTool.exe --calibrate-simple <UniqIdHex> 4 helper-profile.json   REM 使う4キーを順に押す
+KeymapTool.exe --apply-simple <UniqIdHex> test-keymap-helper.json helper-profile.json
+KeymapTool.exe --on <UniqIdHex>
+KeymapTool.exe --watch-helper          REM 別のコンソールで（昇格は不要）。Ctrl+Cで終了
+```
+
+### 確認項目
+
+- キー1を押して離すと `HLP(1) down` と `HLP(1) up` の2行が出て、アプリには何も入力されないこと。
+- キー2は `HLP(258)`（0x102）になること。
+- キー1を押し続けると `down (repeat)` が続き、離すと `up` が1行出ること。
+- キー3（MO(1)）を押したままキー1 → `HLP(3)`、キー4 → `HLP(4)`。キー3を離さずにキー4を押したまま
+  キー3を先に離しても、キー4の `up` は `HLP(4)` のまま（押下時の記録どおり）であること。
+- Shiftを押したままキー1 → `Mods=0x02`（KBDLAYER_MOD_LSFT）。
+- キー1を押したまま `--off` しても、離したときに `HLP(1) up` が出ること。
+- `--watch-helper` を2つ同時に動かすと、両方に同じ行が出ること。片方を Ctrl+C で止めても、もう片方は動き続けること。
+- `--watch-helper` を起動する前に押した分は表示されないこと。
+- このIOCTLを知らない古いドライバでは、`--watch-helper` が「does not support helper events」で終了し、HLPのキーは何も出さないこと。
+
+### コンボと併用するときの注意
+
+コンボのメンバーは物理スキャンコードで照合されるので、HLPを置いたキーもコンボのメンバーになれる。その場合は
+コンボが優先され、成立すればコンボの出力が出て、HLPのイベントは出ない。成立しなかった（単独で押した）ときは
+何も出さず、HLPのイベントも出ない（生のキーを出すと、HLPにしたキーが意図せず文字を打つため）。
+
+### 元に戻す
+
+```
+KeymapTool.exe --off <UniqIdHex>
+KeymapTool.exe --clear <UniqIdHex>
+```
+
 ## test-keymap-tapdance.json — Phase 5 (タップダンス, v1: タップ回数3回まで) 動作確認用
 
 10キー・1レイヤーで、位置0に`TAPDANCE(0)`を配置した最小テストキーマップ。タップダンス

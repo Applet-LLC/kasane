@@ -33,6 +33,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         KbdCanvas.KeyClicked += Keyboard_KeyClicked;
         KbdCanvas.KeyRightClicked += Keyboard_KeyRightClicked;
+        LstLayers.ContextMenu = BuildLayerMenu();
     }
 
     private DeviceInfo? SelectedDevice => CmbDevice.SelectedItem as DeviceInfo;
@@ -366,7 +367,7 @@ public partial class MainWindow : Window
     {
         if (_project == null) return;
         string current = _project.Layers[_layer][slot.Index];
-        var dlg = new KeyAssignDialog(slot, _layer, current, _project.Layers.Count) { Owner = this };
+        var dlg = new KeyAssignDialog(slot, _layer, current, _project.Layers.Count, _project.UniqId) { Owner = this };
         if (dlg.ShowDialog() != true || dlg.ResultToken == current) return;
         _project.Layers[_layer][slot.Index] = dlg.ResultToken;
         MarkDirty();
@@ -508,6 +509,49 @@ public partial class MainWindow : Window
     private void BtnSave_Click(object sender, RoutedEventArgs e)
     {
         if (SaveProject()) SetStatus($"保存しました: {ProjectService.ProjectPath(_project!.UniqId)}");
+    }
+
+    private ContextMenu BuildLayerMenu()
+    {
+        var menu = new ContextMenu();
+        var export = new MenuItem { Name = "MenuExportLayer", Header = "このレイヤーをエクスポート..." };
+        export.Click += (_, _) => OpenImportExport(ImportExportWindow.StartTab.Export, Kasane.Model.Portable.PortableScope.Layer);
+        var import = new MenuItem { Name = "MenuImportLayer", Header = "レイヤーをインポート..." };
+        import.Click += (_, _) => OpenImportExport(ImportExportWindow.StartTab.Import, Kasane.Model.Portable.PortableScope.Layer);
+        menu.Items.Add(export);
+        menu.Items.Add(import);
+        return menu;
+    }
+
+    private void BtnImportExport_Click(object sender, RoutedEventArgs e) =>
+        OpenImportExport(ImportExportWindow.StartTab.Export, Kasane.Model.Portable.PortableScope.Keyboard);
+
+    private void OpenImportExport(ImportExportWindow.StartTab tab, Kasane.Model.Portable.PortableScope scope)
+    {
+        if (_project == null || _layout == null) return;
+        var devices = CmbDevice.Items.OfType<DeviceInfo>().Where(d => d.UniqId != 0)
+            .Select(d => new Kasane.Model.Portable.PortableService.TargetDevice(d.UniqId, d.HardwareId, d.DisplayName)).ToList();
+        uint uniq = _project.UniqId;
+        var dlg = new ImportExportWindow(_project, _layout, uniq, devices, _dirty, SaveProject, tab, scope, _layer) { Owner = this };
+        dlg.ShowDialog();
+        if (dlg.ResultProject != null)
+        {
+            ProjectService.NormalizeShape(dlg.ResultProject, _layout);
+            SetProject(dlg.ResultProject, _layout, dirty: true);
+            SetStatus("読み込みました（まだ保存・適用していません）。");
+        }
+        else if (dlg.CurrentChangedOnDisk)
+        {
+            // 全体一括の読み込みが、保存先を書き換えた。保存先から読み直す。
+            var reloaded = ProjectService.TryLoad(uniq);
+            var layout = reloaded != null && ProjectService.FindLayoutFile(reloaded) is { } file ? KeyboardLayout.Load(file) : null;
+            if (reloaded != null && layout != null)
+            {
+                ProjectService.NormalizeShape(reloaded, layout);
+                SetProject(reloaded, layout, dirty: true);
+                SetStatus("全体一括で読み込みました（まだ「キーボードに適用」していません）。");
+            }
+        }
     }
 
     private void BtnExport_Click(object sender, RoutedEventArgs e)

@@ -122,6 +122,8 @@ DispatchControlCreateClose(
         // アプリ管理レイヤーを下ろす（アプリが落ちてもレイヤーが立ちっぱなしにならない）。
         LayerNotifyCleanupOwner(irpSp->FileObject);
         ReleaseAppLayersForOwner(irpSp->FileObject);
+        // そのハンドルで保留中のWAIT_HELPER_EVENTを終わらせる。
+        HelperNotifyCleanupOwner(irpSp->FileObject);
     }
 
     Irp->IoStatus.Status = STATUS_SUCCESS;
@@ -1327,6 +1329,40 @@ HandleSetLayerState(
     return status;
 }
 
+// CUSTOMアクション（ヘルパーイベント）を待つ。IRPは保留（STATUS_PENDING）にし、HelperNotify.cが
+// 完了させる。特定のキーボードを指定しない（全キーボードのイベントを返す）ので、remove lockは取らない。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleWaitHelperEvent(
+    _In_ PIRP Irp,
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    ULONG outputLen = IrpSp->Parameters.DeviceIoControl.OutputBufferLength;
+    PKBDLAYER_WAIT_HELPER_EVENT_INPUT input = (PKBDLAYER_WAIT_HELPER_EVENT_INPUT)SystemBuffer;
+    ULONG lastSeq;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_WAIT_HELPER_EVENT_INPUT)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (input->Flags != 0) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    // 出力は、見出し＋イベント1件以上（HelperNotify.cのCompleteHelperWaitIrpが前提にする）。
+    if (outputLen < sizeof(KBDLAYER_WAIT_HELPER_EVENT_OUTPUT) + sizeof(KBDLAYER_HELPER_EVENT)) {
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+
+    // METHOD_BUFFERED: 出力は同じバッファに後で書かれるので、入力は先に読んでおく。
+    lastSeq = input->LastSeq;
+    return StartWaitHelperEvent(Irp, lastSeq);
+}
+
 NTSTATUS
 DispatchControlIoctl(
     IN PDEVICE_OBJECT DeviceObject,
@@ -1435,6 +1471,14 @@ DispatchControlIoctl(
         break;
     case IOCTL_KBDLAYER_SET_FEATURES:
         status = HandleSetFeatures(Irp, irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_WAIT_HELPER_EVENT:
+        status = HandleWaitHelperEvent(Irp, irpSp, systemBuffer, &bytesReturned);
+        if (status == STATUS_PENDING) {
+            // IRPは保留中（HelperNotify.cのStartWaitHelperEventがキューへ入れ、
+            // IoMarkIrpPending済み。返せるイベントが既にあれば完了済み）。ここで完了させてはならない。
+            return STATUS_PENDING;
+        }
         break;
     case IOCTL_KBDLAYER_GET_I8042_CONFIG:
         status = HandleGetI8042Config(irpSp, systemBuffer, &bytesReturned);

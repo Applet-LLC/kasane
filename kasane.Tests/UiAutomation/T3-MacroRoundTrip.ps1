@@ -1,4 +1,4 @@
-# GUI-T3: UI Automation round-trip test for the Macro editor -- type a modded-key macro
+﻿# GUI-T3: UI Automation round-trip test for the Macro editor -- type a modded-key macro
 # (LCTL(KC_C) KC_A LCTL(LSFT(KC_T))), click OK, reopen, and confirm the same text is shown.
 . "$PSScriptRoot\UiaLib.ps1"
 $ErrorActionPreference = "Stop"

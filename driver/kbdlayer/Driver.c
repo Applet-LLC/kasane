@@ -132,6 +132,7 @@ NTSTATUS DriverEntry(IN PDRIVER_OBJECT DriverObject, IN PUNICODE_STRING Registry
     InitializeListHead(&g_deviceList);
     KeInitializeSpinLock(&g_listLock);
     InitializeLayerNotify(); // WAIT_LAYER_CHANGEの保留IRPのキュー（LayerNotify.c）
+    InitializeHelperNotify(); // WAIT_HELPER_EVENTのイベントと保留IRPのキュー（HelperNotify.c）
     InitializeI8042Override(); // i8042prt書き換えの直列化用ミューテックス（I8042Override.c）
 
     DriverObject->DriverExtension->AddDevice = AddDevice;

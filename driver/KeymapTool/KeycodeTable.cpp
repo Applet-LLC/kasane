@@ -4,6 +4,7 @@
 #include "KeycodeTable.h"
 #include <unordered_map>
 #include <cstdlib>
+#include <cctype>
 #include <algorithm>
 
 namespace {
@@ -132,6 +133,25 @@ const std::unordered_map<std::string, USHORT>& BaseKeyTable() {
         {"KC_MNXT", SCE0(0x19)}, {"KC_MEDIA_NEXT_TRACK", SCE0(0x19)},
         {"KC_MPRV", SCE0(0x10)}, {"KC_MEDIA_PREV_TRACK", SCE0(0x10)},
         {"KC_CALC", SCE0(0x21)}, {"KC_CALCULATOR", SCE0(0x21)},
+        // ファンクションキー F13–F24（2026-10-08追加。物理キーが無くても出力できる。F24だけ0x76）
+        {"KC_F13", SC1(0x64)}, {"KC_F14", SC1(0x65)}, {"KC_F15", SC1(0x66)}, {"KC_F16", SC1(0x67)},
+        {"KC_F17", SC1(0x68)}, {"KC_F18", SC1(0x69)}, {"KC_F19", SC1(0x6A)}, {"KC_F20", SC1(0x6B)},
+        {"KC_F21", SC1(0x6C)}, {"KC_F22", SC1(0x6D)}, {"KC_F23", SC1(0x6E)}, {"KC_F24", SC1(0x76)},
+        // ブラウザー・アプリ起動キー（2026-10-08追加）
+        {"KC_WSCH", SCE0(0x65)}, {"KC_WWW_SEARCH", SCE0(0x65)},
+        {"KC_WHOM", SCE0(0x32)}, {"KC_WWW_HOME", SCE0(0x32)},
+        {"KC_WBAK", SCE0(0x6A)}, {"KC_WWW_BACK", SCE0(0x6A)},
+        {"KC_WFWD", SCE0(0x69)}, {"KC_WWW_FORWARD", SCE0(0x69)},
+        {"KC_WSTP", SCE0(0x68)}, {"KC_WWW_STOP", SCE0(0x68)},
+        {"KC_WREF", SCE0(0x67)}, {"KC_WWW_REFRESH", SCE0(0x67)},
+        {"KC_WFAV", SCE0(0x66)}, {"KC_WWW_FAVORITES", SCE0(0x66)},
+        {"KC_MAIL", SCE0(0x6C)},
+        {"KC_MSEL", SCE0(0x6D)}, {"KC_MEDIA_SELECT", SCE0(0x6D)},
+        {"KC_MYCM", SCE0(0x6B)}, {"KC_MY_COMPUTER", SCE0(0x6B)},
+        // システム（電源）キー（2026-10-08追加。KC_PWRはOSの設定によってはシャットダウンになる）
+        {"KC_PWR", SCE0(0x5E)}, {"KC_SYSTEM_POWER", SCE0(0x5E)},
+        {"KC_SLEP", SCE0(0x5F)}, {"KC_SYSTEM_SLEEP", SCE0(0x5F)},
+        {"KC_WAKE", SCE0(0x63)}, {"KC_SYSTEM_WAKE", SCE0(0x63)},
     };
     return table;
 }
@@ -216,6 +236,35 @@ bool ParseTapDanceId(const std::string& s, UCHAR* out) {
     return true;
 }
 
+// HLP(id)のid用（ヘルパーイベント。CUSTOMアクションのParam2）。10進または0x付きの16進で0〜65535。
+// （先頭が0の10進は8進にしない。kasane/Keycodes/KeycodeTable.cs の TryParseHelperId と同じ）
+bool ParseHelperId(const std::string& s, USHORT* out) {
+    bool hex = s.size() > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X');
+    std::string digits = hex ? s.substr(2) : s;
+    if (digits.empty()) return false;
+    for (char c : digits) {
+        if (hex ? !isxdigit((unsigned char)c) : !isdigit((unsigned char)c)) return false;
+    }
+    unsigned long v = strtoul(digits.c_str(), nullptr, hex ? 16 : 10);
+    if (v > 0xFFFF) return false;
+    *out = (USHORT)v;
+    return true;
+}
+
+// 表に名前の無いキーを書くための、生のスキャンコード SC_XXXX（Enc16形式の16進4桁。上位2桁は
+// 00/E0/E1、下位2桁は0以外）。kasane/Keycodes/KeycodeTable.cs の TryParseRawScanCode と同じ規則。
+bool ParseRawScanCode(const std::string& token, USHORT* outScanCode16) {
+    if (token.size() != 7 || token.compare(0, 3, "SC_") != 0) return false;
+    for (size_t i = 3; i < token.size(); i++) {
+        if (!isxdigit((unsigned char)token[i])) return false;
+    }
+    unsigned long v = strtoul(token.c_str() + 3, nullptr, 16);
+    unsigned long prefix = v >> 8;
+    if ((prefix != 0x00 && prefix != 0xE0 && prefix != 0xE1) || (v & 0xFF) == 0) return false;
+    *outScanCode16 = (USHORT)v;
+    return true;
+}
+
 // "LCTL(LSFT(KC_T))" のような修飾付きキーを、修飾子マスクと基本キーに分解する
 // （入れ子を1段ずつ外す）。修飾関数が1つも無い（ただの基本キー）場合はfalse。
 bool ParseModdedKey(const std::string& token, UCHAR* outMask, USHORT* outScanCode16) {
@@ -231,10 +280,16 @@ bool ParseModdedKey(const std::string& token, UCHAR* outMask, USHORT* outScanCod
         cur.erase(std::remove(cur.begin(), cur.end(), ' '), cur.end());
     }
     if (mask == 0) return false;
+    USHORT sc = 0;
     auto base = BaseKeyTable().find(cur);
-    if (base == BaseKeyTable().end() || base->second == 0) return false;
+    if (base != BaseKeyTable().end()) {
+        sc = base->second;
+    } else if (!ParseRawScanCode(cur, &sc)) {
+        return false;
+    }
+    if (sc == 0) return false;
     *outMask = mask;
-    *outScanCode16 = base->second;
+    *outScanCode16 = sc;
     return true;
 }
 
@@ -270,9 +325,11 @@ bool KeycodeTable::ResolveModMask(const std::string& token, UCHAR* outMask) {
 bool KeycodeTable::ResolveBaseKey(const std::string& token, USHORT* outScanCode16) {
     const auto& table = BaseKeyTable();
     auto it = table.find(token);
-    if (it == table.end()) return false;
-    *outScanCode16 = it->second;
-    return true;
+    if (it != table.end()) {
+        *outScanCode16 = it->second;
+        return true;
+    }
+    return ParseRawScanCode(token, outScanCode16);
 }
 
 bool KeycodeTable::ResolveModifierBit(const std::string& token, UCHAR* outBit) {
@@ -415,6 +472,15 @@ bool KeycodeTable::Resolve(const std::string& token, KeycodeMapping* out) {
             out->ActionType = KBDLAYER_ACTION_MACRO;
             out->Param1 = macroId;
             out->Param2 = 0;
+            return true;
+        }
+        if (name == "HLP" && parts.size() == 1) {
+            // ヘルパーイベント（CUSTOM）: キーは出さず、押下・解放をトレイ等のアプリへ知らせる。
+            USHORT helperId;
+            if (!ParseHelperId(parts[0], &helperId)) return false;
+            out->ActionType = KBDLAYER_ACTION_CUSTOM;
+            out->Param1 = 0;
+            out->Param2 = helperId;
             return true;
         }
         if (name == "TAPDANCE" && parts.size() == 1) {

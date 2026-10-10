@@ -1,4 +1,4 @@
-# Shared UI Automation helpers for driving kasane.exe.
+﻿# Shared UI Automation helpers for driving kasane.exe.
 #
 # IMPORTANT (discovered empirically, 2026-09-30): AutomationElement.RootElement.FindAll(Children,
 # processIdCondition) does NOT reliably enumerate a process's top-level windows -- a newly-opened

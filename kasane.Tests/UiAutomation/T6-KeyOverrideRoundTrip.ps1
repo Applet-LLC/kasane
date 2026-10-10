@@ -1,4 +1,4 @@
-# GUI-T6: UI Automation round-trip + validation test for the "キー置換" (Key Override) editor --
+﻿# GUI-T6: UI Automation round-trip + validation test for the "キー置換" (Key Override) editor --
 # feature/key-override. Sets Mods/Key/Replacement -> OK -> reopen -> confirm the same values, then
 # confirms invalid values (a layer action for Key, a macro for Replacement) show a validation error
 # and block OK.

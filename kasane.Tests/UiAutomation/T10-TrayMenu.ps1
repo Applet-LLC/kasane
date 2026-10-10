@@ -1,4 +1,4 @@
-# GUI-T10: UI Automation test for the tray tool (kasane-tray.exe): the icon exists with a tooltip, a left click opens the
+﻿# GUI-T10: UI Automation test for the tray tool (kasane-tray.exe): the icon exists with a tooltip, a left click opens the
 # editor (and a second click only brings it to the front), the right-click menu has 設定 / 一時停止 / ライセンス / 終了 in this
 # order, ライセンス opens the license manager, and 終了 ends the tray.
 # It never presses 一時停止 (that changes the keyboards' ON/OFF state; see .plans/tray.md for the pause tests).

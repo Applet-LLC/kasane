@@ -1,4 +1,4 @@
-# GUI-T8: UI Automation test -- feature/combo-td-extend's new combo/tap-dance output forms round-trip
+﻿# GUI-T8: UI Automation test -- feature/combo-td-extend's new combo/tap-dance output forms round-trip
 # correctly in the GUI editors (no spurious validation error), and MO(1) is still rejected as a combo
 # output (layer actions were never allowed as combo output, before or after this branch).
 . "$PSScriptRoot\UiaLib.ps1"

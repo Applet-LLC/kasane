@@ -1,4 +1,4 @@
-# GUI-T9: UI Automation test for the settings dialog (feature/gui-settings): the Features tab round-trip,
+﻿# GUI-T9: UI Automation test for the settings dialog (feature/gui-settings): the Features tab round-trip,
 # the NICOLA tab + NICOLA table editor (validation, round-trip of an edit), the Emergency tab's input
 # validation and the simultaneous-press check window (opened and closed without pressing keys), and that
 # the Scope tab shows a status line, and the i8042prt tab's controls exist.
@@ -53,7 +53,7 @@ try {
     Select-TabById $dlg "TabNicola"
     # IME link checkbox (saved to tray.json on OK only when changed; this test never toggles it). It reflects tray.json (default: on).
     $imeLinkState = Get-ToggleState (Find-ChildByAutomationId $dlg "NicolaImeLinkCheck")
-    $trayJson = Join-Path $env:LOCALAPPDATA "applet\kasane	ray.json"
+    $trayJson = Join-Path $env:LOCALAPPDATA "applet\kasane\tray.json"
     $expectedOn = $true
     if (Test-Path $trayJson) { try { $expectedOn = [bool](Get-Content $trayJson -Raw | ConvertFrom-Json).ImeLink } catch { $expectedOn = $true } }
     Chk "IME link checkbox exists and reflects tray.json (default on)" (($imeLinkState -eq [System.Windows.Automation.ToggleState]::On) -eq $expectedOn)

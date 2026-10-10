@@ -55,7 +55,13 @@ typedef struct _KBDLAYER_ACTION {
 #define KBDLAYER_ACTION_MODTAP        8  // MT(mod,kc): Param1=修飾子ビット, Param2=タップ時スキャンコード (Phase 2)
 #define KBDLAYER_ACTION_LAYERTAP      9  // LT(layer,kc): Param1=レイヤー番号, Param2=タップ時スキャンコード (Phase 2)
 #define KBDLAYER_ACTION_MACRO         10 // MACRO(id): Param1=マクロID(0..KBDLAYER_MAX_MACRO_COUNT-1) (Phase 3)
-#define KBDLAYER_ACTION_CUSTOM        11 // 将来の拡張フック点として予約のみ。詳細設計は先送り (Phase 3)
+// CUSTOM（ヘルパーイベント、2026-10-08実装。QMKのRaw HIDに近い）: Param1=0（予約。0以外は拒否）、
+// Param2=ヘルパー動作のID（0〜65535）。キーは出力せず、押下・オートリピート・解放を
+// IOCTL_KBDLAYER_WAIT_HELPER_EVENT で待っているアプリ（kasane-tray）へ知らせる。動作の中身
+// （アプリの起動・文字列の入力など）はアプリ側で決める。置けるのはレイヤーマップだけ
+// （コンボ・タップダンス・キー置換の出力には置けない）。これより前のドライバは、CUSTOMを
+// 何もしないキーとして扱う（キーは出ない）。
+#define KBDLAYER_ACTION_CUSTOM        11
 #define KBDLAYER_ACTION_TAPDANCE      12 // TAPDANCE(id): Param1=タップダンスID(0..KBDLAYER_MAX_TAPDANCE_COUNT-1) (Phase 5)
 // 修飾付きキー（QMKのLCTL(kc)等に相当）: Param1=修飾子マスク（0以外）, Param2=送出スキャンコード(Enc16)。
 // 押下で、まだ押されていない修飾キーを足してからキーを送り、解放でキーを離してから足した分を戻す。
@@ -602,6 +608,65 @@ typedef struct _KBDLAYER_SET_LAYER_STATE_INPUT {
     ULONG Flags; // KBDLAYER_LAYER_STATE_FLAG_*
 } KBDLAYER_SET_LAYER_STATE_INPUT, *PKBDLAYER_SET_LAYER_STATE_INPUT;
 
+// --- ヘルパーイベント（CUSTOMアクションの通知、2026-10-08） ---
+//
+// レイヤーマップのCUSTOM(id)を割り当てたキーの押下・オートリピート・解放を、ドライバ全体で
+// 1本のキュー（KBDLAYER_HELPER_EVENT_QUEUE_SIZE件のリング）に積み、WAIT_HELPER_EVENTで
+// 待っているアプリへ渡す。キー自体は出力しない。
+// - キーボードを指定しない（全キーボードのイベントが届く。UniqIdで区別する）。
+// - 押下と解放の対応は、ほかのアクションと同じく押下時の記録（HeldKeys）に従う。押している間に
+//   レイヤーが変わっても、マップをOFFにしても、解放は同じCustomIdで届く。
+// - 複数のアプリ（ユーザーごとのトレイなど）が待っていれば、全員に同じイベントを渡す。
+//   どのアプリが動作を実行するか（アクティブなセッションのものだけ、など）はアプリ側で決める。
+// - 読み出しが追いつかずにリングから押し出されたイベントは、Droppedで件数だけを知らせる。
+
+// イベント1件（20バイト）。
+typedef struct _KBDLAYER_HELPER_EVENT {
+    ULONG  Seq;       // ドライバ全体で単調に増える番号（0とKBDLAYER_HELPER_SEQ_LATESTは使わない）
+    ULONG  UniqId;    // 押されたキーボードのDeviceId（KBDLAYER_TARGET.UniqIdと同じ値）
+    USHORT CustomId;  // CUSTOMアクションのParam2
+    UCHAR  IsBreak;   // 0 = 押下（オートリピートを含む）、1 = 解放
+    UCHAR  Flags;     // KBDLAYER_HELPER_EVENT_FLAG_*
+    UCHAR  Modifiers; // そのとき普通の出力として押されていた修飾キー（KBDLAYER_MOD_*のOR）
+    UCHAR  Reserved[3];
+    ULONG  TimeMs;    // KeQueryInterruptTime（起動からの時間）のミリ秒。古いイベントの判定用
+} KBDLAYER_HELPER_EVENT, *PKBDLAYER_HELPER_EVENT;
+
+// KBDLAYER_HELPER_EVENT.Flags
+#define KBDLAYER_HELPER_EVENT_FLAG_REPEAT 0x01 // 押下中のキーのオートリピート
+
+// ドライバ全体のキューの件数。
+#define KBDLAYER_HELPER_EVENT_QUEUE_SIZE 64
+
+// WAIT_HELPER_EVENTのLastSeqに渡すと、「今より後のイベント」を待つ（起動直後のアプリが、
+// 過去のイベントを実行しないため）。
+#define KBDLAYER_HELPER_SEQ_LATEST 0xFFFFFFFFUL
+
+// IOCTL_KBDLAYER_WAIT_HELPER_EVENT の入力。
+// Seq が LastSeq より新しいイベントがあれば、すぐに完了する。無ければIRPを保留する。
+// 次のいずれかで完了する: イベント（STATUS_SUCCESS）、キャンセル・ハンドルのクローズ
+// （STATUS_CANCELLED）。初回は LastSeq = KBDLAYER_HELPER_SEQ_LATEST で呼び、以後は出力のSeqを渡す。
+typedef struct _KBDLAYER_WAIT_HELPER_EVENT_INPUT {
+    ULONG LastSeq;
+    ULONG Flags;   // 予約（0）
+} KBDLAYER_WAIT_HELPER_EVENT_INPUT, *PKBDLAYER_WAIT_HELPER_EVENT_INPUT;
+
+// IOCTL_KBDLAYER_WAIT_HELPER_EVENT の出力。続けてCount件のKBDLAYER_HELPER_EVENT。
+// 出力バッファは、少なくともこの構造体＋イベント1件分が必要（足りなければSTATUS_BUFFER_TOO_SMALL）。
+// 入りきらなかったイベントは、次の呼び出し（LastSeq = 出力のSeq）で返る。
+typedef struct _KBDLAYER_WAIT_HELPER_EVENT_OUTPUT {
+    ULONG Seq;      // 返した最後のイベントのSeq（次のLastSeqに渡す）
+    ULONG Count;    // 続くイベントの件数（1以上）
+    ULONG Dropped;  // LastSeqより後に起きたが、キューから押し出されて返せなかった件数
+    ULONG Reserved;
+    // KBDLAYER_HELPER_EVENT Events[Count];
+} KBDLAYER_WAIT_HELPER_EVENT_OUTPUT, *PKBDLAYER_WAIT_HELPER_EVENT_OUTPUT;
+
+// ドライバ全体で同時に保留できるWAIT_HELPER_EVENTの数。超えるとSTATUS_INSUFFICIENT_RESOURCES。
+// （Everyoneが呼べるIOCTLなので、非ページプールを使い切らせる攻撃を防ぐ。通常はユーザーごとの
+// トレイが1つずつ待つだけ。）
+#define KBDLAYER_MAX_PENDING_HELPER_WAITS 16
+
 // --- デバイスの永続化スコープ（E-2: DeviceIdは一意でない前提で設計する） ---
 //
 // devExt->DeviceId（Target.UniqIdで指定するアドレッシング用ID。ExtraInformationへの刻印にも
@@ -796,5 +861,10 @@ typedef struct _KBDLAYER_I8042_CONFIG {
 // SET側は管理者のみ（FILE_WRITE_ACCESS）。
 #define IOCTL_KBDLAYER_GET_I8042_CONFIG     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x81C, METHOD_BUFFERED, FILE_READ_ACCESS)
 #define IOCTL_KBDLAYER_SET_I8042_CONFIG     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x81D, METHOD_BUFFERED, FILE_WRITE_ACCESS)
+// ヘルパーイベント（CUSTOMアクションの通知、2026-10-08）。WAIT_LAYER_CHANGEと同じく、ユーザー自身が
+// 設定したCUSTOMキーの押下を知らせるだけで、任意の打鍵は読めない（キーロガーにならない）ので
+// FILE_READ_ACCESSにする。昇格していないトレイから呼ぶ。
+#define IOCTL_KBDLAYER_WAIT_HELPER_EVENT \
+    CTL_CODE(FILE_DEVICE_KBDLAYER, 0x81E, METHOD_BUFFERED, FILE_READ_ACCESS)
 
 #endif // _KBDLAYER_COMMON_IOCTL_H_

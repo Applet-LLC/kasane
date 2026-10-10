@@ -12,19 +12,19 @@ public static class ProjectService
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
-    public static string ProjectPath(uint uniqId) =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "applet", "kasane", uniqId.ToString("X8"), "project.json");
+    /// <param name="baseDirectory">%LOCALAPPDATA%\applet\kasane の代わりの場所（単体テスト用。null なら既定）。</param>
+    public static string ProjectPath(uint uniqId, string? baseDirectory = null) =>
+        Path.Combine(baseDirectory ?? HelperConfig.BaseDirectory, uniqId.ToString("X8"), "project.json");
 
     /// <summary>名前を kasane に変える前（2026-10まで）の保存先。%LOCALAPPDATA%\LayerDriver\&lt;UniqId&gt;\project.json。</summary>
     public static string LegacyProjectPath(uint uniqId) =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "LayerDriver", uniqId.ToString("X8"), "project.json");
 
-    public static KeymapProject? TryLoad(uint uniqId)
+    public static KeymapProject? TryLoad(uint uniqId, string? baseDirectory = null)
     {
-        var path = ProjectPath(uniqId);
-        MigrateLegacyProject(uniqId, path);
+        var path = ProjectPath(uniqId, baseDirectory);
+        if (baseDirectory == null) MigrateLegacyProject(uniqId, path);
         if (!File.Exists(path)) return null;
         return JsonSerializer.Deserialize<KeymapProject>(File.ReadAllText(path), JsonOptions);
     }
@@ -46,11 +46,30 @@ public static class ProjectService
         catch (UnauthorizedAccessException) { }
     }
 
-    public static void Save(KeymapProject project)
+    public static void Save(KeymapProject project, string? baseDirectory = null)
     {
-        var path = ProjectPath(project.UniqId);
+        var path = ProjectPath(project.UniqId, baseDirectory);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, JsonSerializer.Serialize(project, JsonOptions), new UTF8Encoding(false));
+    }
+
+    /// <summary>複製を作る（読み込みの試行など、元を変えたくないとき）。</summary>
+    public static KeymapProject Clone(KeymapProject project) =>
+        JsonSerializer.Deserialize<KeymapProject>(JsonSerializer.Serialize(project, JsonOptions), JsonOptions)!;
+
+    /// <summary>
+    /// スキャンコード → キー（スロット）の対応。実測値があればそれを使い、無ければレイアウトの既定のスキャンコード。
+    /// 同じスキャンコードのキーが複数あれば、先のものを使う。レイアウトの違うキーボードの間で、設定を持ち運ぶのに使う。
+    /// </summary>
+    public static Dictionary<ushort, KeySlot> SlotsByScanCode(KeymapProject? project, KeyboardLayout layout)
+    {
+        var bySc = new Dictionary<ushort, KeySlot>();
+        foreach (var s in layout.Slots)
+        {
+            ushort? sc = project != null ? EffectiveScanCode(project, s) : s.DefaultScanCode;
+            if (sc is ushort v && !bySc.ContainsKey(v)) bySc[v] = s;
+        }
+        return bySc;
     }
 
     /// <summary>同梱レイアウト名 or 保存されたフルパスからレイアウトファイルを探す。</summary>
@@ -251,7 +270,7 @@ public static class ProjectService
     /// </summary>
     public static List<string> MacroTokensFromSteps(IReadOnlyList<MacroStep> steps)
     {
-        string Name(ushort sc) => KeycodeTable.NameForScanCode(sc) ?? $"KC_UNKNOWN_{sc:X4}";
+        string Name(ushort sc) => KeycodeTable.KeyToken(sc);
         int ModBit(ushort sc) => Array.IndexOf(KeycodeTable.ModifierScanCodes, sc);
 
         var tokens = new List<string>();
@@ -449,9 +468,7 @@ public static class ProjectService
         var project = CreateDefault(device.UniqId, device.HardwareId, layout, bundled);
         for (int L = 1; L < layerCount; L++) project.Layers.Add(DefaultLayer(layout, L));
 
-        var bySc = new Dictionary<ushort, KeySlot>();
-        foreach (var s in layout.Slots)
-            if (s.DefaultScanCode is ushort sc && !bySc.ContainsKey(sc)) bySc[sc] = s;
+        var bySc = SlotsByScanCode(null, layout);
 
         foreach (var e in entries)
         {
@@ -514,7 +531,7 @@ public static class ProjectService
                 {
                     Id = k,
                     Mods = KeycodeTable.ModMaskToNames(ko.TriggerMods),
-                    Key = KeycodeTable.NameForScanCode(ko.TriggerScanCode) ?? $"KC_UNKNOWN_{ko.TriggerScanCode:X4}",
+                    Key = KeycodeTable.KeyToken(ko.TriggerScanCode),
                     Replacement = KeycodeTable.ToToken(ko.Replacement),
                 });
             }

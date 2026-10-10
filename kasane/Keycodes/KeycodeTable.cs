@@ -148,6 +148,25 @@ public static class KeycodeTable
         ("KC_MNXT", SCE0(0x19)), ("KC_MEDIA_NEXT_TRACK", SCE0(0x19)),
         ("KC_MPRV", SCE0(0x10)), ("KC_MEDIA_PREV_TRACK", SCE0(0x10)),
         ("KC_CALC", SCE0(0x21)), ("KC_CALCULATOR", SCE0(0x21)),
+        // ファンクションキー F13–F24（2026-10-08追加。物理キーが無くても出力できる。F24だけ0x76）
+        ("KC_F13", SC1(0x64)), ("KC_F14", SC1(0x65)), ("KC_F15", SC1(0x66)), ("KC_F16", SC1(0x67)),
+        ("KC_F17", SC1(0x68)), ("KC_F18", SC1(0x69)), ("KC_F19", SC1(0x6A)), ("KC_F20", SC1(0x6B)),
+        ("KC_F21", SC1(0x6C)), ("KC_F22", SC1(0x6D)), ("KC_F23", SC1(0x6E)), ("KC_F24", SC1(0x76)),
+        // ブラウザー・アプリ起動キー（2026-10-08追加）
+        ("KC_WSCH", SCE0(0x65)), ("KC_WWW_SEARCH", SCE0(0x65)),
+        ("KC_WHOM", SCE0(0x32)), ("KC_WWW_HOME", SCE0(0x32)),
+        ("KC_WBAK", SCE0(0x6A)), ("KC_WWW_BACK", SCE0(0x6A)),
+        ("KC_WFWD", SCE0(0x69)), ("KC_WWW_FORWARD", SCE0(0x69)),
+        ("KC_WSTP", SCE0(0x68)), ("KC_WWW_STOP", SCE0(0x68)),
+        ("KC_WREF", SCE0(0x67)), ("KC_WWW_REFRESH", SCE0(0x67)),
+        ("KC_WFAV", SCE0(0x66)), ("KC_WWW_FAVORITES", SCE0(0x66)),
+        ("KC_MAIL", SCE0(0x6C)),
+        ("KC_MSEL", SCE0(0x6D)), ("KC_MEDIA_SELECT", SCE0(0x6D)),
+        ("KC_MYCM", SCE0(0x6B)), ("KC_MY_COMPUTER", SCE0(0x6B)),
+        // システム（電源）キー（2026-10-08追加。KC_PWRはOSの設定によってはシャットダウンになる）
+        ("KC_PWR", SCE0(0x5E)), ("KC_SYSTEM_POWER", SCE0(0x5E)),
+        ("KC_SLEP", SCE0(0x5F)), ("KC_SYSTEM_SLEEP", SCE0(0x5F)),
+        ("KC_WAKE", SCE0(0x63)), ("KC_SYSTEM_WAKE", SCE0(0x63)),
     };
 
     // MT(mod,kc)のParam1に使うビット番号。driver/kbdlayer/LayerEngine.cのs_ModifierScanCodesと同じ割り当て。
@@ -239,12 +258,37 @@ public static class KeycodeTable
     /// <summary>全ベースキー名（別名を含む）。</summary>
     public static IEnumerable<string> AllBaseKeyNames => BaseKeys.Select(k => k.Name);
 
+    /// <summary>
+    /// 単純キーの名前（KC_*）か、生のスキャンコード（SC_XXXX）をスキャンコードにする。
+    /// SC_XXXX は Enc16 形式の16進4桁（上位2桁は 00 / E0 / E1、下位2桁は 0 以外）。表に名前の無いキーも
+    /// 出せるようにするためのもので、driver/KeymapTool/KeycodeTable.cpp の ResolveBaseKey と同じ規則。
+    /// </summary>
     public static bool TryResolveBaseKey(string token, out ushort scanCode) =>
-        NameToScan.TryGetValue(token, out scanCode);
+        NameToScan.TryGetValue(token, out scanCode) || TryParseRawScanCode(token, out scanCode);
+
+    /// <summary>"SC_E06A" → 0xE06A。形式が違う・プレフィックスが 00/E0/E1 でない・MakeCode が0なら false。</summary>
+    public static bool TryParseRawScanCode(string token, out ushort scanCode)
+    {
+        scanCode = 0;
+        if (token.Length != 7 || !token.StartsWith("SC_", StringComparison.Ordinal)) return false;
+        if (!ushort.TryParse(token.AsSpan(3), System.Globalization.NumberStyles.AllowHexSpecifier,
+                             System.Globalization.CultureInfo.InvariantCulture, out var sc)) return false;
+        byte prefix = (byte)(sc >> 8);
+        if (prefix is not (0x00 or 0xE0 or 0xE1) || (sc & 0xFF) == 0) return false;
+        scanCode = sc;
+        return true;
+    }
 
     /// <summary>スキャンコード → 正式なキーコード名（無ければ null）。</summary>
     public static string? NameForScanCode(ushort scanCode) =>
         ScanToName.TryGetValue(scanCode, out var n) ? n : null;
+
+    /// <summary>
+    /// スキャンコード → キーコード文字列。表に名前があれば正式名、無ければ SC_XXXX（0 は KC_NO）。
+    /// どちらも TryResolveBaseKey で同じスキャンコードに戻る。
+    /// </summary>
+    public static string KeyToken(ushort scanCode) =>
+        NameForScanCode(scanCode) ?? (scanCode == 0 ? "KC_NO" : $"SC_{scanCode:X4}");
 
     public static bool TryResolve(string token, out KeyAction action, out string? error)
     {
@@ -339,11 +383,34 @@ public static class KeycodeTable
                     action = new KeyAction(ActionType.TapDance, id, 0);
                     return true;
                 }
+                case "HLP" when parts.Length == 1:
+                {
+                    // ヘルパー動作（CUSTOM）: キーは出さず、押下・解放をトレイへ知らせる。
+                    if (!TryParseHelperId(parts[0], out var helperId))
+                    {
+                        error = $"ヘルパー動作の番号「{parts[0]}」は0〜65535（10進、または0x付きの16進）で指定してください";
+                        return false;
+                    }
+                    action = new KeyAction(ActionType.Custom, 0, helperId);
+                    return true;
+                }
             }
         }
 
         error = $"「{token}」は認識できないキーコードです";
         return false;
+    }
+
+    /// <summary>HLP(id) の id。10進、または 0x 付きの16進で 0〜65535（KeymapTool の ParseHelperId と同じ）。</summary>
+    private static bool TryParseHelperId(string s, out ushort id)
+    {
+        if (s.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            return ushort.TryParse(s.AsSpan(2), System.Globalization.NumberStyles.AllowHexSpecifier,
+                                   System.Globalization.CultureInfo.InvariantCulture, out id);
+        }
+        return ushort.TryParse(s, System.Globalization.NumberStyles.None,
+                               System.Globalization.CultureInfo.InvariantCulture, out id);
     }
 
     private static bool ParseLayer(string s, out byte layer, out string? error)
@@ -384,7 +451,7 @@ public static class KeycodeTable
     /// <summary>KBDLAYER_ACTION → キーコード文字列（ドライバの現在設定の読み込み用）。</summary>
     public static string ToToken(KeyAction a)
     {
-        string Key(ushort sc) => NameForScanCode(sc) ?? (sc == 0 ? "KC_NO" : $"KC_UNKNOWN_{sc:X4}");
+        string Key(ushort sc) => KeyToken(sc);
         return a.Type switch
         {
             ActionType.None => "KC_NO",
@@ -401,6 +468,7 @@ public static class KeycodeTable
             ActionType.LayerTap => $"LT({a.Param1},{Key(a.Param2)})",
             ActionType.Macro => $"MACRO({a.Param1})",
             ActionType.TapDance => $"TAPDANCE({a.Param1})",
+            ActionType.Custom => $"HLP({a.Param2})",
             ActionType.ModdedKey => WrapWithMods(a.Param1, Key(a.Param2)),
             ActionType.LayerMod => $"LM({a.Param1},{ModMaskToNames((byte)(a.Param2 & 0xFF))})",
             _ => "KC_NO",
