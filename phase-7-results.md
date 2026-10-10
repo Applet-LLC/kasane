@@ -2,15 +2,15 @@
 
 - 対象: `cdbbf86`（ドキュメントと `kasane.Tests/UiAutomation/Run-All.ps1` だけの更新。コード変更なし。ビルド・再インストールなしで、インストール済みの P6.1 版のまま確認）
 - 試験日: 2026-10-10（試験担当）
-- 結論: **J1 FAIL、J2 一部の食い違いを報告、J3 整合、J4・J5 未実施。**
+- 結論: **J1 FAIL、J2 一部の食い違いを報告、J3 整合、J4・J5 は実施（下記）。** 「上書きインストールでファイルが入れ替わらない」は、今回のログでは再現しなかった。
 
 | # | 結果 | 内容（実測） |
 |---|---|---|
 | J1 | **FAIL** | 非管理者の Windows PowerShell 5.1 で `Run-All.ps1` を実行すると、子の `T*.ps1` が構文エラー・日本語文字列の不一致で落ち、「すべて合格」にならない。原因は、BOM なしの UTF-8 の `.ps1` を 5.1 が CP932 として読むこと（日本語の文字列リテラルが壊れる）。**子を `pwsh` で動かすコピーでは 13 件すべて PASS**（194 秒）。 |
 | J2 | 一部不一致 | 下記 |
 | J3 | PASS | HELPER.md の制約は P3/P4 の実測と矛盾しない（下記） |
-| J4 | 未実施 | MSI をこの環境でビルドしていない（ユーザーのビルド・インストールが必要） |
-| J5 | 未実施 | 同上 |
+| J4 | PASS（所見あり） | 別ビルドの MSI（製品コードが違う）を、既存インストールの上に実行 → 「新規インストール扱い」に見えたが、ログでは **MajorUpgrade が働いた**（`FindRelatedProducts` が旧 `{CC138EF8-…}` を検出、`RemoveExistingProducts` で旧製品を削除、新 `{6DD453DF-…}` を登録）。旧 kasane.exe は `FileRemove` で消えてから `kasane.exe: To be installed; No existing file` で入れ直された＝入れ替わっている。`Won't Overwrite` は無い。所見は下記 |
+| J5 | PASS（所見あり） | 同じ MSI を再実行 → 保守モード（修復）。トレイの終了を求められ、終了せずに進めても、全ファイルが `Overwrite; Existing file is of an equal version`＝上書きされた（kasane.exe・kasane-tray.exe・kbdlayer.sys ほか）。再起動は求められなかったが、ログに `RESTART MANAGER: The user chose to go on with the installation, although a reboot will be required.` がある |
 
 ## J1 の詳細と修正案
 - 症状: 5.1 で実行すると `FAIL`／`EXCEPTION` が並び、「失敗: …」で終わる。
@@ -27,6 +27,12 @@
 ## J3: 制約の整合
 - 管理者窓が前面: トリガーは届かない（P3 B18）。HELPER.md の UIPI の記述と矛盾しない。ただし文書は「`HLP(Id)` のキー受け取りは影響を受けない」とするが、実測は HLP 経由が未確認。
 - ロック検知が最大約 2 秒遅れる（P4.1 D4）、キュー 64、5 秒より古いものは捨てる（P3）: 文書の数字と一致。
+
+## J4・J5 の詳細（ログ: `%TEMP%\kasane-j4.log`、`kasane-j5.log`）
+- FileVersion は全ファイル 1.0.0.0 のまま。J5（修復）で `equal version` でも `Overwrite` になる（修復は再インストール扱いのため）。J4（アップグレード）は旧製品を先に削除するので、バージョンが同じでも入れ替わる。**今回の2つの操作では、仮説（同じバージョンのファイルが上書きされない）は再現しなかった。** 再現するのは、製品コードを変えず（同じ ProductCode）、通常の `msiexec /i`（修復ではない）で別ビルドを入れるような場合のはずだが、今回のビルドでは製品コードがビルドごとに変わる。
+- J4 で `ScheduleReboot` が動き（`MsiRebootActionScheduled=1`、`Propagated Reboot to the client/parent install`）、再起動が求められる状態になった。旧製品の削除中に使用中のファイルがあった可能性（`FilesInUse` の表の読み込みはあるが、`Files in use` のダイアログの行はない）。
+- `CA_StopTray` は J4 で `returned actual error code 128 but will be translated to success`（トレイが居ないときの終了コードと思われる。無害）。
+- J5 の kasane.exe の GUI を起動したままの試験は、ユーザーが「トレイの終了を求められた」とだけ報告（kasane.exe の GUI を起動していたかは未確認）。ログに kasane.exe の使用中の行（`Files in use`）は出ていない。
 
 ## メモ
 - 試験の後、保存先は元の状態に戻した。トレイは起動済み。リポジトリの作業ツリーは変更なし（`.cursorindexingignore` はユーザーのもの）。
