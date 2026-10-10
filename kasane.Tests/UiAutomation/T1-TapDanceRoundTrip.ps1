@@ -1,4 +1,4 @@
-# GUI-T1: UI Automation round-trip test for the TapDance editor -- type LCTL(KC_C)/MACRO(0) into
+﻿# GUI-T1: UI Automation round-trip test for the TapDance editor -- type LCTL(KC_C)/MACRO(0) into
 # DoubleTap/TripleTap (the new modded-key/macro tap-side support), click OK, reopen, and confirm
 # the same text is displayed (proves the GUI's field wiring, not just ProjectService's logic).
 . "$PSScriptRoot\UiaLib.ps1"

@@ -1,4 +1,4 @@
-# GUI-T9: UI Automation test for the settings dialog (feature/gui-settings): the Features tab round-trip,
+﻿# GUI-T9: UI Automation test for the settings dialog (feature/gui-settings): the Features tab round-trip,
 # the NICOLA tab + NICOLA table editor (validation, round-trip of an edit), the Emergency tab's input
 # validation and the simultaneous-press check window (opened and closed without pressing keys), and that
 # the Scope tab shows a status line, and the i8042prt tab's controls exist.

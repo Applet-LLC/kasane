@@ -1,4 +1,4 @@
-# GUI-T7: UI Automation test for assigning OSM (and a modded key) via the key-face + key-assign
+﻿# GUI-T7: UI Automation test for assigning OSM (and a modded key) via the key-face + key-assign
 # dialog AutomationIds added in f56cf8d -- feature/one-shot-mod E-4.
 # Flow: click Key_<n> (KeyFace, async Invoke so it returns immediately even though it opens a modal
 # dialog) -> FuncCombo="OSM" -> check ModCheck_MOD_LSFT + ModCheck_MOD_LCTL -> InsertButton ->

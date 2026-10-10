@@ -1,4 +1,4 @@
-# GUI-T2: UI Automation test -- an invalid SingleHold value shows a validation error in the GUI and
+﻿# GUI-T2: UI Automation test -- an invalid SingleHold value shows a validation error in the GUI and
 # blocks OK from closing the dialog. (Originally this used "KC_NO", the value that was mistakenly used
 # in the OIB session; since feature/layer-to-tt, KC_NO/blank in SingleHold means "no hold action" and is
 # valid, so an actually invalid token -- a layer key, which SingleHold does not accept -- is used instead.)

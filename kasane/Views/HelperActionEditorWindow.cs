@@ -86,7 +86,7 @@ public sealed class HelperActionEditorWindow : Window
         if (mode == HelperEditMode.Action)
         {
             panel.Children.Add(Help("この動作は、キーに割り当てた HLP(Id) を押したときに動きます（キー割り当て画面の「ヘルパー動作」から選びます）。" +
-                                    "Id は、このキーボードの分と共通の分で重ならない数（1〜65535）にします。"));
+                                    "Id は、このキーボードの分と共通の分で重ならない数（0〜65535）にします。"));
             panel.Children.Add(Row("Id", _id, "HLP(Id)"));
             panel.Children.Add(Row("名前", _name));
         }

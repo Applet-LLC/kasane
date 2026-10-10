@@ -1,4 +1,4 @@
-# GUI-T11: UI Automation test for the settings dialog's "ヘルパー動作" and "アプリ別レイヤー" tabs (P4, 2026-10-08).
+﻿# GUI-T11: UI Automation test for the settings dialog's "ヘルパー動作" and "アプリ別レイヤー" tabs (P4, 2026-10-08).
 # Adds a rule and an action through their editor windows and checks the lists and the editors' validation.
 # Nothing is saved: the settings dialog is always closed with キャンセル, so helper.json / tray.json are not touched.
 . "$PSScriptRoot\UiaLib.ps1"

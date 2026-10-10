@@ -1,4 +1,4 @@
-# GUI-T5: UI Automation round-trip test for the "タイミング" (Timing) tab of the settings dialog
+﻿# GUI-T5: UI Automation round-trip test for the "タイミング" (Timing) tab of the settings dialog
 # (BtnSettings -> TabTiming). Until feature/gui-settings this was a separate dialog opened by BtnTiming;
 # the controls kept their names (TapTermBox, TapHoldModeBox, QuickTapTermBox/QuickTapEnabled,
 # TappingToggleBox, OkButton/CancelButton). Sets non-default values, OK, reopen, confirm they stuck.

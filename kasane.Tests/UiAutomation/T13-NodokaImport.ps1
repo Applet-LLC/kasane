@@ -1,4 +1,4 @@
-# GUI-T13: UI Automation test for the nodoka import window (P6, 2026-10-09).
+﻿# GUI-T13: UI Automation test for the nodoka import window (P6, 2026-10-09).
 # Opens the import/export window, switches to the import tab, opens "のどかの設定を取り込む..." and checks its controls.
 # A small .nodoka file is written to a temp folder and typed into the path box, then converted; nothing is imported or saved.
 . "$PSScriptRoot\UiaLib.ps1"

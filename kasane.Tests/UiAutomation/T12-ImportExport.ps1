@@ -1,4 +1,4 @@
-# GUI-T12: UI Automation test for the import/export window (P5, 2026-10-08).
+﻿# GUI-T12: UI Automation test for the import/export window (P5, 2026-10-08).
 # Opens the window from the main window and checks the export scope radios, the import tab's controls, and that
 # "読み込む" stays disabled until a file is chosen. The file dialogs are not driven (nothing is written or read).
 . "$PSScriptRoot\UiaLib.ps1"
