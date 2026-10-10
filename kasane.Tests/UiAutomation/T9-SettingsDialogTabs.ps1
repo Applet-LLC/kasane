@@ -53,7 +53,7 @@ try {
     Select-TabById $dlg "TabNicola"
     # IME link checkbox (saved to tray.json on OK only when changed; this test never toggles it). It reflects tray.json (default: on).
     $imeLinkState = Get-ToggleState (Find-ChildByAutomationId $dlg "NicolaImeLinkCheck")
-    $trayJson = Join-Path $env:LOCALAPPDATA "applet\kasane	ray.json"
+    $trayJson = Join-Path $env:LOCALAPPDATA "applet\kasane\tray.json"
     $expectedOn = $true
     if (Test-Path $trayJson) { try { $expectedOn = [bool](Get-Content $trayJson -Raw | ConvertFrom-Json).ImeLink } catch { $expectedOn = $true } }
     Chk "IME link checkbox exists and reflects tray.json (default on)" (($imeLinkState -eq [System.Windows.Automation.ToggleState]::On) -eq $expectedOn)
