@@ -49,6 +49,7 @@ public sealed class SettingsDialog : Window
     private NicolaDef? _nicola;
     private ComboBox _nicolaMode = null!;
     private CheckBox _imeLink = null!;
+    private CheckBox _showLayerOnIcon = null!;
     private readonly TrayConfig _trayConfig = TrayConfig.Load();
     private TextBlock _nicolaSummary = null!;
     // ヘルパー動作・アプリ別レイヤー（このキーボードの helper.json と、共通の tray.json の Helper。OKで直接保存する）
@@ -276,6 +277,15 @@ public sealed class SettingsDialog : Window
         };
         _imeLink.Click += (_, _) => RefreshNicola();
         panel.Children.Add(_imeLink);
+
+        _showLayerOnIcon = new CheckBox
+        {
+            Name = "ShowLayerOnIconCheck",
+            Content = "トレイのアイコンに、今のレイヤー番号を重ねる（基底のレイヤーだけのときは重ねない）",
+            IsChecked = _trayConfig.ShowLayerOnIcon,
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        panel.Children.Add(_showLayerOnIcon);
 
         _nicolaMode = new ComboBox { Name = "NicolaModeBox", Width = 360, ItemsSource = NicolaModeLabels };
         _nicolaMode.SelectedIndex = _project.Nicola != null ? 1 : _project.ClearNicola ? 2 : 0;
@@ -819,16 +829,18 @@ public sealed class SettingsDialog : Window
 
         // IME連動はプロジェクトではなく、このPCの利用者の設定（トレイが数秒ごとに読む）。変えたときだけ保存する。
         bool imeLink = _imeLink.IsChecked == true;
-        if (imeLink != _trayConfig.ImeLink)
+        bool showLayer = _showLayerOnIcon.IsChecked == true;
+        if (imeLink != _trayConfig.ImeLink || showLayer != _trayConfig.ShowLayerOnIcon)
         {
             try
             {
                 _trayConfig.ImeLink = imeLink;
+                _trayConfig.ShowLayerOnIcon = showLayer;
                 _trayConfig.Save();
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                Fail("TabNicola", $"IME連動の設定を保存できませんでした: {ex.Message}");
+                Fail("TabNicola", $"トレイの設定を保存できませんでした: {ex.Message}");
                 return false;
             }
         }
