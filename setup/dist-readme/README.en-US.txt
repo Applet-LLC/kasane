@@ -67,6 +67,15 @@ taskbar (inside the "^" flyout when hidden).
 - If you use NICOLA (thumb-shift input), it switches on automatically only
   while the IME is in kana mode (IME link; turn it on/off in kasane under
   Settings > NICOLA).
+- Helper actions: a key can launch a program, type text, drive the mouse,
+  switch layers, and more. Create them in kasane's key-assignment screen under
+  "ヘルパー動作" (Helper actions); the tray must be running. Actions triggered by
+  keys such as F13-F24 are under Settings > ヘルパー動作.
+- Per-app layers: switch layers, or pause the remapping (for games), depending
+  on the foreground app. Under Settings > アプリ別レイヤー.
+- Import / export: in kasane, "インポート／エクスポート..." saves your settings
+  to a file (*.kasane.json) and loads them back, e.g. for another keyboard or
+  another PC. It can also convert and import a nodoka settings file.
 
 Important: if your subscription license becomes inactive, layer
 remapping is disabled; basic keyboard input is never affected.
