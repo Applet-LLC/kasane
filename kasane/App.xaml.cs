@@ -4,8 +4,24 @@ namespace Kasane;
 
 public partial class App : System.Windows.Application
 {
+    private Kasane.Interop.SingleInstance? _singleInstance;
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _singleInstance?.Dispose();
+        base.OnExit(e);
+    }
+
     protected override void OnStartup(StartupEventArgs e)
     {
+        // 設定画面は1つだけ。2つ目は先のウィンドウを前面に出して終わる（保存の取り合いを防ぐ）。
+        _singleInstance = Kasane.Interop.SingleInstance.TryAcquire(@"Local\kasane-editor", e.Args);
+        if (_singleInstance == null)
+        {
+            Shutdown();
+            return;
+        }
+
         DispatcherUnhandledException += (_, args) =>
         {
             MessageBox.Show(args.Exception.ToString(), "kasane - エラー",

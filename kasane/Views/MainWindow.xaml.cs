@@ -74,6 +74,8 @@ public partial class MainWindow : Window
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
             {
                 FileName = Environment.ProcessPath!,
+                // 昇格した側は、こちらが終わるまで待ってから起動する（単一起動のミューテックスを取り合わないため）。
+                Arguments = $"{Kasane.Interop.SingleInstance.WaitPidArgument} {Environment.ProcessId}",
                 UseShellExecute = true,
                 Verb = "runas",
             });
