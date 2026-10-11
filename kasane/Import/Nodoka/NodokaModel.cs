@@ -1,3 +1,7 @@
+// このファイルの Modifier は nodoka4 の keyboard.h（Modifier）を C# に移したもの。
+// 移植元: nodoka4 (https://github.com/Applet-LLC/nodoka4)  Copyright 2008-2026 applet  License: EPL-2.0
+// nodoka4 は「窓使いの憂鬱 (mayu)」(BSD-3-Clause) の派生。第三者の表示は THIRD-PARTY-NOTICES.txt を参照。
+
 namespace Kasane.Import.Nodoka;
 
 /// <summary>のどかの修飾子の種類（keyboard.h の Modifier::Type と同じ順）。</summary>
