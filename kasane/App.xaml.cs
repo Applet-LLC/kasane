@@ -14,6 +14,13 @@ public partial class App : System.Windows.Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        // 画面を出さないコマンド（インストーラーの取り込み・復元）。単一起動の確認より前に実行して、終わったら終了する。
+        if (Kasane.Cli.HeadlessCommands.TryRun(e.Args, out int headlessExitCode))
+        {
+            Shutdown(headlessExitCode);
+            return;
+        }
+
         // 設定画面は1つだけ。2つ目は先のウィンドウを前面に出して終わる（保存の取り合いを防ぐ）。
         _singleInstance = Kasane.Interop.SingleInstance.TryAcquire(@"Local\kasane-editor", e.Args);
         if (_singleInstance == null)
