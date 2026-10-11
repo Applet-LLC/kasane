@@ -24,8 +24,7 @@ public sealed class TrayConfig
     /// </summary>
     public HelperConfig? Helper { get; set; }
 
-    public static string DefaultPath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "applet", "kasane", "tray.json");
+    public static string DefaultPath => Path.Combine(HelperConfig.BaseDirectory, "tray.json");
 
     /// <summary>読めない・壊れている・無いときは、既定の設定を返す。</summary>
     public static TrayConfig Load(string? path = null)

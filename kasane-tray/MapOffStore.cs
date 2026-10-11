@@ -14,8 +14,7 @@ public sealed class JsonMapOffStore : IMapOffStore
 
     public JsonMapOffStore(string? path = null)
     {
-        _path = path ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "applet", "kasane", "tray-mapoff.json");
+        _path = path ?? Path.Combine(Kasane.Model.HelperConfig.BaseDirectory, "tray-mapoff.json");
     }
 
     public IReadOnlyList<uint> Load()

@@ -86,6 +86,18 @@
     -->
     <Property Id="KBD_DEVICEIDMODE" Value="0" Secure="yes" />
 
+    <!--
+      環境変数 KASANE（データフォルダ。空なら従来の %LOCALAPPDATA%\applet\kasane）。DataDirDlg で表示・変更する。
+      管理者保護では昇格したプロセスが別ユーザーで動き %LOCALAPPDATA% が分かれるため、マシン全体の環境変数で保存先を固定できるようにする
+      （docs/ADMIN-PROTECTION.md）。現在のマシン環境変数の値を初期値として読み、空のままなら変数には触れない。
+      サイレントインストールでは KASANE_DIR=D:\kasane-data のように渡せる。
+    -->
+    <Property Id="KASANE_DIR" Secure="yes">
+      <RegistrySearch Id="RS_KasaneDir" Root="HKLM"
+                      Key="SYSTEM\CurrentControlSet\Control\Session Manager\Environment"
+                      Name="KASANE" Type="raw" />
+    </Property>
+
     <UIRef Id="WixUI_FeatureTree" />
     <!-- これが無いとWindows 10以降ではProgressDlgが未置換のActionTextテンプレート
          （"Copying new files File: [1], Directory: [9], Size: [6]"）をそのまま表示する
@@ -134,6 +146,34 @@
           <Publish Event="NewDialog" Value="CustomizeDlg">1</Publish>
         </Control>
         <Control Id="Next" Type="PushButton" X="248" Y="243" Width="56" Height="17" Text="!(loc.WixUINext)">
+          <Publish Event="NewDialog" Value="DataDirDlg">1</Publish>
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
+          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+        </Control>
+      </Dialog>
+
+      <!-- 設定フォルダ（環境変数 KASANE）。DeviceIdModeDlg の次、VerifyReadyDlg の前。 -->
+      <Dialog Id="DataDirDlg" Width="370" Height="270" Title="!(loc.DataDirDlg_Title)">
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="280" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>{\WixUI_Font_Title}!(loc.DataDirDlg_Title)</Text>
+        </Control>
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="340" Height="15" Transparent="yes" NoPrefix="yes" Text="!(loc.DataDirDlg_Description)" />
+
+        <Control Id="Explain" Type="Text" X="25" Y="52" Width="330" Height="75" Text="!(loc.DataDirDlg_Explain)" />
+
+        <Control Id="DirLabel" Type="Text" X="25" Y="135" Width="330" Height="10" Text="!(loc.DataDirDlg_Label)" />
+        <Control Id="KasaneDirEdit" Type="Edit" X="25" Y="147" Width="320" Height="15" Property="KASANE_DIR" Sunken="yes" />
+        <Control Id="DirHint" Type="Text" X="25" Y="168" Width="330" Height="30" Text="!(loc.DataDirDlg_Hint)" />
+
+        <Control Id="Back" Type="PushButton" X="192" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)">
+          <Publish Event="NewDialog" Value="DeviceIdModeDlg">1</Publish>
+        </Control>
+        <Control Id="Next" Type="PushButton" X="248" Y="243" Width="56" Height="17" Text="!(loc.WixUINext)">
           <Publish Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
         </Control>
         <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
@@ -142,7 +182,7 @@
       </Dialog>
 
       <Publish Dialog="CustomizeDlg" Control="Next" Event="NewDialog" Value="DeviceIdModeDlg" Order="2">1</Publish>
-      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="DeviceIdModeDlg" Order="4">NOT Installed OR WixUI_InstallMode = "Change"</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="DataDirDlg" Order="4">NOT Installed OR WixUI_InstallMode = "Change"</Publish>
     </UI>
 
     <!--
@@ -199,6 +239,7 @@
       すべてのユーザーで起動する）。左クリックでエディタ、右クリックでメニュー（設定・一時停止・ライセンス・終了）。
     -->
     <Feature Id="F_Tray" Title="Tray (kasane-tray)" Level="1" Absent="disallow">
+      <ComponentRef Id="CMP_KasaneDirEnv" />
       <ComponentRef Id="CMP_TrayExe" />
       <ComponentRef Id="CMP_TrayNuaExe" />
     </Feature>
@@ -284,6 +325,18 @@
                        Name="kasane-tray"
                        Value="&quot;[TRAYDIR]kasane-tray.exe&quot;"
                        Type="string" />
+      </Component>
+    </DirectoryRef>
+
+    <!--
+      環境変数 KASANE（マシン全体）。KASANE_DIR が空でないときだけ作る。アンインストールで削除される。
+      変更後に起動するプロセスから有効（Windows Installer が WM_SETTINGCHANGE を通知するが、既に動いているトレイは再ログインまで古い値のまま）。
+    -->
+    <DirectoryRef Id="TRAYDIR">
+      <Component Id="CMP_KasaneDirEnv" Guid="{2B7C4E19-8D53-4A6F-9E01-C5F3A8D27B64}" KeyPath="yes">
+        <Condition>KASANE_DIR &lt;&gt; ""</Condition>
+        <Environment Id="ENV_Kasane" Name="KASANE" Value="[KASANE_DIR]"
+                     Action="set" Part="all" System="yes" Permanent="no" />
       </Component>
     </DirectoryRef>
 

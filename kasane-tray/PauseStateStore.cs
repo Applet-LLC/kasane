@@ -11,8 +11,7 @@ public sealed class JsonPauseStateStore : IPauseStateStore
 
     public JsonPauseStateStore(string? path = null)
     {
-        _path = path ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "applet", "kasane", "tray-state.json");
+        _path = path ?? Path.Combine(Kasane.Model.HelperConfig.BaseDirectory, "tray-state.json");
     }
 
     public IReadOnlyList<uint> Load()

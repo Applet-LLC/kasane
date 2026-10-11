@@ -77,6 +77,7 @@ public sealed class SettingsDialog : Window
         AddTab("TabAppRules", "アプリ別レイヤー", new AppRulesTab(_helper, this).Root);
         AddTab("TabEmergency", "緊急解除", BuildEmergencyTab());
         AddTab("TabScope", "共有範囲", BuildScopeTab());
+        AddTab("TabDataDir", "保存先", BuildDataDirTab());
         AddTab("TabI8042", "i8042prt", BuildI8042Tab());
 
         var ok = new Button { Name = "OkButton", Content = "OK", IsDefault = true, Width = 90 };
@@ -580,6 +581,53 @@ public sealed class SettingsDialog : Window
     // ------------------------------------------------------------------
 
     /// <summary>プリセット: 名前, Type, Subtype, Identifier, LayerDriver JPN, LayerDriver KOR。</summary>
+    // ------------------------------------------------------------------
+    // 保存先（環境変数 KASANE の表示。変更はインストーラーで行う）
+    // ------------------------------------------------------------------
+
+    private UIElement BuildDataDirTab()
+    {
+        var panel = new StackPanel();
+        panel.Children.Add(Help(
+            "キーボードごとの設定（project.json・helper.json）・トレイの設定・ログを保存するフォルダです。\n" +
+            "環境変数 KASANE に絶対パスが設定されていればそのフォルダを使い、無ければ（または相対パスなど正しくない値のときは）" +
+            @"既定の %LOCALAPPDATA%\applet\kasane を使います。Windows 11 の管理者保護で、昇格した画面が別のユーザーとして動いても同じ場所を使うための設定です。" +
+            "値の変更はインストーラーの「設定フォルダの指定」で行います（変更後は、サインインし直すと、トレイを含むすべてのアプリに反映されます）。"));
+
+        string? raw = Environment.GetEnvironmentVariable(HelperConfig.DataDirEnvironmentVariable);
+        string effective = HelperConfig.BaseDirectory;
+        bool isDefault = HelperConfig.ResolveBaseDirectory(null) == effective;
+
+        string variable = string.IsNullOrWhiteSpace(raw)
+            ? "未設定"
+            : isDefault ? $"{raw}（絶対パスではないため無視して、既定の場所を使います）" : raw;
+
+        var variableBox = new TextBox { Name = "DataDirVariable", Text = variable, IsReadOnly = true, Margin = new Thickness(0, 0, 0, 4) };
+        var effectiveBox = new TextBox { Name = "DataDirEffective", Text = effective, IsReadOnly = true, Margin = new Thickness(0, 0, 0, 4) };
+        panel.Children.Add(new TextBlock { Text = "環境変数 KASANE の値:" });
+        panel.Children.Add(variableBox);
+        panel.Children.Add(new TextBlock { Text = "いま使っている保存先:" });
+        panel.Children.Add(effectiveBox);
+
+        var open = new Button { Name = "DataDirOpenButton", Content = "フォルダを開く", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6, 0, 0), Padding = new Thickness(8, 2, 8, 2) };
+        var status = Status("DataDirStatus");
+        open.Click += (_, _) =>
+        {
+            try
+            {
+                Directory.CreateDirectory(effective);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(effective) { UseShellExecute = true })?.Dispose();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+            {
+                ShowStatus(status, $"開けませんでした: {ex.Message}", true);
+            }
+        };
+        panel.Children.Add(open);
+        panel.Children.Add(status);
+        return panel;
+    }
+
     private static readonly (string Name, string Type, string Subtype, string Identifier, string Jpn, string Kor)[] I8042Presets =
     {
         ("（手入力）", "", "", "", "", ""),

@@ -154,6 +154,13 @@ try {
     Chk "scope tab has the three radio buttons (model / instance / global)" (
         (Find-ChildByAutomationId $dlg "ScopeModel") -and (Find-ChildByAutomationId $dlg "ScopeInstance") -and (Find-ChildByAutomationId $dlg "ScopeGlobal"))
 
+    # ---- Data folder tab (display only) ----
+    Select-TabById $dlg "TabDataDir"
+    $dataDir = (Find-ChildByAutomationId $dlg "DataDirEffective").Current.Name
+    "  data dir: '$dataDir'"
+    Chk "data dir tab shows the folder in use and the KASANE value" (
+        $dataDir.Length -gt 0 -and (Find-ChildByAutomationId $dlg "DataDirVariable") -and (Find-ChildByAutomationId $dlg "DataDirOpenButton"))
+
     # ---- i8042prt tab (display only; I8042ApplyButton is NOT pressed: it would write the driver-wide setting) ----
     Select-TabById $dlg "TabI8042"
     $i8042 = (Find-ChildByAutomationId $dlg "I8042Status").Current.Name
