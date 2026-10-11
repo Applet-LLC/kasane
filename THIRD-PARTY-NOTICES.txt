@@ -1,11 +1,12 @@
 THIRD-PARTY NOTICES (kasane)
 ============================
 
-【案】このファイルは、のどか（nodoka4）の設定ファイルの取り込みに関する部分を書いた下書きです。
+【案】このファイルは、配布物に含まれる第三者のソフトウェア・データについての下書きです。
+調べた範囲（2026-10-12）をまとめたもので、[要確認] の項は、確認のうえで直してください。
 配布する前に、次を済ませてください。
-  (1) 「3. その他の部品」を、別途調査して埋める（.NET ランタイム、NuGet のパッケージ、WiX、フォント、アイコンなど、
-      kasane が同梱・利用するもの）。
-  (2) 最終の文面は、法務の確認を経る。
+  (1) 各 [要確認] を埋める（KLE の出典とライセンス、WiX のライセンスの扱い、アイコン・バナーの出典）。
+  (2) third-party/ のファイルを、配布物（MSI の zip など）に同梱する。
+  (3) 最終の文面は、法務の確認を経る。
 
 kasane は、次の第三者のソフトウェアに由来するコードを含んでいます。
 
@@ -90,12 +91,58 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
-3. その他の部品  （未記入。別途調査して足す）
+3. Microsoft .NET（ランタイムとライブラリ）  — MIT License
 --------------------------------------------------------------------------------
-[参考] nodoka4 の readme-en.txt には、Boost C++ Libraries（Boost Software License 1.0）の表記もありますが、
-  kasane の C# への移植には Boost のコードは含まれないため、この項には載せていません。
-[参考] 別途調査の出発点として。kasane の .NET プロジェクトが参照している NuGet パッケージ（確認した範囲）。
-  - Microsoft.Extensions.Hosting.WindowsServices 8.0.0
-  - System.Security.Cryptography.ProtectedData 8.0.0
-  ほかに、.NET ランタイム（自己完結の配布物に含まれる）、WiX Toolset（インストーラーの作成）、
-  フォント・アイコンなど、同梱・利用しているものを確認して、ここに足してください。
+kasane の .NET アプリ（kasane.exe、kasane-license.exe、kasane-license-svc.exe、kasane-tray.exe、kasane-tray-nua.exe、
+Install-kasane.exe）は、.NET 8 のランタイムを含む自己完結の形で配布しています（調べた版: 8.0.31）。
+  - .NET ランタイム（Microsoft.NETCore.App）と、Windows Desktop ランタイム（WPF・Windows Forms）
+      Copyright (c) .NET Foundation and Contributors / Microsoft Corporation  — MIT License
+  - kasane-license-svc.exe に含まれる NuGet パッケージ（いずれも 8.0.0、MIT License、.NET Foundation and Contributors）:
+      Microsoft.Extensions.Configuration（.Abstractions / .Binder / .CommandLine / .EnvironmentVariables /
+        .FileExtensions / .Json / .UserSecrets）
+      Microsoft.Extensions.DependencyInjection（.Abstractions）
+      Microsoft.Extensions.Diagnostics（.Abstractions）
+      Microsoft.Extensions.FileProviders（.Abstractions / .Physical）、Microsoft.Extensions.FileSystemGlobbing
+      Microsoft.Extensions.Hosting（.Abstractions / .WindowsServices）
+      Microsoft.Extensions.Logging（.Abstractions / .Configuration / .Console / .Debug / .EventLog / .EventSource）
+      Microsoft.Extensions.Options（.ConfigurationExtensions）、Microsoft.Extensions.Primitives
+      System.Diagnostics.DiagnosticSource、System.Diagnostics.EventLog、System.Security.Cryptography.ProtectedData、
+      System.ServiceProcess.ServiceController、System.Text.Encodings.Web、System.Text.Json
+ライセンス全文と、.NET が含む第三者のライセンス表示（zlib、Brotli、Unicode データ、Mono、LLVM、xxHash、mimalloc ほか 44 件）は、
+次のファイルにあります。配布物にも同梱してください。
+  third-party/dotnet-runtime-8.0.31-LICENSE.TXT
+  third-party/dotnet-runtime-8.0.31-THIRD-PARTY-NOTICES.TXT      （.NET ランタイム 8.0.31 の NuGet パッケージのもの）
+  third-party/dotnet-extensions-8.0.0-THIRD-PARTY-NOTICES.TXT    （上の NuGet パッケージ 8.0.0 のもの）
+（ビルドだけで使い、配布物には入らないもの: Microsoft.NET.ILLink.Tasks、Microsoft.NETCore.App.Crossgen2。）
+
+--------------------------------------------------------------------------------
+4. Keyboard Layout Editor（KLE）のプリセット  — [要確認] ライセンス
+--------------------------------------------------------------------------------
+使っている場所: kasane/Layouts/kle-10key.json、kle-jp109.json、kle-us104.json（キーボードの図の配列データ）。
+ARCHITECTURE.md に「KLE のプリセットに、各キーの既定キーコードを凡例インデックス 4 に埋め込んだもの」とあり、
+データの形式（JSON）と、配色などの値も、KLE のものです。同じ形式のものが、Applet のプロジェクト nodoka-gui
+（Resources/keyboard-layout-*.json）にもあります。
+[要確認] 元になった KLE のプリセットの出典（Keyboard Layout Editor: https://www.keyboard-layout-editor.com/ 、
+  https://github.com/ijprest/keyboard-layout-editor）とライセンスを確認し、必要ならここに表示を足してください。
+  （私は、KLE のライセンスが何かを確認できていません。標準的な配列の形状だけの事実であれば、表示は不要な可能性もあります。）
+
+--------------------------------------------------------------------------------
+5. WiX Toolset 3.14  — Microsoft Reciprocal License (MS-RL)   [要確認]
+--------------------------------------------------------------------------------
+使っている場所: インストーラー（MSI）の作成。MSI には、WixUI（インストーラーの画面）の部品が組み込まれます。
+[要確認] WiX のライセンス（MS-RL）の、組み込まれた部品を含む MSI を配布する場合の条件（表示の要否）を、法務で確認してください。
+
+--------------------------------------------------------------------------------
+6. 参考（配布物に含まないもの、または表示の対象外と考えたもの）
+--------------------------------------------------------------------------------
+  - Microsoft Visual C++ ランタイム（msvcp140.dll、vcruntime140.dll、vcruntime140_1.dll）: DriverManager.exe と
+    KeymapTool.exe が動的にリンクしています。MSI には含めていません（MSI の中身を確認済み）。含める場合は、
+    Microsoft の再頒布の条件に従って、ここに表示を足してください。
+  - Windows Driver Kit / Windows SDK のヘッダー・ライブラリ: ビルドだけで使います。
+  - kbdlayer ドライバ、DriverManager、KeymapTool のソース: Applet LLC のコード（ソースの先頭に MIT License の表記）。
+    署名に使うライセンストークンの検証は、Windows の暗号 API（BCrypt）を使っており、暗号ライブラリを同梱していません。
+  - NICOLA（親指シフト）: NICOLA 日本語入力コンソーシアムの規格に基づいて、同時打鍵の判定を実装しています（規格の内容であり、
+    コードの引用はありません）。
+  - Gumroad: ライセンスの確認に、Gumroad の公開 API を使います（Gumroad のコードは含みません）。
+  - アイコン（app.ico）とインストーラーのバナー（setup/Assets/banner.bmp）: [要確認] 作成者・出典。Applet LLC が作成した
+    ものであれば、表示は不要です。
