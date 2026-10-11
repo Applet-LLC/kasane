@@ -407,9 +407,29 @@ End If
       Execute="immediate"
       Return="ignore" />
 
+    <!--
+      前のアンインストールの後、再起動する前に再インストールすると、サービス kbdlayer が「削除予約済み」のままで、INF によるサービスの作成が
+      ERROR_SERVICE_MARKED_FOR_DELETE (1072) で失敗し、インストールが最後（CA_InstallKbdDriver）で巻き戻る（2026-10-11 に発生）。
+      レジストリ（DeleteFlag）にはこの状態が出ないので、DriverManager.exe check-pending が SCM に問い合わせる（削除予約済みなら終了コード 1072）。
+      DriverManager.exe は管理者権限が必須なので、Deferred（SYSTEM）で実行する。まだインストール先に無いので、MSI に埋め込んだもの（Binary）を使う。
+      失敗すると、Product.*.wxl の Error1722 の文言（「再起動してから、もう一度」）が出て、何も変更せずに巻き戻る。
+    -->
+    <Binary Id="BIN_DriverManager" SourceFile="$(var.MSBuildProjectDirectory)\staging\tools\Driver\DriverManager.exe" />
+    <CustomAction
+      Id="CA_CheckKbdPendingDelete"
+      BinaryKey="BIN_DriverManager"
+      ExeCommand="check-pending"
+      Execute="deferred"
+      Return="check"
+      Impersonate="no" />
+
+    <!-- 外部プログラム（Return="check" の exe）の失敗の文言（エラー 1722）は、WixUI の Overridable な文字列 Error1722 を、
+         Product.*.wxl で同じ Id を定義して上書きする（Error 要素で足すと、WixUI の定義と重複してリンクに失敗する）。 -->
+
     <!-- InstallFiles is not atomic in the deferred script: Before InstallFinalize runs after all file operations have been scripted. -->
     <InstallExecuteSequence>
       <Custom Action="CA_StopTray" Before="RemoveExistingProducts" />
+      <Custom Action="CA_CheckKbdPendingDelete" After="InstallInitialize">NOT REMOVE~="ALL" AND &amp;F_KbdDriver=3</Custom>
       <Custom Action="CA_InstallKbdDriver" Before="InstallFinalize">NOT REMOVE~="ALL" AND &amp;F_KbdDriver=3</Custom>
       <ScheduleReboot After="CA_InstallKbdDriver">NOT REMOVE~="ALL" AND &amp;F_KbdDriver=3</ScheduleReboot>
 

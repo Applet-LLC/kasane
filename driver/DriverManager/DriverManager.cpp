@@ -60,17 +60,21 @@ bool IsRunningElevated();
 std::wstring ResolveServiceImagePath(const std::wstring& imagePath);
 bool VerifyDriverFilterIntegrity(const std::wstring& driverName, const std::wstring& classGuidString);
 int RunVerify();
+int RunCheckPending();
 
 void ShowUsage()
 {
     std::wcout << L"Usage: DriverManager.exe install [driver_type] [device_id_mode]" << std::endl;
     std::wcout << L"       DriverManager.exe uninstall [driver_type] [optional_inf_path]" << std::endl;
     std::wcout << L"       DriverManager.exe verify" << std::endl;
+    std::wcout << L"       DriverManager.exe check-pending" << std::endl;
     std::wcout << L"Commands:" << std::endl;
     std::wcout << L"  install   - Installs the specified driver" << std::endl;
     std::wcout << L"  uninstall - Uninstalls the specified driver" << std::endl;
     std::wcout << L"  verify    - Checks UpperFilters registration against installed managed drivers" << std::endl;
     std::wcout << L"              and self-heals a stale entry if its driver file is missing." << std::endl;
+    std::wcout << L"  check-pending - Exits with 1072 if the kbdlayer service is marked for deletion (a reboot" << std::endl;
+    std::wcout << L"              is needed after a previous uninstall before it can be installed again)." << std::endl;
     std::wcout << L"Driver Types:" << std::endl;
     std::wcout << L"  keyboard" << std::endl;
     std::wcout << L"  nodokad  - keyboard upper filter (requires nodokad.sys and nodokad.inf in exe_dir\\nodokad\\)" << std::endl;
@@ -86,6 +90,12 @@ void ShowUsage()
 
 int wmain(int argc, wchar_t* argv[])
 {
+    // check-pending: MSI がインストールの初期（ファイルを入れる前）に呼ぶ。SCM への問い合わせだけなので、
+    // x64 エミュレーション下でも動く。ARM64 の相棒バイナリはこの時点ではまだ入っていないため、リレーより前に処理する。
+    if (argc == 2 && std::wstring(argv[1]) == L"check-pending") {
+        return RunCheckPending();
+    }
+
 #if !defined(_M_ARM64)
     // このビルド(x64)がARM64ホスト上で実行されている場合、SetupInstallServicesFromInfSectionW等の
     // SetupAPI呼び出しはx64エミュレーション下のプロセスからは拒否される(実機検証済み。DriverStoreへの
@@ -331,6 +341,39 @@ bool IsRunningElevated()
 
     CloseHandle(token);
     return isElevated != FALSE;
+}
+
+// サービス kbdlayer が「削除予約済み」（前のアンインストールの後、再起動するまで残る。この状態では INF によるサービスの
+// 作成が ERROR_SERVICE_MARKED_FOR_DELETE = 1072 で失敗し、インストールが巻き戻る）かを調べる。
+// 0: 問題なし（サービスが無い・調べられなかった場合を含む）。1072: 削除予約済み（先に再起動が要る）。
+// 調べ方: 設定を変えない ChangeServiceConfig（全て SERVICE_NO_CHANGE / NULL）が 1072 を返すかを見る。
+// SERVICE_CHANGE_CONFIG で開けない（管理者でない）ときは判定できないので、問題なしとして通す（インストール自体を妨げない）。
+int RunCheckPending()
+{
+    SC_HANDLE scm = OpenSCManagerW(NULL, NULL, SC_MANAGER_CONNECT);
+    if (!scm) return 0;
+    SC_HANDLE svc = OpenServiceW(scm, L"kbdlayer", SERVICE_CHANGE_CONFIG);
+    if (!svc) {
+        DWORD openError = GetLastError();
+        CloseServiceHandle(scm);
+        if (openError == ERROR_SERVICE_MARKED_FOR_DELETE) {
+            std::wcerr << L"The kbdlayer service is marked for deletion. Restart the computer, then run the installer again." << std::endl;
+            return ERROR_SERVICE_MARKED_FOR_DELETE;
+        }
+        return 0;
+    }
+
+    int result = 0;
+    if (!ChangeServiceConfigW(svc, SERVICE_NO_CHANGE, SERVICE_NO_CHANGE, SERVICE_NO_CHANGE,
+                              NULL, NULL, NULL, NULL, NULL, NULL, NULL)) {
+        if (GetLastError() == ERROR_SERVICE_MARKED_FOR_DELETE) {
+            std::wcerr << L"The kbdlayer service is marked for deletion. Restart the computer, then run the installer again." << std::endl;
+            result = ERROR_SERVICE_MARKED_FOR_DELETE;
+        }
+    }
+    CloseServiceHandle(svc);
+    CloseServiceHandle(scm);
+    return result;
 }
 
 // 指定サービスを停止し SERVICE_STOPPED になるまで待機する。
