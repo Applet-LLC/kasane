@@ -150,6 +150,9 @@ try {
     $scope = (Find-ChildByAutomationId $dlg "ScopeStatus").Current.Name
     "  scope status: '$scope'"
     Chk "scope tab shows a status line" ($scope.Length -gt 0)
+    $idMode = (Find-ChildByAutomationId $dlg "ScopeIdMode").Current.Name
+    "  device id mode: '$idMode'"
+    Chk "scope tab shows the device identification mode" ($idMode -match "デバイスインスタンスパス|デバイスID|不明")
     # The three choices exist (ScopeApplyButton is NOT pressed: it would change the keyboard's persisted scope).
     Chk "scope tab has the three radio buttons (model / instance / global)" (
         (Find-ChildByAutomationId $dlg "ScopeModel") -and (Find-ChildByAutomationId $dlg "ScopeInstance") -and (Find-ChildByAutomationId $dlg "ScopeGlobal"))

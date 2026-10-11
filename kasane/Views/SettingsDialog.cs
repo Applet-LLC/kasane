@@ -488,11 +488,51 @@ public sealed class SettingsDialog : Window
     // 共有範囲（すぐに反映）
     // ------------------------------------------------------------------
 
+    /// <summary>共有範囲タブの先頭: インストール時に決めた「デバイスの識別方法」の現在の値と、その意味。</summary>
+    private static void AddIdModeSection(StackPanel panel)
+    {
+        var mode = DeviceIdModeInfo.Read(out int? raw);
+        string title = mode switch
+        {
+            DeviceIdModeKind.InstancePath => "デバイスインスタンスパス",
+            DeviceIdModeKind.DeviceId => "デバイスID",
+            _ => raw == null ? "不明（読み取れません）" : $"不明（値 {raw}）",
+        };
+        string meaning = mode switch
+        {
+            DeviceIdModeKind.InstancePath =>
+                "接続先（USBポートなど）ごとに、別のキーボードとして扱います。同じキーボードでも別のポートに挿すと別のキーボードになり、" +
+                "設定画面で作った設定とトレイの設定は引き継がれません。",
+            DeviceIdModeKind.DeviceId =>
+                "キーボード固有のIDで区別します。ポートを差し替えても同じキーボードとして扱われ、設定画面とトレイの設定は引き継がれます。" +
+                "同じ型番を2台つなぐと、設定画面とトレイからは区別できません。",
+            _ => "ドライバが入っていない、または値を読めませんでした。",
+        };
+
+        panel.Children.Add(new TextBlock { Text = "デバイスの識別方法", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
+        panel.Children.Add(new TextBox
+        {
+            Name = "ScopeIdMode",
+            Text = title,
+            IsReadOnly = true,
+            BorderThickness = new Thickness(0),
+            Background = Brushes.Transparent,
+            Margin = new Thickness(0, 0, 0, 4),
+        });
+        panel.Children.Add(Help(
+            meaning + "\n" +
+            "インストール時に選んだ値で、この画面では変更できません。変えるときは、インストーラーで選び直し、キーボードを接続し直す（またはPCを再起動する）必要があります。" +
+            "変えると、キーボードのIDが変わるため、設定画面とトレイの設定は引き継がれません。"));
+    }
+
     private UIElement BuildScopeTab()
     {
         var panel = new StackPanel();
+        AddIdModeSection(panel);
+
+        panel.Children.Add(new TextBlock { Text = "設定の共有範囲", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 4, 0, 4) });
         panel.Children.Add(Help(
-            "ドライバがこのキーボードの設定（レイヤーマップ・タイミング・マクロ等）を保存する単位です。\n" +
+            "ドライバがこのキーボードの設定（レイヤーマップ・タイミング・マクロ等）を保存する単位です。上の「デバイスの識別方法」とは別の設定です。\n" +
             "・同じ型番で共有（既定）: 同じ型番のキーボードは、差し込み口が変わっても同じ設定を使います。\n" +
             "・この1台だけ: この差し込み口のこのキーボードだけの設定にします。切り替えると、今の設定をこの1台用にコピーします。\n" +
             "・すべてのキーボードで共有: 型番も差し込み口も区別せず、1つの設定をすべてのキーボードで使います（後から接続したキーボードも、" +
@@ -501,6 +541,14 @@ public sealed class SettingsDialog : Window
             "切り替えるときは、今の設定が切替先へコピーされ、切替先にすでにある設定は上書きされます（たとえば「すべて」や「この1台」から「同じ型番」へ戻すと、" +
             "同じ型番で共有している設定が置き換わります）。\n" +
             "「変更する」を押すとすぐに反映します（OK・キャンセルとは関係しません）。共有している他の台へは、その台を接続し直すまで反映されません。"));
+
+        panel.Children.Add(new TextBlock { Text = "識別方法と共有範囲の関係（トレイを含む）", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 4, 0, 4) });
+        panel.Children.Add(Help(
+            "・ポートを替えたとき: ドライバが保存する設定は、共有範囲が「同じ型番」「すべて」なら引き継がれ、「この1台だけ」なら引き継がれません。" +
+            "設定画面で作った設定（project.json）とトレイの設定（ヘルパー動作・アプリ別レイヤー・一時停止の記憶）は、識別方法が「デバイスID」なら引き継がれ、" +
+            "「デバイスインスタンスパス」なら引き継がれません。\n" +
+            "・同じ型番を2台つないだとき: 識別方法が「デバイスID」だと、設定画面とトレイでは1台として扱います（ドライバの設定は、共有範囲を「この1台だけ」にすれば別々です）。\n" +
+            "・トレイの設定は、設定画面と同じく識別方法で決まるキーボード単位で、ここでの共有範囲を変えても共有されません。"));
 
         var model = new RadioButton { Name = "ScopeModel", Content = "同じ型番で共有", GroupName = "Scope", Margin = new Thickness(0, 3, 0, 3) };
         var instance = new RadioButton { Name = "ScopeInstance", Content = "この1台だけ", GroupName = "Scope", Margin = new Thickness(0, 3, 0, 3) };
