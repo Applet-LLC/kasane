@@ -1,5 +1,5 @@
 ﻿# GUI-T10: UI Automation test for the tray tool (kasane-tray-nua.exe; the non-uiAccess build): the icon exists with a tooltip, a left click opens the
-# editor (and a second click only brings it to the front), the right-click menu has 設定 / 一時停止 / ライセンス / 終了 in this
+# editor (and a second click only brings it to the front), the right-click menu has 設定 / 一時停止 / レイヤー / ライセンス / 終了 in this
 # order, ライセンス opens the license manager, and 終了 ends the tray.
 # It never presses 一時停止 (that changes the keyboards' ON/OFF state; see .plans/tray.md for the pause tests).
 # NOTE: this moves the mouse pointer and opens the hidden-icons flyout of the taskbar, so do not touch the PC while it runs.
@@ -94,7 +94,7 @@ try {
     $items = @(Get-MenuItems)
     $names = @($items | ForEach-Object { $_.Current.Name })
     "  menu: $($names -join ' / ')"
-    Chk "the menu is 設定 / 一時停止 / ライセンス / 終了 in this order" (($names -join ',') -eq "設定,一時停止,ライセンス,終了")
+    Chk "the menu is 設定 / 一時停止 / レイヤー / ライセンス / 終了 in this order" (($names -join ',') -eq "設定,一時停止,レイヤー,ライセンス,終了")
 
     $license = $items | Where-Object { $_.Current.Name -eq "ライセンス" }
     $license.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()

@@ -33,6 +33,7 @@
     <Compile Include="..\kasane-tray\AppLayerArbiter.cs" Link="Tray\AppLayerArbiter.cs" />
     <Compile Include="..\kasane-tray\AppRuleController.cs" Link="Tray\AppRuleController.cs" />
     <Compile Include="..\kasane-tray\ActionLayerController.cs" Link="Tray\ActionLayerController.cs" />
+    <Compile Include="..\kasane-tray\LayerMenuModel.cs" Link="Tray\LayerMenuModel.cs" />
     <Compile Include="..\kasane-tray\LayerDisplay.cs" Link="Tray\LayerDisplay.cs" />
     <Compile Include="..\kasane-tray\LayerWatchService.cs" Link="Tray\LayerWatchService.cs" />
   </ItemGroup>
