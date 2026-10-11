@@ -95,7 +95,10 @@ exe とクラスを入れられます。`MapOff` は、一時停止中は触り�
 
 - **管理者として動くウィンドウが前面のとき**: インストールしたトレイ（`tray\kasane-tray.exe`）は **uiAccess=true** で動くので、キーフックにキーが届き、
   `SendInput` も届きます（UIPI を越える）。次のときは、届きません: (1) uiAccess が効いていない（uiAccess の無い版 `tray\kasane-tray-nua.exe` を使っている、開発ビルドなど）。
-  (2) UAC の確認画面などのセキュアデスクトップ（uiAccess でも届かない）。uiAccess が効いていると、トレイが起動するアプリ（`Launch`）にも uiAccess が引き継がれます。
+  (2) UAC の確認画面などのセキュアデスクトップ（uiAccess でも届かない）。(3) トレイを、エクスプローラー（ログオン時の自動起動、スタートメニュー、ダブルクリック）以外の
+  プログラム（`Start-Process`、コマンドプロンプトなど）から起動した場合: **エラーは出ませんが、uiAccess なしで動きます**。uiAccess を効かせるには、エクスプローラーから起動する
+  か、ログオンし直してください。効いているかは、Process Explorer の「UIAccess」の列（View → Select Columns → Process Security）で確かめられます。
+  なお、`Launch` で起動したアプリには uiAccess は引き継がれません。
 - **トレイが起動しないとき**: uiAccess=true のトレイは、署名が信頼されない、または `Program Files` の外にあると、起動に失敗して何も出ません
   （署名済みのインストーラーで入れたときは起こりません）。その場合は、同じフォルダの `kasane-tray-nua.exe`（uiAccess の無い版。管理者ウィンドウの前面では
   キーフック・`SendInput` が届かない）を起動してください。ログイン時の自動起動は、`tray\kasane-tray.exe` を指します。

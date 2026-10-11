@@ -2,6 +2,7 @@
 # 使い方: powershell -ExecutionPolicy Bypass -File Run-All.ps1 [-Only T11-,T12-]（前方一致。T1 だけを選ぶには T1-）
 # 前提: kasane.exe がビルド済み（Debug|x64）で、昇格していない PowerShell から実行する。各試験は自分で kasane.exe を起動して終了する。
 # 注意: T10 はトレイ（kasane-tray-nua.exe。uiAccess の無い版）を終了させる。実行後にトレイが必要なら、起動し直す。
+# 前提: T10 は kasane-tray-nua.exe の Debug ビルドを使う（先に dotnet build kasane-tray -c Debug）。インストール済みの kasane-tray.exe（uiAccess 版）が動いていると、単一起動の mutex で T10 が失敗するので、先に終了させる。
 # 各試験は、PowerShell 7（pwsh）があればそれで、無ければ Windows PowerShell 5.1 で動かす（.ps1 は UTF-8 の BOM つきなので、どちらでも日本語が読める）。
 # 各試験は、最後に "=== FAIL COUNT: N ===" を出す。N が 0 なら合格。"EXCEPTION:" や FAIL COUNT が無いものは失敗とする。
 param([string[]]$Only)

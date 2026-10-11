@@ -22,7 +22,11 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!--
+      自己展開しない。true だと、起動のたびに %TEMP%\.net\kasane-tray\ へネイティブ DLL を展開し、利用者が書ける場所の DLL が uiAccess のプロセスから
+      読まれうる（P9 の U8）。false にすると、ネイティブ DLL は exe の外に出る。トレイが使わない WPF のネイティブ DLL は、下の Target で公開物から外す。
+    -->
+    <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
     <PublishReadyToRun>true</PublishReadyToRun>
     <Platforms>AnyCPU;x64</Platforms>
     <ApplicationIcon>..\kasane-license\Resources\app.ico</ApplicationIcon>
@@ -48,5 +52,13 @@
     <Compile Include="..\kasane\Model\HelperActions.cs" Link="Shared\HelperActions.cs" />
     <EmbeddedResource Include="..\kasane-license\Resources\app.ico" Link="app.ico" />
   </ItemGroup>
+
+  <!-- トレイは WPF を使わない（WinForms）。自己完結の公開物に入る WPF のネイティブ DLL（読み込まれない）を外し、exe だけにする。 -->
+  <Target Name="RemoveUnusedWpfNatives" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="'%(Filename)' == 'D3DCompiler_47_cor3' Or '%(Filename)' == 'PenImc_cor3' Or '%(Filename)' == 'PresentationNative_cor3' Or '%(Filename)' == 'vcruntime140_cor3' Or '%(Filename)' == 'wpfgfx_cor3'" />
+    </ItemGroup>
+  </Target>
 
 </Project>
