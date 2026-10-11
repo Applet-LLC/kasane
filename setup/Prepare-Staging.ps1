@@ -367,6 +367,15 @@ Copy-RequiredToolExe -ExeFileName "DriverManager.exe" -DestDir (Join-Path $stagi
     (Join-Path $repoRoot "driver/DriverManager/x64/Release/DriverManager.exe")
 )
 
+# MSI は DriverManager.exe を埋め込んで「check-pending」（前のアンインストールの後、再起動前の再インストールを止める）を呼ぶ。
+# 古いビルド（このコマンドが無い）が入ると、使い方の表示で終了コード 1 になり、インストールが常に失敗するため、ここで止める。
+$latin1 = [System.Text.Encoding]::GetEncoding(28591)
+$stagedDm = $latin1.GetString([System.IO.File]::ReadAllBytes((Join-Path $stagingRoot "tools/Driver/DriverManager.exe")))
+$needle = $latin1.GetString([System.Text.Encoding]::Unicode.GetBytes("check-pending"))
+if (-not $stagedDm.Contains($needle)) {
+    throw "staged DriverManager.exe does not support 'check-pending' (stale build). Rebuild DriverManager (x64, Release) and run again."
+}
+
 # DriverManager_arm64.exe: DriverManager.exe(x64)がARM64ホストで自己検出した際にリレーする相棒
 # バイナリ。DriverManager_arm64.vcxprojはOutDirの明示指定が無いため、ソリューション経由ビルドでは
 # ソリューションルート相対（<repoRoot>/ARM64/Release/）、スタンドアロンビルドではプロジェクト
