@@ -17,4 +17,12 @@
   <String Id="DataDirDlg_Explain">kasane normally stores its settings (per-keyboard settings, tray settings, logs) in each user's %LOCALAPPDATA%\applet\kasane. When Windows 11 Administrator protection is on, an elevated settings window runs as a different user, so this location ends up split. If you enter a folder here, it is set as the machine-wide environment variable KASANE, and all users, elevated windows and the tray use the same folder. While KASANE is set, it takes priority over the default location.</String>
   <String Id="DataDirDlg_Label">Settings folder (environment variable KASANE):</String>
   <String Id="DataDirDlg_Hint">Leave empty to keep the environment variable untouched and use the default location. Enter a full path starting with a drive letter (relative paths are ignored).</String>
+  <String Id="ImportSettingsDlg_Title">Import Settings File</String>
+  <String Id="ImportSettingsDlg_Description">Apply settings exported from kasane to the driver (optional)</String>
+  <String Id="ImportSettingsDlg_Explain">Applies the contents of a settings file (*.kasane.json) exported with kasane's Import/Export to the driver during installation. With Windows 11 Administrator protection, you may not be able to "Apply" to the keyboard after installation, so this uses the administrator rights available during installation. Keyboards in the file are matched by model (HardwareId). The settings take effect after a restart (or when the keyboard is reconnected).</String>
+  <String Id="ImportSettingsDlg_Check">Import a settings file</String>
+  <String Id="ImportSettingsDlg_Label">Settings file (full path):</String>
+  <String Id="ImportSettingsDlg_Hint">If the driver already has settings for a model, they are replaced (the previous settings are kept as one backup and can be restored from the Settings dialog's "Data folder" tab). In Explorer, Shift+right-click the file and choose "Copy as path" to paste it here.</String>
+  <String Id="ImportFileMissingDlg_Title">Settings file not found</String>
+  <String Id="ImportFileMissingDlg_Text">The settings file was not found. Check the path, or clear "Import a settings file".</String>
 </WixLocalization>

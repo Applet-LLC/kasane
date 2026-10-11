@@ -673,7 +673,84 @@ public sealed class SettingsDialog : Window
         };
         panel.Children.Add(open);
         panel.Children.Add(status);
+        AddImportBackupSection(panel);
         return panel;
+    }
+
+    /// <summary>
+    /// インストール時の取り込み（設定ファイルをドライバのレジストリへ書く）が、前の設定を退避していれば、それを一覧にして、戻せるようにする。
+    /// 「戻す」は、退避と今の設定の入れ替え（もう一度押すと元に戻る）。ドライバのレジストリを書くので、管理者権限が要る。
+    /// 反映は、キーボードを接続し直したとき（またはPCの再起動後）。
+    /// </summary>
+    private void AddImportBackupSection(StackPanel panel)
+    {
+        panel.Children.Add(new TextBlock { Text = "インストール時の取り込みの退避", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 16, 0, 4) });
+        panel.Children.Add(Help(
+            "インストール時に設定ファイルを取り込むと、ドライバの設定は置き換わり、前の設定が1世代だけ退避されます。ここで、取り込み前の設定に戻せます" +
+            "（戻すと、今の設定が退避に回るので、もう一度押すと元に戻ります）。反映は、キーボードを接続し直したあと（またはPCの再起動後）です。" +
+            (_canWrite ? "" : "\n閲覧専用モード（管理者として実行していない）のため、戻すことはできません。")));
+
+        var store = PersistedSettings.OpenLocalMachine();
+        List<string> backups;
+        try { backups = store.ListBackups(); }
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
+        {
+            panel.Children.Add(Help($"退避を調べられませんでした: {ex.Message}"));
+            return;
+        }
+        if (backups.Count == 0)
+        {
+            panel.Children.Add(new TextBlock { Name = "ImportBackupNone", Text = "退避はありません。", Foreground = Brushes.DimGray });
+            return;
+        }
+
+        // 接続中のキーボードの型番（M_<ModelKey>）から、どのキーボードの分かを表示する。
+        var models = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (IsOnline)
+        {
+            try
+            {
+                foreach (var d in _client!.ListDevices())
+                    if (DeviceKeys.ModelKey(d.HardwareId) is uint k) models[DeviceKeys.ModelSubKeyName(k)] = d.HardwareId;
+            }
+            catch (KbdLayerException) { /* 名前なしで一覧にする */ }
+        }
+
+        var status = Status("ImportBackupStatus");
+        foreach (var name in backups)
+        {
+            string label = models.TryGetValue(name, out var hw) ? $"{name}（接続中: {hw}）" : name;
+            var restore = new Button
+            {
+                Name = $"RestoreBackup_{name}",
+                Content = "取り込み前の設定に戻す",
+                IsEnabled = _canWrite,
+                Margin = new Thickness(8, 0, 0, 0),
+                Padding = new Thickness(8, 2, 8, 2),
+            };
+            string target = name;
+            restore.Click += (_, _) =>
+            {
+                if (MessageBox.Show(this,
+                        $"{target} の設定と、取り込み前の退避を入れ替えます。\n反映には、キーボードの接続し直し（またはPCの再起動）が必要です。\n\nもう一度この操作をすると、元に戻せます。続けますか？",
+                        "取り込み前の設定に戻す", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+                try
+                {
+                    ShowStatus(status, store.Restore(target)
+                        ? $"{target} を入れ替えました。キーボードを接続し直すと反映されます。"
+                        : $"{target} の退避が見つかりません。", false);
+                }
+                catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
+                {
+                    ShowStatus(status, $"入れ替えられませんでした: {ex.Message}", true);
+                }
+            };
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
+            row.Children.Add(new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center });
+            row.Children.Add(restore);
+            panel.Children.Add(row);
+        }
+        panel.Children.Add(status);
     }
 
     private static readonly (string Name, string Type, string Subtype, string Identifier, string Jpn, string Kor)[] I8042Presets =

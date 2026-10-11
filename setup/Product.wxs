@@ -98,6 +98,18 @@
                       Name="KASANE" Type="raw" />
     </Property>
 
+    <!--
+      インストール時の設定ファイルの取り込み（ImportSettingsDlg。既定はオフ）。IMPORT_SETTINGS=1 のとき、IMPORT_SETTINGS_FILE（kasane が書き出した
+      *.kasane.json）の内容を、ドライバのレジストリ（LayerMaps\M_<ModelKey>）へ書く。管理者保護の環境では、インストール後に「適用」できない場合があり、
+      インストール時の管理者権限で反映するためのもの。すでに設定があれば置き換え、前の設定は「.bak」に1世代だけ退避する（設定画面から戻せる）。
+      KASANE のフォルダを指定しているときは、同じファイルをそのフォルダへ kasane-import.json として置き、設定画面・トレイの分は、起動時に設定の無いものだけ取り込む。
+      サイレントインストールでは IMPORT_SETTINGS=1 IMPORT_SETTINGS_FILE=C:\path\x.kasane.json のように渡せる。
+    -->
+    <Property Id="IMPORT_SETTINGS" Secure="yes" />
+    <Property Id="IMPORT_SETTINGS_FILE" Secure="yes" />
+    <Property Id="IMPORT_FILE_OK" Secure="yes" />
+    <Property Id="IMPORT_FILE_ARG" Secure="yes" />
+
     <UIRef Id="WixUI_FeatureTree" />
     <!-- これが無いとWindows 10以降ではProgressDlgが未置換のActionTextテンプレート
          （"Copying new files File: [1], Directory: [9], Size: [6]"）をそのまま表示する
@@ -174,15 +186,56 @@
           <Publish Event="NewDialog" Value="DeviceIdModeDlg">1</Publish>
         </Control>
         <Control Id="Next" Type="PushButton" X="248" Y="243" Width="56" Height="17" Text="!(loc.WixUINext)">
-          <Publish Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+          <Publish Event="NewDialog" Value="ImportSettingsDlg">1</Publish>
         </Control>
         <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
           <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
         </Control>
       </Dialog>
 
+      <!-- 設定ファイルの取り込み（既定オフ）。DataDirDlg の次、VerifyReadyDlg の前。Next で、ファイルがあるか確かめる。 -->
+      <Dialog Id="ImportSettingsDlg" Width="370" Height="270" Title="!(loc.ImportSettingsDlg_Title)">
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="280" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>{\WixUI_Font_Title}!(loc.ImportSettingsDlg_Title)</Text>
+        </Control>
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="340" Height="15" Transparent="yes" NoPrefix="yes" Text="!(loc.ImportSettingsDlg_Description)" />
+
+        <Control Id="Explain" Type="Text" X="25" Y="52" Width="330" Height="62" Text="!(loc.ImportSettingsDlg_Explain)" />
+
+        <Control Id="ImportCheck" Type="CheckBox" X="25" Y="120" Width="330" Height="18" Property="IMPORT_SETTINGS" CheckBoxValue="1" Text="!(loc.ImportSettingsDlg_Check)" />
+        <Control Id="ImportLabel" Type="Text" X="40" Y="144" Width="315" Height="10" Text="!(loc.ImportSettingsDlg_Label)" />
+        <Control Id="ImportFileEdit" Type="Edit" X="40" Y="156" Width="305" Height="15" Property="IMPORT_SETTINGS_FILE" Sunken="yes">
+          <Condition Action="disable">NOT IMPORT_SETTINGS</Condition>
+          <Condition Action="enable">IMPORT_SETTINGS</Condition>
+        </Control>
+        <Control Id="ImportHint" Type="Text" X="40" Y="178" Width="315" Height="50" Text="!(loc.ImportSettingsDlg_Hint)" />
+
+        <Control Id="Back" Type="PushButton" X="192" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)">
+          <Publish Event="NewDialog" Value="DataDirDlg">1</Publish>
+        </Control>
+        <Control Id="Next" Type="PushButton" X="248" Y="243" Width="56" Height="17" Text="!(loc.WixUINext)">
+          <Publish Event="DoAction" Value="CA_CheckImportFile" Order="1">IMPORT_SETTINGS</Publish>
+          <Publish Event="SpawnDialog" Value="ImportFileMissingDlg" Order="2">IMPORT_SETTINGS AND NOT IMPORT_FILE_OK</Publish>
+          <Publish Event="NewDialog" Value="VerifyReadyDlg" Order="3">NOT IMPORT_SETTINGS OR IMPORT_FILE_OK</Publish>
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
+          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+        </Control>
+      </Dialog>
+
+      <Dialog Id="ImportFileMissingDlg" Width="260" Height="85" Title="!(loc.ImportFileMissingDlg_Title)">
+        <Control Id="Text" Type="Text" X="25" Y="15" Width="215" Height="35" Text="!(loc.ImportFileMissingDlg_Text)" />
+        <Control Id="Ok" Type="PushButton" X="102" Y="57" Width="56" Height="17" Default="yes" Cancel="yes" Text="!(loc.WixUIOK)">
+          <Publish Event="EndDialog" Value="Return">1</Publish>
+        </Control>
+      </Dialog>
+
       <Publish Dialog="CustomizeDlg" Control="Next" Event="NewDialog" Value="DeviceIdModeDlg" Order="2">1</Publish>
-      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="DataDirDlg" Order="4">NOT Installed OR WixUI_InstallMode = "Change"</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="ImportSettingsDlg" Order="4">NOT Installed OR WixUI_InstallMode = "Change"</Publish>
     </UI>
 
     <!--
@@ -425,6 +478,38 @@ Set f=Nothing
 End If
 ]]></CustomAction>
 
+    <!-- 取り込みファイルの確認（ImportSettingsDlg の Next。immediate）。貼り付けた「"」は外す（エクスプローラーの「パスのコピー」は、"" で囲んで返す）。 -->
+    <CustomAction Id="CA_CheckImportFile" Script="vbscript" Execute="immediate" Return="ignore"><![CDATA[p=Replace(Session.Property("IMPORT_SETTINGS_FILE"),Chr(34),""):Session.Property("IMPORT_SETTINGS_FILE")=p:Session.Property("IMPORT_FILE_OK")="":If CreateObject("Scripting.FileSystemObject").FileExists(p) Then Session.Property("IMPORT_FILE_OK")="1"]]></CustomAction>
+
+    <!--
+      KASANE のフォルダの用意（deferred、SYSTEM）。kasane.exe のヘッドレスコマンド（prepare-data-dir）。無ければ作り、Users に変更権限を付ける
+      （標準ユーザーのトレイ・設定画面が、設定を保存できるように。すでにあるフォルダの権限は触らない）。取り込むときは、選んだファイルを、そのフォルダに
+      kasane-import.json として置く（設定画面・トレイが、起動時に設定の無いものだけ取り込む）。
+      フォルダは「[KASANE_DIR]\.」の形で渡す（末尾が \ のとき、コマンドラインの「\"」が引用符として解釈されるのを避ける）。
+      取り込まないときは、ファイルの引数を空にする（IMPORT_SETTINGS が 1 のときだけ渡す）。
+    -->
+    <CustomAction
+      Id="CA_PrepareKasaneDir"
+      Directory="KEYMAPGUIDIR"
+      ExeCommand="&quot;[KEYMAPGUIDIR]kasane.exe&quot; --prepare-data-dir &quot;[KASANE_DIR]\.&quot; &quot;[IMPORT_FILE_ARG]&quot;"
+      Execute="deferred"
+      Return="ignore"
+      Impersonate="no" />
+    <CustomAction Id="CA_SetImportFileArg" Property="IMPORT_FILE_ARG" Value="[IMPORT_SETTINGS_FILE]" Execute="immediate" />
+
+    <!--
+      設定ファイルの内容を、ドライバのレジストリへ書く（deferred、SYSTEM）。kasane.exe のヘッドレスモード（install-import コマンド）。ファイルが無い・形式が違うなど、
+      失敗してもインストールは続ける（Return="ignore"）。結果は %ProgramData%\applet\kasane\import.log。ドライバが動いていなくても書ける。
+      書いた設定は、キーボードが接続されたとき（再起動後・接続し直し）にドライバが読み込む。
+    -->
+    <CustomAction
+      Id="CA_ImportDriverSettings"
+      Directory="KEYMAPGUIDIR"
+      ExeCommand="&quot;[KEYMAPGUIDIR]kasane.exe&quot; --install-import &quot;[IMPORT_SETTINGS_FILE]&quot;"
+      Execute="deferred"
+      Return="ignore"
+      Impersonate="no" />
+
     <!--
       ExeCommand はフォーマット済みフィールドであり、[KBD_DEVICEIDMODE] は
       このアクションがシーケンス内でスケジュールされる時点（即時実行フェーズ）のプロパティ値に
@@ -484,7 +569,11 @@ End If
       <Custom Action="CA_StopTray" Before="RemoveExistingProducts" />
       <Custom Action="CA_CheckKbdPendingDelete" After="InstallInitialize">NOT REMOVE~="ALL" AND &amp;F_KbdDriver=3</Custom>
       <Custom Action="CA_InstallKbdDriver" Before="InstallFinalize">NOT REMOVE~="ALL" AND &amp;F_KbdDriver=3</Custom>
-      <ScheduleReboot After="CA_InstallKbdDriver">NOT REMOVE~="ALL" AND &amp;F_KbdDriver=3</ScheduleReboot>
+      <!-- 取り込み（任意）。ドライバのインストールのあと、kasane.exe が置かれたあとに行う。 -->
+      <Custom Action="CA_SetImportFileArg" Before="InstallInitialize">NOT REMOVE~="ALL" AND KASANE_DIR &lt;&gt; "" AND IMPORT_SETTINGS="1"</Custom>
+      <Custom Action="CA_PrepareKasaneDir" Before="InstallFinalize">NOT REMOVE~="ALL" AND KASANE_DIR &lt;&gt; ""</Custom>
+      <Custom Action="CA_ImportDriverSettings" After="CA_InstallKbdDriver">NOT REMOVE~="ALL" AND IMPORT_SETTINGS="1" AND IMPORT_SETTINGS_FILE &lt;&gt; ""</Custom>
+      <ScheduleReboot After="CA_ImportDriverSettings">NOT REMOVE~="ALL" AND &amp;F_KbdDriver=3</ScheduleReboot>
 
       <!--
         アップグレード（MajorUpgrade による旧製品の自動削除）時はドライバをアンインストールしない。

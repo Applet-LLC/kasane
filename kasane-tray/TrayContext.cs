@@ -82,7 +82,30 @@ public sealed class TrayContext : ApplicationContext
 
         _timer.Tick += (_, _) => RefreshState();
         _timer.Start();
+        StartPendingImport();
         RefreshState();
+    }
+
+    // 保存先（環境変数 KASANE のフォルダ）に取り込みファイルがあれば、設定の無いものだけ取り込む（kasane.exe --import-pending。画面は出ない）。
+    // 接続中のキーボードに対応づけるので、あとから接続したキーボード分は、設定画面を開いたときにも調べる。
+    private static void StartPendingImport()
+    {
+        try
+        {
+            string file = Path.Combine(Kasane.Model.HelperConfig.BaseDirectory, "kasane-import.json");
+            if (!File.Exists(file)) return;
+            string? exe = AppLauncher.FindEditor();
+            if (exe == null) return;
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe, "--import-pending")
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            })?.Dispose();
+        }
+        catch (Exception ex) when (ex is IOException or System.ComponentModel.Win32Exception)
+        {
+            TrayLog.Write("import-pending: " + ex.Message);
+        }
     }
 
     // メニューを開くときに、ドライバから直接読む（監視サービスは、アイコンの表示をオフにすると止まるため、頼らない。読み取り側のIOCTLで、すぐ返る）。

@@ -17,4 +17,12 @@
   <String Id="DataDirDlg_Explain">kasane は設定ファイル（キーボードごとの設定、トレイの設定、ログ）を、通常は各ユーザーの %LOCALAPPDATA%\applet\kasane に保存します。Windows 11 の管理者保護が有効な環境では、昇格して起動した設定画面が別のユーザーとして動くため、この保存先が分かれてしまいます。ここにフォルダを指定すると、マシン全体の環境変数 KASANE として設定し、すべてのユーザー・昇格した画面・トレイが同じフォルダを使います。KASANE が設定されている間は、既定の保存先より優先されます。</String>
   <String Id="DataDirDlg_Label">設定フォルダ（環境変数 KASANE）:</String>
   <String Id="DataDirDlg_Hint">空欄のままにすると、環境変数には触れず、既定の保存先を使います。ドライブ文字から始まるフルパスで指定してください（相対パスは無視されます）。</String>
+  <String Id="ImportSettingsDlg_Title">設定ファイルの取り込み</String>
+  <String Id="ImportSettingsDlg_Description">kasane で書き出した設定を、ドライバに反映します（任意）</String>
+  <String Id="ImportSettingsDlg_Explain">kasane の「インポート／エクスポート」で書き出した設定ファイル（*.kasane.json）の内容を、インストール時にドライバへ反映します。Windows 11 の管理者保護が有効な環境では、インストール後にキーボードへ「適用」できない場合があるため、インストール時の管理者権限で反映するものです。ファイルのキーボードは、型番（HardwareId）で対応づけます。反映は、再起動後（またはキーボードを接続し直したとき）から有効になります。</String>
+  <String Id="ImportSettingsDlg_Check">設定ファイルを取り込む</String>
+  <String Id="ImportSettingsDlg_Label">設定ファイル（フルパス）:</String>
+  <String Id="ImportSettingsDlg_Hint">すでにドライバに設定がある型番は、置き換えます（前の設定は1世代だけ退避し、設定画面の「保存先」タブから戻せます）。エクスプローラーで、ファイルを Shift+右クリック →「パスのコピー」で貼り付けられます。</String>
+  <String Id="ImportFileMissingDlg_Title">設定ファイルが見つかりません</String>
+  <String Id="ImportFileMissingDlg_Text">指定した設定ファイルが見つかりません。パスを確かめるか、「設定ファイルを取り込む」のチェックを外してください。</String>
 </WixLocalization>
