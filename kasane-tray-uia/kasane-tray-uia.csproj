@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    kasane-tray-uia: kasane-tray（..\kasane-tray）の uiAccess=true 版。ソースは kasane-tray のものをそのまま使い（リンクのみ。二重管理しない）、
+    違いは app.manifest（uiAccess="true"）だけ。出力の exe 名は kasane-tray.exe（インストールして、Run キーで自動起動する）。
+    uiAccess の無い版（kasane-tray）の exe 名は kasane-tray-nua.exe で、同じ tray\ に置くだけにする（登録しない）。
+    単一起動の mutex（Local\kasane-tray）は両方で共通なので、どちらか一方だけが動く。
+    このプロジェクトのビルドは署名と Program Files への配置が無いと起動できない（app.manifest を参照）。
+
+    元の説明: kasane のタスクトレイ常駐ツール。ログイン時に自動起動し、左クリックでエディタ（kasane.exe）を開き、
+    右クリックのメニュー（設定・一時停止・ライセンス・終了）を出す。ドライバの操作は読み取り側のIOCTL
+    （一覧とON/OFF）だけなので、管理者権限は要らない。
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>Kasane.Tray</RootNamespace>
+    <AssemblyName>kasane-tray</AssemblyName>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <!--
+      自己展開しない。true だと、起動のたびに %TEMP%\.net\kasane-tray\ へネイティブ DLL を展開し、利用者が書ける場所の DLL が uiAccess のプロセスから
+      読まれうる（P9 の U8）。false にすると、ネイティブ DLL は exe の外に出る。トレイが使わない WPF のネイティブ DLL は、下の Target で公開物から外す。
+    -->
+    <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <Platforms>AnyCPU;x64</Platforms>
+    <ApplicationIcon>..\kasane-license\Resources\app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- kasane-tray のソースをそのまま使う（bin・obj は除く）。 -->
+    <Compile Include="..\kasane-tray\**\*.cs" Exclude="..\kasane-tray\bin\**;..\kasane-tray\obj\**" Link="Tray\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- ドライバのIOCTLクライアントは、エディタ（kasane）のソースをそのまま使う（二重管理を避ける。
+         KbdLayerClientが使うKeyAction/ActionTypeはKeycodeTable.csにある）。 -->
+    <Compile Include="..\kasane\Interop\KbdLayerClient.cs" Link="Shared\KbdLayerClient.cs" />
+    <Compile Include="..\kasane\Interop\KbdLayerClient.HelperEvents.cs" Link="Shared\KbdLayerClient.HelperEvents.cs" />
+    <Compile Include="..\kasane\Interop\KbdLayerClient.LayerWatch.cs" Link="Shared\KbdLayerClient.LayerWatch.cs" />
+    <Compile Include="..\kasane\Interop\NativeMethods.cs" Link="Shared\NativeMethods.cs" />
+    <Compile Include="..\kasane\Keycodes\KeycodeTable.cs" Link="Shared\KeycodeTable.cs" />
+    <Compile Include="..\kasane\Model\TrayConfig.cs" Link="Shared\TrayConfig.cs" />
+    <Compile Include="..\kasane\Model\HelperConfig.cs" Link="Shared\HelperConfig.cs" />
+    <Compile Include="..\kasane\Model\HelperActions.cs" Link="Shared\HelperActions.cs" />
+    <EmbeddedResource Include="..\kasane-license\Resources\app.ico" Link="app.ico" />
+  </ItemGroup>
+
+  <!-- トレイは WPF を使わない（WinForms）。自己完結の公開物に入る WPF のネイティブ DLL（読み込まれない）を外し、exe だけにする。 -->
+  <Target Name="RemoveUnusedWpfNatives" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="'%(Filename)' == 'D3DCompiler_47_cor3' Or '%(Filename)' == 'PenImc_cor3' Or '%(Filename)' == 'PresentationNative_cor3' Or '%(Filename)' == 'vcruntime140_cor3' Or '%(Filename)' == 'wpfgfx_cor3'" />
+    </ItemGroup>
+  </Target>
+
+</Project>
