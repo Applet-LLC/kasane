@@ -84,11 +84,26 @@ public sealed class TrayContext : ApplicationContext
         RefreshState();
     }
 
-    // 「レイヤー」サブメニュー（B-5a）。開くたびに、今の状態から作り直す。選ぶと、"action" の入力源でレイヤーを反転する（IME連動・規則と OR で合わさる）。
+    // メニューを開くときに、ドライバから直接読む（監視サービスは、アイコンの表示をオフにすると止まるため、頼らない。読み取り側のIOCTLで、すぐ返る）。
+    private static IReadOnlyDictionary<uint, LayerState> ReadLayerStates()
+    {
+        var states = new Dictionary<uint, LayerState>();
+        try
+        {
+            using var client = KbdLayerClient.TryOpen(out _);
+            if (client == null) return states;
+            foreach (var d in client.ListDevices().Where(d => d.UniqId != 0 && d.HasLayerMap))
+                states[d.UniqId] = client.GetLayerState(d.UniqId);
+        }
+        catch (Exception ex) when (ex is KbdLayerException or InvalidOperationException or IOException) { /* 読めなければ、項目は出さない */ }
+        return states;
+    }
+
+    // 「レイヤー」サブメニュー（B-5a）。開くたびに、ドライバから読んで作り直す。選ぶと、"action" の入力源でレイヤーを反転する（IME連動・規則と OR で合わさる）。
     private void RebuildLayerMenu()
     {
         _layerItem.DropDownItems.Clear();
-        var keyboards = LayerMenuModel.Build(_layerWatch.Snapshot());
+        var keyboards = LayerMenuModel.Build(ReadLayerStates());
         _layerItem.Enabled = _snapshot.Status == TrayStatus.Running && keyboards.Count > 0;
         if (!_layerItem.Enabled) return;
 
