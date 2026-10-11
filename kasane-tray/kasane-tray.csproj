@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    kasane のタスクトレイ常駐ツール。ログイン時に自動起動し、左クリックでエディタ（kasane.exe）を開き、
+    kasane のタスクトレイ常駐ツール（uiAccess の無い版。exe 名は kasane-tray-nua.exe。uiAccess=true 版は ..\kasane-tray-uia で、exe 名は kasane-tray.exe）。ログイン時に自動起動し、左クリックでエディタ（kasane.exe）を開き、
     右クリックのメニュー（設定・一時停止・ライセンス・終了）を出す。ドライバの操作は読み取り側のIOCTL
     （一覧とON/OFF）だけなので、管理者権限は要らない。
   -->
@@ -12,7 +12,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>Kasane.Tray</RootNamespace>
-    <AssemblyName>kasane-tray</AssemblyName>
+    <AssemblyName>kasane-tray-nua</AssemblyName>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>

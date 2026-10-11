@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
+  <!--
+    uiAccess=true 版のトレイ。管理者として動くウィンドウが前面のときも、キーフックにキーが届き、SendInput が届く（UIPI を越える）。
+    OS が起動を許すのは、次の2つを両方満たすときだけ（満たさないと、起動に失敗する。何も表示されずに終わる）:
+      (1) 信頼されたルートまで連なる証明書で署名されている（インストーラーのビルドが EvCodeSign.ps1 で署名する）。
+      (2) 安全な場所（Program Files など、管理者しか書けない場所）にある。
+    開発ビルド（署名なし）では起動できないので、開発・試験には、uiAccess の無い kasane-tray を使う。
+  -->
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
+    <security>
+      <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
+        <requestedExecutionLevel level="asInvoker" uiAccess="true" />
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+</assembly>

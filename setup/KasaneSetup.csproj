@@ -16,6 +16,8 @@
     <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)\..\kasane-launcher\kasane-launcher.csproj&quot; -c Release -r win-x64 /p:PublishSingleFile=true /p:UseAppHost=true --nologo" />
     <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)\..\kasane\kasane.csproj&quot; -c Release -r win-x64 /p:PublishSingleFile=true /p:UseAppHost=true --nologo" />
     <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)\..\kasane-tray\kasane-tray.csproj&quot; -c Release -r win-x64 /p:PublishSingleFile=true /p:UseAppHost=true --nologo" />
+    <!-- uiAccess=true 版のトレイ（インストールするのはこちら。署名（Step 3）と Program Files への配置が無いと起動できない） -->
+    <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)\..\kasane-tray-uia\kasane-tray-uia.csproj&quot; -c Release -r win-x64 /p:PublishSingleFile=true /p:UseAppHost=true --nologo" />
     <!-- Step 2: stage drivers + apps -->
     <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Prepare-Staging.ps1&quot;" />
     <!-- Step 3: EV code sign staging -->

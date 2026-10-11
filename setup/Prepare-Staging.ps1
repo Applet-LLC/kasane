@@ -406,8 +406,14 @@ Copy-Item -Path (Join-Path $repoRoot "kasane/Layouts/*.json") -Destination (Join
 Write-Host "[kasane] staged layouts: $((Get-ChildItem (Join-Path $keymapGuiStaging 'Layouts')).Name -join ', ')"
 
 # kasane-tray: タスクトレイ常駐ツール（.NET 8 WinForms、exe のみ）。ログイン時の自動起動は Product.wxs が登録する。
-Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kasane-tray" `
+# app/tray に、次の2つを入れる（exe 名が違うので同居できる）。
+#   kasane-tray.exe     = uiAccess=true 版（kasane-tray-uia。管理者ウィンドウの前面でもフック・SendInput が効く。署名と Program Files が要る）。Run キーはこちら。
+#   kasane-tray-nua.exe = uiAccess の無い版（kasane-tray）。置くだけで、登録しない（uiAccess 版が起動できないときに、手で使う）。
+Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kasane-tray-uia" `
     -ExeFileName "kasane-tray.exe" `
+    -DestDir (Join-Path $stagingRoot "app/tray")
+Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kasane-tray" `
+    -ExeFileName "kasane-tray-nua.exe" `
     -DestDir (Join-Path $stagingRoot "app/tray")
 
 # KeymapToolのサンプルキーマップ（docs/TUTORIAL-CLI.md で使う tutorial-*.json、動作確認用 test-keymap-*.json、

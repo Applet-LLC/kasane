@@ -195,11 +195,12 @@
     </Feature>
 
     <!--
-      F_Tray: タスクトレイ常駐ツール（kasane-tray.exe）。ログイン時に自動起動する（HKLM の Run に登録するので、
+      F_Tray: タスクトレイ常駐ツール（kasane-tray.exe = uiAccess=true 版。uiAccess の無い kasane-tray-nua.exe も置く）。ログイン時に自動起動する（HKLM の Run に登録するので、
       すべてのユーザーで起動する）。左クリックでエディタ、右クリックでメニュー（設定・一時停止・ライセンス・終了）。
     -->
     <Feature Id="F_Tray" Title="Tray (kasane-tray)" Level="1" Absent="disallow">
       <ComponentRef Id="CMP_TrayExe" />
+      <ComponentRef Id="CMP_TrayNuaExe" />
     </Feature>
 
     <Feature Id="F_LicenseSvc" Title="License Service" Level="1" Absent="disallow">
@@ -283,6 +284,19 @@
                        Name="kasane-tray"
                        Value="&quot;[TRAYDIR]kasane-tray.exe&quot;"
                        Type="string" />
+      </Component>
+    </DirectoryRef>
+
+    <!--
+      uiAccess の無い版のトレイ（kasane-tray-nua.exe。置くだけで、Run キーには登録しない）。kasane-tray.exe（uiAccess=true）は、署名が信頼されない・
+      Program Files の外から起動した、などで起動に失敗すると、何も表示されずに終わる。そのとき、利用者がこちらを手で起動する（docs/HELPER.md）。
+      単一起動の mutex は両方で共通。
+    -->
+    <DirectoryRef Id="TRAYDIR">
+      <Component Id="CMP_TrayNuaExe" Guid="{C4A8E1B7-52D9-4F36-9A0E-7B3D6F81E2C5}">
+        <File Id="FIL_TrayNuaExe"
+              Source="$(var.StagingTray)\kasane-tray-nua.exe"
+              KeyPath="yes" />
       </Component>
     </DirectoryRef>
 
@@ -389,7 +403,7 @@ End If
     <CustomAction
       Id="CA_StopTray"
       Directory="TARGETDIR"
-      ExeCommand="&quot;[System64Folder]taskkill.exe&quot; /F /IM kasane-tray.exe"
+      ExeCommand="&quot;[System64Folder]taskkill.exe&quot; /F /IM kasane-tray.exe /IM kasane-tray-nua.exe"
       Execute="immediate"
       Return="ignore" />
 

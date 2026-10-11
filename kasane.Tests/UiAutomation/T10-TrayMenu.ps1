@@ -1,4 +1,4 @@
-﻿# GUI-T10: UI Automation test for the tray tool (kasane-tray.exe): the icon exists with a tooltip, a left click opens the
+﻿# GUI-T10: UI Automation test for the tray tool (kasane-tray-nua.exe; the non-uiAccess build): the icon exists with a tooltip, a left click opens the
 # editor (and a second click only brings it to the front), the right-click menu has 設定 / 一時停止 / ライセンス / 終了 in this
 # order, ライセンス opens the license manager, and 終了 ends the tray.
 # It never presses 一時停止 (that changes the keyboards' ON/OFF state; see .plans/tray.md for the pause tests).
@@ -8,7 +8,7 @@
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -Namespace TrayT -Name Native -MemberDefinition '[DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y); [DllImport("user32.dll")] public static extern void mouse_event(uint f,uint dx,uint dy,uint d,UIntPtr e);'
 $ErrorActionPreference = "Stop"
-$EXE = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\kasane-tray\bin\Debug\net8.0-windows\win-x64\kasane-tray.exe"))
+$EXE = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\kasane-tray\bin\Debug\net8.0-windows\win-x64\kasane-tray-nua.exe"))
 $UIA = [System.Windows.Automation.AutomationElement]
 $root = $UIA::RootElement
 $fail = 0
@@ -55,7 +55,7 @@ function Right-Click-TrayIcon {
 
 # The context menu is a separate top-level window of the tray process; UIA's RootElement.FindAll does not list it (see UiaLib.ps1).
 function Get-MenuItems {
-    $tp = Get-Process kasane-tray
+    $tp = Get-Process kasane-tray-nua
     $items = @()
     foreach ($h in (Get-AllTopWindowHandles $tp.Id)) {
         $el = [System.Windows.Automation.AutomationElement]::FromHandle([IntPtr][int64]$h)
@@ -65,7 +65,7 @@ function Get-MenuItems {
 }
 
 try {
-    Get-Process kasane-tray, kasane, kasane-license -ErrorAction SilentlyContinue | Stop-Process -Force
+    Get-Process kasane-tray-nua, kasane, kasane-license -ErrorAction SilentlyContinue | Stop-Process -Force
     Start-Sleep -Milliseconds 500
     $proc = Start-Process $EXE -PassThru
     Start-Sleep -Milliseconds 2500
@@ -73,7 +73,7 @@ try {
 
     $second = Start-Process $EXE -PassThru
     Start-Sleep -Milliseconds 1500
-    Chk "a second tray exits at once (single instance)" ($second.HasExited -and @(Get-Process kasane-tray).Count -eq 1)
+    Chk "a second tray exits at once (single instance)" ($second.HasExited -and @(Get-Process kasane-tray-nua).Count -eq 1)
 
     $icon = Get-TrayIcon
     Chk "the tray icon exists in the notification area" ($null -ne $icon)
@@ -105,11 +105,11 @@ try {
     $exit = Get-MenuItems | Where-Object { $_.Current.Name -eq "終了" }
     $exit.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     Start-Sleep 2
-    Chk "終了 ends the tray" (@(Get-Process kasane-tray -ErrorAction SilentlyContinue).Count -eq 0)
+    Chk "終了 ends the tray" (@(Get-Process kasane-tray-nua -ErrorAction SilentlyContinue).Count -eq 0)
 
     "=== FAIL COUNT: $fail ==="
 }
 catch { "EXCEPTION: $_"; $fail++ }
 finally {
-    Get-Process kasane-tray, kasane, kasane-license -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    Get-Process kasane-tray-nua, kasane, kasane-license -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 }
