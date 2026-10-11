@@ -37,6 +37,7 @@ public sealed class TrayContext : ApplicationContext
     private readonly Control _ui = new(); // 動作の実行スレッドから、UI スレッドへ処理を渡すため
     private readonly LayerWatchService _layerWatch;
     private readonly Dictionary<char, Icon> _badgeIcons = new(); // レイヤー番号つきのアイコン（最大16個。GDIハンドルを増やさないよう使い回す）
+    private readonly HashSet<(uint UniqId, int Layer)> _menuHeld = new(); // 「レイヤー」メニューで立てたもの（他の入力源が立てたものと見分けるため）
     private volatile bool _showLayer = true;
     private LayerBadge? _layerBadge;
     private TraySnapshot _snapshot = new(TrayStatus.DriverUnavailable, 0, 0);
@@ -103,19 +104,31 @@ public sealed class TrayContext : ApplicationContext
     private void RebuildLayerMenu()
     {
         _layerItem.DropDownItems.Clear();
-        var keyboards = LayerMenuModel.Build(ReadLayerStates());
+        var states = ReadLayerStates();
+        var keyboards = LayerMenuModel.Build(states, _menuHeld);
         _layerItem.Enabled = _snapshot.Status == TrayStatus.Running && keyboards.Count > 0;
-        if (!_layerItem.Enabled) return;
+        if (!_layerItem.Enabled || !_imeLink.SessionActive)
+        {
+            _menuHeld.Clear(); // 一時停止・ロックでは、メニューが立てたレイヤーは下ろされる（ActionLayerController）
+            if (!_layerItem.Enabled) return;
+        }
+        // 実際に立っていないものは忘れる（取り消された・キーボードが外れた）。
+        _menuHeld.RemoveWhere(h => !states.TryGetValue(h.UniqId, out var s) || (s.AppLayerMask >> h.Layer & 1) == 0);
 
         foreach (var kb in keyboards)
         {
             var target = keyboards.Count == 1 ? _layerItem : new ToolStripMenuItem(kb.Label) { Name = "TrayLayers_" + kb.UniqId.ToString("X8") };
             foreach (var item in kb.Items)
             {
-                var entry = new ToolStripMenuItem($"レイヤー {item.Layer}") { Name = $"TrayLayer_{kb.UniqId:X8}_{item.Layer}", Checked = item.Checked, CheckOnClick = false };
+                var entry = new ToolStripMenuItem($"レイヤー {item.Layer}") { Name = $"TrayLayer_{kb.UniqId:X8}_{item.Layer}", Checked = item.Checked, CheckOnClick = false, Enabled = item.Enabled };
+                if (!item.Enabled) entry.ToolTipText = "キーボードのレイヤー切り替え、IME連動、アプリ別レイヤーが立てているので、ここからは切れません。";
                 uint uniq = kb.UniqId;
                 int layer = item.Layer;
-                entry.Click += (_, _) => _imeLink.RequestLayer(new LayerRequest(uniq, 0, new[] { layer }, LayerOp.Toggle));
+                entry.Click += (_, _) =>
+                {
+                    if (!_menuHeld.Remove((uniq, layer))) _menuHeld.Add((uniq, layer));
+                    _imeLink.RequestLayer(new LayerRequest(uniq, 0, new[] { layer }, LayerOp.Toggle));
+                };
                 target.DropDownItems.Add(entry);
             }
             if (target != _layerItem) _layerItem.DropDownItems.Add(target);
