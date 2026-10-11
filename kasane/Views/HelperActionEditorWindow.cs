@@ -150,7 +150,7 @@ public sealed class HelperActionEditorWindow : Window
         foreach (var label in LayerOpLabels) _layerOp.Items.Add(label);
         _layerPanel.Children.Add(Row("操作", _layerOp));
 
-        _pausePanel.Children.Add(Help("トレイの一時停止・再開を切り替えます。一時停止中は、キーフックのトリガーだけが動きます（HLP のキーはリマップが止まるので届きません）。"));
+        _pausePanel.Children.Add(Help("トレイの一時停止・再開を切り替えます。一時停止中は、キーフックのトリガーだけが動きます（HLP のキーはリマップが止まるので届きません）。同じキーで再開したいときは、F13〜F24 などのトリガーに結び付けてください。"));
 
         panel.Children.Add(_launchPanel);
         panel.Children.Add(_sequencePanel);

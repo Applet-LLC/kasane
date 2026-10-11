@@ -7,7 +7,7 @@ namespace Kasane.Tray;
 /// トレイアイコンとメニュー。
 ///  - 左クリック: エディタ（kasane.exe）を開く（起動済みなら前面へ）。
 ///  - 右クリックのメニュー（上から）: 設定（＝エディタを開く）／一時停止（チェック付き。全キーボードをOFFにし、再開で戻す）／
-///    ライセンス（ライセンス管理を開く）／終了（トレイを終える。一時停止中でも、停止のまま終了する）。
+///    レイヤー（サブメニュー。手でレイヤー 1〜15 を入れ切りする。チェックは今有効なレイヤー）／ライセンス（ライセンス管理を開く）／終了（トレイを終える。一時停止中でも、停止のまま終了する）。
 ///  - ツールチップに、動作中・一時停止中・ドライバに接続できない、を出す。状態はタイマーで読み直す。
 ///  - IME連動（<see cref="ImeLinkHost"/>）: IMEがかなモードのときだけNICOLAのレイヤーを自動で立てる。メニューは変えず、
 ///    ON/OFFはエディタの設定（NICOLAのタブ）で選ぶ。ツールチップにNICOLAの状態を足す。
@@ -24,6 +24,7 @@ public sealed class TrayContext : ApplicationContext
     private readonly ContextMenuStrip _menu = new();
     private readonly ToolStripMenuItem _settingsItem = new("設定") { Name = "TraySettings" };
     private readonly ToolStripMenuItem _pauseItem = new("一時停止") { Name = "TrayPause" };
+    private readonly ToolStripMenuItem _layerItem = new("レイヤー") { Name = "TrayLayers" };
     private readonly ToolStripMenuItem _licenseItem = new("ライセンス") { Name = "TrayLicense" };
     private readonly ToolStripMenuItem _exitItem = new("終了") { Name = "TrayExit" };
     private readonly System.Windows.Forms.Timer _timer = new() { Interval = PollIntervalMs };
@@ -36,6 +37,7 @@ public sealed class TrayContext : ApplicationContext
     private readonly Control _ui = new(); // 動作の実行スレッドから、UI スレッドへ処理を渡すため
     private readonly LayerWatchService _layerWatch;
     private readonly Dictionary<char, Icon> _badgeIcons = new(); // レイヤー番号つきのアイコン（最大16個。GDIハンドルを増やさないよう使い回す）
+    private readonly HashSet<(uint UniqId, int Layer)> _menuHeld = new(); // 「レイヤー」メニューで立てたもの（他の入力源が立てたものと見分けるため）
     private volatile bool _showLayer = true;
     private LayerBadge? _layerBadge;
     private TraySnapshot _snapshot = new(TrayStatus.DriverUnavailable, 0, 0);
@@ -63,8 +65,8 @@ public sealed class TrayContext : ApplicationContext
         _pauseItem.Click += (_, _) => TogglePause();
         _licenseItem.Click += (_, _) => Notify(AppLauncher.OpenOrActivate(AppLauncher.FindLicense(), "ライセンス管理"));
         _exitItem.Click += (_, _) => ExitTray();
-        _menu.Items.AddRange(new ToolStripItem[] { _settingsItem, _pauseItem, _licenseItem, new ToolStripSeparator(), _exitItem });
-        _menu.Opening += (_, _) => RefreshState(); // 開く直前に、最新の状態にする
+        _menu.Items.AddRange(new ToolStripItem[] { _settingsItem, _pauseItem, _layerItem, _licenseItem, new ToolStripSeparator(), _exitItem });
+        _menu.Opening += (_, _) => { RefreshState(); RebuildLayerMenu(); }; // 開く直前に、最新の状態にする
 
         _notifyIcon = new NotifyIcon
         {
@@ -81,6 +83,56 @@ public sealed class TrayContext : ApplicationContext
         _timer.Tick += (_, _) => RefreshState();
         _timer.Start();
         RefreshState();
+    }
+
+    // メニューを開くときに、ドライバから直接読む（監視サービスは、アイコンの表示をオフにすると止まるため、頼らない。読み取り側のIOCTLで、すぐ返る）。
+    private static IReadOnlyDictionary<uint, LayerState> ReadLayerStates()
+    {
+        var states = new Dictionary<uint, LayerState>();
+        try
+        {
+            using var client = KbdLayerClient.TryOpen(out _);
+            if (client == null) return states;
+            foreach (var d in client.ListDevices().Where(d => d.UniqId != 0 && d.HasLayerMap))
+                states[d.UniqId] = client.GetLayerState(d.UniqId);
+        }
+        catch (Exception ex) when (ex is KbdLayerException or InvalidOperationException or IOException) { /* 読めなければ、項目は出さない */ }
+        return states;
+    }
+
+    // 「レイヤー」サブメニュー（B-5a）。開くたびに、ドライバから読んで作り直す。選ぶと、"action" の入力源でレイヤーを反転する（IME連動・規則と OR で合わさる）。
+    private void RebuildLayerMenu()
+    {
+        _layerItem.DropDownItems.Clear();
+        var states = ReadLayerStates();
+        var keyboards = LayerMenuModel.Build(states, _menuHeld);
+        _layerItem.Enabled = _snapshot.Status == TrayStatus.Running && keyboards.Count > 0;
+        if (!_layerItem.Enabled || !_imeLink.SessionActive)
+        {
+            _menuHeld.Clear(); // 一時停止・ロックでは、メニューが立てたレイヤーは下ろされる（ActionLayerController）
+            if (!_layerItem.Enabled) return;
+        }
+        // 実際に立っていないものは忘れる（取り消された・キーボードが外れた）。
+        _menuHeld.RemoveWhere(h => !states.TryGetValue(h.UniqId, out var s) || (s.AppLayerMask >> h.Layer & 1) == 0);
+
+        foreach (var kb in keyboards)
+        {
+            var target = keyboards.Count == 1 ? _layerItem : new ToolStripMenuItem(kb.Label) { Name = "TrayLayers_" + kb.UniqId.ToString("X8") };
+            foreach (var item in kb.Items)
+            {
+                var entry = new ToolStripMenuItem($"レイヤー {item.Layer}") { Name = $"TrayLayer_{kb.UniqId:X8}_{item.Layer}", Checked = item.Checked, CheckOnClick = false, Enabled = item.Enabled };
+                if (!item.Enabled) entry.ToolTipText = "キーボードのレイヤー切り替え、IME連動、アプリ別レイヤーが立てているので、ここからは切れません。";
+                uint uniq = kb.UniqId;
+                int layer = item.Layer;
+                entry.Click += (_, _) =>
+                {
+                    if (!_menuHeld.Remove((uniq, layer))) _menuHeld.Add((uniq, layer));
+                    _imeLink.RequestLayer(new LayerRequest(uniq, 0, new[] { layer }, LayerOp.Toggle));
+                };
+                target.DropDownItems.Add(entry);
+            }
+            if (target != _layerItem) _layerItem.DropDownItems.Add(target);
+        }
     }
 
     private void OpenEditor() => Notify(AppLauncher.OpenOrActivate(AppLauncher.FindEditor(), "kasane"));
