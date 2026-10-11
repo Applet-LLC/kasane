@@ -135,7 +135,13 @@ public sealed class TrayContext : ApplicationContext
         }
     }
 
-    private void OpenEditor() => Notify(AppLauncher.OpenOrActivate(AppLauncher.FindEditor(), "kasane"));
+    private void OpenEditor()
+    {
+        // 起動中（ウィンドウが出るまで）に押し直されても、2つ目を起動しない。
+        if (StartingNotice.IsShowing) return;
+        Notify(AppLauncher.OpenOrActivate(AppLauncher.FindEditor(), "kasane",
+            started => StartingNotice.ShowFor(started, "kasane の設定画面を準備しています…")));
+    }
 
     /// <summary>失敗の理由があれば、バルーンで知らせる。</summary>
     private void Notify(string? error)
