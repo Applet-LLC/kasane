@@ -58,7 +58,7 @@ public sealed class ComboEditorWindow : IdListEditorWindow
 
         Detail.Children.Add(Row("キー1", m1));
         Detail.Children.Add(Row("キー2", m2));
-        Detail.Children.Add(Row("送るキー", output));
+        Detail.Children.Add(Row("送るキー", KeycodeField.Wrap(output)));
     }
 
     private void Check(ComboDef c, List<string> errors)

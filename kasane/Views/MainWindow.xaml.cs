@@ -208,6 +208,7 @@ public partial class MainWindow : Window
     {
         _project = project;
         _layout = layout;
+        SoftKeyboardPanel.CurrentLayoutFile = layout.FilePath; // キー選択の「画面のキーボード」を、この配列で開く
         _dirty = dirty;
         _layer = 0;
 
