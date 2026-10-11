@@ -131,7 +131,7 @@ public sealed class HelperActionEditorWindow : Window
             "  mouse left / mouse right down / mouse x1 up   ボタン（left right middle x1 x2、click down up）\n" +
             "  move 10 -5 / moveto 100 200   マウスを動かす（今の位置から / 画面の座標へ）\n" +
             "  wheel -120 / hwheel 120   ホイール（120 で1ノッチ）\n" +
-            "# で始まる行は無視します。管理者として動くウィンドウには入力が届きません。"));
+            "# で始まる行は無視します。"));
         _sequencePanel.Children.Add(new TextBlock { Text = "キーを押したときの手順:", Margin = new Thickness(0, 4, 0, 2) });
         _sequencePanel.Children.Add(_steps);
         _sequencePanel.Children.Add(new TextBlock { Text = "キーを離したときの手順（任意。マウスのボタンを押している間だけ押す、など）:", Margin = new Thickness(0, 8, 0, 2) });
