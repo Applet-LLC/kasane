@@ -50,7 +50,7 @@ public partial class MainWindow : Window
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
         _suppressEvents = true;
-        foreach (var f in KeyboardLayout.EnumerateBundledLayoutFiles())
+        foreach (var f in KeyboardLayout.EnumerateLayoutFiles())
             CmbLayout.Items.Add(KeyboardLayout.NameFromPath(f));
         _suppressEvents = false;
 
@@ -196,7 +196,7 @@ public partial class MainWindow : Window
 
     private static KeyboardLayout? LoadBundledLayout(string name)
     {
-        var files = KeyboardLayout.EnumerateBundledLayoutFiles().ToList();
+        var files = KeyboardLayout.EnumerateLayoutFiles().ToList();
         var file = files.FirstOrDefault(f => KeyboardLayout.NameFromPath(f).Equals(name, StringComparison.OrdinalIgnoreCase))
                    ?? files.FirstOrDefault();
         return file != null ? KeyboardLayout.Load(file) : null;
@@ -234,9 +234,18 @@ public partial class MainWindow : Window
     private void BtnLoadKle_Click(object sender, RoutedEventArgs e)
     {
         if (_project == null) return;
-        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "KLE JSON (*.json)|*.json", Title = "KLEレイアウトを開く" };
-        if (dlg.ShowDialog(this) != true) return;
-        try { ChangeLayout(KeyboardLayout.Load(dlg.FileName), bundled: false); }
+        // KLE の配列を取り込み（確認・手直しのうえ）、利用者のレイアウトとして保存して、そのレイアウトに切り替える。
+        var import = new KleImportWindow { Owner = this };
+        if (import.ShowDialog() != true || import.SavedPath == null) return;
+
+        _suppressEvents = true;
+        CmbLayout.Items.Clear();
+        foreach (var f in KeyboardLayout.EnumerateLayoutFiles())
+            CmbLayout.Items.Add(KeyboardLayout.NameFromPath(f));
+        CmbLayout.SelectedItem = _layout?.Name;
+        _suppressEvents = false;
+
+        try { ChangeLayout(KeyboardLayout.Load(import.SavedPath), bundled: true); }
         catch (Exception ex) { MessageBox.Show(this, $"読み込めませんでした: {ex.Message}", Title); }
     }
 
