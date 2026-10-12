@@ -58,7 +58,6 @@
             <Button x:Name="BtnSettings" Content="設定..." Click="BtnSettings_Click"
                     ToolTip="機能のON/OFF・タイミング・NICOLA・緊急解除・共有範囲" />
             <Separator Width="24" Background="Transparent" />
-            <Button x:Name="BtnSave" Content="保存" Click="BtnSave_Click" />
             <Button x:Name="BtnImportExport" Content="インポート／エクスポート..." Click="BtnImportExport_Click"
                     ToolTip="設定をファイル（*.kasane.json）に書き出す・読み込む（全体一括・このキーボード・レイヤー1枚）" />
             <Button x:Name="BtnExport" Content="エクスポート（KeymapTool用JSON）..." Click="BtnExport_Click"

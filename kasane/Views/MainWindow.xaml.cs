@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -20,6 +21,13 @@ public partial class MainWindow : Window
     private KeyboardLayout? _layout;
     private int _layer;
     private bool _dirty;
+    /// <summary>保存したが、キーボード（ドライバ）へ反映していない（適用していない）キーボードの UniqId。閉じるときの確認に使う。</summary>
+    private readonly HashSet<uint> _unapplied = new();
+    /// <summary>
+    /// 保存済みの設定（project.json）があるのに、読めない・レイアウトが見つからないなどで使わずに開いた。この状態で自動保存すると、
+    /// 元の設定を上書きして失うので、自動では保存せず、閉じるときなどに利用者に確かめる。
+    /// </summary>
+    private bool _autoSaveBlocked;
     private bool _suppressEvents;
 
     private static readonly Brush ChangedBrush = new SolidColorBrush(Color.FromRgb(0xCF, 0xE8, 0xFF));
@@ -72,7 +80,7 @@ public partial class MainWindow : Window
 
     private void BtnRestartAsAdmin_Click(object sender, RoutedEventArgs e)
     {
-        if (!ConfirmDiscard()) return;
+        if (!PersistBeforeLeave()) return;
         try
         {
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
@@ -113,14 +121,14 @@ public partial class MainWindow : Window
 
     private void BtnRefreshDevices_Click(object sender, RoutedEventArgs e)
     {
-        if (!ConfirmDiscard()) return;
+        if (!PersistBeforeLeave()) return;
         RefreshDevices(null);
     }
 
     private void CmbDevice_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_suppressEvents) return;
-        if (!ConfirmDiscard())
+        if (!PersistBeforeLeave())
         {
             // 選択を元に戻す
             _suppressEvents = true;
@@ -158,15 +166,20 @@ public partial class MainWindow : Window
 
         var warnings = new List<string>();
         KeymapProject? project = null;
+        bool blocked = false;
         try { project = ProjectService.TryLoad(device.UniqId); }
-        catch (Exception ex) { warnings.Add($"保存済みの設定を読めませんでした: {ex.Message}"); }
+        catch (Exception ex) { warnings.Add($"保存済みの設定を読めませんでした: {ex.Message}"); blocked = File.Exists(ProjectService.ProjectPath(device.UniqId)); }
 
         KeyboardLayout? layout = null;
         if (project != null)
         {
             var file = ProjectService.FindLayoutFile(project);
             if (file != null) layout = KeyboardLayout.Load(file);
-            else warnings.Add($"レイアウト「{project.LayoutName}」が見つからないため、既定のレイアウトで開きます");
+            else
+            {
+                warnings.Add($"レイアウト「{project.LayoutName}」が見つからないため、既定のレイアウトで開きます（保存済みの設定は使いません。自動では保存しません）");
+                blocked = true;
+            }
         }
         if (layout == null)
         {
@@ -181,7 +194,7 @@ public partial class MainWindow : Window
             try
             {
                 project = ProjectService.ImportFromDriver(_client!, device, layout, true, warnings);
-                if (project != null) source = "ドライバの現在の設定";
+                if (project != null) { source = "ドライバの現在の設定"; _unapplied.Remove(device.UniqId); }
             }
             catch (KbdLayerException ex) { warnings.Add(ex.Message); }
         }
@@ -193,6 +206,7 @@ public partial class MainWindow : Window
 
         ProjectService.NormalizeShape(project, layout);
         SetProject(project, layout, dirty: false);
+        _autoSaveBlocked = blocked;
         SetStatus($"{device.DisplayName}: {source}を読み込みました。" +
                   (warnings.Count > 0 ? " 注意: " + string.Join(" / ", warnings) : ""));
     }
@@ -214,6 +228,7 @@ public partial class MainWindow : Window
         _layout = layout;
         SoftKeyboardPanel.CurrentLayoutFile = layout.FilePath; // キー選択の「画面のキーボード」を、この配列で開く
         _dirty = dirty;
+        if (dirty && project.UniqId != 0) _unapplied.Add(project.UniqId);
         _layer = 0;
 
         _suppressEvents = true;
@@ -512,6 +527,7 @@ public partial class MainWindow : Window
         {
             ProjectService.Save(_project);
             _dirty = false;
+            _autoSaveBlocked = false;
             UpdateTitle();
             return true;
         }
@@ -522,10 +538,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private void BtnSave_Click(object sender, RoutedEventArgs e)
-    {
-        if (SaveProject()) SetStatus($"保存しました: {ProjectService.ProjectPath(_project!.UniqId)}");
-    }
 
     private ContextMenu BuildLayerMenu()
     {
@@ -595,6 +607,7 @@ public partial class MainWindow : Window
         {
             var warnings = ProjectService.Apply(_client!, _project, _layout);
             SaveProject();
+            _unapplied.Remove(_project.UniqId);
             RefreshDeviceStatusOnly();
             SetStatus("適用しました（ON）。設定はドライバに保存され、再起動後も有効です。" +
                       (warnings.Count > 0 ? " 注意: " + string.Join(" / ", warnings) : ""));
@@ -647,6 +660,7 @@ public partial class MainWindow : Window
     private void MarkDirty()
     {
         _dirty = true;
+        if (_project is { UniqId: not 0 }) _unapplied.Add(_project.UniqId);
         UpdateTitle();
     }
 
@@ -662,20 +676,84 @@ public partial class MainWindow : Window
 
     private void SetStatus(string text) => TxtStatus.Text = text;
 
-    private bool ConfirmDiscard()
+    /// <summary>
+    /// 別の画面・キーボードへ移る前、閉じる前に、変更を保存する。保存ボタンは無く、ここで自動で保存する。
+    /// 保存済みの設定を使わずに開いた状態（<see cref="_autoSaveBlocked"/>）では、元の設定を失うので、保存するかを確かめる。
+    /// 続けてよければ true。保存に失敗したとき・利用者が取り消したときは false。
+    /// </summary>
+    private bool PersistBeforeLeave()
     {
         if (!_dirty) return true;
-        var r = MessageBox.Show(this, "保存していない変更があります。保存しますか？", Title,
-            MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
-        if (r == MessageBoxResult.Cancel) return false;
-        if (r == MessageBoxResult.Yes) return SaveProject();
-        _dirty = false;
-        return true;
+        if (_autoSaveBlocked)
+        {
+            var r = MessageBox.Show(this,
+                "このキーボードの保存済みの設定は、読めない、またはレイアウトが見つからないため、使わずに開いています。\n" +
+                "保存すると、保存済みの設定がこの内容で置き換わります。保存しますか？\n\n" +
+                "はい: 保存する　／　いいえ: 保存しない（変更を捨てる）　／　キャンセル: 戻る",
+                Title, MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
+            if (r == MessageBoxResult.Cancel) return false;
+            if (r == MessageBoxResult.No) { _dirty = false; _unapplied.Remove(_project?.UniqId ?? 0); UpdateTitle(); return true; }
+        }
+        return SaveProject();
     }
 
     private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        if (!ConfirmDiscard()) { e.Cancel = true; return; }
+        if (!PersistBeforeLeave() || !ConfirmUnapplied()) { e.Cancel = true; return; }
         _client?.Dispose();
+    }
+
+    /// <summary>閉じる前に、保存したがキーボードに反映していない設定について確かめる。閉じてよければ true。</summary>
+    private bool ConfirmUnapplied()
+    {
+        var targets = _unapplied.Where(id => id != 0).OrderBy(id => id).ToList();
+        switch (ClosePolicy.Decide(targets.Count, _client != null, IsReadOnly))
+        {
+            case UnappliedPrompt.WarnNotApplied:
+                return MessageBox.Show(this,
+                    "設定は保存されましたが、キーボードに反映されていません。\n" +
+                    "必要に応じて、管理者権限で kasane を起動し、「キーボードに適用（ON）」で反映してください。\n\n" +
+                    "このまま閉じますか？", Title, MessageBoxButton.OKCancel, MessageBoxImage.Information) == MessageBoxResult.OK;
+            case UnappliedPrompt.AskApply:
+                var r = MessageBox.Show(this,
+                    $"キーボードに反映していない設定が{targets.Count}台分あります。反映しますか？\n\n" +
+                    "はい: 反映して閉じる　／　いいえ: 反映せずに閉じる（設定は保存済み）　／　キャンセル: 戻る",
+                    Title, MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+                if (r == MessageBoxResult.Cancel) return false;
+                if (r == MessageBoxResult.No) return true;
+                foreach (var id in targets)
+                {
+                    string? error = ApplySavedProject(id);
+                    if (error != null)
+                    {
+                        MessageBox.Show(this, $"{id:X8}: {error}\n\n閉じずに戻ります。", "適用できません", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return false;
+                    }
+                    _unapplied.Remove(id);
+                }
+                return true;
+            default:
+                return true;
+        }
+    }
+
+    /// <summary>保存済みの設定（project.json）を、そのキーボードへ適用する。失敗の理由を返す（成功は null）。</summary>
+    private string? ApplySavedProject(uint uniqId)
+    {
+        try
+        {
+            var project = ProjectService.TryLoad(uniqId);
+            if (project == null) return "保存済みの設定が見つかりません";
+            var file = ProjectService.FindLayoutFile(project);
+            var layout = file != null ? KeyboardLayout.Load(file) : null;
+            if (layout == null) return $"レイアウト「{project.LayoutName}」が見つかりません";
+            ProjectService.NormalizeShape(project, layout);
+            ProjectService.Apply(_client!, project, layout);
+            return null;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or KbdLayerException or IOException)
+        {
+            return ex.Message;
+        }
     }
 }
