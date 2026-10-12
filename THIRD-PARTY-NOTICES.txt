@@ -1,0 +1,184 @@
+THIRD-PARTY NOTICES (kasane)
+============================
+
+【案】このファイルは、配布物に含まれる第三者のソフトウェア・データについての下書きです。
+調べた範囲（2026-10-12）をまとめたもので、[要確認] の項は、確認のうえで直してください。
+配布する前に、次を済ませてください。
+  (1) [要確認]（WiX の MS-RL の条件の満たし方）を、法務で確認する。
+  (2) third-party/ のファイルを、配布物（MSI の zip など）に同梱する。
+      （.NET の LICENSE と通知、Keyboard Layout Editor の LICENSE、WiX の MS-RL の全文）
+  (3) 最終の文面は、法務の確認を経る。
+
+kasane は、次の第三者のソフトウェアに由来するコードを含んでいます。
+
+--------------------------------------------------------------------------------
+1. nodoka4 （のどか）  — Eclipse Public License 2.0
+--------------------------------------------------------------------------------
+使っている場所:
+  kasane/Import/Nodoka/ の次のファイルは、nodoka4 のソースコードを C# に移したものです
+  （のどかの設定ファイル `.nodoka` を読み、kasane の設定に変換して取り込むため）。
+    NodokaTokenizer.cs  ← parser.cpp（Parser::getLine, interpretMetaCharacters）、setting.cpp（前置トークンの表）
+    NodokaParser.cs     ← setting.cpp（SettingLoader の、設定を読む部分）
+    NodokaText.cs       ← setting.cpp（readFile）、parser.cpp（getLine）の、文字コードの判定と行の分け方
+    NodokaModel.cs      ← keyboard.h（Modifier）
+    NodokaVKeys.cs      ← vkeytable.cpp（g_vkeyTable の仮想キー名）
+    NodokaImporter.cs   ← setting.cpp（getHomeDirectories）の include の探し方
+  設定ファイルの文法（前置トークン、`def key` などの構文）も、nodoka4 の仕様に従っています。
+  変換の部分（NodokaConverter.cs）、取り込みの画面、テストは、kasane 独自のコードです。
+
+移植元:
+  nodoka4  https://github.com/Applet-LLC/nodoka4
+  Copyright 2008-2026 applet <applet@bp.iij4u.or.jp>
+  License: Eclipse Public License - v 2.0  https://www.eclipse.org/legal/epl-2.0/
+  （ライセンス全文: nodoka4 のリポジトリの LICENSE.txt）
+
+nodoka4 の著作権者（applet / Applet LLC）と kasane の著作権者（Applet LLC）は同一です。したがって、この項は、
+自社コードの移植元の明示です（EPL-2.0 の第三者の条件を満たすための項ではありません）。ただし、nodoka4 に含まれる
+第三者のコード（下の 2.・2b.）の表示は、必要です。
+
+--------------------------------------------------------------------------------
+2. 窓使いの憂鬱 (mayu)  — BSD-3-Clause   （nodoka4 を経由した由来）
+--------------------------------------------------------------------------------
+nodoka4 は、「窓使いの憂鬱 (mayu)」から派生したソフトウェアです。上の 1. で移植した nodoka4 のコードには、
+mayu に由来する部分が含まれる可能性があります。そのため、mayu のライセンス表示を、あわせて掲げます。
+（著作権表示とライセンス文は、nodoka4 の配布物の readme-en.txt に載っている、「Madousai no Yuutsu Version 3.30 and
+earlier」の項から、そのまま転記した。）
+
+Copyright (C) 1999-2005, TAGA Nayuta <nayuta@users.sourceforge.net>
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
+following conditions are met:
+
+  1. Redistributions of source code must retain the above copyright notice, this list of conditions, and the
+     following disclaimer.
+  2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions, and the
+     following disclaimer in the documentation and/or other materials provided with the distribution.
+  3. The name of the author may not be used to endorse or promote products derived from this software without
+     specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+--------------------------------------------------------------------------------
+2b. Yet Another Mado tsukai no Yuutsu (YAMY)  — BSD-3-Clause   （nodoka4 を経由した由来）
+--------------------------------------------------------------------------------
+nodoka4 の配布物（readme-en.txt）には、mayu のほかに、mayu の派生である YAMY の表示も載っています。
+YAMY のライセンス表示を、あわせて掲げます（nodoka4 の readme-en.txt の「Yet Another Mado tsukai no Yuutsu (YAMY)」の項から、
+そのまま転記した）。
+
+Copyright (C) 2009, KOBAYASHI Yoshiaki <gimy@users.sourceforge.jp>
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
+following conditions are met:
+
+  1. Redistributions of source code must retain the above copyright notice, this list of conditions, and the
+     following disclaimer.
+  2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions, and the
+     following disclaimer in the documentation and/or other materials provided with the distribution.
+  3. The name of the author may not be used to endorse or promote products derived from this software without
+     specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+--------------------------------------------------------------------------------
+3. Microsoft .NET（ランタイムとライブラリ）  — MIT License
+--------------------------------------------------------------------------------
+kasane の .NET アプリ（kasane.exe、kasane-license.exe、kasane-license-svc.exe、kasane-tray.exe、kasane-tray-nua.exe、
+Install-kasane.exe）は、.NET 8 のランタイムを含む自己完結の形で配布しています（調べた版: 8.0.31）。
+  - .NET ランタイム（Microsoft.NETCore.App）と、Windows Desktop ランタイム（WPF・Windows Forms）
+      Copyright (c) .NET Foundation and Contributors / Microsoft Corporation  — MIT License
+  - kasane-license-svc.exe に含まれる NuGet パッケージ（いずれも 8.0.0、MIT License、.NET Foundation and Contributors）:
+      Microsoft.Extensions.Configuration（.Abstractions / .Binder / .CommandLine / .EnvironmentVariables /
+        .FileExtensions / .Json / .UserSecrets）
+      Microsoft.Extensions.DependencyInjection（.Abstractions）
+      Microsoft.Extensions.Diagnostics（.Abstractions）
+      Microsoft.Extensions.FileProviders（.Abstractions / .Physical）、Microsoft.Extensions.FileSystemGlobbing
+      Microsoft.Extensions.Hosting（.Abstractions / .WindowsServices）
+      Microsoft.Extensions.Logging（.Abstractions / .Configuration / .Console / .Debug / .EventLog / .EventSource）
+      Microsoft.Extensions.Options（.ConfigurationExtensions）、Microsoft.Extensions.Primitives
+      System.Diagnostics.DiagnosticSource、System.Diagnostics.EventLog、System.Security.Cryptography.ProtectedData、
+      System.ServiceProcess.ServiceController、System.Text.Encodings.Web、System.Text.Json
+ライセンス全文と、.NET が含む第三者のライセンス表示（zlib、Brotli、Unicode データ、Mono、LLVM、xxHash、mimalloc ほか 44 件）は、
+次のファイルにあります。配布物にも同梱してください。
+  third-party/dotnet-runtime-8.0.31-LICENSE.TXT
+  third-party/dotnet-runtime-8.0.31-THIRD-PARTY-NOTICES.TXT      （.NET ランタイム 8.0.31 の NuGet パッケージのもの）
+  third-party/dotnet-extensions-8.0.0-THIRD-PARTY-NOTICES.TXT    （上の NuGet パッケージ 8.0.0 のもの）
+（ビルドだけで使い、配布物には入らないもの: Microsoft.NET.ILLink.Tasks、Microsoft.NETCore.App.Crossgen2。）
+
+--------------------------------------------------------------------------------
+4. 配列データ（キーボードの図）  — Keyboard Layout Editor（KLE）と keyboard_layouts
+--------------------------------------------------------------------------------
+使っている場所: kasane/Layouts/kle-10key.json、kle-us104.json、kle-jp109.json（キーボードの図の配列データ）。
+各キーの既定のキーコードを凡例インデックス 4 に埋め込むなど、kasane 向けに手を入れています。
+
+出典:
+  kle-10key.json
+    Keyboard Layout Editor  https://www.keyboard-layout-editor.com/  の最初に表示される 10 キーの配列（Raw data）を、
+    「Download JSON」で入手して、kasane 向けに手を入れたもの。
+  kle-us104.json（US keyboard (ANSI 104)）、kle-jp109.json（Japanese keyboard (OADG 109A)）
+    hiroyuki-komatsu/keyboard_layouts  https://github.com/hiroyuki-komatsu/keyboard_layouts  の、
+    該当する配列のリンクから Keyboard Layout Editor を開き、そこからダウンロードしたものをもとに、
+    kasane 向けに手を入れたもの。
+
+取り扱い:
+  Applet LLC は、これらの配列データ（kasane 向けに手を入れた部分を含む）を、上の出典を明示したうえで、
+  パブリックドメインとして扱います。
+  （参考: Keyboard Layout Editor は、Copyright(C) 2013-2018 by Ian Prest で、ソフトウェアには許諾の広い一般的なライセンスが
+    付いていません（"it's not permissively licensed" と明記。全文は third-party/keyboard-layout-editor-LICENSE.md）。
+    一方、同じ文書に「入力（利用者のキーボード配列）と出力（描画されたキーボード）について、所有権を主張しない。どんな用途にも
+    自由に使ってよい」と明記されています。kasane は、KLE のソフトウェアを同梱せず、KLE から得た配列データ（JSON）だけを
+    使っています。hiroyuki-komatsu/keyboard_layouts には、ライセンスの表示がありません。）
+
+--------------------------------------------------------------------------------
+5. WiX Toolset 3.14  — Microsoft Reciprocal License (MS-RL)
+--------------------------------------------------------------------------------
+使っている場所: インストーラー（MSI）の作成。WiX Toolset 3.14 の WixUI（WixUIExtension）の部品が、MSI に組み込まれます。
+Copyright (c) .NET Foundation and contributors.   License: MS-RL
+ライセンス全文: third-party/wix-toolset-MS-RL-LICENSE.txt （https://docs.firegiant.com/wix3/main/license/ から取得）
+ソースコード: https://github.com/wixtoolset/wix3 （MSI に組み込まれた部品のソース: src/ext/UIExtension）
+
+MSI に入っている、WiX 由来の部品（MSI の Binary・Dialog テーブルで確認した名前）:
+  Binary:  WixUIWixca            （ユーザーインターフェース用のカスタムアクション）
+           WixUI_Bmp_Dialog      （ダイアログの画像。dlgbmp.bmp）
+           WixUI_Ico_Exclam      （警告のアイコン。exclamic.ico）
+           WixUI_Ico_Info        （情報のアイコン。info.ico）
+           WixUI_Bmp_New / WixUI_Bmp_Up   （フォルダ選択の「新規」「上へ」のアイコン。New.ico、Up.ico）
+  Dialog:  WelcomeDlg、LicenseAgreementDlg、CustomizeDlg、VerifyReadyDlg、ProgressDlg、ExitDialog、
+           MaintenanceWelcomeDlg、MaintenanceTypeDlg、PrepareDlg、ResumeDlg、CancelDlg、BrowseDlg、DiskCostDlg、
+           WaitForCostingDlg、OutOfDiskDlg、OutOfRbDiskDlg、FilesInUse、MsiRMFilesInUse、ErrorDlg、FatalError、UserExit
+  （WixUI_Bmp_Banner は、kasane の画像 setup/Assets/banner.bmp に差し替えています。DeviceIdModeDlg ほか、
+    kasane の独自のダイアログは WiX のコードではありません。）
+
+MS-RL の条件のうち、この配布に関わるもの（ライセンス全文の 3 節）:
+  (A) WiX のコードを含むファイルを配布するときは、そのファイルのソースコードと、このライセンスの写しを、受け取る人に提供する
+      （WiX のコードを含まない、自分だけのファイルには、この条件は及ばない）。
+  (D) 著作権・特許・商標・帰属の表示を残す。
+  (E) オブジェクト形式（MSI など）で配布するときは、このライセンスに沿ったライセンスで配布する。
+[要確認] MSI は WiX のコード（WixUI）をオブジェクト形式で含みます。(A)・(E) をどう満たすか（上のソースの案内と、
+  ライセンス全文の同梱で足りるか）は、法務で確認してください。
+
+--------------------------------------------------------------------------------
+6. 参考（配布物に含まないもの、または表示の対象外と考えたもの）
+--------------------------------------------------------------------------------
+  - Microsoft Visual C++ ランタイム: DriverManager.exe、DriverManager_arm64.exe、KeymapTool.exe は、静的リンク
+    （/MT）しているため、ランタイムの DLL を同梱せず、利用者の PC にも要りません。静的リンクされたランタイムのコードは、
+    Visual Studio のライセンス条項（再頒布可能なコード）に従って、これらの exe に含まれています。
+  - Windows Driver Kit / Windows SDK のヘッダー・ライブラリ: ビルドだけで使います。
+  - kbdlayer ドライバ、DriverManager、KeymapTool のソース: Applet LLC のコード（ソースの先頭に MIT License の表記）。
+    署名に使うライセンストークンの検証は、Windows の暗号 API（BCrypt）を使っており、暗号ライブラリを同梱していません。
+  - NICOLA（親指シフト）: NICOLA 日本語入力コンソーシアムの規格に基づいて、同時打鍵の判定を実装しています（規格の内容であり、
+    コードの引用はありません）。
+  - Gumroad: ライセンスの確認に、Gumroad の公開 API を使います（Gumroad のコードは含みません）。
+  - アイコン（kasane-license/Resources/app.ico）と、インストーラーのバナー（setup/Assets/banner.bmp。app.ico から生成）:
+    Applet LLC の自作です。表示は不要です。

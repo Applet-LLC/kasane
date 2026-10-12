@@ -1,3 +1,7 @@
+// このファイルは nodoka4 の setting.cpp（SettingLoader）を、設定を読む部分だけ C# に移したもの。
+// 移植元: nodoka4 (https://github.com/Applet-LLC/nodoka4)  Copyright 2008-2026 applet  License: EPL-2.0
+// nodoka4 は「窓使いの憂鬱 (mayu)」(BSD-3-Clause) の派生。第三者の表示は THIRD-PARTY-NOTICES.txt を参照。
+
 using System.Globalization;
 
 namespace Kasane.Import.Nodoka;

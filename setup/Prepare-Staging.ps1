@@ -393,6 +393,18 @@ Copy-RequiredToolExe -ExeFileName "KeymapTool.exe" -DestDir (Join-Path $stagingR
     (Join-Path $repoRoot "driver/KeymapTool/x64/Release/KeymapTool.exe")
 )
 
+# ユーザーモードの C++ ツールは、VC++ ランタイムを静的リンク（/MT）している。MSI は VC++ 再頒布可能パッケージを同梱しないので、
+# 動的リンクの古いビルド（/MD。vcruntime140・msvcp140・api-ms-win-crt-* をインポートする）が入ると、まっさらな Windows 11 で
+# DriverManager.exe が起動できず、ドライバのインストールが失敗する。インポートを調べて、あれば止める。
+$crtImport = [regex]'(?i)(vcruntime140(_1)?|msvcp140(_\d+)?|ucrtbase|concrt140|vccorlib140|api-ms-win-crt-[a-z0-9\-]+)\.dll'
+foreach ($tool in @("DriverManager.exe", "DriverManager_arm64.exe", "KeymapTool.exe")) {
+    $toolText = $latin1.GetString([System.IO.File]::ReadAllBytes((Join-Path $stagingRoot "tools/Driver/$tool")))
+    $hit = $crtImport.Match($toolText)
+    if ($hit.Success) {
+        throw "staged $tool imports '$($hit.Value)' (dynamic VC++ runtime; stale /MD build). Rebuild it with the static runtime (/MT, Release) and run again."
+    }
+}
+
 # kasane-license-svc: .NET 8 Worker Service の publish 成果物（exe + appsettings.json）
 Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kasane-license-svc" `
     -ExeFileName "kasane-license-svc.exe" `

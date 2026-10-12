@@ -1,3 +1,7 @@
+// このファイルの仮想キー名は nodoka4 の vkeytable.cpp（g_vkeyTable）に由来する。
+// 移植元: nodoka4 (https://github.com/Applet-LLC/nodoka4)  Copyright 2008-2026 applet  License: EPL-2.0
+// nodoka4 は「窓使いの憂鬱 (mayu)」(BSD-3-Clause) の派生。第三者の表示は THIRD-PARTY-NOTICES.txt を参照。
+
 namespace Kasane.Import.Nodoka;
 
 /// <summary>&amp;VK(...) の仮想キー名（nodoka4 の vkeytable.cpp）→ kasane で出せるキー（スキャンコード）かマウスのボタン。</summary>

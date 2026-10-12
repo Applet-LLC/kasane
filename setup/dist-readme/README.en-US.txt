@@ -19,7 +19,7 @@ subscription.
 
 Requirements
 ------------
-- Windows 11 24H2
+- Windows 11 24H2 (x64 or ARM64)
 - Administrator privileges for installation
 - An internet connection (the license service re-checks your
   subscription with Gumroad about once every 24 hours. Using the last
