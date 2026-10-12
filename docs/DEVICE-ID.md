@@ -18,16 +18,14 @@ kasane のドライバ（kbdlayer.sys）が各キーボードに付けるIDを�
 
 どちらも **16bitのハッシュを上位16bitに置いた32bit値**（下位16bitは常に0）。`0xAC0C0000` なら、ハッシュは `0xAC0C`。
 
-`DeviceId`（`KBDLAYER_TARGET.UniqId`、キー入力の `ExtraInformation` 上位16bit に載る値）は、`DeviceIdMode` によって、どちらのキーを使うかが決まる。
+`DeviceId`（`KBDLAYER_TARGET.UniqId`、キー入力の `ExtraInformation` 上位16bit に載る値）は、**`InstanceKey`**（DeviceInstanceId のハッシュ）である。
+kasane のインストーラーは、以前は「デバイスインスタンスパス／ハードウェアID」を選ばせていたが、今は選ばせない（2026-10。
+設定を同型番で共有するかどうかは、別に `Binding`（Model / Instance / Global）で決めるため、`DeviceId` の側で選ぶ必要がないため）。
+`InstanceKey` が取得できなかったときは、第5節のフォールバックで決まる。
 
-| `DeviceIdMode` | 名称 | DeviceId に使うキー |
-|---|---|---|
-| 0（既定。値が無い・読めないときも 0） | デバイスインスタンスIDモード | `InstanceKey` |
-| 1 | ハードウェアIDモード | `ModelKey` |
-
-`DeviceIdMode` は `HKLM\SYSTEM\CurrentControlSet\Services\kbdlayer\Parameters\DeviceIdMode`（REG_DWORD）。
-`AddDevice` の時点（デバイスの接続時、再起動時、`pnputil /restart-device` 時）にだけ読まれるので、変更後は再接続が要る。
-選んだキーが取得できなかった場合などは、第5節のフォールバックで決まる。
+**互換のための隠し設定**: ドライバは、レジストリ `HKLM\SYSTEM\CurrentControlSet\Services\kbdlayer\Parameters\DeviceIdMode`（REG_DWORD）が `1` のとき、
+`DeviceId` に `ModelKey` を使う（`AddDevice` の時点にだけ読む）。値が無い・読めないときは 0（`InstanceKey`）。
+インストーラーも kasane の画面も、この値を書かず、表示もしない。古いバージョンで `1` を選んだ環境が残っている場合の挙動を変えないために、ドライバに残している。
 
 ## 2. ハッシュ関数（16bit FNV-1a）
 
@@ -68,10 +66,7 @@ BMP外の文字（サロゲートペア）は、UTF-16 の各ユニットを順�
 | DeviceInstanceId | `DEVPKEY_Device_InstanceId`（文字列型。空でない） | **InstanceKey** |
 | HardwareId の先頭の1件 | `DevicePropertyHardwareId`（MULTI_SZ）の最初の文字列 | **ModelKey** |
 
-その後、`DeviceId` を次のように決める。
-
-- `DeviceIdMode = 0` → `DeviceId = InstanceKey`
-- `DeviceIdMode = 1` → `DeviceId = ModelKey`
+その後、`DeviceId = InstanceKey` とする（隠し設定 `DeviceIdMode = 1` のときだけ `ModelKey`。第1節）。
 
 ### 3.1 入力文字列の正確な形
 
@@ -104,12 +99,17 @@ CM_Get_Device_ID や Get-PnpDevice の戻り値は、インスタンス部分が
 `<generated>` 部分（`d&70295df&0&0000` や `c&117457ed&0&0000`）は、OSが接続位置から作る。
 **同じキーボードでも、別のUSBポートに挿すと InstanceKey が変わる**。同型番を2台挿せば ModelKey は同じ、InstanceKey は別になる。
 
-## 4. ハードウェアIDモード / デバイスインスタンスIDモードの、それぞれの結果
+## 4. DeviceId の性質
 
-| モード | DeviceId | 同型番2台 | ポートを変えると | 衝突 |
-|---|---|---|---|---|
-| 0（既定） | InstanceKey | 別の値 | 変わる | 16bitなので、まれに別の1台と一致する |
-| 1 | ModelKey | **同じ値**（区別できない） | 変わらない | 同上 |
+| DeviceId | 同型番2台 | ポートを変えると | 衝突 |
+|---|---|---|---|
+| InstanceKey | 別の値 | 変わる | 16bitなので、まれに別の1台と一致する |
+
+（隠し設定 `DeviceIdMode = 1` のときの ModelKey は、同型番2台で**同じ値**になり区別できず、ポートを変えても変わらない。）
+
+ポートを変えると `DeviceId`（= UniqId）が変わるので、`UniqId` を名前にしているユーザーごとの設定フォルダ
+（`%LOCALAPPDATA%\applet\kasane\<UniqId>\`）も別になり、設定が引き継がれない。エクスポート／インポートで移せる
+（`docs/SETTINGS-FILES.md`）。
 
 IDを1台に確定できる保証はない（16bitのハッシュ）。他のアプリは、IDが一致しても「同じキーボードとは限らない」前提で作ること。
 kasane 自身も、`DeviceId` は一意でない前提で設計されている（`kbdlayer_ioctl.h` の E-2 のコメント）。
@@ -120,11 +120,11 @@ kasane 自身も、`DeviceId` は一意でない前提で設計されている�
 
 | 条件 | 詳細 |
 |---|---|
-| A. モード0で InstanceKey が 0 | DeviceInstanceId が取得できなかった（取得失敗、文字列型でない、NUL終端が無い、空）、またはハッシュがたまたま `0x0000`（確率 1/65536） |
-| B. モード1で ModelKey が 0 | HardwareId が取得できなかった（またはハッシュが `0x0000`） |
-| C. `DeviceIdMode` が 0 でも 1 でもない | 例えば 2。どちらの分岐にも入らない |
+| A. InstanceKey が 0 | DeviceInstanceId が取得できなかった（取得失敗、文字列型でない、NUL終端が無い、空）、またはハッシュがたまたま `0x0000`（確率 1/65536） |
+| B. 隠し設定 `DeviceIdMode = 1` で ModelKey が 0 | HardwareId が取得できなかった（またはハッシュが `0x0000`） |
+| C. 隠し設定 `DeviceIdMode` が 0 でも 1 でもない | 例えば 2。どちらの分岐にも入らない（`InstanceKey` があっても使わない） |
 
-**モード0で InstanceKey が取れないとき、モード1（ModelKey）には切り替わらない**（逆も同じ）。いきなり次のフォールバック列に進む。
+**InstanceKey が取れないとき、ModelKey には切り替わらない**。いきなり次のフォールバック列に進む。
 
 フォールバックは次の順に試し、最初に成功したものを `DeviceId` とする。
 いずれも結果は「正規化した文字列のハッシュ」で、結果の形は同じ（上位16bit）。
@@ -193,8 +193,8 @@ ExtraInformation = (元のExtraInformation & 0x0000FFFF) | (DeviceId & 0xFFFF000
 各キーボードについて、次の手順でIDを求められる。
 
 1. キーボードのデバイスノードを列挙する（`GUID_DEVINTERFACE_KEYBOARD` ではなく、クラス `Keyboard` のデバイスノード）。
-2. **モード0**: レジストリ `Enum` のキー名から `<バス>\<ハードウェアID>\<インスタンス>` を組み立て、ハッシュ（第2節）。
-3. **モード1**: そのデバイスノードの `DEVPKEY_Device_HardwareIds` の先頭の1件をハッシュする。
+2. レジストリ `Enum` のキー名から `<バス>\<ハードウェアID>\<インスタンス>` を組み立て、ハッシュ（第2節）。
+3. （隠し設定 `DeviceIdMode = 1` の環境だけ）そのデバイスノードの `DEVPKEY_Device_HardwareIds` の先頭の1件をハッシュする。
 4. 上位16bitを、キー入力の `ExtraInformation >> 16` と比べる。
 
 ### 7.3 実機での確認

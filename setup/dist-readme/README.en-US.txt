@@ -39,20 +39,9 @@ Installation
    and cannot be changed (the tray app needs UI access (uiAccess), which
    requires a signed executable in a location only administrators can
    write to, such as Program Files). The folder where settings are stored
-   can be changed in step 4.
+   can be changed in step 3.
 
-3. You can choose how the device is identified: Device Instance ID
-   mode or Hardware ID mode.
-
-   The default is Device Instance ID mode. In this mode identification
-   differs by connection point, so keyboards of the same model can be
-   told apart.
-
-   In Hardware ID mode, keyboards of the same model cannot be told
-   apart and are treated as identical. In this mode, a device is still
-   considered the same one even if you connect it differently.
-
-4. Settings folder (optional). You can set where settings files (per-keyboard
+3. Settings folder (optional). You can set where settings files (per-keyboard
    settings, tray settings, logs) are stored with the machine-wide
    environment variable KASANE. If left empty, each user's
    %LOCALAPPDATA%\applet\kasane is used as before. With Windows 11
@@ -60,7 +49,7 @@ Installation
    different user and the location would be split; setting it here keeps
    it the same. The folder is created if it does not exist.
 
-5. Import a settings file (optional, off by default). Applies a settings
+4. Import a settings file (optional, off by default). Applies a settings
    file (*.kasane.json) exported from kasane to the driver during
    installation. This is for environments where you cannot "Apply to
    keyboard" after installation, such as with Administrator protection.
@@ -68,13 +57,13 @@ Installation
    previous settings are kept as one backup and can be restored from the
    Settings dialog).
 
-6. A system reboot is required to complete installation.
+5. A system reboot is required to complete installation.
 
-7. After reboot, "kasane License Manager" launches automatically
+6. After reboot, "kasane License Manager" launches automatically
    from the Start menu. Enter the license key you purchased on Gumroad
    there to activate it.
 
-8. The feature becomes usable after you restart again, or after
+7. The feature becomes usable after you restart again, or after
    reconnecting your keyboard (the driver picks up the current license
    status when a device is (re)attached).
 
