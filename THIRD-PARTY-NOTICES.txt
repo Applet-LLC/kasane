@@ -4,8 +4,9 @@ THIRD-PARTY NOTICES (kasane)
 【案】このファイルは、配布物に含まれる第三者のソフトウェア・データについての下書きです。
 調べた範囲（2026-10-12）をまとめたもので、[要確認] の項は、確認のうえで直してください。
 配布する前に、次を済ませてください。
-  (1) 各 [要確認] を埋める（KLE の出典とライセンス、WiX のライセンスの扱い、アイコン・バナーの出典）。
+  (1) [要確認]（WiX の MS-RL の条件の満たし方）を、法務で確認する。
   (2) third-party/ のファイルを、配布物（MSI の zip など）に同梱する。
+      （.NET の LICENSE と通知、Keyboard Layout Editor の LICENSE、WiX の MS-RL の全文）
   (3) 最終の文面は、法務の確認を経る。
 
 kasane は、次の第三者のソフトウェアに由来するコードを含んでいます。
@@ -116,21 +117,56 @@ Install-kasane.exe）は、.NET 8 のランタイムを含む自己完結の形�
 （ビルドだけで使い、配布物には入らないもの: Microsoft.NET.ILLink.Tasks、Microsoft.NETCore.App.Crossgen2。）
 
 --------------------------------------------------------------------------------
-4. Keyboard Layout Editor（KLE）のプリセット  — [要確認] ライセンス
+4. 配列データ（キーボードの図）  — Keyboard Layout Editor（KLE）と keyboard_layouts
 --------------------------------------------------------------------------------
-使っている場所: kasane/Layouts/kle-10key.json、kle-jp109.json、kle-us104.json（キーボードの図の配列データ）。
-ARCHITECTURE.md に「KLE のプリセットに、各キーの既定キーコードを凡例インデックス 4 に埋め込んだもの」とあり、
-データの形式（JSON）と、配色などの値も、KLE のものです。同じ形式のものが、Applet のプロジェクト nodoka-gui
-（Resources/keyboard-layout-*.json）にもあります。
-[要確認] 元になった KLE のプリセットの出典（Keyboard Layout Editor: https://www.keyboard-layout-editor.com/ 、
-  https://github.com/ijprest/keyboard-layout-editor）とライセンスを確認し、必要ならここに表示を足してください。
-  （私は、KLE のライセンスが何かを確認できていません。標準的な配列の形状だけの事実であれば、表示は不要な可能性もあります。）
+使っている場所: kasane/Layouts/kle-10key.json、kle-us104.json、kle-jp109.json（キーボードの図の配列データ）。
+各キーの既定のキーコードを凡例インデックス 4 に埋め込むなど、kasane 向けに手を入れています。
+
+出典:
+  kle-10key.json
+    Keyboard Layout Editor  https://www.keyboard-layout-editor.com/  の最初に表示される 10 キーの配列（Raw data）を、
+    「Download JSON」で入手して、kasane 向けに手を入れたもの。
+  kle-us104.json（US keyboard (ANSI 104)）、kle-jp109.json（Japanese keyboard (OADG 109A)）
+    hiroyuki-komatsu/keyboard_layouts  https://github.com/hiroyuki-komatsu/keyboard_layouts  の、
+    該当する配列のリンクから Keyboard Layout Editor を開き、そこからダウンロードしたものをもとに、
+    kasane 向けに手を入れたもの。
+
+取り扱い:
+  Applet LLC は、これらの配列データ（kasane 向けに手を入れた部分を含む）を、上の出典を明示したうえで、
+  パブリックドメインとして扱います。
+  （参考: Keyboard Layout Editor は、Copyright(C) 2013-2018 by Ian Prest で、ソフトウェアには許諾の広い一般的なライセンスが
+    付いていません（"it's not permissively licensed" と明記。全文は third-party/keyboard-layout-editor-LICENSE.md）。
+    一方、同じ文書に「入力（利用者のキーボード配列）と出力（描画されたキーボード）について、所有権を主張しない。どんな用途にも
+    自由に使ってよい」と明記されています。kasane は、KLE のソフトウェアを同梱せず、KLE から得た配列データ（JSON）だけを
+    使っています。hiroyuki-komatsu/keyboard_layouts には、ライセンスの表示がありません。）
 
 --------------------------------------------------------------------------------
-5. WiX Toolset 3.14  — Microsoft Reciprocal License (MS-RL)   [要確認]
+5. WiX Toolset 3.14  — Microsoft Reciprocal License (MS-RL)
 --------------------------------------------------------------------------------
-使っている場所: インストーラー（MSI）の作成。MSI には、WixUI（インストーラーの画面）の部品が組み込まれます。
-[要確認] WiX のライセンス（MS-RL）の、組み込まれた部品を含む MSI を配布する場合の条件（表示の要否）を、法務で確認してください。
+使っている場所: インストーラー（MSI）の作成。WiX Toolset 3.14 の WixUI（WixUIExtension）の部品が、MSI に組み込まれます。
+Copyright (c) .NET Foundation and contributors.   License: MS-RL
+ライセンス全文: third-party/wix-toolset-MS-RL-LICENSE.txt （https://docs.firegiant.com/wix3/main/license/ から取得）
+ソースコード: https://github.com/wixtoolset/wix3 （MSI に組み込まれた部品のソース: src/ext/UIExtension）
+
+MSI に入っている、WiX 由来の部品（MSI の Binary・Dialog テーブルで確認した名前）:
+  Binary:  WixUIWixca            （ユーザーインターフェース用のカスタムアクション）
+           WixUI_Bmp_Dialog      （ダイアログの画像。dlgbmp.bmp）
+           WixUI_Ico_Exclam      （警告のアイコン。exclamic.ico）
+           WixUI_Ico_Info        （情報のアイコン。info.ico）
+           WixUI_Bmp_New / WixUI_Bmp_Up   （フォルダ選択の「新規」「上へ」のアイコン。New.ico、Up.ico）
+  Dialog:  WelcomeDlg、LicenseAgreementDlg、CustomizeDlg、VerifyReadyDlg、ProgressDlg、ExitDialog、
+           MaintenanceWelcomeDlg、MaintenanceTypeDlg、PrepareDlg、ResumeDlg、CancelDlg、BrowseDlg、DiskCostDlg、
+           WaitForCostingDlg、OutOfDiskDlg、OutOfRbDiskDlg、FilesInUse、MsiRMFilesInUse、ErrorDlg、FatalError、UserExit
+  （WixUI_Bmp_Banner は、kasane の画像 setup/Assets/banner.bmp に差し替えています。DeviceIdModeDlg ほか、
+    kasane の独自のダイアログは WiX のコードではありません。）
+
+MS-RL の条件のうち、この配布に関わるもの（ライセンス全文の 3 節）:
+  (A) WiX のコードを含むファイルを配布するときは、そのファイルのソースコードと、このライセンスの写しを、受け取る人に提供する
+      （WiX のコードを含まない、自分だけのファイルには、この条件は及ばない）。
+  (D) 著作権・特許・商標・帰属の表示を残す。
+  (E) オブジェクト形式（MSI など）で配布するときは、このライセンスに沿ったライセンスで配布する。
+[要確認] MSI は WiX のコード（WixUI）をオブジェクト形式で含みます。(A)・(E) をどう満たすか（上のソースの案内と、
+  ライセンス全文の同梱で足りるか）は、法務で確認してください。
 
 --------------------------------------------------------------------------------
 6. 参考（配布物に含まないもの、または表示の対象外と考えたもの）
@@ -144,5 +180,5 @@ ARCHITECTURE.md に「KLE のプリセットに、各キーの既定キーコー
   - NICOLA（親指シフト）: NICOLA 日本語入力コンソーシアムの規格に基づいて、同時打鍵の判定を実装しています（規格の内容であり、
     コードの引用はありません）。
   - Gumroad: ライセンスの確認に、Gumroad の公開 API を使います（Gumroad のコードは含みません）。
-  - アイコン（app.ico）とインストーラーのバナー（setup/Assets/banner.bmp）: [要確認] 作成者・出典。Applet LLC が作成した
-    ものであれば、表示は不要です。
+  - アイコン（kasane-license/Resources/app.ico）と、インストーラーのバナー（setup/Assets/banner.bmp。app.ico から生成）:
+    Applet LLC の自作です。表示は不要です。
