@@ -66,6 +66,6 @@ DelService = kbdlayer,0x200
 [Strings]
 ProviderName="Applet LLC"
 DiskName="kbdlayer Installation Disk"
-DeviceDesc="kbdlayer Keyboard Filter Driver"
+DeviceDesc="kbdlayer Filter Driver"
 FilterDesc="kbdlayer Filter"
 ServiceName="kbdlayer Service"
