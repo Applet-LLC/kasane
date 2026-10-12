@@ -27,7 +27,7 @@ public static class PortableService
         {
             if (layoutPath != null && File.Exists(layoutPath)) return KeyboardLayout.Load(layoutPath);
             if (string.IsNullOrEmpty(name)) return null;
-            var file = KeyboardLayout.EnumerateBundledLayoutFiles()
+            var file = KeyboardLayout.EnumerateLayoutFiles()
                 .FirstOrDefault(f => KeyboardLayout.NameFromPath(f).Equals(name, StringComparison.OrdinalIgnoreCase));
             return file != null ? KeyboardLayout.Load(file) : null;
         }

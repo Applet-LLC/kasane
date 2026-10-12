@@ -85,7 +85,10 @@ public sealed class KeyboardLayout
         Height = slots.Count == 0 ? 0 : slots.Max(s => Math.Max(s.Y + s.H, s.Y + (s.Y2 ?? 0) + (s.H2 ?? 0)));
     }
 
-    /// <summary>exe隣の Layouts\*.json を列挙する（ファイル名から "kle-" を除いたものをレイアウト名とする）。</summary>
+    /// <summary>同梱の（exe隣の）Layouts\*.json と、利用者が「KLEから追加」で保存したものを、あわせて列挙する（<see cref="LayoutFolders.EnumerateAll"/>）。</summary>
+    public static IEnumerable<string> EnumerateLayoutFiles() => LayoutFolders.EnumerateAll();
+
+    /// <summary>exe隣の Layouts\*.json（同梱のもの）を列挙する（ファイル名から "kle-" を除いたものをレイアウト名とする）。</summary>
     public static IEnumerable<string> EnumerateBundledLayoutFiles()
     {
         var dir = Path.Combine(AppContext.BaseDirectory, "Layouts");

@@ -76,7 +76,7 @@ public static class ProjectService
     public static string? FindLayoutFile(KeymapProject project)
     {
         if (project.LayoutPath != null && File.Exists(project.LayoutPath)) return project.LayoutPath;
-        return KeyboardLayout.EnumerateBundledLayoutFiles()
+        return KeyboardLayout.EnumerateLayoutFiles()
             .FirstOrDefault(f => KeyboardLayout.NameFromPath(f).Equals(project.LayoutName, StringComparison.OrdinalIgnoreCase));
     }
 

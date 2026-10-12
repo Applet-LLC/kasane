@@ -27,8 +27,8 @@
             <Button Content="一覧を更新" Click="BtnRefreshDevices_Click" />
             <TextBlock Text="レイアウト:" VerticalAlignment="Center" Margin="20,0,4,0" />
             <ComboBox x:Name="CmbLayout" Width="110" SelectionChanged="CmbLayout_SelectionChanged" />
-            <Button Content="KLEファイル..." Click="BtnLoadKle_Click"
-                    ToolTip="keyboard-layout-editor.com のレイアウト(JSON)を読み込みます" />
+            <Button x:Name="BtnAddKle" Content="KLEから追加..." Click="BtnLoadKle_Click"
+                    ToolTip="keyboard-layout-editor.com で作った配列(JSON)を取り込み、レイアウトの一覧に追加します" />
         </StackPanel>
 
         <!-- レイヤー選択 -->
