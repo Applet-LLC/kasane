@@ -137,6 +137,8 @@ WaitCsqPeekNextIrp(
 
 _Use_decl_annotations_
 static VOID
+// CSQのAcquire/Releaseは対で呼ばれ、IRQLは*Irqlに保存して次のReleaseで戻す（仕様）。単体では対が見えない。
+#pragma warning(suppress: 28167)
 WaitCsqAcquireLock(
     PIO_CSQ Csq,
     PKIRQL Irql
@@ -148,6 +150,7 @@ WaitCsqAcquireLock(
 
 _Use_decl_annotations_
 static VOID
+#pragma warning(suppress: 28167)
 WaitCsqReleaseLock(
     PIO_CSQ Csq,
     KIRQL Irql

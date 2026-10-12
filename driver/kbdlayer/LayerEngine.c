@@ -141,7 +141,7 @@ _IRQL_requires_max_(DISPATCH_LEVEL)
 static VOID
 DecodeScancode16(
     _In_ USHORT ScanCode16,
-    _Inout_ PUSHORT MakeCode,
+    _Out_ PUSHORT MakeCode,
     _Inout_ PUSHORT Flags
     )
 {
@@ -1287,7 +1287,7 @@ _IRQL_requires_max_(DISPATCH_LEVEL)
 static ULONG
 TakeHoldBufferLocked(
     _In_ PDEVICE_EXTENSION devExt,
-    _Out_writes_(KBDLAYER_MAX_HOLD_BUFFER) PKEYBOARD_INPUT_DATA Events
+    _Out_writes_to_(KBDLAYER_MAX_HOLD_BUFFER, return) PKEYBOARD_INPUT_DATA Events
     )
 {
     ULONG count = devExt->HoldBufferCount;
@@ -1631,7 +1631,7 @@ static ULONG
 CopyMacroStepsLocked(
     _In_ PDEVICE_EXTENSION devExt,
     _In_ ULONG MacroId,
-    _Out_writes_(KBDLAYER_MAX_MACRO_STEPS) PKBDLAYER_MACRO_STEP Steps
+    _Out_writes_to_(KBDLAYER_MAX_MACRO_STEPS, return) PKBDLAYER_MACRO_STEP Steps
     )
 {
     ULONG stepCount;
@@ -3769,13 +3769,36 @@ GetEmergencyReleaseConfig(
     KeReleaseSpinLock(&g_EmergencyConfigLock, oldIrql);
 }
 
+// 緊急解除の組み合わせをライブの設定へ反映する。スピンロックを持つ区間なので、PAGEセクションに
+// 置かない非ページのヘルパーに切り出している（A-1: PAGE関数の中でスピンロックを持たない）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+PublishEmergencyConfig(
+    _In_ ULONG KeyCount,
+    _In_reads_(KeyCount) const USHORT* ScanCodes
+    )
+{
+    KIRQL oldIrql;
+
+    KeAcquireSpinLock(&g_EmergencyConfigLock, &oldIrql);
+    g_EmergencyKeyCount = KeyCount;
+    RtlZeroMemory(g_EmergencyScanCodes, sizeof(g_EmergencyScanCodes));
+    RtlCopyMemory(g_EmergencyScanCodes, ScanCodes, KeyCount * sizeof(USHORT));
+    KeReleaseSpinLock(&g_EmergencyConfigLock, oldIrql);
+}
+
+#ifdef ALLOC_PRAGMA
+#pragma alloc_text(PAGE, SetEmergencyReleaseConfig)
+#pragma alloc_text(PAGE, InitializeEmergencyReleaseGlobal)
+#pragma alloc_text(PAGE, TeardownEmergencyReleaseGlobal)
+#endif
+
 _IRQL_requires_max_(PASSIVE_LEVEL)
 NTSTATUS
 SetEmergencyReleaseConfig(
     _In_ PKBDLAYER_EMERGENCY_RELEASE_CONFIG Config
     )
 {
-    KIRQL oldIrql;
     NTSTATUS status;
     NTSTATUS scStatus;
 
@@ -3794,11 +3817,7 @@ SetEmergencyReleaseConfig(
         }
     }
 
-    KeAcquireSpinLock(&g_EmergencyConfigLock, &oldIrql);
-    g_EmergencyKeyCount = Config->KeyCount;
-    RtlZeroMemory(g_EmergencyScanCodes, sizeof(g_EmergencyScanCodes));
-    RtlCopyMemory(g_EmergencyScanCodes, Config->ScanCodes, Config->KeyCount * sizeof(USHORT));
-    KeReleaseSpinLock(&g_EmergencyConfigLock, oldIrql);
+    PublishEmergencyConfig(Config->KeyCount, Config->ScanCodes);
 
     status = RegWriteDword(KBDLAYER_SERVICE_NAME, KBDLAYER_EMERGENCY_SUBKEY,
                             KBDLAYER_EMERGENCY_KEYCOUNT_VALUE_NAME, Config->KeyCount);
@@ -3829,7 +3848,6 @@ InitializeEmergencyReleaseGlobal(
     ULONG keyCount = 0;
     USHORT scanCodes[KBDLAYER_EMERGENCY_MAX_KEYS] = {0};
     ULONG actualLength = 0;
-    KIRQL oldIrql;
 
     PAGED_CODE();
 
@@ -3856,10 +3874,7 @@ InitializeEmergencyReleaseGlobal(
         RtlCopyMemory(scanCodes, g_DefaultEmergencyScanCodes, sizeof(g_DefaultEmergencyScanCodes));
     }
 
-    KeAcquireSpinLock(&g_EmergencyConfigLock, &oldIrql);
-    g_EmergencyKeyCount = keyCount;
-    RtlCopyMemory(g_EmergencyScanCodes, scanCodes, keyCount * sizeof(USHORT));
-    KeReleaseSpinLock(&g_EmergencyConfigLock, oldIrql);
+    PublishEmergencyConfig(keyCount, scanCodes);
 
     g_EmergencyWorkItem = IoAllocateWorkItem(ControlDeviceObject);
     if (g_EmergencyWorkItem == NULL) {
@@ -3889,30 +3904,20 @@ TeardownEmergencyReleaseGlobal(
 // ワークアイテムのルーチン（IoQueueWorkItem/DelayedWorkQueue）。EmergencyDpcRoutine
 // （DISPATCH_LEVEL）から、SetLayerMapEnabledForDevice（PASSIVE_LEVEL・レジストリI/O）を
 // 直接呼べないためにこの形にしている。
-_Function_class_(IO_WORKITEM_ROUTINE)
-_IRQL_requires_max_(PASSIVE_LEVEL)
-static VOID
-EmergencyReleaseWorkRoutine(
-    _In_ PDEVICE_OBJECT WorkItemDeviceObject,
-    _In_opt_ PVOID Context
+// 緊急解除の対象デバイスを集め、それぞれのremove lockを取って返す。g_listLockを持つ区間なので、
+// PAGEセクションに置かない非ページのヘルパーにしている（A-1）。
+// B-1: remove lockはg_listLockを保持したまま取得する（PnPによる削除との競合防止）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static ULONG
+CollectEmergencyTargets(
+    _Out_writes_to_(KBDLAYER_EMERGENCY_MAX_TARGETS, return) PDEVICE_EXTENSION* Targets
     )
 {
-    PDEVICE_EXTENSION targets[KBDLAYER_EMERGENCY_MAX_TARGETS];
     ULONG targetCount = 0;
     KIRQL oldIrql;
     PLIST_ENTRY entry;
     PDEVICE_EXTENSION devExt;
 
-    UNREFERENCED_PARAMETER(WorkItemDeviceObject);
-    UNREFERENCED_PARAMETER(Context);
-    PAGED_CODE();
-
-    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_WARNING_LEVEL,
-               "kbdlayer: EMERGENCY RELEASE triggered, disabling all layer maps\n");
-
-    // B-1: remove lockはg_listLockを保持したまま取得し（PnPによる削除との競合防止）、
-    // 実際のSetLayerMapEnabledForDevice呼び出し（PASSIVE_LEVEL・レジストリI/O）は
-    // g_listLockを解放してから行う（スピンロック保持中にPAGEDコードを呼ばない）。
     KeAcquireSpinLock(&g_listLock, &oldIrql);
     for (entry = g_deviceList.Flink;
          entry != &g_deviceList && targetCount < KBDLAYER_EMERGENCY_MAX_TARGETS;
@@ -3922,10 +3927,39 @@ EmergencyReleaseWorkRoutine(
             continue;
         }
         if (NT_SUCCESS(IoAcquireRemoveLock(&devExt->RemoveLock, NULL))) {
-            targets[targetCount++] = devExt;
+            Targets[targetCount++] = devExt;
         }
     }
     KeReleaseSpinLock(&g_listLock, oldIrql);
+    return targetCount;
+}
+
+static IO_WORKITEM_ROUTINE EmergencyReleaseWorkRoutine;
+
+#ifdef ALLOC_PRAGMA
+#pragma alloc_text(PAGE, EmergencyReleaseWorkRoutine)
+#endif
+
+_Use_decl_annotations_
+static VOID
+EmergencyReleaseWorkRoutine(
+    PDEVICE_OBJECT WorkItemDeviceObject,
+    PVOID Context
+    )
+{
+    PDEVICE_EXTENSION targets[KBDLAYER_EMERGENCY_MAX_TARGETS];
+    ULONG targetCount;
+
+    UNREFERENCED_PARAMETER(WorkItemDeviceObject);
+    UNREFERENCED_PARAMETER(Context);
+    PAGED_CODE();
+
+    DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_WARNING_LEVEL,
+               "kbdlayer: EMERGENCY RELEASE triggered, disabling all layer maps\n");
+
+    // 実際のSetLayerMapEnabledForDevice呼び出し（PASSIVE_LEVEL・レジストリI/O）は
+    // g_listLockを解放してから行う（スピンロック保持中にPAGEDコードを呼ばない）。
+    targetCount = CollectEmergencyTargets(targets);
 
     for (ULONG i = 0; i < targetCount; i++) {
         SetLayerMapEnabledForDevice(targets[i], FALSE);
