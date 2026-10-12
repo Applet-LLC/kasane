@@ -118,7 +118,7 @@ public sealed class KeyHookService : IDisposable
         bool up = message is NativeMethods.WM_KEYUP or NativeMethods.WM_SYSKEYUP;
         if (!down && !up) return false;
 
-        ushort scan = (ushort)(((info.flags & NativeMethods.LLKHF_EXTENDED) != 0 ? 0xE000 : 0) | (info.scanCode & 0xFF));
+        ushort scan = (ushort)(((info.flags & NativeMethods.LLKHF_EXTENDED) != 0 ? 0xE000 : 0) | (int)(info.scanCode & 0xFF));
 
         if (_swallowed.TryGetValue(scan, out var pressed))
         {

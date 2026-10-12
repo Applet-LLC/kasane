@@ -263,8 +263,8 @@
       </Directory>
       <!-- スタートメニュー: applet\かさね Subscription（英語版は applet\kasane Subscription） -->
       <Directory Id="ProgramMenuFolder">
-        <Directory Id="APPLETMENUFOLDER" Name="applet">
-          <Directory Id="PROGRAMMENUFOLDER" Name="!(loc.ProductName)" />
+        <Directory Id="AppletMenuFolder" Name="applet">
+          <Directory Id="KasaneMenuFolder" Name="!(loc.ProductName)" />
         </Directory>
       </Directory>
     </Directory>
@@ -431,7 +431,7 @@
     </DirectoryRef>
 
     <!-- スタートメニューショートカット -->
-    <DirectoryRef Id="PROGRAMMENUFOLDER">
+    <DirectoryRef Id="KasaneMenuFolder">
       <Component Id="CMP_Shortcuts" Guid="{3A444FE9-C76E-47A9-BC5B-D7E42A15765A}">
         <Shortcut Id="ShortcutLicenseGui" Name="kasane License Manager"
                   Target="[LICENSEGUIDIR]kasane-license.exe"
@@ -441,9 +441,9 @@
                   Target="[KEYMAPGUIDIR]kasane.exe"
                   WorkingDirectory="KEYMAPGUIDIR"
                   Icon="ICO_App" />
-        <RemoveFolder Id="PROGRAMMENUFOLDER" On="uninstall" />
+        <RemoveFolder Id="KasaneMenuFolder" On="uninstall" />
         <!-- applet フォルダは他のアプリと共有するので、空のときだけ消える（RemoveFolder は空でなければ何もしない）。 -->
-        <RemoveFolder Id="APPLETMENUFOLDER" Directory="APPLETMENUFOLDER" On="uninstall" />
+        <RemoveFolder Id="AppletMenuFolder" Directory="AppletMenuFolder" On="uninstall" />
         <RegistryValue Root="HKCU" Key="Software\applet\kasane" Name="Installed"
                        Type="integer" Value="1" KeyPath="yes" />
       </Component>

@@ -31,6 +31,11 @@ PDEVICE_OBJECT g_ControlDeviceObject = NULL;
 static const UNICODE_STRING g_ControlDeviceSddl =
     RTL_CONSTANT_STRING(L"D:P(A;;GR;;;WD)(A;;GA;;;SY)(A;;GA;;;BA)");
 
+#ifdef ALLOC_PRAGMA
+#pragma alloc_text(PAGE, CreateControlDevice)
+#pragma alloc_text(PAGE, TeardownControlDevice)
+#endif
+
 _IRQL_requires_max_(PASSIVE_LEVEL)
 NTSTATUS
 CreateControlDevice(

@@ -14,7 +14,7 @@ BEGIN
         BLOCK "040904B0"
         BEGIN
             VALUE "CompanyName",      "Applet LLC"
-            VALUE "FileDescription",  "kbdlayer QMK/VIA Layer Emulation Filter Driver"
+            VALUE "FileDescription",  "kbdlayer Filter Driver"
             VALUE "FileVersion",      "1.00"
             VALUE "InternalName",     "kbdlayer"
             VALUE "LegalCopyright",   "Copyright (C) 2026 Applet LLC"

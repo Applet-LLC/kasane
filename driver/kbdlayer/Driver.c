@@ -74,7 +74,7 @@ _Dispatch_type_(IRP_MJ_INTERNAL_DEVICE_CONTROL) DRIVER_DISPATCH DispatchInternal
 _Dispatch_type_(IRP_MJ_PNP) DRIVER_DISPATCH DispatchPnp;
 _Dispatch_type_(IRP_MJ_DEVICE_CONTROL) DRIVER_DISPATCH DispatchDeviceControl;
 DRIVER_UNLOAD Unload;
-NTSTATUS ReadComplete(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp, IN PVOID Context);
+IO_COMPLETION_ROUTINE ReadComplete;
 VOID ServiceCallback(PVOID NormalContext, PVOID SystemArgument1,
                      PVOID SystemArgument2, PVOID SystemArgument3);
 _IRQL_requires_max_(DISPATCH_LEVEL)
@@ -812,8 +812,8 @@ ResolveAndForwardTail(
     return compacted;
 }
 
-_IRQL_requires_max_(DISPATCH_LEVEL)
-NTSTATUS ReadComplete(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp, IN PVOID Context) {
+_Use_decl_annotations_
+NTSTATUS ReadComplete(PDEVICE_OBJECT DeviceObject, PIRP Irp, PVOID Context) {
     UNREFERENCED_PARAMETER(Context);
     KdPrint(("kbdlayer: ReadComplete called for DeviceObject=0x%p, Status=0x%08X, IRQL=%lu\n",
              DeviceObject, Irp->IoStatus.Status, KeGetCurrentIrql()));
