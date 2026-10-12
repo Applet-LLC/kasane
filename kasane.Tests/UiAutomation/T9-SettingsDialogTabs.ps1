@@ -150,9 +150,19 @@ try {
     $scope = (Find-ChildByAutomationId $dlg "ScopeStatus").Current.Name
     "  scope status: '$scope'"
     Chk "scope tab shows a status line" ($scope.Length -gt 0)
+    $idMode = (Find-ChildByAutomationId $dlg "ScopeIdMode").Current.Name
+    "  device id mode: '$idMode'"
+    Chk "scope tab shows the device identification mode" ($idMode -match "デバイスインスタンスパス|デバイスID|不明")
     # The three choices exist (ScopeApplyButton is NOT pressed: it would change the keyboard's persisted scope).
     Chk "scope tab has the three radio buttons (model / instance / global)" (
         (Find-ChildByAutomationId $dlg "ScopeModel") -and (Find-ChildByAutomationId $dlg "ScopeInstance") -and (Find-ChildByAutomationId $dlg "ScopeGlobal"))
+
+    # ---- Data folder tab (display only) ----
+    Select-TabById $dlg "TabDataDir"
+    $dataDir = (Find-ChildByAutomationId $dlg "DataDirEffective").Current.Name
+    "  data dir: '$dataDir'"
+    Chk "data dir tab shows the folder in use and the KASANE value" (
+        $dataDir.Length -gt 0 -and (Find-ChildByAutomationId $dlg "DataDirVariable") -and (Find-ChildByAutomationId $dlg "DataDirOpenButton"))
 
     # ---- i8042prt tab (display only; I8042ApplyButton is NOT pressed: it would write the driver-wide setting) ----
     Select-TabById $dlg "TabI8042"

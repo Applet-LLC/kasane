@@ -52,8 +52,8 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
         foreach (var b in new[] { mods, key, replacement }) b.TextChanged += (_, _) => Changed();
 
         Detail.Children.Add(Row("修飾キー", mods));
-        Detail.Children.Add(Row("キー", key));
-        Detail.Children.Add(Row("置き換え先", replacement));
+        Detail.Children.Add(Row("キー", KeycodeField.Wrap(key, allowMods: false)));
+        Detail.Children.Add(Row("置き換え先", KeycodeField.Wrap(replacement)));
     }
 
     protected override bool ValidateAll(out string error)

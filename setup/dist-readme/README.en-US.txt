@@ -35,6 +35,12 @@ Installation
    management service (kasaneLicenseSvc), and the license management
    tool.
 
+   The installation folder is fixed to C:\Program Files\applet\kasane
+   and cannot be changed (the tray app needs UI access (uiAccess), which
+   requires a signed executable in a location only administrators can
+   write to, such as Program Files). The folder where settings are stored
+   can be changed in step 4.
+
 3. You can choose how the device is identified: Device Instance ID
    mode or Hardware ID mode.
 
@@ -46,13 +52,29 @@ Installation
    apart and are treated as identical. In this mode, a device is still
    considered the same one even if you connect it differently.
 
-4. A system reboot is required to complete installation.
+4. Settings folder (optional). You can set where settings files (per-keyboard
+   settings, tray settings, logs) are stored with the machine-wide
+   environment variable KASANE. If left empty, each user's
+   %LOCALAPPDATA%\applet\kasane is used as before. With Windows 11
+   Administrator protection, an elevated settings window runs as a
+   different user and the location would be split; setting it here keeps
+   it the same. The folder is created if it does not exist.
 
-5. After reboot, "kasane License Manager" launches automatically
+5. Import a settings file (optional, off by default). Applies a settings
+   file (*.kasane.json) exported from kasane to the driver during
+   installation. This is for environments where you cannot "Apply to
+   keyboard" after installation, such as with Administrator protection.
+   Models that already have settings in the driver are replaced (the
+   previous settings are kept as one backup and can be restored from the
+   Settings dialog).
+
+6. A system reboot is required to complete installation.
+
+7. After reboot, "kasane License Manager" launches automatically
    from the Start menu. Enter the license key you purchased on Gumroad
    there to activate it.
 
-6. The feature becomes usable after you restart again, or after
+8. The feature becomes usable after you restart again, or after
    reconnecting your keyboard (the driver picks up the current license
    status when a device is (re)attached).
 

@@ -77,6 +77,7 @@ public sealed class SettingsDialog : Window
         AddTab("TabAppRules", "アプリ別レイヤー", new AppRulesTab(_helper, this).Root);
         AddTab("TabEmergency", "緊急解除", BuildEmergencyTab());
         AddTab("TabScope", "共有範囲", BuildScopeTab());
+        AddTab("TabDataDir", "保存先", BuildDataDirTab());
         AddTab("TabI8042", "i8042prt", BuildI8042Tab());
 
         var ok = new Button { Name = "OkButton", Content = "OK", IsDefault = true, Width = 90 };
@@ -487,11 +488,51 @@ public sealed class SettingsDialog : Window
     // 共有範囲（すぐに反映）
     // ------------------------------------------------------------------
 
+    /// <summary>共有範囲タブの先頭: インストール時に決めた「デバイスの識別方法」の現在の値と、その意味。</summary>
+    private static void AddIdModeSection(StackPanel panel)
+    {
+        var mode = DeviceIdModeInfo.Read(out int? raw);
+        string title = mode switch
+        {
+            DeviceIdModeKind.InstancePath => "デバイスインスタンスパス",
+            DeviceIdModeKind.DeviceId => "デバイスID",
+            _ => raw == null ? "不明（読み取れません）" : $"不明（値 {raw}）",
+        };
+        string meaning = mode switch
+        {
+            DeviceIdModeKind.InstancePath =>
+                "接続先（USBポートなど）ごとに、別のキーボードとして扱います。同じキーボードでも別のポートに挿すと別のキーボードになり、" +
+                "設定画面で作った設定とトレイの設定は引き継がれません。",
+            DeviceIdModeKind.DeviceId =>
+                "キーボード固有のIDで区別します。ポートを差し替えても同じキーボードとして扱われ、設定画面とトレイの設定は引き継がれます。" +
+                "同じ型番を2台つなぐと、設定画面とトレイからは区別できません。",
+            _ => "ドライバが入っていない、または値を読めませんでした。",
+        };
+
+        panel.Children.Add(new TextBlock { Text = "デバイスの識別方法", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
+        panel.Children.Add(new TextBox
+        {
+            Name = "ScopeIdMode",
+            Text = title,
+            IsReadOnly = true,
+            BorderThickness = new Thickness(0),
+            Background = Brushes.Transparent,
+            Margin = new Thickness(0, 0, 0, 4),
+        });
+        panel.Children.Add(Help(
+            meaning + "\n" +
+            "インストール時に選んだ値で、この画面では変更できません。変えるときは、インストーラーで選び直し、キーボードを接続し直す（またはPCを再起動する）必要があります。" +
+            "変えると、キーボードのIDが変わるため、設定画面とトレイの設定は引き継がれません。"));
+    }
+
     private UIElement BuildScopeTab()
     {
         var panel = new StackPanel();
+        AddIdModeSection(panel);
+
+        panel.Children.Add(new TextBlock { Text = "設定の共有範囲", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 4, 0, 4) });
         panel.Children.Add(Help(
-            "ドライバがこのキーボードの設定（レイヤーマップ・タイミング・マクロ等）を保存する単位です。\n" +
+            "ドライバがこのキーボードの設定（レイヤーマップ・タイミング・マクロ等）を保存する単位です。上の「デバイスの識別方法」とは別の設定です。\n" +
             "・同じ型番で共有（既定）: 同じ型番のキーボードは、差し込み口が変わっても同じ設定を使います。\n" +
             "・この1台だけ: この差し込み口のこのキーボードだけの設定にします。切り替えると、今の設定をこの1台用にコピーします。\n" +
             "・すべてのキーボードで共有: 型番も差し込み口も区別せず、1つの設定をすべてのキーボードで使います（後から接続したキーボードも、" +
@@ -500,6 +541,14 @@ public sealed class SettingsDialog : Window
             "切り替えるときは、今の設定が切替先へコピーされ、切替先にすでにある設定は上書きされます（たとえば「すべて」や「この1台」から「同じ型番」へ戻すと、" +
             "同じ型番で共有している設定が置き換わります）。\n" +
             "「変更する」を押すとすぐに反映します（OK・キャンセルとは関係しません）。共有している他の台へは、その台を接続し直すまで反映されません。"));
+
+        panel.Children.Add(new TextBlock { Text = "識別方法と共有範囲の関係（トレイを含む）", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 4, 0, 4) });
+        panel.Children.Add(Help(
+            "・ポートを替えたとき: ドライバが保存する設定は、共有範囲が「同じ型番」「すべて」なら引き継がれ、「この1台だけ」なら引き継がれません。" +
+            "設定画面で作った設定（project.json）とトレイの設定（ヘルパー動作・アプリ別レイヤー・一時停止の記憶）は、識別方法が「デバイスID」なら引き継がれ、" +
+            "「デバイスインスタンスパス」なら引き継がれません。\n" +
+            "・同じ型番を2台つないだとき: 識別方法が「デバイスID」だと、設定画面とトレイでは1台として扱います（ドライバの設定は、共有範囲を「この1台だけ」にすれば別々です）。\n" +
+            "・トレイの設定は、設定画面と同じく識別方法で決まるキーボード単位で、ここでの共有範囲を変えても共有されません。"));
 
         var model = new RadioButton { Name = "ScopeModel", Content = "同じ型番で共有", GroupName = "Scope", Margin = new Thickness(0, 3, 0, 3) };
         var instance = new RadioButton { Name = "ScopeInstance", Content = "この1台だけ", GroupName = "Scope", Margin = new Thickness(0, 3, 0, 3) };
@@ -580,6 +629,130 @@ public sealed class SettingsDialog : Window
     // ------------------------------------------------------------------
 
     /// <summary>プリセット: 名前, Type, Subtype, Identifier, LayerDriver JPN, LayerDriver KOR。</summary>
+    // ------------------------------------------------------------------
+    // 保存先（環境変数 KASANE の表示。変更はインストーラーで行う）
+    // ------------------------------------------------------------------
+
+    private UIElement BuildDataDirTab()
+    {
+        var panel = new StackPanel();
+        panel.Children.Add(Help(
+            "キーボードごとの設定（project.json・helper.json）・トレイの設定・ログを保存するフォルダです。\n" +
+            "環境変数 KASANE に絶対パスが設定されていればそのフォルダを使い、無ければ（または相対パスなど正しくない値のときは）" +
+            @"既定の %LOCALAPPDATA%\applet\kasane を使います。Windows 11 の管理者保護で、昇格した画面が別のユーザーとして動いても同じ場所を使うための設定です。" +
+            "値の変更はインストーラーの「設定フォルダの指定」で行います（変更後は、サインインし直すと、トレイを含むすべてのアプリに反映されます）。"));
+
+        string? raw = Environment.GetEnvironmentVariable(HelperConfig.DataDirEnvironmentVariable);
+        string effective = HelperConfig.BaseDirectory;
+        bool isDefault = HelperConfig.ResolveBaseDirectory(null) == effective;
+
+        string variable = string.IsNullOrWhiteSpace(raw)
+            ? "未設定"
+            : isDefault ? $"{raw}（絶対パスではないため無視して、既定の場所を使います）" : raw;
+
+        var variableBox = new TextBox { Name = "DataDirVariable", Text = variable, IsReadOnly = true, Margin = new Thickness(0, 0, 0, 4) };
+        var effectiveBox = new TextBox { Name = "DataDirEffective", Text = effective, IsReadOnly = true, Margin = new Thickness(0, 0, 0, 4) };
+        panel.Children.Add(new TextBlock { Text = "環境変数 KASANE の値:" });
+        panel.Children.Add(variableBox);
+        panel.Children.Add(new TextBlock { Text = "いま使っている保存先:" });
+        panel.Children.Add(effectiveBox);
+
+        var open = new Button { Name = "DataDirOpenButton", Content = "フォルダを開く", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6, 0, 0), Padding = new Thickness(8, 2, 8, 2) };
+        var status = Status("DataDirStatus");
+        open.Click += (_, _) =>
+        {
+            try
+            {
+                Directory.CreateDirectory(effective);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(effective) { UseShellExecute = true })?.Dispose();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+            {
+                ShowStatus(status, $"開けませんでした: {ex.Message}", true);
+            }
+        };
+        panel.Children.Add(open);
+        panel.Children.Add(status);
+        AddImportBackupSection(panel);
+        return panel;
+    }
+
+    /// <summary>
+    /// インストール時の取り込み（設定ファイルをドライバのレジストリへ書く）が、前の設定を退避していれば、それを一覧にして、戻せるようにする。
+    /// 「戻す」は、退避と今の設定の入れ替え（もう一度押すと元に戻る）。ドライバのレジストリを書くので、管理者権限が要る。
+    /// 反映は、キーボードを接続し直したとき（またはPCの再起動後）。
+    /// </summary>
+    private void AddImportBackupSection(StackPanel panel)
+    {
+        panel.Children.Add(new TextBlock { Text = "インストール時の取り込みの退避", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 16, 0, 4) });
+        panel.Children.Add(Help(
+            "インストール時に設定ファイルを取り込むと、ドライバの設定は置き換わり、前の設定が1世代だけ退避されます。ここで、取り込み前の設定に戻せます" +
+            "（戻すと、今の設定が退避に回るので、もう一度押すと元に戻ります）。反映は、キーボードを接続し直したあと（またはPCの再起動後）です。" +
+            (_canWrite ? "" : "\n閲覧専用モード（管理者として実行していない）のため、戻すことはできません。")));
+
+        var store = PersistedSettings.OpenLocalMachine();
+        List<string> backups;
+        try { backups = store.ListBackups(); }
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
+        {
+            panel.Children.Add(Help($"退避を調べられませんでした: {ex.Message}"));
+            return;
+        }
+        if (backups.Count == 0)
+        {
+            panel.Children.Add(new TextBlock { Name = "ImportBackupNone", Text = "退避はありません。", Foreground = Brushes.DimGray });
+            return;
+        }
+
+        // 接続中のキーボードの型番（M_<ModelKey>）から、どのキーボードの分かを表示する。
+        var models = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (IsOnline)
+        {
+            try
+            {
+                foreach (var d in _client!.ListDevices())
+                    if (DeviceKeys.ModelKey(d.HardwareId) is uint k) models[DeviceKeys.ModelSubKeyName(k)] = d.HardwareId;
+            }
+            catch (KbdLayerException) { /* 名前なしで一覧にする */ }
+        }
+
+        var status = Status("ImportBackupStatus");
+        foreach (var name in backups)
+        {
+            string label = models.TryGetValue(name, out var hw) ? $"{name}（接続中: {hw}）" : name;
+            var restore = new Button
+            {
+                Name = $"RestoreBackup_{name}",
+                Content = "取り込み前の設定に戻す",
+                IsEnabled = _canWrite,
+                Margin = new Thickness(8, 0, 0, 0),
+                Padding = new Thickness(8, 2, 8, 2),
+            };
+            string target = name;
+            restore.Click += (_, _) =>
+            {
+                if (MessageBox.Show(this,
+                        $"{target} の設定と、取り込み前の退避を入れ替えます。\n反映には、キーボードの接続し直し（またはPCの再起動）が必要です。\n\nもう一度この操作をすると、元に戻せます。続けますか？",
+                        "取り込み前の設定に戻す", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+                try
+                {
+                    ShowStatus(status, store.Restore(target)
+                        ? $"{target} を入れ替えました。キーボードを接続し直すと反映されます。"
+                        : $"{target} の退避が見つかりません。", false);
+                }
+                catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
+                {
+                    ShowStatus(status, $"入れ替えられませんでした: {ex.Message}", true);
+                }
+            };
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
+            row.Children.Add(new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center });
+            row.Children.Add(restore);
+            panel.Children.Add(row);
+        }
+        panel.Children.Add(status);
+    }
+
     private static readonly (string Name, string Type, string Subtype, string Identifier, string Jpn, string Kor)[] I8042Presets =
     {
         ("（手入力）", "", "", "", "", ""),

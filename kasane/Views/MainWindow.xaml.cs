@@ -54,6 +54,10 @@ public partial class MainWindow : Window
             CmbLayout.Items.Add(KeyboardLayout.NameFromPath(f));
         _suppressEvents = false;
 
+        // 保存先に取り込みファイル（kasane-import.json）があれば、設定の無いキーボードだけ取り込んでから、一覧を作る。
+        try { Kasane.Model.Portable.PendingImport.RunWithDriver(null, new Kasane.Model.Portable.PortableReport()); }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException) { /* 取り込めなくても、設定画面は開く */ }
+
         _client = KbdLayerClient.TryOpen(out var error);
         if (_client == null)
             SetStatus($"ドライバに接続できません（{error}）。編集とエクスポートのみ行えます。");
@@ -74,6 +78,8 @@ public partial class MainWindow : Window
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
             {
                 FileName = Environment.ProcessPath!,
+                // 昇格した側は、こちらが終わるまで待ってから起動する（単一起動のミューテックスを取り合わないため）。
+                Arguments = $"{Kasane.Interop.SingleInstance.WaitPidArgument} {Environment.ProcessId}",
                 UseShellExecute = true,
                 Verb = "runas",
             });
@@ -206,6 +212,7 @@ public partial class MainWindow : Window
     {
         _project = project;
         _layout = layout;
+        SoftKeyboardPanel.CurrentLayoutFile = layout.FilePath; // キー選択の「画面のキーボード」を、この配列で開く
         _dirty = dirty;
         _layer = 0;
 

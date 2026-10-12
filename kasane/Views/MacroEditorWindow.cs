@@ -28,7 +28,7 @@ public sealed class MacroEditorWindow : IdListEditorWindow
     protected override void ShowDetail(int id)
     {
         var box = KeycodeBox(_texts[id], "MacroBox");
-        box.Width = 480;
+        box.Width = 380;
         box.TextChanged += (_, _) =>
         {
             _texts[id] = box.Text.Trim();
@@ -37,7 +37,7 @@ public sealed class MacroEditorWindow : IdListEditorWindow
             ProjectService.MacroSteps(ToDef(id), errors);
             ShowValidation(errors.Count == 0 ? "OK" : string.Join("\n", errors), errors.Count > 0);
         };
-        Detail.Children.Add(Row($"マクロ {id}", box));
+        Detail.Children.Add(Row($"マクロ {id}", KeycodeField.Wrap(box, append: true)));
     }
 
     private MacroDef ToDef(int id) => new()

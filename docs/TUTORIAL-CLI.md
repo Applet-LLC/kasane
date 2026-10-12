@@ -65,8 +65,8 @@ kasane のGUI（kasane.exe）で行う [TUTORIAL-GUI.md](TUTORIAL-GUI.md) を参
    - デバイスID: キーボード固有のIDで区別します。ポートを差し替えても設定が引き継がれます。
 3. 完了したら **PCを再起動** します（ドライバは再起動後に有効になります）。
 
-インストール先は `C:\Program Files\layerdriver-subscription\` です。
-`KeymapTool.exe`はこのフォルダにあります。
+インストール先は `C:\Program Files\applet\kasane\` に固定で、変更できません
+（トレイのアプリが署名済みで `Program Files` にある必要があるため）。`KeymapTool.exe` はこのフォルダにあります。
 
 ## 2. ライセンスを有効にする
 
@@ -87,17 +87,17 @@ PowerShellを開き（管理者でなくて構いません）、作業フォル�
 ```powershell
 mkdir $env:USERPROFILE\kasane
 cd $env:USERPROFILE\kasane
-Set-Alias KeymapTool "C:\Program Files\layerdriver-subscription\KeymapTool.exe"
+Set-Alias KeymapTool "C:\Program Files\applet\kasane\KeymapTool.exe"
 ```
 
 `Set-Alias`は、長いパスを毎回入力しなくて済むようにするための設定です
 （PowerShellを開き直したら、もう一度実行してください）。
 
 次に、使うキーマップファイルを作業フォルダにコピーします。キーマップはインストール先の
-`C:\Program Files\layerdriver-subscription\samples\` にあります（リポジトリでは `driver/KeymapTool/samples/`）。
+`C:\Program Files\applet\kasane\samples\` にあります（リポジトリでは `driver/KeymapTool/samples/`）。
 
 ```powershell
-Copy-Item "C:\Program Files\layerdriver-subscription\samples\tutorial-*.json" .
+Copy-Item "C:\Program Files\applet\kasane\samples\tutorial-*.json" .
 ```
 
 - JISキーボード: `tutorial-jis109-eisu-lctrl.json`

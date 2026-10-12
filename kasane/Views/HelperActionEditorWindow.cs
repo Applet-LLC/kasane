@@ -96,7 +96,7 @@ public sealed class HelperActionEditorWindow : Window
                                     "押したキーは飲み込まれ、アプリには届きません。F13〜F24 など、普段使わないキーが向いています。" +
                                     "修飾キーは左右を区別せず、押している分と過不足なく一致したときだけ動きます。Alt・Win の組み合わせは、" +
                                     "単独で離したときにメニューやスタートが開くことがあるので、避けてください。"));
-            panel.Children.Add(Row("キー", _key, "KC_F13、SC_E06A のような書き方"));
+            panel.Children.Add(Row("キー", KeycodeField.Wrap(_key, allowMods: false), "KC_F13、SC_E06A のような書き方"));
             var modPanel = new StackPanel { Orientation = Orientation.Horizontal };
             modPanel.Children.Add(_ctrl);
             modPanel.Children.Add(_shift);

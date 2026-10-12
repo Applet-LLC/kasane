@@ -38,8 +38,7 @@ internal static class TrayLog
     {
         try
         {
-            string path = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "applet", "kasane", "tray.log");
+            string path = Path.Combine(Kasane.Model.HelperConfig.BaseDirectory, "tray.log");
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             if (File.Exists(path) && new FileInfo(path).Length > 200_000) File.Delete(path);
             File.AppendAllText(path, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {message}{Environment.NewLine}");

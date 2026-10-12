@@ -20,6 +20,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="..\kasane\Interop\SingleInstance.cs" Link="Shared\SingleInstance.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Window.Icon のパック参照解決用（exeファイル自体のアイコンは ApplicationIcon が担当） -->
     <Resource Include="Resources\app.ico" />
   </ItemGroup>

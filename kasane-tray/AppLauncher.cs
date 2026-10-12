@@ -44,7 +44,8 @@ public static class AppLauncher
     public static string? FindLicense() => Find("license-gui", "kasane-license.exe", "kasane-license");
 
     /// <summary>起動済みなら前面に出す。起動していなければ起動する。失敗したら理由を返す（成功は null）。</summary>
-    public static string? OpenOrActivate(string? exePath, string displayName)
+    /// <param name="onStarted">新しく起動したときだけ呼ぶ（準備中の表示を出すため）。受け取った側が Process を破棄する。</param>
+    public static string? OpenOrActivate(string? exePath, string displayName, Action<Process>? onStarted = null)
     {
         if (exePath == null) return $"{displayName}が見つかりません（インストールし直してください）。";
 
@@ -67,7 +68,12 @@ public static class AppLauncher
 
         try
         {
-            Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(exePath)! })?.Dispose();
+            var started = Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(exePath)! });
+            if (started != null)
+            {
+                if (onStarted != null) onStarted(started);
+                else started.Dispose();
+            }
             return null;
         }
         catch (Win32Exception ex)

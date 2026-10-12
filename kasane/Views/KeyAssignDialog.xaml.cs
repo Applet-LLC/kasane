@@ -19,6 +19,7 @@ public partial class KeyAssignDialog : Window
     private const string CatLayerTap = "Layer-Tap (LT)";
     private const string CatMacro = "マクロ / タップダンス";
     private const string CatHelper = "ヘルパー動作";
+    private const string CatSoftKeyboard = "画面のキーボード"; // 末尾に足す（UIA 試験が分類を番号で選ぶため）
 
     private readonly int _layerCount;
     private readonly uint _uniqId;                 // このキーボード（0 = 決まっていない。共通の動作だけ使える）
@@ -58,6 +59,7 @@ public partial class KeyAssignDialog : Window
         LstCategories.Items.Add(CatLayerTap);
         LstCategories.Items.Add(CatMacro);
         LstCategories.Items.Add(CatHelper);
+        LstCategories.Items.Add(CatSoftKeyboard);
         LstCategories.SelectedIndex = 0;
 
         Loaded += (_, _) => { TxtToken.Focus(); TxtToken.SelectAll(); };
@@ -73,6 +75,7 @@ public partial class KeyAssignDialog : Window
             CatModTap => ModTapPanel(),
             CatLayerTap => LayerTapPanel(),
             CatHelper => HelperPanel(),
+            CatSoftKeyboard => SoftKeyboard(),
             _ => MacroPanel(),
         };
     }
@@ -99,6 +102,31 @@ public partial class KeyAssignDialog : Window
             panel.Children.Add(b);
         }
         return panel;
+    }
+
+    private UIElement SoftKeyboard()
+    {
+        var panel = new SoftKeyboardPanel();
+        panel.KeySelected += kc => TxtToken.Text = WithCheckedMods(kc);
+        return panel;
+    }
+
+    private KeycodeCapture? _capture;
+
+    private void BtnCapture_Click(object sender, RoutedEventArgs e)
+    {
+        _capture ??= new KeycodeCapture(
+            token => TxtToken.Text = WithCheckedMods(token),
+            () => { BtnCapture.Content = "押して入力"; TxtToken.Focus(); });
+        if (_capture.IsActive) { _capture.Cancel(); return; }
+        BtnCapture.Content = "キーを押してください…";
+        _capture.Start();
+    }
+
+    protected override void OnDeactivated(EventArgs e)
+    {
+        _capture?.Cancel();
+        base.OnDeactivated(e);
     }
 
     private IEnumerable<int> Layers => Enumerable.Range(0, KbdLayerClient.MaxLayers);

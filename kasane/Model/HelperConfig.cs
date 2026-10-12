@@ -40,8 +40,23 @@ public sealed class HelperConfig
         PropertyNameCaseInsensitive = true, // 手で書いた helper.json も読めるように
     };
 
-    public static string BaseDirectory => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "applet", "kasane");
+    /// <summary>データフォルダを上書きする環境変数。インストーラーがマシン全体に設定できる（管理者保護で昇格先が別ユーザーになっても同じ場所を使うため）。</summary>
+    public const string DataDirEnvironmentVariable = "KASANE";
+
+    /// <summary>
+    /// 設定ファイルの保存先。環境変数 KASANE が絶対パスならそれ、無い・相対パスなら %LOCALAPPDATA%\applet\kasane。
+    /// 値は呼ぶたびに読む（トレイは常駐するので、変数の変更を次の読み直しで拾える）。
+    /// </summary>
+    public static string BaseDirectory => ResolveBaseDirectory(Environment.GetEnvironmentVariable(DataDirEnvironmentVariable));
+
+    public static string ResolveBaseDirectory(string? overrideValue)
+    {
+        string? value = overrideValue?.Trim().Trim('"');
+        if (!string.IsNullOrEmpty(value) && Path.IsPathFullyQualified(value))
+            return Path.GetFullPath(value);
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "applet", "kasane");
+    }
 
     /// <summary>キーボードごとの helper.json の場所（project.json と同じフォルダ）。</summary>
     public static string DevicePath(uint uniqId, string? baseDirectory = null) =>

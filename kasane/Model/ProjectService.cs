@@ -7,7 +7,7 @@ using Kasane.Layout;
 
 namespace Kasane.Model;
 
-/// <summary>プロジェクトの作成・保存・検証・ドライバへの適用・ドライバからの読み込み・CLI形式へのエクスポート。</summary>
+/// <summary>プロジェクトの作成・保存・検証・ドライバへの適用・ドライバからの読み込み・KeymapTool（--apply-simple）用 JSON へのエクスポート。</summary>
 public static class ProjectService
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
@@ -361,11 +361,10 @@ public static class ProjectService
     }
 
     /// <summary>
-    /// ドライバへ一括適用する: 検証 → OFF → レイヤーマップ → タイミング → マクロ/コンボ/タップダンス/キー置換
-    /// → 機能のON/OFF → NICOLA → ON。
-    /// 検証エラーがあれば何も送らずに例外を投げる。戻り値は警告の一覧。
+    /// プロジェクトを検証して、ドライバへ送る（またはレジストリへ書く）内容に組み立てる。
+    /// 検証エラーがあれば例外を投げる。警告は <see cref="DriverSettings.Warnings"/>。
     /// </summary>
-    public static List<string> Apply(KbdLayerClient client, KeymapProject project, KeyboardLayout layout)
+    public static DriverSettings Compile(KeymapProject project, KeyboardLayout layout)
     {
         var warnings = new List<string>();
         var errors = new List<string>();
@@ -399,12 +398,34 @@ public static class ProjectService
 
         if (errors.Count > 0) throw new InvalidOperationException(string.Join("\n", errors));
 
+        if (blob == null) warnings.Add("割り当てのあるキーが無いため、レイヤーマップは消去されOFFのままです");
+        return new DriverSettings(blob, project.TapTermMs, project.ComboTermMs, project.TapDanceTermMs,
+                                  project.TapHoldMode, project.QuickTapTermMs, project.TappingToggle,
+                                  macroSteps, combos, tapDances, keyOverrides, project.EnabledFeatures,
+                                  nicolaBlob, project.ClearNicola, warnings);
+    }
+
+    /// <summary>
+    /// ドライバへ一括適用する: 検証 → OFF → レイヤーマップ → タイミング → マクロ/コンボ/タップダンス/キー置換
+    /// → 機能のON/OFF → NICOLA → ON。
+    /// 検証エラーがあれば何も送らずに例外を投げる。戻り値は警告の一覧。
+    /// </summary>
+    public static List<string> Apply(KbdLayerClient client, KeymapProject project, KeyboardLayout layout)
+    {
+        var settings = Compile(project, layout);
+        var blob = settings.LayerMap;
+        var macroSteps = settings.Macros;
+        var combos = settings.Combos;
+        var tapDances = settings.TapDances;
+        var keyOverrides = settings.KeyOverrides;
+        var nicolaBlob = settings.Nicola;
+
         uint id = project.UniqId;
         client.SetEnabled(id, false);
         if (blob != null) client.SetLayerMap(id, blob);
         else client.ClearLayerMap(id);
-        client.SetConfig(id, project.TapTermMs, project.ComboTermMs, project.TapDanceTermMs,
-                         project.TapHoldMode, project.QuickTapTermMs, project.TappingToggle);
+        client.SetConfig(id, settings.TapTermMs, settings.ComboTermMs, settings.TapDanceTermMs,
+                         settings.TapHoldMode, settings.QuickTapTermMs, settings.TappingToggle);
 
         // SET_MACROは1回ごとにマクロ全体（128個分、約33KB）をレジストリへ書くので、全IDには送らない。
         // 定義のあるものと、ドライバ側で空でないもの（消す必要があるもの）だけを送る。
@@ -436,7 +457,7 @@ public static class ProjectService
 
         // 機能別ON/OFF。キー置換より前のドライバはFeatureKeyOverrideのビットを知らないので、
         // 対応していなければそのビットを外して送る。
-        if (project.EnabledFeatures is uint features)
+        if (settings.Features is uint features)
         {
             if (!SupportsKeyOverride(client, id)) features &= ~KbdLayerClient.FeatureKeyOverride;
             try { client.SetFeatures(id, features); }
@@ -448,11 +469,10 @@ public static class ProjectService
 
         // NICOLA。null（GUIでは管理しない）ならドライバの設定はそのまま。
         if (nicolaBlob != null) client.SetNicola(id, nicolaBlob);
-        else if (project.ClearNicola && client.GetNicola(id).Length > 0) client.SetNicola(id, Array.Empty<byte>());
+        else if (settings.ClearNicola && client.GetNicola(id).Length > 0) client.SetNicola(id, Array.Empty<byte>());
 
         if (blob != null) client.SetEnabled(id, true);
-        else warnings.Add("割り当てのあるキーが無いため、レイヤーマップは消去されOFFのままです");
-        return warnings;
+        return settings.Warnings;
     }
 
     /// <summary>
