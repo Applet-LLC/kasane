@@ -171,9 +171,9 @@ MS-RL の条件のうち、この配布に関わるもの（ライセンス全�
 --------------------------------------------------------------------------------
 6. 参考（配布物に含まないもの、または表示の対象外と考えたもの）
 --------------------------------------------------------------------------------
-  - Microsoft Visual C++ ランタイム（msvcp140.dll、vcruntime140.dll、vcruntime140_1.dll）: DriverManager.exe と
-    KeymapTool.exe が動的にリンクしています。MSI には含めていません（MSI の中身を確認済み）。含める場合は、
-    Microsoft の再頒布の条件に従って、ここに表示を足してください。
+  - Microsoft Visual C++ ランタイム: DriverManager.exe、DriverManager_arm64.exe、KeymapTool.exe は、静的リンク
+    （/MT）しているため、ランタイムの DLL を同梱せず、利用者の PC にも要りません。静的リンクされたランタイムのコードは、
+    Visual Studio のライセンス条項（再頒布可能なコード）に従って、これらの exe に含まれています。
   - Windows Driver Kit / Windows SDK のヘッダー・ライブラリ: ビルドだけで使います。
   - kbdlayer ドライバ、DriverManager、KeymapTool のソース: Applet LLC のコード（ソースの先頭に MIT License の表記）。
     署名に使うライセンストークンの検証は、Windows の暗号 API（BCrypt）を使っており、暗号ライブラリを同梱していません。

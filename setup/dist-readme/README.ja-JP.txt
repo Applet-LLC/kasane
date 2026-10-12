@@ -19,14 +19,6 @@
 動作環境
 --------
 - Windows 11 24H2（x64 または ARM64）
-- Microsoft Visual C++ 再頒布可能パッケージ（v14。サポートされている最新版）
-  インストーラーには含まれていません。入っていないPCでは、先にインストールしてください
-  （入っていないと、ドライバのインストールに失敗することがあります）。
-    x64 のPC:   https://aka.ms/vc14/vc_redist.x64.exe
-    ARM64 のPC: https://aka.ms/vc14/vc_redist.x64.exe
-                （X64版。X64とARM64の両方のバイナリが入ります。ARM64版だけでは、
-                  エミュレーションで動くx64のツールのぶんが足りません）
-  詳しくは https://learn.microsoft.com/ja-jp/cpp/windows/latest-supported-vc-redist
 - インストールのための管理者権限
 - インターネット接続(ライセンス管理サービスが約24時間ごとにGumroadへ
   サブスクリプションの有効性を再確認します。直近の確認結果を使って、

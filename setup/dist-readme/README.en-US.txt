@@ -20,15 +20,6 @@ subscription.
 Requirements
 ------------
 - Windows 11 24H2 (x64 or ARM64)
-- Microsoft Visual C++ Redistributable (v14, the latest supported version)
-  Not included in the installer. Install it first if your PC does not have it
-  (without it, the driver installation may fail).
-    x64 PC:   https://aka.ms/vc14/vc_redist.x64.exe
-    ARM64 PC: https://aka.ms/vc14/vc_redist.x64.exe
-              (the X64 package; it contains both the X64 and ARM64 binaries.
-               The ARM64 package alone does not cover the x64 tools that run
-               under emulation.)
-  Details: https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist
 - Administrator privileges for installation
 - An internet connection (the license service re-checks your
   subscription with Gumroad about once every 24 hours. Using the last
