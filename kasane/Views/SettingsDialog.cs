@@ -79,6 +79,7 @@ public sealed class SettingsDialog : Window
         AddTab("TabScope", "共有範囲", BuildScopeTab());
         AddTab("TabDataDir", "保存先", BuildDataDirTab());
         AddTab("TabI8042", "i8042prt", BuildI8042Tab());
+        _tabs.SelectionChanged += OnTabChanged;
 
         var ok = new Button { Name = "OkButton", Content = "OK", IsDefault = true, Width = 90 };
         ok.Click += (_, _) => { if (Commit()) DialogResult = true; };
@@ -374,10 +375,33 @@ public sealed class SettingsDialog : Window
     }
 
     // ------------------------------------------------------------------
-    // 緊急解除（すぐに反映）
+    // 緊急解除（タブを移るとき・OK のときに反映）
     // ------------------------------------------------------------------
 
     private static readonly string[] DefaultEmergencyKeys = { "KC_LCTL", "KC_RCTL", "KC_LSFT", "KC_RSFT" };
+
+    /// <summary>
+    /// 緊急解除タブの入力を、ドライバへ反映する（タブを離れるときと、OK のとき）。失敗の理由を返す（成功・変更なしは null）。
+    /// 入力が空なら「変更しない」。タブを作るときに設定する。
+    /// </summary>
+    private Func<string?>? _emergencyCommit;
+    private bool _revertingTab;
+
+    // タブを離れるとき、緊急解除の入力が不正ならエラーを出して元のタブに留める。
+    private void OnTabChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!ReferenceEquals(e.OriginalSource, _tabs) || _revertingTab || _emergencyCommit == null) return;
+        var left = e.RemovedItems.OfType<TabItem>().FirstOrDefault(t => t.Name == "TabEmergency");
+        if (left == null) return;
+        if (_emergencyCommit() == null) return;
+        // 選択の変更の途中で別の選択に戻すと不安定なので、あとで戻す。
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            _revertingTab = true;
+            try { _tabs.SelectedItem = left; }
+            finally { _revertingTab = false; }
+        }));
+    }
 
     private UIElement BuildEmergencyTab()
     {
@@ -386,14 +410,19 @@ public sealed class SettingsDialog : Window
             $"設定を誤って入力できなくなったときの逃げ道です。ここで決めた{KbdLayerClient.EmergencyMinKeys}〜{KbdLayerClient.EmergencyMaxKeys}個のキーを" +
             $"同時に{KbdLayerClient.EmergencyHoldMs / 1000}秒押し続けると、接続中の全キーボードのレイヤーマップがOFFになります（マップ自体は消えません）。" +
             "ドライバ全体で1つの設定です（キーボードごとではありません）。全部のキーが同じキーボードにある必要があります。\n" +
-            "キーは物理キー（レイヤーマップで置き換える前）で指定します。「この組み合わせにする」を押すとすぐに反映します（OK・キャンセルとは関係しません）。"));
+            "キーは物理キー（レイヤーマップで置き換える前）で指定します。各欄の「押して入力」でキーを押して入れるか、「選ぶ...」で選びます。\n" +
+            "入力した組み合わせは、別のタブに移るとき、または OK を押したときに、ドライバへ反映します（キャンセルしても、タブを移った時点で反映したものは戻りません）。" +
+            "全部の欄を空にした場合は、変更しません。"));
 
+        bool writable = IsOnline && _canWrite;
         var boxes = new TextBox[KbdLayerClient.EmergencyMaxKeys];
-        var grid = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
+        var grid = new WrapPanel { Margin = new Thickness(0, 0, 0, 6), IsEnabled = writable };
         for (int i = 0; i < boxes.Length; i++)
         {
-            boxes[i] = new TextBox { Name = $"EmergencyKey{i + 1}", Width = 100, Margin = new Thickness(0, 0, 6, 0), FontFamily = new FontFamily("Consolas") };
-            grid.Children.Add(boxes[i]);
+            boxes[i] = new TextBox { Name = $"EmergencyKey{i + 1}", Width = 100, FontFamily = new FontFamily("Consolas") };
+            var cell = KeycodeField.Wrap(boxes[i], allowMods: false);
+            cell.Margin = new Thickness(0, 0, 10, 4);
+            grid.Children.Add(cell);
         }
         Row(panel, "組み合わせ", grid, null, 90);
 
@@ -403,12 +432,14 @@ public sealed class SettingsDialog : Window
             for (int i = 0; i < boxes.Length; i++) boxes[i].Text = i < names.Count ? names[i] : "";
         }
 
+        List<ushort>? applied = null; // ドライバの今の組み合わせ（変わっていなければ書き込まない）
         if (IsOnline)
         {
             try
             {
                 var keys = _client!.GetEmergencyRelease();
-                Fill(keys.Select(sc => KeycodeTable.NameForScanCode(sc) ?? $"0x{sc:X4}").ToList());
+                applied = keys.ToList();
+                Fill(keys.Select(KeycodeTable.KeyToken).ToList());
                 ShowStatus(status, "ドライバの現在の組み合わせを表示しています。", false);
             }
             catch (KbdLayerException ex) { ShowStatus(status, ex.Message, true); }
@@ -419,63 +450,83 @@ public sealed class SettingsDialog : Window
             ShowStatus(status, "ドライバに接続していないため、変更できません（表示は既定の組み合わせです）。", true);
         }
 
-        bool TryCollect(out List<ushort> scanCodes)
+        // 入力をスキャンコードにする。空の欄は飛ばす（全部空なら空のリスト）。個数の下限は見ない。
+        bool TryCollect(out List<ushort> scanCodes, out string? error)
         {
             scanCodes = new List<ushort>();
+            error = null;
             foreach (var b in boxes)
             {
                 string t = b.Text.Trim();
                 if (t.Length == 0) continue;
                 if (!KeycodeTable.TryResolve(t, out var a) || a.Type != ActionType.Key || a.Param2 == 0)
                 {
-                    ShowStatus(status, $"「{t}」は単純なキー(KC_*)にしてください。", true);
+                    error = $"「{t}」は単純なキー(KC_*)にしてください。";
                     return false;
                 }
                 if (scanCodes.Contains(a.Param2))
                 {
-                    ShowStatus(status, $"「{t}」が2回指定されています。", true);
+                    error = $"「{t}」が2回指定されています。";
                     return false;
                 }
                 scanCodes.Add(a.Param2);
             }
-            if (scanCodes.Count < KbdLayerClient.EmergencyMinKeys)
-            {
-                ShowStatus(status, $"キーは{KbdLayerClient.EmergencyMinKeys}個以上指定してください。", true);
-                return false;
-            }
             return true;
         }
+
+        string? CommitCore()
+        {
+            if (!writable) return null;
+            if (!TryCollect(out var keys, out var error)) return error;
+            if (keys.Count == 0) return null; // 空 = 変更しない
+            if (keys.Count < KbdLayerClient.EmergencyMinKeys) return $"キーは{KbdLayerClient.EmergencyMinKeys}個以上指定してください。";
+            if (applied != null && applied.SequenceEqual(keys)) return null;
+            try
+            {
+                _client!.SetEmergencyRelease(keys);
+                applied = keys;
+                ShowStatus(status, $"緊急解除の組み合わせを {string.Join(" + ", boxes.Select(b => b.Text.Trim()).Where(s => s.Length > 0))} にしました。", false);
+                return null;
+            }
+            catch (KbdLayerException ex) { return ex.Message; }
+        }
+        _emergencyCommit = () =>
+        {
+            string? error = CommitCore();
+            if (error != null) ShowStatus(status, error, true);
+            return error;
+        };
 
         var buttons = new WrapPanel();
         var check = new Button { Name = "EmergencyCheckButton", Content = "同時押しを試す...", Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(8, 2, 8, 2) };
         check.Click += (_, _) =>
         {
-            if (!TryCollect(out var keys)) return;
+            if (!TryCollect(out var keys, out var error)) { ShowStatus(status, error!, true); return; }
+            if (keys.Count < KbdLayerClient.EmergencyMinKeys)
+            {
+                ShowStatus(status, $"キーは{KbdLayerClient.EmergencyMinKeys}個以上指定してください。", true);
+                return;
+            }
             var dlg = new EmergencyCheckWindow(keys) { Owner = this };
             dlg.ShowDialog();
             ShowStatus(status, dlg.Succeeded
                 ? "この組み合わせは同時に検出できました。"
                 : "全部のキーを同時に検出できませんでした（試していない場合も含む）。別の組み合わせを検討してください。", !dlg.Succeeded);
         };
-        var apply = new Button { Name = "EmergencyApplyButton", Content = "この組み合わせにする", IsEnabled = IsOnline && _canWrite, Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(8, 2, 8, 2) };
-        apply.Click += (_, _) =>
+        var clear = new Button { Name = "EmergencyClearButton", Content = "クリア", IsEnabled = writable, Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(8, 2, 8, 2) };
+        clear.Click += (_, _) =>
         {
-            if (!TryCollect(out var keys)) return;
-            try
-            {
-                _client!.SetEmergencyRelease(keys);
-                ShowStatus(status, $"緊急解除の組み合わせを {string.Join(" + ", boxes.Select(b => b.Text.Trim()).Where(s => s.Length > 0))} にしました。", false);
-            }
-            catch (KbdLayerException ex) { ShowStatus(status, ex.Message, true); }
+            Fill(Array.Empty<string>());
+            ShowStatus(status, "入力欄を空にしました。空のままタブを移る・OK を押しても、緊急解除の組み合わせは変わりません。", false);
         };
-        var reset = new Button { Name = "EmergencyDefaultButton", Content = "既定（左右Ctrl＋左右Shift）を入れる", Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(8, 2, 8, 2) };
+        var reset = new Button { Name = "EmergencyDefaultButton", Content = "既定（左右Ctrl＋左右Shift）にする", IsEnabled = writable, Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(8, 2, 8, 2) };
         reset.Click += (_, _) =>
         {
             Fill(DefaultEmergencyKeys);
-            ShowStatus(status, "既定の組み合わせを入れました。反映するには「この組み合わせにする」を押してください。", false);
+            ShowStatus(status, "既定の組み合わせを入れました。タブを移る・OK を押すと反映します。", false);
         };
         buttons.Children.Add(check);
-        buttons.Children.Add(apply);
+        buttons.Children.Add(clear);
         buttons.Children.Add(reset);
         panel.Children.Add(buttons);
         if (IsOnline && !_canWrite)
@@ -903,6 +954,13 @@ public sealed class SettingsDialog : Window
         {
             _tabs.SelectedItem = _tabs.Items.Cast<TabItem>().First(item => item.Name == tab);
             _error.Text = message;
+        }
+
+        // 緊急解除の入力は、ここでドライバへ反映する（空なら変更しない）。不正なら緊急解除タブで止める。
+        if (_emergencyCommit?.Invoke() is { } emergencyError)
+        {
+            Fail("TabEmergency", emergencyError);
+            return false;
         }
 
         if (!uint.TryParse(_tap.Text, out var t) || !uint.TryParse(_combo.Text, out var c) || !uint.TryParse(_tapDance.Text, out var d)

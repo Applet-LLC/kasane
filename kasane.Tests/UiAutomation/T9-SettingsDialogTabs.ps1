@@ -1,4 +1,4 @@
-﻿# GUI-T9: UI Automation test for the settings dialog (feature/gui-settings): the Features tab round-trip,
+# GUI-T9: UI Automation test for the settings dialog (feature/gui-settings): the Features tab round-trip,
 # the NICOLA tab + NICOLA table editor (validation, round-trip of an edit), the Emergency tab's input
 # validation and the simultaneous-press check window (opened and closed without pressing keys), and that
 # the Scope tab shows a status line, and the i8042prt tab's controls exist.
@@ -115,7 +115,7 @@ try {
     # back to "not managed" so the project is left as it was
     Select-ComboItemByIndex (Find-ChildByAutomationId $dlg "NicolaModeBox") 0
 
-    # ---- Emergency tab (validation only; EmergencyApplyButton is NOT pressed) ----
+    # ---- Emergency tab (validation; the combination is written when leaving the tab / pressing OK, so restore the current one before leaving) ----
     Select-TabById $dlg "TabEmergency"
     1..6 | ForEach-Object { Set-ElementValue (Find-ChildByAutomationId $dlg "EmergencyKey$_") "" }
     Set-ElementValue (Find-ChildByAutomationId $dlg "EmergencyKey1") "KC_LCTL"
@@ -144,6 +144,12 @@ try {
     Invoke-Element (Find-ChildByAutomationId $chk "CloseButton")
     Start-Sleep -Milliseconds 500
     Chk "after closing without pressing, status says not detected" ((Find-ChildByAutomationId $dlg "EmergencyStatus").Current.Name -match "検出できませんでした")
+    Chk "emergency tab has Clear and Default buttons, and no Apply button" (
+        (Find-ChildByAutomationId $dlg "EmergencyClearButton") -and (Find-ChildByAutomationId $dlg "EmergencyDefaultButton") -and -not (Find-ChildByAutomationId $dlg "EmergencyApplyButton"))
+    Chk "each key box has capture and pick buttons" (
+        (Find-ChildByAutomationId $dlg "EmergencyKey1Capture") -and (Find-ChildByAutomationId $dlg "EmergencyKey1Pick"))
+    # Leaving the tab writes the combination: put the default (left/right Ctrl + left/right Shift) back so the driver is left as it was.
+    Invoke-Element (Find-ChildByAutomationId $dlg "EmergencyDefaultButton")
 
     # ---- Scope tab (display only) ----
     Select-TabById $dlg "TabScope"
