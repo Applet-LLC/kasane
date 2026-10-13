@@ -10,7 +10,7 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
 
     public List<KeyOverrideDef> Result { get; private set; } = new();
 
-    public KeyOverrideEditorWindow(IEnumerable<KeyOverrideDef> keyOverrides)
+    public KeyOverrideEditorWindow(IEnumerable<KeyOverrideDef> keyOverrides, IReadOnlyDictionary<int, string>? names = null)
         : base("キー置換", KbdLayerClient.MaxKeyOverrideCount,
             "キー置換は、指定した修飾キーを押しながら指定したキーを押したときに、代わりに別のキーを送ります。\n" +
             "例: 修飾キー MOD_LSFT、キー KC_BSPACE、置き換え先 KC_DELETE → Shift+BS で Delete。" +
@@ -20,10 +20,8 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
     {
         foreach (var k in keyOverrides)
             if (k.Id >= 0 && k.Id < _defs.Length)
-            {
                 _defs[k.Id] = new KeyOverrideDef { Id = k.Id, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement };
-                Names[k.Id] = k.Name;
-            }
+        LoadNames(names);
     }
 
     protected override string Summary(int id) =>
@@ -65,7 +63,7 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
         foreach (var k in _defs.Where(k => k != null)) ProjectService.KeyOverrideToEntry(k!, errors);
         error = string.Join("\n", errors);
         if (errors.Count > 0) return false;
-        Result = _defs.Where(k => k != null).Select(k => { k!.Name = Names[k.Id]; return k; }).ToList();
+        Result = _defs.Where(k => k != null).Select(k => k!).ToList();
         return true;
     }
 }

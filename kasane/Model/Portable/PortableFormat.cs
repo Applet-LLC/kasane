@@ -53,8 +53,6 @@ public sealed class PortableLayer
 public sealed class PortableCombo
 {
     public int Id { get; set; }
-    /// <summary>コンボの名前（任意）。</summary>
-    public string? Name { get; set; }
     public string Key1 { get; set; } = "";
     public string Key2 { get; set; } = "";
     public string Output { get; set; } = "";
@@ -84,6 +82,11 @@ public sealed class PortableKeyboard
     public List<PortableCombo>? Combos { get; set; }
     public List<TapDanceDef>? TapDances { get; set; }
     public List<KeyOverrideDef>? KeyOverrides { get; set; }
+    /// <summary>マクロ・コンボ・タップダンス・キー置換の名前（番号 → 名前。任意）。中身が空の番号の名前も入る。</summary>
+    public Dictionary<int, string>? MacroNames { get; set; }
+    public Dictionary<int, string>? ComboNames { get; set; }
+    public Dictionary<int, string>? TapDanceNames { get; set; }
+    public Dictionary<int, string>? KeyOverrideNames { get; set; }
     public PortableTiming? Timing { get; set; }
     public uint? EnabledFeatures { get; set; }
     public NicolaDef? Nicola { get; set; }

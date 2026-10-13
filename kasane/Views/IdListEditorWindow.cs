@@ -16,10 +16,21 @@ public abstract class IdListEditorWindow : Window
     private readonly int _count;
 
     /// <summary>
-    /// 番号ごとの利用者がつけた名前（任意）。派生クラスが、作業用コピーを作るときに元の名前を入れ、OKで結果を作るときに <c>Name</c> に写す。
-    /// 画面の名前欄（<c>ItemName</c>）で変えると、この配列が変わる。
+    /// 番号ごとの利用者がつけた名前（任意）。中身が空（未使用）の番号にも付けられる。画面の名前欄（<c>ItemName</c>）で変えると、この配列が変わる。
+    /// OKで検証が通ると、<see cref="ResultNames"/> に入る。
     /// </summary>
     protected readonly string?[] Names;
+
+    /// <summary>OKで確定した名前の表（番号 → 名前）。名前が1つも無ければ null。</summary>
+    public Dictionary<int, string>? ResultNames { get; private set; }
+
+    /// <summary>プロジェクトの名前の表を、編集用の配列に写す。派生クラスのコンストラクターから呼ぶ。</summary>
+    protected void LoadNames(IReadOnlyDictionary<int, string>? names)
+    {
+        if (names == null) return;
+        foreach (var (id, name) in names)
+            if (id >= 0 && id < Names.Length) Names[id] = name;
+    }
 
     // UI Automationでの要素特定用（WPFの既定AutomationPeerはx:Name/Nameを
     // AutomationIdとして使うため、コード生成のコントロールにも明示的に設定しておく）。
@@ -36,7 +47,14 @@ public abstract class IdListEditorWindow : Window
         var ok = new Button { Name = "OkButton", Content = "OK", IsDefault = true, Width = 90 };
         ok.Click += (_, _) =>
         {
-            if (ValidateAll(out var error)) DialogResult = true;
+            if (ValidateAll(out var error))
+            {
+                var names = new Dictionary<int, string>();
+                for (int i = 0; i < Names.Length; i++)
+                    if (!string.IsNullOrWhiteSpace(Names[i])) names[i] = Names[i]!;
+                ResultNames = names.Count > 0 ? names : null;
+                DialogResult = true;
+            }
             else ShowValidation(error, isError: true);
         };
         var cancel = new Button { Name = "CancelButton", Content = "キャンセル", IsCancel = true, Width = 90 };
@@ -82,6 +100,12 @@ public abstract class IdListEditorWindow : Window
             RefreshItem(id);
         };
         Detail.Children.Add(Row("名前（任意）", box));
+        if (string.IsNullOrEmpty(Summary(id)))
+            Detail.Children.Add(new TextBlock
+            {
+                Text = "中身が空の番号は未使用です。名前だけ先に付けておけます（中身を入れるまで、キーボードには適用されません）。",
+                Foreground = Brushes.DimGray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6),
+            });
     }
 
     private string ItemText(int id)

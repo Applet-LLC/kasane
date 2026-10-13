@@ -322,6 +322,11 @@ public partial class MainWindow : Window
         p.Macros = _project.Macros;
         p.TapDances = _project.TapDances;
         p.KeyOverrides = _project.KeyOverrides;
+        p.KeyboardName = _project.KeyboardName;
+        p.MacroNames = _project.MacroNames;       // 名前は、中身が残るものも、リセットされるコンボの番号も、そのまま残す
+        p.ComboNames = _project.ComboNames;
+        p.TapDanceNames = _project.TapDanceNames;
+        p.KeyOverrideNames = _project.KeyOverrideNames;
         p.TapTermMs = _project.TapTermMs;
         p.ComboTermMs = _project.ComboTermMs;
         p.TapDanceTermMs = _project.TapDanceTermMs;
@@ -503,9 +508,10 @@ public partial class MainWindow : Window
     private void BtnMacros_Click(object sender, RoutedEventArgs e)
     {
         if (_project == null) return;
-        var dlg = new MacroEditorWindow(_project.Macros) { Owner = this };
+        var dlg = new MacroEditorWindow(_project.Macros, _project.MacroNames) { Owner = this };
         if (dlg.ShowDialog() != true) return;
         _project.Macros = dlg.Result;
+        _project.MacroNames = dlg.ResultNames;
         MarkDirty();
     }
 
@@ -515,24 +521,27 @@ public partial class MainWindow : Window
         var dlg = new ComboEditorWindow(_project, _layout) { Owner = this };
         if (dlg.ShowDialog() != true) return;
         _project.Combos = dlg.Result;
+        _project.ComboNames = dlg.ResultNames;
         MarkDirty();
     }
 
     private void BtnTapDances_Click(object sender, RoutedEventArgs e)
     {
         if (_project == null) return;
-        var dlg = new TapDanceEditorWindow(_project.TapDances) { Owner = this };
+        var dlg = new TapDanceEditorWindow(_project.TapDances, _project.TapDanceNames) { Owner = this };
         if (dlg.ShowDialog() != true) return;
         _project.TapDances = dlg.Result;
+        _project.TapDanceNames = dlg.ResultNames;
         MarkDirty();
     }
 
     private void BtnKeyOverrides_Click(object sender, RoutedEventArgs e)
     {
         if (_project == null) return;
-        var dlg = new KeyOverrideEditorWindow(_project.KeyOverrides) { Owner = this };
+        var dlg = new KeyOverrideEditorWindow(_project.KeyOverrides, _project.KeyOverrideNames) { Owner = this };
         if (dlg.ShowDialog() != true) return;
         _project.KeyOverrides = dlg.Result;
+        _project.KeyOverrideNames = dlg.ResultNames;
         MarkDirty();
     }
 

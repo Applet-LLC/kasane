@@ -111,6 +111,10 @@ public static class ProjectService
         foreach (var k in project.MeasuredScanCodes.Keys.Where(k => k >= layout.Slots.Count).ToList())
             project.MeasuredScanCodes.Remove(k);
         NormalizeLayerNames(project);
+        project.MacroNames = CleanNames(project.MacroNames, KbdLayerClient.MaxMacroCount);
+        project.ComboNames = CleanNames(project.ComboNames, KbdLayerClient.MaxComboCount);
+        project.TapDanceNames = CleanNames(project.TapDanceNames, KbdLayerClient.MaxTapDanceCount);
+        project.KeyOverrideNames = CleanNames(project.KeyOverrideNames, KbdLayerClient.MaxKeyOverrideCount);
     }
 
     /// <summary>レイヤーの名前の並びを、レイヤーの枚数に合わせる（足りなければ null を足し、余りは捨てる）。名前が1つも無ければ null にする。</summary>
@@ -123,6 +127,16 @@ public static class ProjectService
         for (int i = 0; i < project.LayerNames.Count; i++)
             if (string.IsNullOrWhiteSpace(project.LayerNames[i])) project.LayerNames[i] = null;
         if (project.LayerNames.All(n => n == null)) project.LayerNames = null;
+    }
+
+    /// <summary>名前の表を整える: 空白だけの名前・範囲外の番号を捨て、空なら null にする。</summary>
+    public static Dictionary<int, string>? CleanNames(IEnumerable<KeyValuePair<int, string>>? names, int max)
+    {
+        if (names == null) return null;
+        var clean = new Dictionary<int, string>();
+        foreach (var (id, name) in names)
+            if (id >= 0 && id < max && !string.IsNullOrWhiteSpace(name)) clean[id] = name.Trim();
+        return clean.Count > 0 ? clean : null;
     }
 
     /// <summary>レイヤーの名前（無ければ null）。</summary>

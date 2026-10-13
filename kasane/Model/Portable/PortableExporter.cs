@@ -67,7 +67,7 @@ public static class PortableExporter
 
         kb.Macros = p.Macros.Select(CloneMacro).ToList();
         kb.TapDances = p.TapDances.Select(CloneTapDance).ToList();
-        kb.KeyOverrides = p.KeyOverrides.Select(k => new KeyOverrideDef { Id = k.Id, Name = k.Name, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement }).ToList();
+        kb.KeyOverrides = p.KeyOverrides.Select(k => new KeyOverrideDef { Id = k.Id, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement }).ToList();
         kb.Combos = new List<PortableCombo>();
         foreach (var c in p.Combos)
         {
@@ -76,7 +76,7 @@ public static class PortableExporter
                 report.Warn($"コンボ{c.Id}: メンバーのスキャンコードが分からないため書き出せませんでした");
                 continue;
             }
-            kb.Combos.Add(new PortableCombo { Id = c.Id, Name = c.Name, Key1 = ScName(k1), Key2 = ScName(k2), Output = c.Output });
+            kb.Combos.Add(new PortableCombo { Id = c.Id, Key1 = ScName(k1), Key2 = ScName(k2), Output = c.Output });
         }
         kb.Timing = new PortableTiming
         {
@@ -84,6 +84,10 @@ public static class PortableExporter
             TapHoldMode = p.TapHoldMode, QuickTapTermMs = p.QuickTapTermMs, TappingToggle = p.TappingToggle,
         };
         kb.EnabledFeatures = p.EnabledFeatures;
+        kb.MacroNames = CopyNames(p.MacroNames);
+        kb.ComboNames = CopyNames(p.ComboNames);
+        kb.TapDanceNames = CopyNames(p.TapDanceNames);
+        kb.KeyOverrideNames = CopyNames(p.KeyOverrideNames);
         kb.Nicola = p.Nicola?.Clone();
         if (options.IncludeMeasured && p.MeasuredScanCodes.Count > 0)
             kb.MeasuredScanCodes = p.MeasuredScanCodes.ToDictionary(kv => kv.Key.ToString(), kv => ScName(kv.Value));
@@ -120,6 +124,9 @@ public static class PortableExporter
         kb.TapDances = p.TapDances.Where(t => tdIds.Contains(t.Id)).Select(CloneTapDance).ToList();
         foreach (var td in kb.TapDances) foreach (var t in new[] { td.SingleTap, td.SingleHold, td.DoubleTap, td.TripleTap }) Collect(t);
         kb.Macros = p.Macros.Where(m => macroIds.Contains(m.Id)).Select(CloneMacro).ToList();
+
+        kb.MacroNames = CopyNames(p.MacroNames, kb.Macros.Select(m => m.Id));
+        kb.TapDanceNames = CopyNames(p.TapDanceNames, kb.TapDances.Select(t => t.Id));
 
         foreach (int id in tdIds.Where(i => kb.TapDances.All(t => t.Id != i)))
             report.Warn($"TAPDANCE({id}) の中身が未設定のため、書き出していません");
@@ -185,11 +192,19 @@ public static class PortableExporter
         return true;
     }
 
-    private static MacroDef CloneMacro(MacroDef m) => new() { Id = m.Id, Name = m.Name, Keys = new List<string>(m.Keys) };
+    private static Dictionary<int, string>? CopyNames(Dictionary<int, string>? names, IEnumerable<int>? onlyIds = null)
+    {
+        if (names == null || names.Count == 0) return null;
+        var keep = onlyIds?.ToHashSet();
+        var copy = names.Where(kv => keep == null || keep.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value);
+        return copy.Count > 0 ? copy : null;
+    }
+
+    private static MacroDef CloneMacro(MacroDef m) => new() { Id = m.Id, Keys = new List<string>(m.Keys) };
 
     private static TapDanceDef CloneTapDance(TapDanceDef t) => new()
     {
-        Id = t.Id, Name = t.Name, SingleTap = t.SingleTap, SingleHold = t.SingleHold, DoubleTap = t.DoubleTap, TripleTap = t.TripleTap,
+        Id = t.Id, SingleTap = t.SingleTap, SingleHold = t.SingleHold, DoubleTap = t.DoubleTap, TripleTap = t.TripleTap,
     };
 
     public static bool HasContent(HelperConfig h) => h.Actions.Count + h.Triggers.Count + h.AppLayerRules.Count > 0;

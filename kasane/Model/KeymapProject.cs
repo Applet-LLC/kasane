@@ -3,8 +3,6 @@ namespace Kasane.Model;
 public sealed class MacroDef
 {
     public int Id { get; set; }
-    /// <summary>利用者がつけた名前（任意。画面の表示だけに使う。番号が実際の識別）。</summary>
-    public string? Name { get; set; }
     /// <summary>順にタップ（押下+解放）するキーコード（KC_*のみ）。</summary>
     public List<string> Keys { get; set; } = new();
 }
@@ -12,8 +10,6 @@ public sealed class MacroDef
 public sealed class ComboDef
 {
     public int Id { get; set; }
-    /// <summary>利用者がつけた名前（任意。画面の表示だけに使う。番号が実際の識別）。</summary>
-    public string? Name { get; set; }
     /// <summary>メンバー2キー（レイアウトのスロット番号。スキャンコードは適用時に解決する）。</summary>
     public int Slot1 { get; set; }
     public int Slot2 { get; set; }
@@ -24,8 +20,6 @@ public sealed class ComboDef
 public sealed class TapDanceDef
 {
     public int Id { get; set; }
-    /// <summary>利用者がつけた名前（任意。画面の表示だけに使う。番号が実際の識別）。</summary>
-    public string? Name { get; set; }
     public string SingleTap { get; set; } = "";
     public string SingleHold { get; set; } = "";
     public string DoubleTap { get; set; } = "";
@@ -36,8 +30,6 @@ public sealed class TapDanceDef
 public sealed class KeyOverrideDef
 {
     public int Id { get; set; }
-    /// <summary>利用者がつけた名前（任意。画面の表示だけに使う。番号が実際の識別）。</summary>
-    public string? Name { get; set; }
     /// <summary>条件の修飾キー（MOD_LSFT、MOD_LCTL|MOD_LSFT など。左右は区別しない）。</summary>
     public string Mods { get; set; } = "";
     /// <summary>条件のキー（KC_*。レイヤーで解決した後の出力キー）。</summary>
@@ -74,6 +66,15 @@ public sealed class KeymapProject
     /// <see cref="ProjectService.NormalizeShape"/> が合わせる。名前のないレイヤーは null。
     /// </summary>
     public List<string?>? LayerNames { get; set; }
+
+    /// <summary>
+    /// マクロ・コンボ・タップダンス・キー置換の名前（番号 → 名前。任意。画面の表示とファイルだけに使い、ドライバには送らない）。
+    /// 定義とは別の表に持つので、中身が空（未使用）の番号にも、名前だけ付けておける。名前が1つも無ければ null。
+    /// </summary>
+    public Dictionary<int, string>? MacroNames { get; set; }
+    public Dictionary<int, string>? ComboNames { get; set; }
+    public Dictionary<int, string>? TapDanceNames { get; set; }
+    public Dictionary<int, string>? KeyOverrideNames { get; set; }
 
     public List<MacroDef> Macros { get; set; } = new();
     public List<ComboDef> Combos { get; set; } = new();

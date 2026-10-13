@@ -10,7 +10,7 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
 
     public List<TapDanceDef> Result { get; private set; } = new();
 
-    public TapDanceEditorWindow(IEnumerable<TapDanceDef> tapDances)
+    public TapDanceEditorWindow(IEnumerable<TapDanceDef> tapDances, IReadOnlyDictionary<int, string>? names = null)
         : base("タップダンス", KbdLayerClient.MaxTapDanceCount,
             "タップダンスは、キーマップで TAPDANCE(n) を割り当てたキーを、何回続けてタップしたか・長押ししたかで動作を変えます。\n" +
             "1回・2回・3回タップはキー(KC_*)、LCTL(KC_C) のような修飾付きキー、MACRO(n) のいずれか、" +
@@ -21,10 +21,8 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
     {
         foreach (var t in tapDances)
             if (t.Id >= 0 && t.Id < _defs.Length)
-            {
                 _defs[t.Id] = new TapDanceDef { Id = t.Id, SingleTap = t.SingleTap, SingleHold = t.SingleHold, DoubleTap = t.DoubleTap, TripleTap = t.TripleTap };
-                Names[t.Id] = t.Name;
-            }
+        LoadNames(names);
     }
 
     protected override string Summary(int id) =>
@@ -69,7 +67,7 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
         foreach (var t in _defs.Where(t => t != null)) ProjectService.TapDanceToEntry(t!, errors);
         error = string.Join("\n", errors);
         if (errors.Count > 0) return false;
-        Result = _defs.Where(t => t != null).Select(t => { t!.Name = Names[t.Id]; return t; }).ToList();
+        Result = _defs.Where(t => t != null).Select(t => t!).ToList();
         return true;
     }
 }

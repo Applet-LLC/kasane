@@ -96,8 +96,19 @@ public static class PortableImporter
             result.ProjectChanged = true;
         }
 
-        if (o.Combos && src.Combos != null) ImportCombos(src.Combos, target, bySc, mode, Fix, r);
-        if (o.KeyOverrides && src.KeyOverrides != null) ImportKeyOverrides(src.KeyOverrides, target, mode, r);
+        Dictionary<int, int>? comboMap = null, keyOverrideMap = null;
+        if (o.Combos && src.Combos != null) comboMap = ImportCombos(src.Combos, target, bySc, mode, Fix, r);
+        if (o.KeyOverrides && src.KeyOverrides != null) keyOverrideMap = ImportKeyOverrides(src.KeyOverrides, target, mode, r);
+
+        // 名前の表（中身が空の番号の名前も含む）。レイヤー1枚の取り込みでは、参照するマクロ・タップダンスの名前だけが入っている。
+        if (o.Macros && src.Macros != null)
+            target.MacroNames = MergeNames(src.MacroNames, target.MacroNames, mode, KbdLayerClient.MaxMacroCount, macroMap, id => target.Macros.Any(m => m.Id == id));
+        if (o.TapDances && src.TapDances != null)
+            target.TapDanceNames = MergeNames(src.TapDanceNames, target.TapDanceNames, mode, KbdLayerClient.MaxTapDanceCount, tdMap, id => target.TapDances.Any(t => t.Id == id));
+        if (o.Combos && src.Combos != null)
+            target.ComboNames = MergeNames(src.ComboNames, target.ComboNames, mode, KbdLayerClient.MaxComboCount, comboMap, id => target.Combos.Any(c => c.Id == id));
+        if (o.KeyOverrides && src.KeyOverrides != null)
+            target.KeyOverrideNames = MergeNames(src.KeyOverrideNames, target.KeyOverrideNames, mode, KbdLayerClient.MaxKeyOverrideCount, keyOverrideMap, id => target.KeyOverrides.Any(k => k.Id == id));
 
         if (mode == ImportMode.Replace)
         {
@@ -279,7 +290,7 @@ public static class PortableImporter
             foreach (var m in src)
             {
                 if (m.Id < 0 || m.Id >= KbdLayerClient.MaxMacroCount) { r.Warn($"マクロ{m.Id}は読み込めません（0〜{KbdLayerClient.MaxMacroCount - 1}）"); continue; }
-                target.Macros.Add(new MacroDef { Id = m.Id, Name = m.Name, Keys = new List<string>(m.Keys) });
+                target.Macros.Add(new MacroDef { Id = m.Id, Keys = new List<string>(m.Keys) });
                 map[m.Id] = m.Id;
             }
             r.Info($"マクロを{target.Macros.Count}個読み込みました（置き換え）");
@@ -289,11 +300,11 @@ public static class PortableImporter
         foreach (var m in src)
         {
             var same = target.Macros.FirstOrDefault(x => x.Keys.SequenceEqual(m.Keys));
-            if (same != null) { map[m.Id] = same.Id; reused++; if (string.IsNullOrWhiteSpace(same.Name)) same.Name = m.Name; continue; }
+            if (same != null) { map[m.Id] = same.Id; reused++; continue; }
             int id = target.Macros.All(x => x.Id != m.Id) && m.Id >= 0 && m.Id < KbdLayerClient.MaxMacroCount
                 ? m.Id : FreeId(target.Macros.Select(x => x.Id), KbdLayerClient.MaxMacroCount);
             if (id < 0) { r.Warn($"マクロの空きが無いため、マクロ{m.Id}は読み込めませんでした（上限{KbdLayerClient.MaxMacroCount}）"); continue; }
-            target.Macros.Add(new MacroDef { Id = id, Name = m.Name, Keys = new List<string>(m.Keys) });
+            target.Macros.Add(new MacroDef { Id = id, Keys = new List<string>(m.Keys) });
             map[m.Id] = id;
             added++;
             if (id != m.Id) r.Info($"マクロ{m.Id} → マクロ{id}（番号を付け直しました）");
@@ -309,7 +320,7 @@ public static class PortableImporter
         string Fix(string t) => TokenIds.Rewrite(t, macroMap, null, helperMap);
         TapDanceDef Copy(TapDanceDef t, int id) => new()
         {
-            Id = id, Name = t.Name, SingleTap = Fix(t.SingleTap), SingleHold = Fix(t.SingleHold), DoubleTap = Fix(t.DoubleTap), TripleTap = Fix(t.TripleTap),
+            Id = id, SingleTap = Fix(t.SingleTap), SingleHold = Fix(t.SingleHold), DoubleTap = Fix(t.DoubleTap), TripleTap = Fix(t.TripleTap),
         };
         bool Same(TapDanceDef a, TapDanceDef b) => a.SingleTap == b.SingleTap && a.SingleHold == b.SingleHold && a.DoubleTap == b.DoubleTap && a.TripleTap == b.TripleTap;
 
@@ -330,7 +341,7 @@ public static class PortableImporter
         {
             var copy = Copy(t, t.Id);
             var same = target.TapDances.FirstOrDefault(x => Same(x, copy));
-            if (same != null) { map[t.Id] = same.Id; reused++; if (string.IsNullOrWhiteSpace(same.Name)) same.Name = t.Name; continue; }
+            if (same != null) { map[t.Id] = same.Id; reused++; continue; }
             int id = target.TapDances.All(x => x.Id != t.Id) && t.Id >= 0 && t.Id < KbdLayerClient.MaxTapDanceCount
                 ? t.Id : FreeId(target.TapDances.Select(x => x.Id), KbdLayerClient.MaxTapDanceCount);
             if (id < 0) { r.Warn($"タップダンスの空きが無いため、タップダンス{t.Id}は読み込めませんでした（上限{KbdLayerClient.MaxTapDanceCount}）"); continue; }
@@ -344,9 +355,10 @@ public static class PortableImporter
         return map;
     }
 
-    private static void ImportCombos(List<PortableCombo> src, KeymapProject target, Dictionary<ushort, KeySlot> bySc, ImportMode mode,
+    private static Dictionary<int, int> ImportCombos(List<PortableCombo> src, KeymapProject target, Dictionary<ushort, KeySlot> bySc, ImportMode mode,
                                      Func<string, string> fix, PortableReport r)
     {
+        var map = new Dictionary<int, int>();
         if (mode == ImportMode.Replace) target.Combos = new List<ComboDef>();
         int added = 0;
         foreach (var c in src)
@@ -371,14 +383,17 @@ public static class PortableImporter
             if (id < 0 || id >= KbdLayerClient.MaxComboCount || target.Combos.Any(x => x.Id == id))
                 id = FreeId(target.Combos.Select(x => x.Id), KbdLayerClient.MaxComboCount);
             if (id < 0) { r.Warn($"コンボの空きが無いため、コンボ{c.Id}は読み込めませんでした（上限{KbdLayerClient.MaxComboCount}）"); continue; }
-            target.Combos.Add(new ComboDef { Id = id, Name = c.Name, Slot1 = s1.Index, Slot2 = s2.Index, Output = fix(c.Output) });
+            target.Combos.Add(new ComboDef { Id = id, Slot1 = s1.Index, Slot2 = s2.Index, Output = fix(c.Output) });
+            map[c.Id] = id;
             added++;
         }
         r.Info($"コンボを{added}個読み込みました" + (mode == ImportMode.Replace ? "（置き換え）" : ""));
+        return map;
     }
 
-    private static void ImportKeyOverrides(List<KeyOverrideDef> src, KeymapProject target, ImportMode mode, PortableReport r)
+    private static Dictionary<int, int> ImportKeyOverrides(List<KeyOverrideDef> src, KeymapProject target, ImportMode mode, PortableReport r)
     {
+        var map = new Dictionary<int, int>();
         if (mode == ImportMode.Replace) target.KeyOverrides = new List<KeyOverrideDef>();
         int added = 0;
         foreach (var k in src)
@@ -389,10 +404,36 @@ public static class PortableImporter
             if (id < 0 || id >= KbdLayerClient.MaxKeyOverrideCount || target.KeyOverrides.Any(x => x.Id == id))
                 id = FreeId(target.KeyOverrides.Select(x => x.Id), KbdLayerClient.MaxKeyOverrideCount);
             if (id < 0) { r.Warn($"キー置換の空きが無いため、キー置換{k.Id}は読み込めませんでした（上限{KbdLayerClient.MaxKeyOverrideCount}）"); continue; }
-            target.KeyOverrides.Add(new KeyOverrideDef { Id = id, Name = k.Name, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement });
+            target.KeyOverrides.Add(new KeyOverrideDef { Id = id, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement });
+            map[k.Id] = id;
             added++;
         }
         r.Info($"キー置換を{added}個読み込みました" + (mode == ImportMode.Replace ? "（置き換え）" : ""));
+        return map;
+    }
+
+    /// <summary>
+    /// 名前の表を取り込む。置き換え: ファイルの表そのもの。追加: 今の名前を残し、<b>今の名前が無い番号にだけ</b>足す。
+    /// 中身を取り込んだ番号は、付け直し後の番号（<paramref name="idMap"/>）に付く。中身が空の番号の名前は、同じ番号が今の設定で
+    /// 空き（中身も名前も無い）のときだけ、同じ番号に付く。
+    /// </summary>
+    private static Dictionary<int, string>? MergeNames(Dictionary<int, string>? src, Dictionary<int, string>? current, ImportMode mode,
+                                                       int max, Dictionary<int, int>? idMap, Func<int, bool> inUse)
+    {
+        if (src == null) return current;
+        if (mode == ImportMode.Replace) return ProjectService.CleanNames(src, max);
+        var result = current != null ? new Dictionary<int, string>(current) : new Dictionary<int, string>();
+        foreach (var (srcId, name) in src)
+        {
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            int id;
+            if (idMap != null && idMap.TryGetValue(srcId, out int mapped)) id = mapped;
+            else if (!inUse(srcId)) id = srcId;
+            else continue;
+            if (id < 0 || id >= max || result.ContainsKey(id)) continue;
+            result[id] = name.Trim();
+        }
+        return result.Count > 0 ? result : null;
     }
 
     internal static string Json(object o) => JsonSerializer.Serialize(o, CompareOptions);
