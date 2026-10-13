@@ -416,13 +416,15 @@ public sealed class SettingsDialog : Window
 
         bool writable = IsOnline && _canWrite;
         var boxes = new TextBox[KbdLayerClient.EmergencyMaxKeys];
-        var grid = new WrapPanel { Margin = new Thickness(0, 0, 0, 6), IsEnabled = writable };
+        // 6個分は横に長いので、縦に並べる。
+        var grid = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 0, 6), IsEnabled = writable };
         for (int i = 0; i < boxes.Length; i++)
         {
             boxes[i] = new TextBox { Name = $"EmergencyKey{i + 1}", Width = 100, FontFamily = new FontFamily("Consolas") };
-            var cell = KeycodeField.Wrap(boxes[i], allowMods: false);
-            cell.Margin = new Thickness(0, 0, 10, 4);
-            grid.Children.Add(cell);
+            var line = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            line.Children.Add(new TextBlock { Text = $"キー{i + 1}", Width = 44, VerticalAlignment = VerticalAlignment.Center });
+            line.Children.Add(KeycodeField.Wrap(boxes[i], allowMods: false));
+            grid.Children.Add(line);
         }
         Row(panel, "組み合わせ", grid, null, 90);
 
