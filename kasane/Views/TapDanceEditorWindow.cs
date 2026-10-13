@@ -21,7 +21,10 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
     {
         foreach (var t in tapDances)
             if (t.Id >= 0 && t.Id < _defs.Length)
+            {
                 _defs[t.Id] = new TapDanceDef { Id = t.Id, SingleTap = t.SingleTap, SingleHold = t.SingleHold, DoubleTap = t.DoubleTap, TripleTap = t.TripleTap };
+                Names[t.Id] = t.Name;
+            }
     }
 
     protected override string Summary(int id) =>
@@ -66,7 +69,7 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
         foreach (var t in _defs.Where(t => t != null)) ProjectService.TapDanceToEntry(t!, errors);
         error = string.Join("\n", errors);
         if (errors.Count > 0) return false;
-        Result = _defs.Where(t => t != null).Select(t => t!).ToList();
+        Result = _defs.Where(t => t != null).Select(t => { t!.Name = Names[t.Id]; return t; }).ToList();
         return true;
     }
 }

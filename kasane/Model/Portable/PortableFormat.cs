@@ -44,6 +44,8 @@ public sealed class PortableLayer
 {
     /// <summary>元のキーボードでのレイヤー番号。</summary>
     public int Index { get; set; }
+    /// <summary>レイヤーの名前（任意）。</summary>
+    public string? Name { get; set; }
     /// <summary>"SC_001E" → "KC_B"。透過（KC_TRNS）のキーは省く。</summary>
     public Dictionary<string, string> Keys { get; set; } = new();
 }
@@ -51,6 +53,8 @@ public sealed class PortableLayer
 public sealed class PortableCombo
 {
     public int Id { get; set; }
+    /// <summary>コンボの名前（任意）。</summary>
+    public string? Name { get; set; }
     public string Key1 { get; set; } = "";
     public string Key2 { get; set; } = "";
     public string Output { get; set; } = "";

@@ -25,7 +25,10 @@ public sealed class ComboEditorWindow : IdListEditorWindow
         _layout = layout;
         foreach (var c in project.Combos)
             if (c.Id >= 0 && c.Id < _combos.Length)
+            {
                 _combos[c.Id] = new ComboDef { Id = c.Id, Slot1 = c.Slot1, Slot2 = c.Slot2, Output = c.Output };
+                Names[c.Id] = c.Name;
+            }
     }
 
     private string SlotName(int slot) => slot >= 0 && slot < _layout.Slots.Count ? _layout.Slots[slot].PrintedLabel : "?";
@@ -84,7 +87,7 @@ public sealed class ComboEditorWindow : IdListEditorWindow
         }
         error = string.Join("\n", errors.Distinct());
         if (errors.Count > 0) return false;
-        Result = _combos.Where(c => c != null).Select(c => c!).ToList();
+        Result = _combos.Where(c => c != null).Select(c => { c!.Name = Names[c.Id]; return c; }).ToList();
         return true;
     }
 }

@@ -344,7 +344,15 @@ public partial class MainWindow : Window
         _suppressEvents = true;
         LstLayers.Items.Clear();
         for (int i = 0; i < _project!.Layers.Count; i++)
-            LstLayers.Items.Add(new ListBoxItem { Content = $" {i} ", Padding = new Thickness(10, 3, 10, 3) });
+        {
+            string? name = ProjectService.LayerName(_project, i);
+            LstLayers.Items.Add(new ListBoxItem
+            {
+                Content = name == null ? $" {i} " : $" {i}: {name} ",
+                Padding = new Thickness(10, 3, 10, 3),
+                ToolTip = ProjectService.LayerLabel(_project, i),
+            });
+        }
         LstLayers.SelectedIndex = Math.Min(_layer, _project.Layers.Count - 1);
         _suppressEvents = false;
     }
@@ -378,6 +386,7 @@ public partial class MainWindow : Window
         int last = _project.Layers.Count - 1;
         if (MessageBox.Show(this, $"レイヤー{last}を削除しますか？", Title, MessageBoxButton.OKCancel) != MessageBoxResult.OK) return;
         _project.Layers.RemoveAt(last);
+        ProjectService.NormalizeLayerNames(_project); // 消したレイヤーの名前も捨てる
         _layer = Math.Min(_layer, last - 1);
         MarkDirty();
         RefreshLayerList();
@@ -420,7 +429,7 @@ public partial class MainWindow : Window
 
         string scText = sc == null ? "不明（要実測）"
             : $"0x{sc:X4}" + (project.MeasuredScanCodes.ContainsKey(slot.Index) ? "（実測）" : "（既定）");
-        string tip = $"{slot.Description}\nレイヤー{_layer}: {token}\nスキャンコード: {scText}";
+        string tip = $"{slot.Description}\n{ProjectService.LayerLabel(_project!, _layer)}: {token}\nスキャンコード: {scText}";
 
         // 変更していないキーは刻印をそのまま出す（キーコード名はUS配列基準なので、JIS配列では
         // 刻印と食い違うキーがある）。変更したキーだけ、割り当てたキーコードの短い名前を出す。
@@ -557,9 +566,33 @@ public partial class MainWindow : Window
     }
 
 
+    // 選んでいるレイヤーに名前を付ける（番号は変わらない。画面の表示とエクスポートのファイルだけに使う）。
+    private void RenameLayer()
+    {
+        if (_project == null) return;
+        int layer = _layer;
+        var dlg = new TextPromptWindow($"レイヤー{layer}の名前", $"レイヤー{layer}の名前（空にすると、名前を消します）:",
+            ProjectService.LayerName(_project, layer) ?? "", "LayerNameBox") { Owner = this };
+        if (dlg.ShowDialog() != true) return;
+        ProjectService.SetLayerName(_project, layer, dlg.Value);
+        MarkDirty();
+        RefreshLayerList();
+        RenderKeyboard();
+        SetStatus(ProjectService.LayerName(_project, layer) is { } n ? $"レイヤー{layer}の名前を「{n}」にしました。" : $"レイヤー{layer}の名前を消しました。");
+    }
+
     private ContextMenu BuildLayerMenu()
     {
         var menu = new ContextMenu();
+        var rename = new MenuItem { Name = "MenuRenameLayer", Header = "このレイヤーに名前を付ける..." };
+        rename.Click += (_, _) => RenameLayer();
+        menu.Opened += (_, _) =>
+        {
+            rename.IsEnabled = _project != null;
+            rename.Header = _project != null ? $"レイヤー{_layer}に名前を付ける..." : "このレイヤーに名前を付ける...";
+        };
+        menu.Items.Add(rename);
+        menu.Items.Add(new Separator());
         var export = new MenuItem { Name = "MenuExportLayer", Header = "このレイヤーをエクスポート..." };
         export.Click += (_, _) => OpenImportExport(ImportExportWindow.StartTab.Export, Kasane.Model.Portable.PortableScope.Layer);
         var import = new MenuItem { Name = "MenuImportLayer", Header = "レイヤーをインポート..." };

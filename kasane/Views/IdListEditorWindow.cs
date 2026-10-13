@@ -15,11 +15,18 @@ public abstract class IdListEditorWindow : Window
     protected readonly StackPanel Detail = new();
     private readonly int _count;
 
+    /// <summary>
+    /// 番号ごとの利用者がつけた名前（任意）。派生クラスが、作業用コピーを作るときに元の名前を入れ、OKで結果を作るときに <c>Name</c> に写す。
+    /// 画面の名前欄（<c>ItemName</c>）で変えると、この配列が変わる。
+    /// </summary>
+    protected readonly string?[] Names;
+
     // UI Automationでの要素特定用（WPFの既定AutomationPeerはx:Name/Nameを
     // AutomationIdとして使うため、コード生成のコントロールにも明示的に設定しておく）。
     protected IdListEditorWindow(string title, int count, string help)
     {
         _count = count;
+        Names = new string?[count];
         Title = title;
         Width = 900;
         Height = 560;
@@ -54,6 +61,7 @@ public abstract class IdListEditorWindow : Window
         {
             if (_list.SelectedIndex < 0) return;
             Detail.Children.Clear();
+            AddNameRow(_list.SelectedIndex);
             ShowDetail(_list.SelectedIndex);
             ShowValidation("", false);
         };
@@ -64,10 +72,24 @@ public abstract class IdListEditorWindow : Window
         };
     }
 
+    // 右側の先頭に、名前の欄を出す（番号は変わらない。名前は一覧とドキュメントでの見分けのためだけ）。
+    private void AddNameRow(int id)
+    {
+        var box = new TextBox { Name = "ItemName", Text = Names[id] ?? "", Width = 300 };
+        box.TextChanged += (_, _) =>
+        {
+            Names[id] = string.IsNullOrWhiteSpace(box.Text) ? null : box.Text.Trim();
+            RefreshItem(id);
+        };
+        Detail.Children.Add(Row("名前（任意）", box));
+    }
+
     private string ItemText(int id)
     {
         var s = Summary(id);
-        return $"{id,2}: {(string.IsNullOrEmpty(s) ? "（未使用）" : s)}";
+        var name = Names[id];
+        string body = string.IsNullOrEmpty(s) ? "（未使用）" : s;
+        return string.IsNullOrEmpty(name) ? $"{id,2}: {body}" : $"{id,2}: {name} — {body}";
     }
 
     /// <summary>派生クラスが編集内容を変えたら呼ぶ（一覧の表示を更新する）。</summary>

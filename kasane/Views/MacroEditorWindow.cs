@@ -20,7 +20,7 @@ public sealed class MacroEditorWindow : IdListEditorWindow
     {
         for (int i = 0; i < _texts.Length; i++) _texts[i] = "";
         foreach (var m in macros)
-            if (m.Id >= 0 && m.Id < _texts.Length) _texts[m.Id] = string.Join(" ", m.Keys);
+            if (m.Id >= 0 && m.Id < _texts.Length) { _texts[m.Id] = string.Join(" ", m.Keys); Names[m.Id] = m.Name; }
     }
 
     protected override string Summary(int id) => _texts[id];
@@ -43,6 +43,7 @@ public sealed class MacroEditorWindow : IdListEditorWindow
     private MacroDef ToDef(int id) => new()
     {
         Id = id,
+        Name = Names[id],
         Keys = _texts[id].Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).ToList(),
     };
 

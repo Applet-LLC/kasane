@@ -65,9 +65,9 @@ public static class PortableExporter
         kb.Layers = new List<PortableLayer>();
         for (int L = 0; L < p.Layers.Count; L++) kb.Layers.Add(LayerToPortable(p, layout, L, includeTransparent: L == 0, report));
 
-        kb.Macros = p.Macros.Select(m => new MacroDef { Id = m.Id, Keys = new List<string>(m.Keys) }).ToList();
+        kb.Macros = p.Macros.Select(CloneMacro).ToList();
         kb.TapDances = p.TapDances.Select(CloneTapDance).ToList();
-        kb.KeyOverrides = p.KeyOverrides.Select(k => new KeyOverrideDef { Id = k.Id, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement }).ToList();
+        kb.KeyOverrides = p.KeyOverrides.Select(k => new KeyOverrideDef { Id = k.Id, Name = k.Name, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement }).ToList();
         kb.Combos = new List<PortableCombo>();
         foreach (var c in p.Combos)
         {
@@ -76,7 +76,7 @@ public static class PortableExporter
                 report.Warn($"コンボ{c.Id}: メンバーのスキャンコードが分からないため書き出せませんでした");
                 continue;
             }
-            kb.Combos.Add(new PortableCombo { Id = c.Id, Key1 = ScName(k1), Key2 = ScName(k2), Output = c.Output });
+            kb.Combos.Add(new PortableCombo { Id = c.Id, Name = c.Name, Key1 = ScName(k1), Key2 = ScName(k2), Output = c.Output });
         }
         kb.Timing = new PortableTiming
         {
@@ -119,7 +119,7 @@ public static class PortableExporter
         tokens.ForEach(Collect);
         kb.TapDances = p.TapDances.Where(t => tdIds.Contains(t.Id)).Select(CloneTapDance).ToList();
         foreach (var td in kb.TapDances) foreach (var t in new[] { td.SingleTap, td.SingleHold, td.DoubleTap, td.TripleTap }) Collect(t);
-        kb.Macros = p.Macros.Where(m => macroIds.Contains(m.Id)).Select(m => new MacroDef { Id = m.Id, Keys = new List<string>(m.Keys) }).ToList();
+        kb.Macros = p.Macros.Where(m => macroIds.Contains(m.Id)).Select(CloneMacro).ToList();
 
         foreach (int id in tdIds.Where(i => kb.TapDances.All(t => t.Id != i)))
             report.Warn($"TAPDANCE({id}) の中身が未設定のため、書き出していません");
@@ -150,7 +150,7 @@ public static class PortableExporter
 
     private static PortableLayer LayerToPortable(KeymapProject p, KeyboardLayout layout, int layer, bool includeTransparent, PortableReport report)
     {
-        var pl = new PortableLayer { Index = layer };
+        var pl = new PortableLayer { Index = layer, Name = ProjectService.LayerName(p, layer) };
         var seen = new HashSet<ushort>();
         foreach (var slot in layout.Slots)
         {
@@ -185,9 +185,11 @@ public static class PortableExporter
         return true;
     }
 
+    private static MacroDef CloneMacro(MacroDef m) => new() { Id = m.Id, Name = m.Name, Keys = new List<string>(m.Keys) };
+
     private static TapDanceDef CloneTapDance(TapDanceDef t) => new()
     {
-        Id = t.Id, SingleTap = t.SingleTap, SingleHold = t.SingleHold, DoubleTap = t.DoubleTap, TripleTap = t.TripleTap,
+        Id = t.Id, Name = t.Name, SingleTap = t.SingleTap, SingleHold = t.SingleHold, DoubleTap = t.DoubleTap, TripleTap = t.TripleTap,
     };
 
     public static bool HasContent(HelperConfig h) => h.Actions.Count + h.Triggers.Count + h.AppLayerRules.Count > 0;

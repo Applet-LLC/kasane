@@ -20,7 +20,10 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
     {
         foreach (var k in keyOverrides)
             if (k.Id >= 0 && k.Id < _defs.Length)
+            {
                 _defs[k.Id] = new KeyOverrideDef { Id = k.Id, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement };
+                Names[k.Id] = k.Name;
+            }
     }
 
     protected override string Summary(int id) =>
@@ -62,7 +65,7 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
         foreach (var k in _defs.Where(k => k != null)) ProjectService.KeyOverrideToEntry(k!, errors);
         error = string.Join("\n", errors);
         if (errors.Count > 0) return false;
-        Result = _defs.Where(k => k != null).Select(k => k!).ToList();
+        Result = _defs.Where(k => k != null).Select(k => { k!.Name = Names[k.Id]; return k; }).ToList();
         return true;
     }
 }

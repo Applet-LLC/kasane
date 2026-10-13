@@ -142,6 +142,9 @@ public static class PortableImporter
             r.Warn($"レイヤーは{KbdLayerClient.MaxLayers}枚までなので、レイヤー{KbdLayerClient.MaxLayers}以降は読み込みません");
         count = Math.Max(count, 1);
         target.Layers = Enumerable.Range(0, count).Select(i => ProjectService.DefaultLayer(layout, i)).ToList();
+        target.LayerNames = null;
+        foreach (var l in layers)
+            if (l.Index >= 0 && l.Index < count && !string.IsNullOrWhiteSpace(l.Name)) ProjectService.SetLayerName(target, l.Index, l.Name);
         var missing = new List<string>();
         int placed = 0;
         foreach (var l in layers)
@@ -164,6 +167,7 @@ public static class PortableImporter
             }
             while (target.Layers.Count <= l.Index) target.Layers.Add(ProjectService.DefaultLayer(layout, target.Layers.Count));
             placed += PlaceKeys(l, target.Layers[l.Index], bySc, fix, missing, r, l.Index);
+            if (!string.IsNullOrWhiteSpace(l.Name) && ProjectService.LayerName(target, l.Index) == null) ProjectService.SetLayerName(target, l.Index, l.Name);
         }
         r.Info($"キーを{placed}個、今のレイヤーに重ねました");
         ReportMissing(missing, r);
@@ -189,6 +193,7 @@ public static class PortableImporter
             index = target.Layers.Count;
             target.Layers.Add(ProjectService.DefaultLayer(layout, index));
         }
+        if (!string.IsNullOrWhiteSpace(src.Name)) ProjectService.SetLayerName(target, index, src.Name);
         var missing = new List<string>();
         int placed = PlaceKeys(src, target.Layers[index], bySc, fix, missing, r, index);
         r.Info($"レイヤー{index}に、キーを{placed}個読み込みました" + (targetLayer == null ? "（新しいレイヤー）" : "（上書き）"));
@@ -274,7 +279,7 @@ public static class PortableImporter
             foreach (var m in src)
             {
                 if (m.Id < 0 || m.Id >= KbdLayerClient.MaxMacroCount) { r.Warn($"マクロ{m.Id}は読み込めません（0〜{KbdLayerClient.MaxMacroCount - 1}）"); continue; }
-                target.Macros.Add(new MacroDef { Id = m.Id, Keys = new List<string>(m.Keys) });
+                target.Macros.Add(new MacroDef { Id = m.Id, Name = m.Name, Keys = new List<string>(m.Keys) });
                 map[m.Id] = m.Id;
             }
             r.Info($"マクロを{target.Macros.Count}個読み込みました（置き換え）");
@@ -284,11 +289,11 @@ public static class PortableImporter
         foreach (var m in src)
         {
             var same = target.Macros.FirstOrDefault(x => x.Keys.SequenceEqual(m.Keys));
-            if (same != null) { map[m.Id] = same.Id; reused++; continue; }
+            if (same != null) { map[m.Id] = same.Id; reused++; if (string.IsNullOrWhiteSpace(same.Name)) same.Name = m.Name; continue; }
             int id = target.Macros.All(x => x.Id != m.Id) && m.Id >= 0 && m.Id < KbdLayerClient.MaxMacroCount
                 ? m.Id : FreeId(target.Macros.Select(x => x.Id), KbdLayerClient.MaxMacroCount);
             if (id < 0) { r.Warn($"マクロの空きが無いため、マクロ{m.Id}は読み込めませんでした（上限{KbdLayerClient.MaxMacroCount}）"); continue; }
-            target.Macros.Add(new MacroDef { Id = id, Keys = new List<string>(m.Keys) });
+            target.Macros.Add(new MacroDef { Id = id, Name = m.Name, Keys = new List<string>(m.Keys) });
             map[m.Id] = id;
             added++;
             if (id != m.Id) r.Info($"マクロ{m.Id} → マクロ{id}（番号を付け直しました）");
@@ -304,7 +309,7 @@ public static class PortableImporter
         string Fix(string t) => TokenIds.Rewrite(t, macroMap, null, helperMap);
         TapDanceDef Copy(TapDanceDef t, int id) => new()
         {
-            Id = id, SingleTap = Fix(t.SingleTap), SingleHold = Fix(t.SingleHold), DoubleTap = Fix(t.DoubleTap), TripleTap = Fix(t.TripleTap),
+            Id = id, Name = t.Name, SingleTap = Fix(t.SingleTap), SingleHold = Fix(t.SingleHold), DoubleTap = Fix(t.DoubleTap), TripleTap = Fix(t.TripleTap),
         };
         bool Same(TapDanceDef a, TapDanceDef b) => a.SingleTap == b.SingleTap && a.SingleHold == b.SingleHold && a.DoubleTap == b.DoubleTap && a.TripleTap == b.TripleTap;
 
@@ -325,7 +330,7 @@ public static class PortableImporter
         {
             var copy = Copy(t, t.Id);
             var same = target.TapDances.FirstOrDefault(x => Same(x, copy));
-            if (same != null) { map[t.Id] = same.Id; reused++; continue; }
+            if (same != null) { map[t.Id] = same.Id; reused++; if (string.IsNullOrWhiteSpace(same.Name)) same.Name = t.Name; continue; }
             int id = target.TapDances.All(x => x.Id != t.Id) && t.Id >= 0 && t.Id < KbdLayerClient.MaxTapDanceCount
                 ? t.Id : FreeId(target.TapDances.Select(x => x.Id), KbdLayerClient.MaxTapDanceCount);
             if (id < 0) { r.Warn($"タップダンスの空きが無いため、タップダンス{t.Id}は読み込めませんでした（上限{KbdLayerClient.MaxTapDanceCount}）"); continue; }
@@ -366,7 +371,7 @@ public static class PortableImporter
             if (id < 0 || id >= KbdLayerClient.MaxComboCount || target.Combos.Any(x => x.Id == id))
                 id = FreeId(target.Combos.Select(x => x.Id), KbdLayerClient.MaxComboCount);
             if (id < 0) { r.Warn($"コンボの空きが無いため、コンボ{c.Id}は読み込めませんでした（上限{KbdLayerClient.MaxComboCount}）"); continue; }
-            target.Combos.Add(new ComboDef { Id = id, Slot1 = s1.Index, Slot2 = s2.Index, Output = fix(c.Output) });
+            target.Combos.Add(new ComboDef { Id = id, Name = c.Name, Slot1 = s1.Index, Slot2 = s2.Index, Output = fix(c.Output) });
             added++;
         }
         r.Info($"コンボを{added}個読み込みました" + (mode == ImportMode.Replace ? "（置き換え）" : ""));
@@ -384,7 +389,7 @@ public static class PortableImporter
             if (id < 0 || id >= KbdLayerClient.MaxKeyOverrideCount || target.KeyOverrides.Any(x => x.Id == id))
                 id = FreeId(target.KeyOverrides.Select(x => x.Id), KbdLayerClient.MaxKeyOverrideCount);
             if (id < 0) { r.Warn($"キー置換の空きが無いため、キー置換{k.Id}は読み込めませんでした（上限{KbdLayerClient.MaxKeyOverrideCount}）"); continue; }
-            target.KeyOverrides.Add(new KeyOverrideDef { Id = id, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement });
+            target.KeyOverrides.Add(new KeyOverrideDef { Id = id, Name = k.Name, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement });
             added++;
         }
         r.Info($"キー置換を{added}個読み込みました" + (mode == ImportMode.Replace ? "（置き換え）" : ""));
