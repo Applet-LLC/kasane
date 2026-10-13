@@ -1,4 +1,4 @@
-﻿# GUI-T11: UI Automation test for the settings dialog's "ヘルパー動作" and "アプリ別レイヤー" tabs (P4, 2026-10-08).
+# GUI-T11: UI Automation test for the settings dialog's "ヘルパー動作" and "アプリ別レイヤー" tabs (P4, 2026-10-08).
 # Adds a rule and an action through their editor windows and checks the lists and the editors' validation.
 # Nothing is saved: the settings dialog is always closed with キャンセル, so helper.json / tray.json are not touched.
 . "$PSScriptRoot\UiaLib.ps1"
@@ -82,6 +82,9 @@ try {
     Chk "a Launch action with a path shows OK" ((Find-ChildByAutomationId $ed "ActionStatus").Current.Name -eq "OK")
     Select-ComboItemByIndex (Find-ChildByAutomationId $ed "ActionType") 2    # Sequence
     Start-Sleep -Milliseconds 300
+    Chk "the Sequence editor has insert buttons (capture / pick / mouse) for both step boxes" (
+        (Find-ChildByAutomationId $ed "ActionStepsCapture") -and (Find-ChildByAutomationId $ed "ActionStepsPick") -and (Find-ChildByAutomationId $ed "ActionStepsMouse") -and
+        (Find-ChildByAutomationId $ed "ActionReleaseStepsCapture") -and (Find-ChildByAutomationId $ed "ActionReleaseStepsMouse"))
     Set-ElementValue (Find-ChildByAutomationId $ed "ActionSteps") "key LCTL(KC_C)`ndelay 50`nbogus 1"
     Start-Sleep -Milliseconds 300
     Chk "a bad step line is reported with its line number" ((Find-ChildByAutomationId $ed "ActionStatus").Current.Name -match "3行目")
