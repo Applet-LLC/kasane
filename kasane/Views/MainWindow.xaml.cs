@@ -73,7 +73,8 @@ public partial class MainWindow : Window
         {
             ReadOnlyBanner.Visibility = Visibility.Visible;
             BtnIdentify.IsEnabled = false;
-            BtnCalibrateAll.IsEnabled = false;
+            // キャリブレーションの画面は、入力確認モード（管理者権限が要らない）があるので、閲覧専用でも開ける。
+            // 個別・全体のキャリブレーションは、画面の中で無効になる。
         }
         RefreshDevices(null);
     }
@@ -410,10 +411,6 @@ public partial class MainWindow : Window
         if (_project == null) return;
         var menu = new ContextMenu();
 
-        var measure = new MenuItem { Header = "このキーを実測する...", IsEnabled = CanWrite };
-        measure.Click += (_, _) => RunCalibration(new[] { slot });
-        menu.Items.Add(measure);
-
         var clearMeasured = new MenuItem
         {
             Header = "実測値を消して既定のスキャンコードに戻す",
@@ -445,26 +442,14 @@ public partial class MainWindow : Window
     // キャリブレーション・各種エディタ
     // ------------------------------------------------------------------
 
-    private void BtnCalibrateAll_Click(object sender, RoutedEventArgs e)
-    {
-        if (_layout == null) return;
-        RunCalibration(_layout.Slots);
-    }
+    private void BtnCalibrateAll_Click(object sender, RoutedEventArgs e) => OpenCalibration();
 
-    private void RunCalibration(IReadOnlyList<KeySlot> slots)
+    // キャリブレーションの画面。最初は入力確認モードで開く（個別キー・全体のキャリブレーションは、画面の中でモードを選ぶ）。
+    private void OpenCalibration()
     {
-        if (!IsOnline || _project == null || _layout == null)
-        {
-            SetStatus("キャリブレーションには、ドライバが認識しているキーボードを選んでください。");
-            return;
-        }
-        if (IsReadOnly)
-        {
-            SetStatus("キャリブレーションには管理者権限が必要です（「管理者として再起動」を押してください）。");
-            return;
-        }
-        var dlg = new CalibrationWindow(_layout, slots, SelectedDevice!.UniqId) { Owner = this };
-        if (dlg.ShowDialog() != true) return;
+        if (_project == null || _layout == null) return;
+        var dlg = new CalibrationWindow(_layout, _project, SelectedDevice?.UniqId ?? 0, canCalibrate: CanWrite) { Owner = this };
+        if (dlg.ShowDialog() != true || dlg.Results.Count == 0) return;
         foreach (var (slotIndex, sc) in dlg.Results)
             ProjectService.SetMeasured(_project, _layout.Slots[slotIndex], sc);
         MarkDirty();
@@ -472,7 +457,6 @@ public partial class MainWindow : Window
         int differs = dlg.Results.Count(r => r.Value != _layout.Slots[r.Key].DefaultScanCode);
         SetStatus($"{dlg.Results.Count}キーを実測しました（既定と異なる値: {differs}キー）。適用すると反映されます。");
     }
-
     private void BtnMacros_Click(object sender, RoutedEventArgs e)
     {
         if (_project == null) return;
