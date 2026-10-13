@@ -52,6 +52,9 @@ public sealed class PauseController
         _store = store;
     }
 
+    /// <summary>一時停止中か（止めたキーボードの記録があるか）。ドライバには触れない。</summary>
+    public bool IsPaused => _store.Load().Count > 0;
+
     private static bool IsDriverFailure(Exception ex) => ex is KbdLayerException or InvalidOperationException or IOException;
 
     private static List<DeviceInfo> Real(List<DeviceInfo> all) => all.Where(d => d.UniqId != 0).ToList();

@@ -26,6 +26,7 @@ public sealed class ComboEditorWindow : IdListEditorWindow
         foreach (var c in project.Combos)
             if (c.Id >= 0 && c.Id < _combos.Length)
                 _combos[c.Id] = new ComboDef { Id = c.Id, Slot1 = c.Slot1, Slot2 = c.Slot2, Output = c.Output };
+        LoadNames(project.ComboNames);
     }
 
     private string SlotName(int slot) => slot >= 0 && slot < _layout.Slots.Count ? _layout.Slots[slot].PrintedLabel : "?";

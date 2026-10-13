@@ -11,7 +11,7 @@ public sealed class MacroEditorWindow : IdListEditorWindow
 
     public List<MacroDef> Result { get; private set; } = new();
 
-    public MacroEditorWindow(IEnumerable<MacroDef> macros)
+    public MacroEditorWindow(IEnumerable<MacroDef> macros, IReadOnlyDictionary<int, string>? names = null)
         : base("マクロ", KbdLayerClient.MaxMacroCount,
             "マクロは、キーマップで MACRO(n) を割り当てたキーを押したときに、並べたキーを順にタップ（押して離す）します。\n" +
             "キーコードをスペース区切りで並べてください（例: KC_H KC_I）。Ctrl+C のような同時押しは LCTL(KC_C) と書きます" +
@@ -21,6 +21,7 @@ public sealed class MacroEditorWindow : IdListEditorWindow
         for (int i = 0; i < _texts.Length; i++) _texts[i] = "";
         foreach (var m in macros)
             if (m.Id >= 0 && m.Id < _texts.Length) _texts[m.Id] = string.Join(" ", m.Keys);
+        LoadNames(names);
     }
 
     protected override string Summary(int id) => _texts[id];

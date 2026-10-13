@@ -6,12 +6,6 @@
   <String Id="LicenseSvcDescription">kasane subscription license management</String>
   <String Id="ExitDialogOptionalText">Restart your computer to complete the installation. The License Manager will start automatically the next time you sign in.</String>
 
-  <String Id="DeviceIdModeDlg_Title">Device Identification Mode</String>
-  <String Id="DeviceIdModeDlg_Description">Choose how kbdlayer tells connected devices apart</String>
-  <String Id="DeviceIdModeDlg_Explain">Device Instance ID mode distinguishes devices by their USB connection (port). Even identical keyboard models are treated as different devices if the USB port changes. Hardware ID mode distinguishes devices by a device-specific ID, so an identical keyboard is treated as the same device even after you change which USB port it's plugged into.</String>
-  <String Id="DeviceIdModeDlg_KbdLabel">Keyboard driver (kbdlayer):</String>
-  <String Id="DeviceIdModeDlg_InstancePath">Device Instance ID mode (default) - distinguish by connection</String>
-  <String Id="DeviceIdModeDlg_DeviceId">Hardware ID mode - distinguish by device-specific ID</String>
   <String Id="DataDirDlg_Title">Settings Folder</String>
   <String Id="DataDirDlg_Description">Pin where kasane stores its settings with the KASANE environment variable</String>
   <String Id="DataDirDlg_Explain">kasane normally stores its settings (per-keyboard settings, tray settings, logs) in each user's %LOCALAPPDATA%\applet\kasane. When Windows 11 Administrator protection is on, an elevated settings window runs as a different user, so this location ends up split. If you enter a folder here, it is set as the machine-wide environment variable KASANE, and all users, elevated windows and the tray use the same folder. While KASANE is set, it takes priority over the default location.</String>

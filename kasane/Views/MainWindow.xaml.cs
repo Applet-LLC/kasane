@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -16,10 +17,19 @@ public partial class MainWindow : Window
         new(0, false, false, 0, "(ドライバ未接続: 編集とエクスポートのみ)");
 
     private KbdLayerClient? _client;
+    /// <summary>Windows 上のキーボード名（UniqId → FriendlyName・ShellFriendlyName）。一覧を更新するときに取り直す。</summary>
+    private Dictionary<uint, KeyboardNameInfo> _windowsNames = new();
     private KeymapProject? _project;
     private KeyboardLayout? _layout;
     private int _layer;
     private bool _dirty;
+    /// <summary>保存したが、キーボード（ドライバ）へ反映していない（適用していない）キーボードの UniqId。閉じるときの確認に使う。</summary>
+    private readonly HashSet<uint> _unapplied = new();
+    /// <summary>
+    /// 保存済みの設定（project.json）があるのに、読めない・レイアウトが見つからないなどで使わずに開いた。この状態で自動保存すると、
+    /// 元の設定を上書きして失うので、自動では保存せず、閉じるときなどに利用者に確かめる。
+    /// </summary>
+    private bool _autoSaveBlocked;
     private bool _suppressEvents;
 
     private static readonly Brush ChangedBrush = new SolidColorBrush(Color.FromRgb(0xCF, 0xE8, 0xFF));
@@ -35,6 +45,22 @@ public partial class MainWindow : Window
         KbdCanvas.KeyRightClicked += Keyboard_KeyRightClicked;
         LstLayers.ContextMenu = BuildLayerMenu();
     }
+
+    /// <summary>利用者がつけた名前を返す。いま開いているキーボードは、編集中の内容（まだ保存していない名前の変更）を使う。</summary>
+    private string? UserNameFor(uint uniqId)
+    {
+        if (_project != null && _project.UniqId == uniqId) return _project.KeyboardName;
+        try { return ProjectService.TryLoad(uniqId)?.KeyboardName; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException) { return null; }
+    }
+
+    /// <summary>一覧の各キーボードに、表示名（UniqId・つけた名前・Windows 上の名前・ハードウェアID）を付ける。</summary>
+    private List<DeviceInfo> LabelDevices(List<DeviceInfo> devices) =>
+        devices.Select(d => d.UniqId == 0 ? d : d with
+        {
+            Label = KeyboardNameRules.DisplayName(d.UniqId, UserNameFor(d.UniqId),
+                _windowsNames.TryGetValue(d.UniqId, out var n) ? n : null, d.HardwareId),
+        }).ToList();
 
     private DeviceInfo? SelectedDevice => CmbDevice.SelectedItem as DeviceInfo;
     private bool IsOnline => _client != null && SelectedDevice is { UniqId: not 0 };
@@ -65,14 +91,15 @@ public partial class MainWindow : Window
         {
             ReadOnlyBanner.Visibility = Visibility.Visible;
             BtnIdentify.IsEnabled = false;
-            BtnCalibrateAll.IsEnabled = false;
+            // キャリブレーションの画面は、入力確認モード（管理者権限が要らない）があるので、閲覧専用でも開ける。
+            // 個別・全体のキャリブレーションは、画面の中で無効になる。
         }
         RefreshDevices(null);
     }
 
     private void BtnRestartAsAdmin_Click(object sender, RoutedEventArgs e)
     {
-        if (!ConfirmDiscard()) return;
+        if (!PersistBeforeLeave()) return;
         try
         {
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
@@ -101,6 +128,10 @@ public partial class MainWindow : Window
             try { devices.AddRange(_client.ListDevices()); }
             catch (KbdLayerException ex) { SetStatus(ex.Message); }
         }
+        // Windows 上の名前は、一覧を更新するたびに取り直す（キーボードの抜き差しに追従する）。取れなくても、一覧は出る。
+        try { _windowsNames = KeyboardNameResolver.Resolve(devices); }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException) { _windowsNames = new(); }
+        devices = LabelDevices(devices);
         devices.Add(OfflineDevice);
 
         uint keep = selectUniqId ?? SelectedDevice?.UniqId ?? devices[0].UniqId;
@@ -111,16 +142,28 @@ public partial class MainWindow : Window
         LoadProjectForSelectedDevice();
     }
 
+    private void BtnRenameKeyboard_Click(object sender, RoutedEventArgs e)
+    {
+        if (_project == null || SelectedDevice is not { UniqId: not 0 } device) return;
+        var dlg = new TextPromptWindow("キーボードの名前", "このキーボードの名前（空にすると、名前を消します）:", _project.KeyboardName ?? "", "KeyboardNameBox") { Owner = this };
+        if (dlg.ShowDialog() != true) return;
+        string name = dlg.Value.Trim();
+        _project.KeyboardName = name.Length == 0 ? null : name;
+        MarkDirty();
+        RefreshDeviceStatusOnly();
+        SetStatus(name.Length == 0 ? "キーボードの名前を消しました。" : $"キーボードの名前を「{name}」にしました。");
+    }
+
     private void BtnRefreshDevices_Click(object sender, RoutedEventArgs e)
     {
-        if (!ConfirmDiscard()) return;
+        if (!PersistBeforeLeave()) return;
         RefreshDevices(null);
     }
 
     private void CmbDevice_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_suppressEvents) return;
-        if (!ConfirmDiscard())
+        if (!PersistBeforeLeave())
         {
             // 選択を元に戻す
             _suppressEvents = true;
@@ -158,15 +201,20 @@ public partial class MainWindow : Window
 
         var warnings = new List<string>();
         KeymapProject? project = null;
+        bool blocked = false;
         try { project = ProjectService.TryLoad(device.UniqId); }
-        catch (Exception ex) { warnings.Add($"保存済みの設定を読めませんでした: {ex.Message}"); }
+        catch (Exception ex) { warnings.Add($"保存済みの設定を読めませんでした: {ex.Message}"); blocked = File.Exists(ProjectService.ProjectPath(device.UniqId)); }
 
         KeyboardLayout? layout = null;
         if (project != null)
         {
             var file = ProjectService.FindLayoutFile(project);
             if (file != null) layout = KeyboardLayout.Load(file);
-            else warnings.Add($"レイアウト「{project.LayoutName}」が見つからないため、既定のレイアウトで開きます");
+            else
+            {
+                warnings.Add($"レイアウト「{project.LayoutName}」が見つからないため、既定のレイアウトで開きます（保存済みの設定は使いません。自動では保存しません）");
+                blocked = true;
+            }
         }
         if (layout == null)
         {
@@ -181,7 +229,7 @@ public partial class MainWindow : Window
             try
             {
                 project = ProjectService.ImportFromDriver(_client!, device, layout, true, warnings);
-                if (project != null) source = "ドライバの現在の設定";
+                if (project != null) { source = "ドライバの現在の設定"; _unapplied.Remove(device.UniqId); }
             }
             catch (KbdLayerException ex) { warnings.Add(ex.Message); }
         }
@@ -193,6 +241,7 @@ public partial class MainWindow : Window
 
         ProjectService.NormalizeShape(project, layout);
         SetProject(project, layout, dirty: false);
+        _autoSaveBlocked = blocked;
         SetStatus($"{device.DisplayName}: {source}を読み込みました。" +
                   (warnings.Count > 0 ? " 注意: " + string.Join(" / ", warnings) : ""));
     }
@@ -214,6 +263,7 @@ public partial class MainWindow : Window
         _layout = layout;
         SoftKeyboardPanel.CurrentLayoutFile = layout.FilePath; // キー選択の「画面のキーボード」を、この配列で開く
         _dirty = dirty;
+        if (dirty && project.UniqId != 0) _unapplied.Add(project.UniqId);
         _layer = 0;
 
         _suppressEvents = true;
@@ -272,6 +322,11 @@ public partial class MainWindow : Window
         p.Macros = _project.Macros;
         p.TapDances = _project.TapDances;
         p.KeyOverrides = _project.KeyOverrides;
+        p.KeyboardName = _project.KeyboardName;
+        p.MacroNames = _project.MacroNames;       // 名前は、中身が残るものも、リセットされるコンボの番号も、そのまま残す
+        p.ComboNames = _project.ComboNames;
+        p.TapDanceNames = _project.TapDanceNames;
+        p.KeyOverrideNames = _project.KeyOverrideNames;
         p.TapTermMs = _project.TapTermMs;
         p.ComboTermMs = _project.ComboTermMs;
         p.TapDanceTermMs = _project.TapDanceTermMs;
@@ -294,7 +349,15 @@ public partial class MainWindow : Window
         _suppressEvents = true;
         LstLayers.Items.Clear();
         for (int i = 0; i < _project!.Layers.Count; i++)
-            LstLayers.Items.Add(new ListBoxItem { Content = $" {i} ", Padding = new Thickness(10, 3, 10, 3) });
+        {
+            string? name = ProjectService.LayerName(_project, i);
+            LstLayers.Items.Add(new ListBoxItem
+            {
+                Content = name == null ? $" {i} " : $" {i}: {name} ",
+                Padding = new Thickness(10, 3, 10, 3),
+                ToolTip = ProjectService.LayerLabel(_project, i),
+            });
+        }
         LstLayers.SelectedIndex = Math.Min(_layer, _project.Layers.Count - 1);
         _suppressEvents = false;
     }
@@ -328,6 +391,7 @@ public partial class MainWindow : Window
         int last = _project.Layers.Count - 1;
         if (MessageBox.Show(this, $"レイヤー{last}を削除しますか？", Title, MessageBoxButton.OKCancel) != MessageBoxResult.OK) return;
         _project.Layers.RemoveAt(last);
+        ProjectService.NormalizeLayerNames(_project); // 消したレイヤーの名前も捨てる
         _layer = Math.Min(_layer, last - 1);
         MarkDirty();
         RefreshLayerList();
@@ -370,7 +434,7 @@ public partial class MainWindow : Window
 
         string scText = sc == null ? "不明（要実測）"
             : $"0x{sc:X4}" + (project.MeasuredScanCodes.ContainsKey(slot.Index) ? "（実測）" : "（既定）");
-        string tip = $"{slot.Description}\nレイヤー{_layer}: {token}\nスキャンコード: {scText}";
+        string tip = $"{slot.Description}\n{ProjectService.LayerLabel(_project!, _layer)}: {token}\nスキャンコード: {scText}";
 
         // 変更していないキーは刻印をそのまま出す（キーコード名はUS配列基準なので、JIS配列では
         // 刻印と食い違うキーがある）。変更したキーだけ、割り当てたキーコードの短い名前を出す。
@@ -394,10 +458,6 @@ public partial class MainWindow : Window
     {
         if (_project == null) return;
         var menu = new ContextMenu();
-
-        var measure = new MenuItem { Header = "このキーを実測する...", IsEnabled = CanWrite };
-        measure.Click += (_, _) => RunCalibration(new[] { slot });
-        menu.Items.Add(measure);
 
         var clearMeasured = new MenuItem
         {
@@ -430,26 +490,14 @@ public partial class MainWindow : Window
     // キャリブレーション・各種エディタ
     // ------------------------------------------------------------------
 
-    private void BtnCalibrateAll_Click(object sender, RoutedEventArgs e)
-    {
-        if (_layout == null) return;
-        RunCalibration(_layout.Slots);
-    }
+    private void BtnCalibrateAll_Click(object sender, RoutedEventArgs e) => OpenCalibration();
 
-    private void RunCalibration(IReadOnlyList<KeySlot> slots)
+    // キャリブレーションの画面。最初は入力確認モードで開く（個別キー・全体のキャリブレーションは、画面の中でモードを選ぶ）。
+    private void OpenCalibration()
     {
-        if (!IsOnline || _project == null || _layout == null)
-        {
-            SetStatus("キャリブレーションには、ドライバが認識しているキーボードを選んでください。");
-            return;
-        }
-        if (IsReadOnly)
-        {
-            SetStatus("キャリブレーションには管理者権限が必要です（「管理者として再起動」を押してください）。");
-            return;
-        }
-        var dlg = new CalibrationWindow(_layout, slots, SelectedDevice!.UniqId) { Owner = this };
-        if (dlg.ShowDialog() != true) return;
+        if (_project == null || _layout == null) return;
+        var dlg = new CalibrationWindow(_layout, _project, SelectedDevice?.UniqId ?? 0, canCalibrate: CanWrite) { Owner = this };
+        if (dlg.ShowDialog() != true || dlg.Results.Count == 0) return;
         foreach (var (slotIndex, sc) in dlg.Results)
             ProjectService.SetMeasured(_project, _layout.Slots[slotIndex], sc);
         MarkDirty();
@@ -457,13 +505,13 @@ public partial class MainWindow : Window
         int differs = dlg.Results.Count(r => r.Value != _layout.Slots[r.Key].DefaultScanCode);
         SetStatus($"{dlg.Results.Count}キーを実測しました（既定と異なる値: {differs}キー）。適用すると反映されます。");
     }
-
     private void BtnMacros_Click(object sender, RoutedEventArgs e)
     {
         if (_project == null) return;
-        var dlg = new MacroEditorWindow(_project.Macros) { Owner = this };
+        var dlg = new MacroEditorWindow(_project.Macros, _project.MacroNames) { Owner = this };
         if (dlg.ShowDialog() != true) return;
         _project.Macros = dlg.Result;
+        _project.MacroNames = dlg.ResultNames;
         MarkDirty();
     }
 
@@ -473,24 +521,27 @@ public partial class MainWindow : Window
         var dlg = new ComboEditorWindow(_project, _layout) { Owner = this };
         if (dlg.ShowDialog() != true) return;
         _project.Combos = dlg.Result;
+        _project.ComboNames = dlg.ResultNames;
         MarkDirty();
     }
 
     private void BtnTapDances_Click(object sender, RoutedEventArgs e)
     {
         if (_project == null) return;
-        var dlg = new TapDanceEditorWindow(_project.TapDances) { Owner = this };
+        var dlg = new TapDanceEditorWindow(_project.TapDances, _project.TapDanceNames) { Owner = this };
         if (dlg.ShowDialog() != true) return;
         _project.TapDances = dlg.Result;
+        _project.TapDanceNames = dlg.ResultNames;
         MarkDirty();
     }
 
     private void BtnKeyOverrides_Click(object sender, RoutedEventArgs e)
     {
         if (_project == null) return;
-        var dlg = new KeyOverrideEditorWindow(_project.KeyOverrides) { Owner = this };
+        var dlg = new KeyOverrideEditorWindow(_project.KeyOverrides, _project.KeyOverrideNames) { Owner = this };
         if (dlg.ShowDialog() != true) return;
         _project.KeyOverrides = dlg.Result;
+        _project.KeyOverrideNames = dlg.ResultNames;
         MarkDirty();
     }
 
@@ -512,6 +563,7 @@ public partial class MainWindow : Window
         {
             ProjectService.Save(_project);
             _dirty = false;
+            _autoSaveBlocked = false;
             UpdateTitle();
             return true;
         }
@@ -522,14 +574,34 @@ public partial class MainWindow : Window
         }
     }
 
-    private void BtnSave_Click(object sender, RoutedEventArgs e)
+
+    // 選んでいるレイヤーに名前を付ける（番号は変わらない。画面の表示とエクスポートのファイルだけに使う）。
+    private void RenameLayer()
     {
-        if (SaveProject()) SetStatus($"保存しました: {ProjectService.ProjectPath(_project!.UniqId)}");
+        if (_project == null) return;
+        int layer = _layer;
+        var dlg = new TextPromptWindow($"レイヤー{layer}の名前", $"レイヤー{layer}の名前（空にすると、名前を消します）:",
+            ProjectService.LayerName(_project, layer) ?? "", "LayerNameBox") { Owner = this };
+        if (dlg.ShowDialog() != true) return;
+        ProjectService.SetLayerName(_project, layer, dlg.Value);
+        MarkDirty();
+        RefreshLayerList();
+        RenderKeyboard();
+        SetStatus(ProjectService.LayerName(_project, layer) is { } n ? $"レイヤー{layer}の名前を「{n}」にしました。" : $"レイヤー{layer}の名前を消しました。");
     }
 
     private ContextMenu BuildLayerMenu()
     {
         var menu = new ContextMenu();
+        var rename = new MenuItem { Name = "MenuRenameLayer", Header = "このレイヤーに名前を付ける..." };
+        rename.Click += (_, _) => RenameLayer();
+        menu.Opened += (_, _) =>
+        {
+            rename.IsEnabled = _project != null;
+            rename.Header = _project != null ? $"レイヤー{_layer}に名前を付ける..." : "このレイヤーに名前を付ける...";
+        };
+        menu.Items.Add(rename);
+        menu.Items.Add(new Separator());
         var export = new MenuItem { Name = "MenuExportLayer", Header = "このレイヤーをエクスポート..." };
         export.Click += (_, _) => OpenImportExport(ImportExportWindow.StartTab.Export, Kasane.Model.Portable.PortableScope.Layer);
         var import = new MenuItem { Name = "MenuImportLayer", Header = "レイヤーをインポート..." };
@@ -595,6 +667,7 @@ public partial class MainWindow : Window
         {
             var warnings = ProjectService.Apply(_client!, _project, _layout);
             SaveProject();
+            _unapplied.Remove(_project.UniqId);
             RefreshDeviceStatusOnly();
             SetStatus("適用しました（ON）。設定はドライバに保存され、再起動後も有効です。" +
                       (warnings.Count > 0 ? " 注意: " + string.Join(" / ", warnings) : ""));
@@ -629,7 +702,7 @@ public partial class MainWindow : Window
         uint id = SelectedDevice?.UniqId ?? 0;
         try
         {
-            var devices = _client.ListDevices();
+            var devices = LabelDevices(_client.ListDevices());
             devices.Add(OfflineDevice);
             _suppressEvents = true;
             CmbDevice.ItemsSource = devices;
@@ -647,6 +720,7 @@ public partial class MainWindow : Window
     private void MarkDirty()
     {
         _dirty = true;
+        if (_project is { UniqId: not 0 }) _unapplied.Add(_project.UniqId);
         UpdateTitle();
     }
 
@@ -662,20 +736,84 @@ public partial class MainWindow : Window
 
     private void SetStatus(string text) => TxtStatus.Text = text;
 
-    private bool ConfirmDiscard()
+    /// <summary>
+    /// 別の画面・キーボードへ移る前、閉じる前に、変更を保存する。保存ボタンは無く、ここで自動で保存する。
+    /// 保存済みの設定を使わずに開いた状態（<see cref="_autoSaveBlocked"/>）では、元の設定を失うので、保存するかを確かめる。
+    /// 続けてよければ true。保存に失敗したとき・利用者が取り消したときは false。
+    /// </summary>
+    private bool PersistBeforeLeave()
     {
         if (!_dirty) return true;
-        var r = MessageBox.Show(this, "保存していない変更があります。保存しますか？", Title,
-            MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
-        if (r == MessageBoxResult.Cancel) return false;
-        if (r == MessageBoxResult.Yes) return SaveProject();
-        _dirty = false;
-        return true;
+        if (_autoSaveBlocked)
+        {
+            var r = MessageBox.Show(this,
+                "このキーボードの保存済みの設定は、読めない、またはレイアウトが見つからないため、使わずに開いています。\n" +
+                "保存すると、保存済みの設定がこの内容で置き換わります。保存しますか？\n\n" +
+                "はい: 保存する　／　いいえ: 保存しない（変更を捨てる）　／　キャンセル: 戻る",
+                Title, MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
+            if (r == MessageBoxResult.Cancel) return false;
+            if (r == MessageBoxResult.No) { _dirty = false; _unapplied.Remove(_project?.UniqId ?? 0); UpdateTitle(); return true; }
+        }
+        return SaveProject();
     }
 
     private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        if (!ConfirmDiscard()) { e.Cancel = true; return; }
+        if (!PersistBeforeLeave() || !ConfirmUnapplied()) { e.Cancel = true; return; }
         _client?.Dispose();
+    }
+
+    /// <summary>閉じる前に、保存したがキーボードに反映していない設定について確かめる。閉じてよければ true。</summary>
+    private bool ConfirmUnapplied()
+    {
+        var targets = _unapplied.Where(id => id != 0).OrderBy(id => id).ToList();
+        switch (ClosePolicy.Decide(targets.Count, _client != null, IsReadOnly))
+        {
+            case UnappliedPrompt.WarnNotApplied:
+                return MessageBox.Show(this,
+                    "設定は保存されましたが、キーボードに反映されていません。\n" +
+                    "必要に応じて、管理者権限で kasane を起動し、「キーボードに適用（ON）」で反映してください。\n\n" +
+                    "このまま閉じますか？", Title, MessageBoxButton.OKCancel, MessageBoxImage.Information) == MessageBoxResult.OK;
+            case UnappliedPrompt.AskApply:
+                var r = MessageBox.Show(this,
+                    $"キーボードに反映していない設定が{targets.Count}台分あります。反映しますか？\n\n" +
+                    "はい: 反映して閉じる　／　いいえ: 反映せずに閉じる（設定は保存済み）　／　キャンセル: 戻る",
+                    Title, MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+                if (r == MessageBoxResult.Cancel) return false;
+                if (r == MessageBoxResult.No) return true;
+                foreach (var id in targets)
+                {
+                    string? error = ApplySavedProject(id);
+                    if (error != null)
+                    {
+                        MessageBox.Show(this, $"{id:X8}: {error}\n\n閉じずに戻ります。", "適用できません", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return false;
+                    }
+                    _unapplied.Remove(id);
+                }
+                return true;
+            default:
+                return true;
+        }
+    }
+
+    /// <summary>保存済みの設定（project.json）を、そのキーボードへ適用する。失敗の理由を返す（成功は null）。</summary>
+    private string? ApplySavedProject(uint uniqId)
+    {
+        try
+        {
+            var project = ProjectService.TryLoad(uniqId);
+            if (project == null) return "保存済みの設定が見つかりません";
+            var file = ProjectService.FindLayoutFile(project);
+            var layout = file != null ? KeyboardLayout.Load(file) : null;
+            if (layout == null) return $"レイアウト「{project.LayoutName}」が見つかりません";
+            ProjectService.NormalizeShape(project, layout);
+            ProjectService.Apply(_client!, project, layout);
+            return null;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or KbdLayerException or IOException)
+        {
+            return ex.Message;
+        }
     }
 }

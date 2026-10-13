@@ -47,6 +47,9 @@ public sealed class KeymapProject
     public uint UniqId { get; set; }
     public string? HardwareId { get; set; }
 
+    /// <summary>利用者がつけた、このキーボードの名前（任意。画面の表示だけに使う）。無ければ null。</summary>
+    public string? KeyboardName { get; set; }
+
     /// <summary>レイアウト名（同梱のLayouts\kle-&lt;名前&gt;.json）。</summary>
     public string LayoutName { get; set; } = "";
     /// <summary>同梱以外のKLEファイルを使う場合のフルパス（同梱なら null）。</summary>
@@ -57,6 +60,21 @@ public sealed class KeymapProject
 
     /// <summary>レイヤーごとの、スロット順のキーコード文字列。</summary>
     public List<List<string>> Layers { get; set; } = new();
+
+    /// <summary>
+    /// レイヤーの名前（レイヤーの番号と同じ並び。任意。画面の表示だけに使う）。null か、<see cref="Layers"/> より短い／長いときは、
+    /// <see cref="ProjectService.NormalizeShape"/> が合わせる。名前のないレイヤーは null。
+    /// </summary>
+    public List<string?>? LayerNames { get; set; }
+
+    /// <summary>
+    /// マクロ・コンボ・タップダンス・キー置換の名前（番号 → 名前。任意。画面の表示とファイルだけに使い、ドライバには送らない）。
+    /// 定義とは別の表に持つので、中身が空（未使用）の番号にも、名前だけ付けておける。名前が1つも無ければ null。
+    /// </summary>
+    public Dictionary<int, string>? MacroNames { get; set; }
+    public Dictionary<int, string>? ComboNames { get; set; }
+    public Dictionary<int, string>? TapDanceNames { get; set; }
+    public Dictionary<int, string>? KeyOverrideNames { get; set; }
 
     public List<MacroDef> Macros { get; set; } = new();
     public List<ComboDef> Combos { get; set; } = new();

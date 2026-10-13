@@ -57,6 +57,13 @@ public static class PortableImporter
 
         ProjectService.NormalizeShape(target, layout);
 
+        // キーボードの名前は、取り込み先に名前がまだ無いときだけ引き継ぐ（利用者がつけた名前を上書きしない）。レイヤー1枚の取り込みでは触らない。
+        if (!layerScope && !string.IsNullOrWhiteSpace(src.Name) && string.IsNullOrWhiteSpace(target.KeyboardName))
+        {
+            target.KeyboardName = src.Name;
+            r.Info($"キーボードの名前「{src.Name}」を引き継ぎました");
+        }
+
         if (o.MeasuredScanCodes && src.MeasuredScanCodes is { Count: > 0 } measured)
         {
             if (string.Equals(src.LayoutName, target.LayoutName, StringComparison.OrdinalIgnoreCase)) ApplyMeasured(target, layout, measured, r);
@@ -89,8 +96,19 @@ public static class PortableImporter
             result.ProjectChanged = true;
         }
 
-        if (o.Combos && src.Combos != null) ImportCombos(src.Combos, target, bySc, mode, Fix, r);
-        if (o.KeyOverrides && src.KeyOverrides != null) ImportKeyOverrides(src.KeyOverrides, target, mode, r);
+        Dictionary<int, int>? comboMap = null, keyOverrideMap = null;
+        if (o.Combos && src.Combos != null) comboMap = ImportCombos(src.Combos, target, bySc, mode, Fix, r);
+        if (o.KeyOverrides && src.KeyOverrides != null) keyOverrideMap = ImportKeyOverrides(src.KeyOverrides, target, mode, r);
+
+        // 名前の表（中身が空の番号の名前も含む）。レイヤー1枚の取り込みでは、参照するマクロ・タップダンスの名前だけが入っている。
+        if (o.Macros && src.Macros != null)
+            target.MacroNames = MergeNames(src.MacroNames, target.MacroNames, mode, KbdLayerClient.MaxMacroCount, macroMap, id => target.Macros.Any(m => m.Id == id));
+        if (o.TapDances && src.TapDances != null)
+            target.TapDanceNames = MergeNames(src.TapDanceNames, target.TapDanceNames, mode, KbdLayerClient.MaxTapDanceCount, tdMap, id => target.TapDances.Any(t => t.Id == id));
+        if (o.Combos && src.Combos != null)
+            target.ComboNames = MergeNames(src.ComboNames, target.ComboNames, mode, KbdLayerClient.MaxComboCount, comboMap, id => target.Combos.Any(c => c.Id == id));
+        if (o.KeyOverrides && src.KeyOverrides != null)
+            target.KeyOverrideNames = MergeNames(src.KeyOverrideNames, target.KeyOverrideNames, mode, KbdLayerClient.MaxKeyOverrideCount, keyOverrideMap, id => target.KeyOverrides.Any(k => k.Id == id));
 
         if (mode == ImportMode.Replace)
         {
@@ -135,6 +153,9 @@ public static class PortableImporter
             r.Warn($"レイヤーは{KbdLayerClient.MaxLayers}枚までなので、レイヤー{KbdLayerClient.MaxLayers}以降は読み込みません");
         count = Math.Max(count, 1);
         target.Layers = Enumerable.Range(0, count).Select(i => ProjectService.DefaultLayer(layout, i)).ToList();
+        target.LayerNames = null;
+        foreach (var l in layers)
+            if (l.Index >= 0 && l.Index < count && !string.IsNullOrWhiteSpace(l.Name)) ProjectService.SetLayerName(target, l.Index, l.Name);
         var missing = new List<string>();
         int placed = 0;
         foreach (var l in layers)
@@ -157,6 +178,7 @@ public static class PortableImporter
             }
             while (target.Layers.Count <= l.Index) target.Layers.Add(ProjectService.DefaultLayer(layout, target.Layers.Count));
             placed += PlaceKeys(l, target.Layers[l.Index], bySc, fix, missing, r, l.Index);
+            if (!string.IsNullOrWhiteSpace(l.Name) && ProjectService.LayerName(target, l.Index) == null) ProjectService.SetLayerName(target, l.Index, l.Name);
         }
         r.Info($"キーを{placed}個、今のレイヤーに重ねました");
         ReportMissing(missing, r);
@@ -182,6 +204,7 @@ public static class PortableImporter
             index = target.Layers.Count;
             target.Layers.Add(ProjectService.DefaultLayer(layout, index));
         }
+        if (!string.IsNullOrWhiteSpace(src.Name)) ProjectService.SetLayerName(target, index, src.Name);
         var missing = new List<string>();
         int placed = PlaceKeys(src, target.Layers[index], bySc, fix, missing, r, index);
         r.Info($"レイヤー{index}に、キーを{placed}個読み込みました" + (targetLayer == null ? "（新しいレイヤー）" : "（上書き）"));
@@ -332,9 +355,10 @@ public static class PortableImporter
         return map;
     }
 
-    private static void ImportCombos(List<PortableCombo> src, KeymapProject target, Dictionary<ushort, KeySlot> bySc, ImportMode mode,
+    private static Dictionary<int, int> ImportCombos(List<PortableCombo> src, KeymapProject target, Dictionary<ushort, KeySlot> bySc, ImportMode mode,
                                      Func<string, string> fix, PortableReport r)
     {
+        var map = new Dictionary<int, int>();
         if (mode == ImportMode.Replace) target.Combos = new List<ComboDef>();
         int added = 0;
         foreach (var c in src)
@@ -360,13 +384,16 @@ public static class PortableImporter
                 id = FreeId(target.Combos.Select(x => x.Id), KbdLayerClient.MaxComboCount);
             if (id < 0) { r.Warn($"コンボの空きが無いため、コンボ{c.Id}は読み込めませんでした（上限{KbdLayerClient.MaxComboCount}）"); continue; }
             target.Combos.Add(new ComboDef { Id = id, Slot1 = s1.Index, Slot2 = s2.Index, Output = fix(c.Output) });
+            map[c.Id] = id;
             added++;
         }
         r.Info($"コンボを{added}個読み込みました" + (mode == ImportMode.Replace ? "（置き換え）" : ""));
+        return map;
     }
 
-    private static void ImportKeyOverrides(List<KeyOverrideDef> src, KeymapProject target, ImportMode mode, PortableReport r)
+    private static Dictionary<int, int> ImportKeyOverrides(List<KeyOverrideDef> src, KeymapProject target, ImportMode mode, PortableReport r)
     {
+        var map = new Dictionary<int, int>();
         if (mode == ImportMode.Replace) target.KeyOverrides = new List<KeyOverrideDef>();
         int added = 0;
         foreach (var k in src)
@@ -378,9 +405,35 @@ public static class PortableImporter
                 id = FreeId(target.KeyOverrides.Select(x => x.Id), KbdLayerClient.MaxKeyOverrideCount);
             if (id < 0) { r.Warn($"キー置換の空きが無いため、キー置換{k.Id}は読み込めませんでした（上限{KbdLayerClient.MaxKeyOverrideCount}）"); continue; }
             target.KeyOverrides.Add(new KeyOverrideDef { Id = id, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement });
+            map[k.Id] = id;
             added++;
         }
         r.Info($"キー置換を{added}個読み込みました" + (mode == ImportMode.Replace ? "（置き換え）" : ""));
+        return map;
+    }
+
+    /// <summary>
+    /// 名前の表を取り込む。置き換え: ファイルの表そのもの。追加: 今の名前を残し、<b>今の名前が無い番号にだけ</b>足す。
+    /// 中身を取り込んだ番号は、付け直し後の番号（<paramref name="idMap"/>）に付く。中身が空の番号の名前は、同じ番号が今の設定で
+    /// 空き（中身も名前も無い）のときだけ、同じ番号に付く。
+    /// </summary>
+    private static Dictionary<int, string>? MergeNames(Dictionary<int, string>? src, Dictionary<int, string>? current, ImportMode mode,
+                                                       int max, Dictionary<int, int>? idMap, Func<int, bool> inUse)
+    {
+        if (src == null) return current;
+        if (mode == ImportMode.Replace) return ProjectService.CleanNames(src, max);
+        var result = current != null ? new Dictionary<int, string>(current) : new Dictionary<int, string>();
+        foreach (var (srcId, name) in src)
+        {
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            int id;
+            if (idMap != null && idMap.TryGetValue(srcId, out int mapped)) id = mapped;
+            else if (!inUse(srcId)) id = srcId;
+            else continue;
+            if (id < 0 || id >= max || result.ContainsKey(id)) continue;
+            result[id] = name.Trim();
+        }
+        return result.Count > 0 ? result : null;
     }
 
     internal static string Json(object o) => JsonSerializer.Serialize(o, CompareOptions);

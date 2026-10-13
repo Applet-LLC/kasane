@@ -157,7 +157,7 @@ MSI に入っている、WiX 由来の部品（MSI の Binary・Dialog テーブ
   Dialog:  WelcomeDlg、LicenseAgreementDlg、CustomizeDlg、VerifyReadyDlg、ProgressDlg、ExitDialog、
            MaintenanceWelcomeDlg、MaintenanceTypeDlg、PrepareDlg、ResumeDlg、CancelDlg、BrowseDlg、DiskCostDlg、
            WaitForCostingDlg、OutOfDiskDlg、OutOfRbDiskDlg、FilesInUse、MsiRMFilesInUse、ErrorDlg、FatalError、UserExit
-  （WixUI_Bmp_Banner は、kasane の画像 setup/Assets/banner.bmp に差し替えています。DeviceIdModeDlg ほか、
+  （WixUI_Bmp_Banner は、kasane の画像 setup/Assets/banner.bmp に差し替えています。DataDirDlg ほか、
     kasane の独自のダイアログは WiX のコードではありません。）
 
 MS-RL の条件のうち、この配布に関わるもの（ライセンス全文の 3 節）:

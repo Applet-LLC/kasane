@@ -6,12 +6,6 @@
   <String Id="LicenseSvcDescription">かさね サブスクリプションライセンス管理</String>
   <String Id="ExitDialogOptionalText">インストールを完了するには、コンピューターを再起動してください。再起動後にログインすると、ライセンス管理ツールが自動的に起動します。</String>
 
-  <String Id="DeviceIdModeDlg_Title">デバイス識別モードの設定</String>
-  <String Id="DeviceIdModeDlg_Description">kbdlayer が接続機器をどのように区別するかを選択してください</String>
-  <String Id="DeviceIdModeDlg_Explain">デバイスインスタンスIDモードでは、USBの接続先（ポート）ごとに区別します。まったく同じ製品のキーボードでも、接続するポートが変わると別デバイスとして扱われます。ハードウェアIDモードでは、デバイス固有のIDで区別します。同じキーボードであれば、USBの接続先を変えても同一デバイスとして扱われます。</String>
-  <String Id="DeviceIdModeDlg_KbdLabel">キーボードドライバ (kbdlayer):</String>
-  <String Id="DeviceIdModeDlg_InstancePath">デバイスインスタンスIDモード（既定） - 接続先ごとに区別する</String>
-  <String Id="DeviceIdModeDlg_DeviceId">ハードウェアIDモード - デバイス固有のIDで区別する</String>
   <String Id="DataDirDlg_Title">設定フォルダの指定</String>
   <String Id="DataDirDlg_Description">環境変数 KASANE で、設定ファイルの保存先を固定できます</String>
   <String Id="DataDirDlg_Explain">kasane は設定ファイル（キーボードごとの設定、トレイの設定、ログ）を、通常は各ユーザーの %LOCALAPPDATA%\applet\kasane に保存します。Windows 11 の管理者保護が有効な環境では、昇格して起動した設定画面が別のユーザーとして動くため、この保存先が分かれてしまいます。ここにフォルダを指定すると、マシン全体の環境変数 KASANE として設定し、すべてのユーザー・昇格した画面・トレイが同じフォルダを使います。KASANE が設定されている間は、既定の保存先より優先されます。</String>

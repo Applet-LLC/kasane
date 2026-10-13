@@ -393,7 +393,7 @@ public sealed class ImportExportWindow : Window
     {
         _imLayerTarget.Items.Clear();
         _imLayerTarget.Items.Add("新しいレイヤーとして追加");
-        for (int i = 0; i < _project.Layers.Count; i++) _imLayerTarget.Items.Add($"レイヤー{i} を上書き");
+        for (int i = 0; i < _project.Layers.Count; i++) _imLayerTarget.Items.Add($"{ProjectService.LayerLabel(_project, i)} を上書き");
         _imLayerTarget.SelectedIndex = 0;
     }
 

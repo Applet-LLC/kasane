@@ -110,7 +110,55 @@ public static class ProjectService
         }
         foreach (var k in project.MeasuredScanCodes.Keys.Where(k => k >= layout.Slots.Count).ToList())
             project.MeasuredScanCodes.Remove(k);
+        NormalizeLayerNames(project);
+        project.MacroNames = CleanNames(project.MacroNames, KbdLayerClient.MaxMacroCount);
+        project.ComboNames = CleanNames(project.ComboNames, KbdLayerClient.MaxComboCount);
+        project.TapDanceNames = CleanNames(project.TapDanceNames, KbdLayerClient.MaxTapDanceCount);
+        project.KeyOverrideNames = CleanNames(project.KeyOverrideNames, KbdLayerClient.MaxKeyOverrideCount);
     }
+
+    /// <summary>レイヤーの名前の並びを、レイヤーの枚数に合わせる（足りなければ null を足し、余りは捨てる）。名前が1つも無ければ null にする。</summary>
+    public static void NormalizeLayerNames(KeymapProject project)
+    {
+        if (project.LayerNames == null) return;
+        while (project.LayerNames.Count < project.Layers.Count) project.LayerNames.Add(null);
+        if (project.LayerNames.Count > project.Layers.Count)
+            project.LayerNames.RemoveRange(project.Layers.Count, project.LayerNames.Count - project.Layers.Count);
+        for (int i = 0; i < project.LayerNames.Count; i++)
+            if (string.IsNullOrWhiteSpace(project.LayerNames[i])) project.LayerNames[i] = null;
+        if (project.LayerNames.All(n => n == null)) project.LayerNames = null;
+    }
+
+    /// <summary>名前の表を整える: 空白だけの名前・範囲外の番号を捨て、空なら null にする。</summary>
+    public static Dictionary<int, string>? CleanNames(IEnumerable<KeyValuePair<int, string>>? names, int max)
+    {
+        if (names == null) return null;
+        var clean = new Dictionary<int, string>();
+        foreach (var (id, name) in names)
+            if (id >= 0 && id < max && !string.IsNullOrWhiteSpace(name)) clean[id] = name.Trim();
+        return clean.Count > 0 ? clean : null;
+    }
+
+    /// <summary>レイヤーの名前（無ければ null）。</summary>
+    public static string? LayerName(KeymapProject project, int layer) =>
+        project.LayerNames != null && layer >= 0 && layer < project.LayerNames.Count && !string.IsNullOrWhiteSpace(project.LayerNames[layer])
+            ? project.LayerNames[layer] : null;
+
+    /// <summary>レイヤーの名前を付ける（空・null なら消す）。レイヤーの枚数を超える番号は無視する。</summary>
+    public static void SetLayerName(KeymapProject project, int layer, string? name)
+    {
+        if (layer < 0 || layer >= project.Layers.Count) return;
+        string? clean = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+        if (clean == null && project.LayerNames == null) return;
+        project.LayerNames ??= new List<string?>();
+        while (project.LayerNames.Count < project.Layers.Count) project.LayerNames.Add(null);
+        project.LayerNames[layer] = clean;
+        NormalizeLayerNames(project);
+    }
+
+    /// <summary>画面に出す、レイヤーの呼び名。名前があれば「レイヤー3「仕事」」、無ければ「レイヤー3」。</summary>
+    public static string LayerLabel(KeymapProject project, int layer) =>
+        LayerName(project, layer) is { } n ? $"レイヤー{layer}「{n}」" : $"レイヤー{layer}";
 
     public static ushort? EffectiveScanCode(KeymapProject project, KeySlot slot) =>
         project.MeasuredScanCodes.TryGetValue(slot.Index, out var sc) ? sc : slot.DefaultScanCode;

@@ -70,6 +70,7 @@ public sealed class SettingsDialog : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         ShowInTaskbar = false;
 
+        AddTab("TabGeneral", "全般", BuildGeneralTab());
         AddTab("TabFeatures", "機能", BuildFeaturesTab());
         AddTab("TabTiming", "タイミング", BuildTimingTab());
         AddTab("TabNicola", "NICOLA", BuildNicolaTab());
@@ -79,6 +80,7 @@ public sealed class SettingsDialog : Window
         AddTab("TabScope", "共有範囲", BuildScopeTab());
         AddTab("TabDataDir", "保存先", BuildDataDirTab());
         AddTab("TabI8042", "i8042prt", BuildI8042Tab());
+        _tabs.SelectionChanged += OnTabChanged;
 
         var ok = new Button { Name = "OkButton", Content = "OK", IsDefault = true, Width = 90 };
         ok.Click += (_, _) => { if (Commit()) DialogResult = true; };
@@ -93,6 +95,33 @@ public sealed class SettingsDialog : Window
         root.Children.Add(_error);
         root.Children.Add(_tabs);
         Content = root;
+    }
+
+    private CheckBox _remapOnlyWhileTray = null!;
+
+    /// <summary>全般: このPCの利用者の設定（tray.json。トレイが数秒ごとに読む）。OK で保存する。</summary>
+    private UIElement BuildGeneralTab()
+    {
+        var panel = new StackPanel();
+        panel.Children.Add(new TextBlock { Text = "トレイ（タスクトレイの kasane）", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
+        _remapOnlyWhileTray = new CheckBox
+        {
+            Name = "GeneralRemapOnlyWhileTrayCheck",
+            Content = "トレイが動いている間だけ、キーのリマップを有効にする",
+            IsChecked = _trayConfig.RemapOnlyWhileTrayRuns,
+            Margin = new Thickness(0, 0, 0, 6),
+        };
+        panel.Children.Add(_remapOnlyWhileTray);
+        panel.Children.Add(Help(
+            "ドライバは、設定を保存しているので、Windows のログオン画面や起動した直後（トレイが動く前）でもリマップを続けます。" +
+            "ONにすると、次のようにします。\n" +
+            "・トレイを終了したとき、サインアウト・シャットダウンするとき、画面をロックしたとき（ユーザーの切り替えを含む）は、リマップをOFF（素通し）にします。\n" +
+            "・トレイが起動したとき、ロックを解除したときは、このモードでOFFにしたキーボードだけを、ONに戻します（緊急解除や「OFF」ボタンで止めたキーボードは戻しません）。\n" +
+            "既定はONです。\n" +
+            "制約: トレイが異常終了したとき（クラッシュ・強制終了・電源断など）は、OFFにできず、次の起動のログオン画面ではリマップが効いたままです。" +
+            "インストーラーによる更新・削除でトレイを止めるときも、OFFにしません。\n" +
+            "この設定は、この PC のこの利用者の設定です（キーボードごとの設定ではありません）。OK で保存し、トレイが数秒で読み直します。"));
+        return panel;
     }
 
     private bool IsOnline => _uniqId != 0;
@@ -374,10 +403,33 @@ public sealed class SettingsDialog : Window
     }
 
     // ------------------------------------------------------------------
-    // 緊急解除（すぐに反映）
+    // 緊急解除（タブを移るとき・OK のときに反映）
     // ------------------------------------------------------------------
 
     private static readonly string[] DefaultEmergencyKeys = { "KC_LCTL", "KC_RCTL", "KC_LSFT", "KC_RSFT" };
+
+    /// <summary>
+    /// 緊急解除タブの入力を、ドライバへ反映する（タブを離れるときと、OK のとき）。失敗の理由を返す（成功・変更なしは null）。
+    /// 入力が空なら「変更しない」。タブを作るときに設定する。
+    /// </summary>
+    private Func<string?>? _emergencyCommit;
+    private bool _revertingTab;
+
+    // タブを離れるとき、緊急解除の入力が不正ならエラーを出して元のタブに留める。
+    private void OnTabChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!ReferenceEquals(e.OriginalSource, _tabs) || _revertingTab || _emergencyCommit == null) return;
+        var left = e.RemovedItems.OfType<TabItem>().FirstOrDefault(t => t.Name == "TabEmergency");
+        if (left == null) return;
+        if (_emergencyCommit() == null) return;
+        // 選択の変更の途中で別の選択に戻すと不安定なので、あとで戻す。
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            _revertingTab = true;
+            try { _tabs.SelectedItem = left; }
+            finally { _revertingTab = false; }
+        }));
+    }
 
     private UIElement BuildEmergencyTab()
     {
@@ -386,14 +438,21 @@ public sealed class SettingsDialog : Window
             $"設定を誤って入力できなくなったときの逃げ道です。ここで決めた{KbdLayerClient.EmergencyMinKeys}〜{KbdLayerClient.EmergencyMaxKeys}個のキーを" +
             $"同時に{KbdLayerClient.EmergencyHoldMs / 1000}秒押し続けると、接続中の全キーボードのレイヤーマップがOFFになります（マップ自体は消えません）。" +
             "ドライバ全体で1つの設定です（キーボードごとではありません）。全部のキーが同じキーボードにある必要があります。\n" +
-            "キーは物理キー（レイヤーマップで置き換える前）で指定します。「この組み合わせにする」を押すとすぐに反映します（OK・キャンセルとは関係しません）。"));
+            "キーは物理キー（レイヤーマップで置き換える前）で指定します。各欄の「押して入力」でキーを押して入れるか、「選ぶ...」で選びます。\n" +
+            "入力した組み合わせは、別のタブに移るとき、または OK を押したときに、ドライバへ反映します（キャンセルしても、タブを移った時点で反映したものは戻りません）。" +
+            "全部の欄を空にした場合は、変更しません。"));
 
+        bool writable = IsOnline && _canWrite;
         var boxes = new TextBox[KbdLayerClient.EmergencyMaxKeys];
-        var grid = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
+        // 6個分は横に長いので、縦に並べる。
+        var grid = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 0, 6), IsEnabled = writable };
         for (int i = 0; i < boxes.Length; i++)
         {
-            boxes[i] = new TextBox { Name = $"EmergencyKey{i + 1}", Width = 100, Margin = new Thickness(0, 0, 6, 0), FontFamily = new FontFamily("Consolas") };
-            grid.Children.Add(boxes[i]);
+            boxes[i] = new TextBox { Name = $"EmergencyKey{i + 1}", Width = 100, FontFamily = new FontFamily("Consolas") };
+            var line = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            line.Children.Add(new TextBlock { Text = $"キー{i + 1}", Width = 44, VerticalAlignment = VerticalAlignment.Center });
+            line.Children.Add(KeycodeField.Wrap(boxes[i], allowMods: false));
+            grid.Children.Add(line);
         }
         Row(panel, "組み合わせ", grid, null, 90);
 
@@ -403,12 +462,14 @@ public sealed class SettingsDialog : Window
             for (int i = 0; i < boxes.Length; i++) boxes[i].Text = i < names.Count ? names[i] : "";
         }
 
+        List<ushort>? applied = null; // ドライバの今の組み合わせ（変わっていなければ書き込まない）
         if (IsOnline)
         {
             try
             {
                 var keys = _client!.GetEmergencyRelease();
-                Fill(keys.Select(sc => KeycodeTable.NameForScanCode(sc) ?? $"0x{sc:X4}").ToList());
+                applied = keys.ToList();
+                Fill(keys.Select(KeycodeTable.KeyToken).ToList());
                 ShowStatus(status, "ドライバの現在の組み合わせを表示しています。", false);
             }
             catch (KbdLayerException ex) { ShowStatus(status, ex.Message, true); }
@@ -419,63 +480,83 @@ public sealed class SettingsDialog : Window
             ShowStatus(status, "ドライバに接続していないため、変更できません（表示は既定の組み合わせです）。", true);
         }
 
-        bool TryCollect(out List<ushort> scanCodes)
+        // 入力をスキャンコードにする。空の欄は飛ばす（全部空なら空のリスト）。個数の下限は見ない。
+        bool TryCollect(out List<ushort> scanCodes, out string? error)
         {
             scanCodes = new List<ushort>();
+            error = null;
             foreach (var b in boxes)
             {
                 string t = b.Text.Trim();
                 if (t.Length == 0) continue;
                 if (!KeycodeTable.TryResolve(t, out var a) || a.Type != ActionType.Key || a.Param2 == 0)
                 {
-                    ShowStatus(status, $"「{t}」は単純なキー(KC_*)にしてください。", true);
+                    error = $"「{t}」は単純なキー(KC_*)にしてください。";
                     return false;
                 }
                 if (scanCodes.Contains(a.Param2))
                 {
-                    ShowStatus(status, $"「{t}」が2回指定されています。", true);
+                    error = $"「{t}」が2回指定されています。";
                     return false;
                 }
                 scanCodes.Add(a.Param2);
             }
-            if (scanCodes.Count < KbdLayerClient.EmergencyMinKeys)
-            {
-                ShowStatus(status, $"キーは{KbdLayerClient.EmergencyMinKeys}個以上指定してください。", true);
-                return false;
-            }
             return true;
         }
+
+        string? CommitCore()
+        {
+            if (!writable) return null;
+            if (!TryCollect(out var keys, out var error)) return error;
+            if (keys.Count == 0) return null; // 空 = 変更しない
+            if (keys.Count < KbdLayerClient.EmergencyMinKeys) return $"キーは{KbdLayerClient.EmergencyMinKeys}個以上指定してください。";
+            if (applied != null && applied.SequenceEqual(keys)) return null;
+            try
+            {
+                _client!.SetEmergencyRelease(keys);
+                applied = keys;
+                ShowStatus(status, $"緊急解除の組み合わせを {string.Join(" + ", boxes.Select(b => b.Text.Trim()).Where(s => s.Length > 0))} にしました。", false);
+                return null;
+            }
+            catch (KbdLayerException ex) { return ex.Message; }
+        }
+        _emergencyCommit = () =>
+        {
+            string? error = CommitCore();
+            if (error != null) ShowStatus(status, error, true);
+            return error;
+        };
 
         var buttons = new WrapPanel();
         var check = new Button { Name = "EmergencyCheckButton", Content = "同時押しを試す...", Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(8, 2, 8, 2) };
         check.Click += (_, _) =>
         {
-            if (!TryCollect(out var keys)) return;
+            if (!TryCollect(out var keys, out var error)) { ShowStatus(status, error!, true); return; }
+            if (keys.Count < KbdLayerClient.EmergencyMinKeys)
+            {
+                ShowStatus(status, $"キーは{KbdLayerClient.EmergencyMinKeys}個以上指定してください。", true);
+                return;
+            }
             var dlg = new EmergencyCheckWindow(keys) { Owner = this };
             dlg.ShowDialog();
             ShowStatus(status, dlg.Succeeded
                 ? "この組み合わせは同時に検出できました。"
                 : "全部のキーを同時に検出できませんでした（試していない場合も含む）。別の組み合わせを検討してください。", !dlg.Succeeded);
         };
-        var apply = new Button { Name = "EmergencyApplyButton", Content = "この組み合わせにする", IsEnabled = IsOnline && _canWrite, Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(8, 2, 8, 2) };
-        apply.Click += (_, _) =>
+        var clear = new Button { Name = "EmergencyClearButton", Content = "クリア", IsEnabled = writable, Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(8, 2, 8, 2) };
+        clear.Click += (_, _) =>
         {
-            if (!TryCollect(out var keys)) return;
-            try
-            {
-                _client!.SetEmergencyRelease(keys);
-                ShowStatus(status, $"緊急解除の組み合わせを {string.Join(" + ", boxes.Select(b => b.Text.Trim()).Where(s => s.Length > 0))} にしました。", false);
-            }
-            catch (KbdLayerException ex) { ShowStatus(status, ex.Message, true); }
+            Fill(Array.Empty<string>());
+            ShowStatus(status, "入力欄を空にしました。空のままタブを移る・OK を押しても、緊急解除の組み合わせは変わりません。", false);
         };
-        var reset = new Button { Name = "EmergencyDefaultButton", Content = "既定（左右Ctrl＋左右Shift）を入れる", Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(8, 2, 8, 2) };
+        var reset = new Button { Name = "EmergencyDefaultButton", Content = "既定（左右Ctrl＋左右Shift）にする", IsEnabled = writable, Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(8, 2, 8, 2) };
         reset.Click += (_, _) =>
         {
             Fill(DefaultEmergencyKeys);
-            ShowStatus(status, "既定の組み合わせを入れました。反映するには「この組み合わせにする」を押してください。", false);
+            ShowStatus(status, "既定の組み合わせを入れました。タブを移る・OK を押すと反映します。", false);
         };
         buttons.Children.Add(check);
-        buttons.Children.Add(apply);
+        buttons.Children.Add(clear);
         buttons.Children.Add(reset);
         panel.Children.Add(buttons);
         if (IsOnline && !_canWrite)
@@ -488,51 +569,13 @@ public sealed class SettingsDialog : Window
     // 共有範囲（すぐに反映）
     // ------------------------------------------------------------------
 
-    /// <summary>共有範囲タブの先頭: インストール時に決めた「デバイスの識別方法」の現在の値と、その意味。</summary>
-    private static void AddIdModeSection(StackPanel panel)
-    {
-        var mode = DeviceIdModeInfo.Read(out int? raw);
-        string title = mode switch
-        {
-            DeviceIdModeKind.InstancePath => "デバイスインスタンスパス",
-            DeviceIdModeKind.DeviceId => "デバイスID",
-            _ => raw == null ? "不明（読み取れません）" : $"不明（値 {raw}）",
-        };
-        string meaning = mode switch
-        {
-            DeviceIdModeKind.InstancePath =>
-                "接続先（USBポートなど）ごとに、別のキーボードとして扱います。同じキーボードでも別のポートに挿すと別のキーボードになり、" +
-                "設定画面で作った設定とトレイの設定は引き継がれません。",
-            DeviceIdModeKind.DeviceId =>
-                "キーボード固有のIDで区別します。ポートを差し替えても同じキーボードとして扱われ、設定画面とトレイの設定は引き継がれます。" +
-                "同じ型番を2台つなぐと、設定画面とトレイからは区別できません。",
-            _ => "ドライバが入っていない、または値を読めませんでした。",
-        };
-
-        panel.Children.Add(new TextBlock { Text = "デバイスの識別方法", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
-        panel.Children.Add(new TextBox
-        {
-            Name = "ScopeIdMode",
-            Text = title,
-            IsReadOnly = true,
-            BorderThickness = new Thickness(0),
-            Background = Brushes.Transparent,
-            Margin = new Thickness(0, 0, 0, 4),
-        });
-        panel.Children.Add(Help(
-            meaning + "\n" +
-            "インストール時に選んだ値で、この画面では変更できません。変えるときは、インストーラーで選び直し、キーボードを接続し直す（またはPCを再起動する）必要があります。" +
-            "変えると、キーボードのIDが変わるため、設定画面とトレイの設定は引き継がれません。"));
-    }
-
     private UIElement BuildScopeTab()
     {
         var panel = new StackPanel();
-        AddIdModeSection(panel);
 
-        panel.Children.Add(new TextBlock { Text = "設定の共有範囲", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 4, 0, 4) });
+        panel.Children.Add(new TextBlock { Text = "設定の共有範囲", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
         panel.Children.Add(Help(
-            "ドライバがこのキーボードの設定（レイヤーマップ・タイミング・マクロ等）を保存する単位です。上の「デバイスの識別方法」とは別の設定です。\n" +
+            "ドライバがこのキーボードの設定（レイヤーマップ・タイミング・マクロ等）を保存する単位です。\n" +
             "・同じ型番で共有（既定）: 同じ型番のキーボードは、差し込み口が変わっても同じ設定を使います。\n" +
             "・この1台だけ: この差し込み口のこのキーボードだけの設定にします。切り替えると、今の設定をこの1台用にコピーします。\n" +
             "・すべてのキーボードで共有: 型番も差し込み口も区別せず、1つの設定をすべてのキーボードで使います（後から接続したキーボードも、" +
@@ -542,13 +585,13 @@ public sealed class SettingsDialog : Window
             "同じ型番で共有している設定が置き換わります）。\n" +
             "「変更する」を押すとすぐに反映します（OK・キャンセルとは関係しません）。共有している他の台へは、その台を接続し直すまで反映されません。"));
 
-        panel.Children.Add(new TextBlock { Text = "識別方法と共有範囲の関係（トレイを含む）", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 4, 0, 4) });
+        panel.Children.Add(new TextBlock { Text = "共有範囲とポートの関係（トレイを含む）", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 4, 0, 4) });
         panel.Children.Add(Help(
             "・ポートを替えたとき: ドライバが保存する設定は、共有範囲が「同じ型番」「すべて」なら引き継がれ、「この1台だけ」なら引き継がれません。" +
-            "設定画面で作った設定（project.json）とトレイの設定（ヘルパー動作・アプリ別レイヤー・一時停止の記憶）は、識別方法が「デバイスID」なら引き継がれ、" +
-            "「デバイスインスタンスパス」なら引き継がれません。\n" +
-            "・同じ型番を2台つないだとき: 識別方法が「デバイスID」だと、設定画面とトレイでは1台として扱います（ドライバの設定は、共有範囲を「この1台だけ」にすれば別々です）。\n" +
-            "・トレイの設定は、設定画面と同じく識別方法で決まるキーボード単位で、ここでの共有範囲を変えても共有されません。"));
+            "設定画面で作った設定（project.json）とトレイの設定（ヘルパー動作・アプリ別レイヤー・一時停止の記憶）は、接続先（USBポートなど）ごとに別のキーボードとして扱うため、" +
+            "同じキーボードを別のポートに挿すと引き継がれません（エクスポート／インポートで移せます）。\n" +
+            "・同じ型番を2台つないだとき: 接続先が違うので、設定画面とトレイでは別のキーボードとして扱います（ドライバの設定は、共有範囲が「同じ型番」なら共有されます）。\n" +
+            "・トレイの設定は、設定画面と同じく接続先ごとのキーボード単位で、ここでの共有範囲を変えても共有されません。"));
 
         var model = new RadioButton { Name = "ScopeModel", Content = "同じ型番で共有", GroupName = "Scope", Margin = new Thickness(0, 3, 0, 3) };
         var instance = new RadioButton { Name = "ScopeInstance", Content = "この1台だけ", GroupName = "Scope", Margin = new Thickness(0, 3, 0, 3) };
@@ -943,6 +986,13 @@ public sealed class SettingsDialog : Window
             _error.Text = message;
         }
 
+        // 緊急解除の入力は、ここでドライバへ反映する（空なら変更しない）。不正なら緊急解除タブで止める。
+        if (_emergencyCommit?.Invoke() is { } emergencyError)
+        {
+            Fail("TabEmergency", emergencyError);
+            return false;
+        }
+
         if (!uint.TryParse(_tap.Text, out var t) || !uint.TryParse(_combo.Text, out var c) || !uint.TryParse(_tapDance.Text, out var d)
             || t > 10000 || c > 10000 || d > 10000)
         {
@@ -1003,12 +1053,14 @@ public sealed class SettingsDialog : Window
         // IME連動はプロジェクトではなく、このPCの利用者の設定（トレイが数秒ごとに読む）。変えたときだけ保存する。
         bool imeLink = _imeLink.IsChecked == true;
         bool showLayer = _showLayerOnIcon.IsChecked == true;
-        if (imeLink != _trayConfig.ImeLink || showLayer != _trayConfig.ShowLayerOnIcon)
+        bool remapOnlyWhileTray = _remapOnlyWhileTray.IsChecked == true;
+        if (imeLink != _trayConfig.ImeLink || showLayer != _trayConfig.ShowLayerOnIcon || remapOnlyWhileTray != _trayConfig.RemapOnlyWhileTrayRuns)
         {
             try
             {
                 _trayConfig.ImeLink = imeLink;
                 _trayConfig.ShowLayerOnIcon = showLayer;
+                _trayConfig.RemapOnlyWhileTrayRuns = remapOnlyWhileTray;
                 _trayConfig.Save();
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
