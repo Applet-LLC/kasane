@@ -104,6 +104,14 @@ public:
     bool WaitHelperEvent(ULONG lastSeq, KBDLAYER_WAIT_HELPER_EVENT_OUTPUT* outHeader,
                          std::vector<KBDLAYER_HELPER_EVENT>* outEvents, bool* outCancelled, bool* outUnsupported);
 
+    // 生の物理キーの押下・解放を待つ（WAIT_KEY_EVENT）。キー入力が丸見えになるので FILE_WRITE_ACCESS（管理者のみ）。
+    // lastSeqより新しいイベントが来るまで戻らない（同期呼び出し）。初回はKBDLAYER_KEY_SEQ_LATEST。
+    // *outCancelled = キャンセルで戻った。*outUnsupported = このIOCTLを知らない古いドライバ。
+    // *outAccessDenied = 管理者権限が無い。
+    bool WaitKeyEvent(ULONG lastSeq, KBDLAYER_WAIT_KEY_EVENT_OUTPUT* outHeader,
+                      std::vector<KBDLAYER_KEY_EVENT>* outEvents, bool* outCancelled, bool* outUnsupported,
+                      bool* outAccessDenied);
+
     // E-2: DeviceIdは一意でない前提で設計する（common/kbdlayer_ioctl.hのコメント参照）。
     // GET/SET_DEVICE_SCOPE: このキーボードのレイヤーマップ等を「同型番で共有」
     // (KBDLAYER_BINDING_MODEL) と「この1台だけ」(KBDLAYER_BINDING_INSTANCE) の

@@ -129,6 +129,8 @@ DispatchControlCreateClose(
         ReleaseAppLayersForOwner(irpSp->FileObject);
         // そのハンドルで保留中のWAIT_HELPER_EVENTを終わらせる。
         HelperNotifyCleanupOwner(irpSp->FileObject);
+        // そのハンドルが所有者だったWAIT_KEY_EVENTを終わらせ、キーイベントを積むのをやめる。
+        KeyStreamCleanupOwner(irpSp->FileObject);
     }
 
     Irp->IoStatus.Status = STATUS_SUCCESS;
@@ -1368,6 +1370,41 @@ HandleWaitHelperEvent(
     return StartWaitHelperEvent(Irp, lastSeq);
 }
 
+// 生の物理キーの押下・解放を待つ（WAIT_KEY_EVENT。管理者のみ: IOCTLコードがFILE_WRITE_ACCESS）。
+// IRPは保留（STATUS_PENDING）にし、KeyStream.cが完了させる。特定のキーボードを指定しない
+// （全キーボードのイベントを返す）ので、remove lockは取らない。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleWaitKeyEvent(
+    _In_ PIRP Irp,
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    ULONG outputLen = IrpSp->Parameters.DeviceIoControl.OutputBufferLength;
+    PKBDLAYER_WAIT_KEY_EVENT_INPUT input = (PKBDLAYER_WAIT_KEY_EVENT_INPUT)SystemBuffer;
+    ULONG lastSeq;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_WAIT_KEY_EVENT_INPUT)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (input->Flags != 0) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    // 出力は、見出し＋イベント1件以上（KeyStream.cのCompleteKeyWaitIrpが前提にする）。
+    if (outputLen < sizeof(KBDLAYER_WAIT_KEY_EVENT_OUTPUT) + sizeof(KBDLAYER_KEY_EVENT)) {
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+
+    // METHOD_BUFFERED: 出力は同じバッファに後で書かれるので、入力は先に読んでおく。
+    lastSeq = input->LastSeq;
+    return StartWaitKeyEvent(Irp, lastSeq);
+}
+
 NTSTATUS
 DispatchControlIoctl(
     IN PDEVICE_OBJECT DeviceObject,
@@ -1482,6 +1519,14 @@ DispatchControlIoctl(
         if (status == STATUS_PENDING) {
             // IRPは保留中（HelperNotify.cのStartWaitHelperEventがキューへ入れ、
             // IoMarkIrpPending済み。返せるイベントが既にあれば完了済み）。ここで完了させてはならない。
+            return STATUS_PENDING;
+        }
+        break;
+    case IOCTL_KBDLAYER_WAIT_KEY_EVENT:
+        status = HandleWaitKeyEvent(Irp, irpSp, systemBuffer, &bytesReturned);
+        if (status == STATUS_PENDING) {
+            // IRPは保留中（KeyStream.cのStartWaitKeyEventがキューへ入れ、IoMarkIrpPending済み）。
+            // ここで完了させてはならない。
             return STATUS_PENDING;
         }
         break;

@@ -148,6 +148,7 @@ Platform.
     <ClCompile Include="NicolaCore.c" />
     <ClCompile Include="LayerNotify.c" />
     <ClCompile Include="HelperNotify.c" />
+    <ClCompile Include="KeyStream.c" />
     <ClCompile Include="I8042Override.c" />
   </ItemGroup>
   <ItemGroup>

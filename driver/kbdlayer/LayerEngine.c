@@ -6324,6 +6324,8 @@ LayerNotifyIfChanged(
     // LayerNotifyIfChangedは、キーを処理しうるすべての経路の末尾（ロックの外）で呼ばれるので、
     // ここに相乗りする。
     HelperNotifyFlushIfNeeded();
+    // 同じく、このバッチで積んだ生キーのイベント（WAIT_KEY_EVENT）を、待っているアプリへ渡す。
+    KeyStreamFlushIfNeeded();
 
     KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
     changed = RefreshLayerStateLocked(devExt);
