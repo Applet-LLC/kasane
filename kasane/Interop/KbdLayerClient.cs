@@ -9,7 +9,13 @@ namespace Kasane.Interop;
 
 public sealed record DeviceInfo(uint UniqId, bool HasLayerMap, bool Enabled, uint ActiveLayerMask, string HardwareId)
 {
-    public string DisplayName => $"{UniqId:X8}  {HardwareId}";
+    /// <summary>
+    /// 画面に出す名前（利用者がつけた名前や Windows 上の名前を含む。<see cref="Kasane.Model.KeyboardNameRules.DisplayName"/>）。
+    /// 設定画面が一覧を作るときに付ける。無ければ「UniqId  HardwareId」。UniqId が先頭であることを前提にしている画面がある。
+    /// </summary>
+    public string? Label { get; init; }
+
+    public string DisplayName => Label ?? $"{UniqId:X8}  {HardwareId}";
 }
 
 public sealed record MacroStep(ushort ScanCode, bool IsBreak);

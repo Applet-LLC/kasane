@@ -189,6 +189,8 @@ ExtraInformation = (元のExtraInformation & 0x0000FFFF) | (DeviceId & 0xFFFF000
 - kasane が合成して出すキー（マクロなど）にも、同じ `DeviceId` が載る。
 
 ### 7.2 算出して照合する
+（kasane の設定画面は、この方法で、各キーボードの UniqId に合う Windows のデバイスノードを探し、デバイスマネージャーの名前や製品名を表示している。`docs/ARCHITECTURE.md` の「キーボードの表示名」。）
+
 
 各キーボードについて、次の手順でIDを求められる。
 

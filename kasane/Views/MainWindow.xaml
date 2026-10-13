@@ -20,8 +20,11 @@
         <!-- キーボード（デバイス）とレイアウトの選択 -->
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="8,8,8,4">
             <TextBlock Text="キーボード:" VerticalAlignment="Center" Margin="0,0,4,0" />
-            <ComboBox x:Name="CmbDevice" Width="460" DisplayMemberPath="DisplayName"
-                      SelectionChanged="CmbDevice_SelectionChanged" />
+            <ComboBox x:Name="CmbDevice" Width="620" DisplayMemberPath="DisplayName"
+                      SelectionChanged="CmbDevice_SelectionChanged"
+                      ToolTip="UniqId、つけた名前、Windows 上の名前（FriendlyName・ShellFriendlyName）、ハードウェアID の順に表示します" />
+            <Button x:Name="BtnRenameKeyboard" Content="名前を付ける..." Click="BtnRenameKeyboard_Click"
+                    ToolTip="このキーボードに、わかりやすい名前を付けます（設定画面の表示だけに使います）" />
             <Button x:Name="BtnIdentify" Content="押して特定..." Click="BtnIdentify_Click"
                     ToolTip="キーを1つ押して、どのキーボードかを選びます" />
             <Button Content="一覧を更新" Click="BtnRefreshDevices_Click" />

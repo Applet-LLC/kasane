@@ -144,6 +144,7 @@ public static class PortableExporter
     {
         UniqId = PortableKeyboard.FormatUniqId(p.UniqId),
         HardwareId = p.HardwareId,
+        Name = string.IsNullOrWhiteSpace(p.KeyboardName) ? null : p.KeyboardName,
         LayoutName = p.LayoutName,
     };
 

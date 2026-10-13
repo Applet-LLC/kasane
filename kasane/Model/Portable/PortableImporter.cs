@@ -57,6 +57,13 @@ public static class PortableImporter
 
         ProjectService.NormalizeShape(target, layout);
 
+        // キーボードの名前は、取り込み先に名前がまだ無いときだけ引き継ぐ（利用者がつけた名前を上書きしない）。レイヤー1枚の取り込みでは触らない。
+        if (!layerScope && !string.IsNullOrWhiteSpace(src.Name) && string.IsNullOrWhiteSpace(target.KeyboardName))
+        {
+            target.KeyboardName = src.Name;
+            r.Info($"キーボードの名前「{src.Name}」を引き継ぎました");
+        }
+
         if (o.MeasuredScanCodes && src.MeasuredScanCodes is { Count: > 0 } measured)
         {
             if (string.Equals(src.LayoutName, target.LayoutName, StringComparison.OrdinalIgnoreCase)) ApplyMeasured(target, layout, measured, r);

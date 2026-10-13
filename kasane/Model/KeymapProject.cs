@@ -47,6 +47,9 @@ public sealed class KeymapProject
     public uint UniqId { get; set; }
     public string? HardwareId { get; set; }
 
+    /// <summary>利用者がつけた、このキーボードの名前（任意。画面の表示だけに使う）。無ければ null。</summary>
+    public string? KeyboardName { get; set; }
+
     /// <summary>レイアウト名（同梱のLayouts\kle-&lt;名前&gt;.json）。</summary>
     public string LayoutName { get; set; } = "";
     /// <summary>同梱以外のKLEファイルを使う場合のフルパス（同梱なら null）。</summary>

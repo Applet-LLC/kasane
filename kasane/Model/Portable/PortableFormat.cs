@@ -71,6 +71,8 @@ public sealed class PortableKeyboard
     /// <summary>"0xCDEC0000"。</summary>
     public string? UniqId { get; set; }
     public string? HardwareId { get; set; }
+    /// <summary>利用者がつけた、このキーボードの名前（任意）。</summary>
+    public string? Name { get; set; }
     public string? LayoutName { get; set; }
 
     public List<PortableLayer>? Layers { get; set; }

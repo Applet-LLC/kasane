@@ -17,6 +17,8 @@ public partial class MainWindow : Window
         new(0, false, false, 0, "(ドライバ未接続: 編集とエクスポートのみ)");
 
     private KbdLayerClient? _client;
+    /// <summary>Windows 上のキーボード名（UniqId → FriendlyName・ShellFriendlyName）。一覧を更新するときに取り直す。</summary>
+    private Dictionary<uint, KeyboardNameInfo> _windowsNames = new();
     private KeymapProject? _project;
     private KeyboardLayout? _layout;
     private int _layer;
@@ -43,6 +45,22 @@ public partial class MainWindow : Window
         KbdCanvas.KeyRightClicked += Keyboard_KeyRightClicked;
         LstLayers.ContextMenu = BuildLayerMenu();
     }
+
+    /// <summary>利用者がつけた名前を返す。いま開いているキーボードは、編集中の内容（まだ保存していない名前の変更）を使う。</summary>
+    private string? UserNameFor(uint uniqId)
+    {
+        if (_project != null && _project.UniqId == uniqId) return _project.KeyboardName;
+        try { return ProjectService.TryLoad(uniqId)?.KeyboardName; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException) { return null; }
+    }
+
+    /// <summary>一覧の各キーボードに、表示名（UniqId・つけた名前・Windows 上の名前・ハードウェアID）を付ける。</summary>
+    private List<DeviceInfo> LabelDevices(List<DeviceInfo> devices) =>
+        devices.Select(d => d.UniqId == 0 ? d : d with
+        {
+            Label = KeyboardNameRules.DisplayName(d.UniqId, UserNameFor(d.UniqId),
+                _windowsNames.TryGetValue(d.UniqId, out var n) ? n : null, d.HardwareId),
+        }).ToList();
 
     private DeviceInfo? SelectedDevice => CmbDevice.SelectedItem as DeviceInfo;
     private bool IsOnline => _client != null && SelectedDevice is { UniqId: not 0 };
@@ -110,6 +128,10 @@ public partial class MainWindow : Window
             try { devices.AddRange(_client.ListDevices()); }
             catch (KbdLayerException ex) { SetStatus(ex.Message); }
         }
+        // Windows 上の名前は、一覧を更新するたびに取り直す（キーボードの抜き差しに追従する）。取れなくても、一覧は出る。
+        try { _windowsNames = KeyboardNameResolver.Resolve(devices); }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException) { _windowsNames = new(); }
+        devices = LabelDevices(devices);
         devices.Add(OfflineDevice);
 
         uint keep = selectUniqId ?? SelectedDevice?.UniqId ?? devices[0].UniqId;
@@ -118,6 +140,18 @@ public partial class MainWindow : Window
         CmbDevice.SelectedItem = devices.FirstOrDefault(d => d.UniqId == keep) ?? devices[0];
         _suppressEvents = false;
         LoadProjectForSelectedDevice();
+    }
+
+    private void BtnRenameKeyboard_Click(object sender, RoutedEventArgs e)
+    {
+        if (_project == null || SelectedDevice is not { UniqId: not 0 } device) return;
+        var dlg = new TextPromptWindow("キーボードの名前", "このキーボードの名前（空にすると、名前を消します）:", _project.KeyboardName ?? "", "KeyboardNameBox") { Owner = this };
+        if (dlg.ShowDialog() != true) return;
+        string name = dlg.Value.Trim();
+        _project.KeyboardName = name.Length == 0 ? null : name;
+        MarkDirty();
+        RefreshDeviceStatusOnly();
+        SetStatus(name.Length == 0 ? "キーボードの名前を消しました。" : $"キーボードの名前を「{name}」にしました。");
     }
 
     private void BtnRefreshDevices_Click(object sender, RoutedEventArgs e)
@@ -626,7 +660,7 @@ public partial class MainWindow : Window
         uint id = SelectedDevice?.UniqId ?? 0;
         try
         {
-            var devices = _client.ListDevices();
+            var devices = LabelDevices(_client.ListDevices());
             devices.Add(OfflineDevice);
             _suppressEvents = true;
             CmbDevice.ItemsSource = devices;
