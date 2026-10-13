@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0-windows</TargetFramework>
@@ -30,6 +30,8 @@
          （kasane-trayをプロジェクト参照すると、KbdLayerClientなどの型がkasaneと重複して曖昧になるため）。 -->
     <Compile Include="..\kasane-tray\PauseController.cs" Link="Tray\PauseController.cs" />
     <Compile Include="..\kasane-tray\PauseStateStore.cs" Link="Tray\PauseStateStore.cs" />
+    <Compile Include="..\kasane-tray\AutoOffController.cs" Link="Tray\AutoOffController.cs" />
+    <Compile Include="..\kasane-tray\AutoOffStore.cs" Link="Tray\AutoOffStore.cs" />
     <Compile Include="..\kasane-tray\ImeLinkController.cs" Link="Tray\ImeLinkController.cs" />
     <Compile Include="..\kasane-tray\Win32ImeSource.cs" Link="Tray\Win32ImeSource.cs" />
     <Compile Include="..\kasane-tray\AppLayerArbiter.cs" Link="Tray\AppLayerArbiter.cs" />

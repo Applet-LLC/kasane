@@ -70,6 +70,7 @@ public sealed class SettingsDialog : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         ShowInTaskbar = false;
 
+        AddTab("TabGeneral", "全般", BuildGeneralTab());
         AddTab("TabFeatures", "機能", BuildFeaturesTab());
         AddTab("TabTiming", "タイミング", BuildTimingTab());
         AddTab("TabNicola", "NICOLA", BuildNicolaTab());
@@ -94,6 +95,33 @@ public sealed class SettingsDialog : Window
         root.Children.Add(_error);
         root.Children.Add(_tabs);
         Content = root;
+    }
+
+    private CheckBox _remapOnlyWhileTray = null!;
+
+    /// <summary>全般: このPCの利用者の設定（tray.json。トレイが数秒ごとに読む）。OK で保存する。</summary>
+    private UIElement BuildGeneralTab()
+    {
+        var panel = new StackPanel();
+        panel.Children.Add(new TextBlock { Text = "トレイ（タスクトレイの kasane）", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
+        _remapOnlyWhileTray = new CheckBox
+        {
+            Name = "GeneralRemapOnlyWhileTrayCheck",
+            Content = "トレイが動いている間だけ、キーのリマップを有効にする",
+            IsChecked = _trayConfig.RemapOnlyWhileTrayRuns,
+            Margin = new Thickness(0, 0, 0, 6),
+        };
+        panel.Children.Add(_remapOnlyWhileTray);
+        panel.Children.Add(Help(
+            "ドライバは、設定を保存しているので、Windows のログオン画面や起動した直後（トレイが動く前）でもリマップを続けます。" +
+            "ONにすると、次のようにします。\n" +
+            "・トレイを終了したとき、サインアウト・シャットダウンするとき、画面をロックしたとき（ユーザーの切り替えを含む）は、リマップをOFF（素通し）にします。\n" +
+            "・トレイが起動したとき、ロックを解除したときは、このモードでOFFにしたキーボードだけを、ONに戻します（緊急解除や「OFF」ボタンで止めたキーボードは戻しません）。\n" +
+            "既定はONです。\n" +
+            "制約: トレイが異常終了したとき（クラッシュ・強制終了・電源断など）は、OFFにできず、次の起動のログオン画面ではリマップが効いたままです。" +
+            "インストーラーによる更新・削除でトレイを止めるときも、OFFにしません。\n" +
+            "この設定は、この PC のこの利用者の設定です（キーボードごとの設定ではありません）。OK で保存し、トレイが数秒で読み直します。"));
+        return panel;
     }
 
     private bool IsOnline => _uniqId != 0;
@@ -1025,12 +1053,14 @@ public sealed class SettingsDialog : Window
         // IME連動はプロジェクトではなく、このPCの利用者の設定（トレイが数秒ごとに読む）。変えたときだけ保存する。
         bool imeLink = _imeLink.IsChecked == true;
         bool showLayer = _showLayerOnIcon.IsChecked == true;
-        if (imeLink != _trayConfig.ImeLink || showLayer != _trayConfig.ShowLayerOnIcon)
+        bool remapOnlyWhileTray = _remapOnlyWhileTray.IsChecked == true;
+        if (imeLink != _trayConfig.ImeLink || showLayer != _trayConfig.ShowLayerOnIcon || remapOnlyWhileTray != _trayConfig.RemapOnlyWhileTrayRuns)
         {
             try
             {
                 _trayConfig.ImeLink = imeLink;
                 _trayConfig.ShowLayerOnIcon = showLayer;
+                _trayConfig.RemapOnlyWhileTrayRuns = remapOnlyWhileTray;
                 _trayConfig.Save();
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

@@ -20,6 +20,9 @@ public sealed class TrayContext : ApplicationContext
     private const int PollIntervalMs = 3000;
 
     private readonly PauseController _pause;
+    private readonly AutoOffController _autoOff;
+    private volatile bool _autoOffMode = true; // TrayConfig.RemapOnlyWhileTrayRuns の最新の値（ログオフの通知は別スレッドで来るため）
+    private bool _autoOffShutdownDone;
     private readonly NotifyIcon _notifyIcon;
     private readonly ContextMenuStrip _menu = new();
     private readonly ToolStripMenuItem _settingsItem = new("設定") { Name = "TraySettings" };
@@ -45,8 +48,12 @@ public sealed class TrayContext : ApplicationContext
     public TrayContext()
     {
         _pause = new PauseController(new KbdLayerDriverAccess(), new JsonPauseStateStore());
+        _autoOff = new AutoOffController(new KbdLayerDriverAccess(), new JsonAutoOffStore());
+        _autoOffMode = TrayConfig.Load().RemapOnlyWhileTrayRuns;
+        Microsoft.Win32.SystemEvents.SessionEnded += OnSessionEnded; // ログオフ・シャットダウン
         _imeLink = new ImeLinkHost();
         _ = _ui.Handle; // このスレッド（UI スレッド）にハンドルを作っておく
+        _imeLink.StateChanged += RefreshStateSoon;
         _helper = new HelperHost(_imeLink, () =>
         {
             try { _ui.BeginInvoke(new Action(TogglePause)); }
@@ -190,7 +197,12 @@ public sealed class TrayContext : ApplicationContext
         try
         {
             if (_imeLink.ReloadConfig()) _helper.OnConfigChanged();
-            _showLayer = TrayConfig.Load().ShowLayerOnIcon;
+            var config = TrayConfig.Load();
+            _showLayer = config.ShowLayerOnIcon;
+            _autoOffMode = config.RemapOnlyWhileTrayRuns;
+            // 動いている間だけ有効にするモード: セッションが非アクティブなら OFF、アクティブなら（起動直後も）記録した分を ON に戻す。
+            // 一時停止の判定より前に行う（起動直後に、戻す前の「リマップ中のキーボードなし」を見せないため）。
+            if (!_autoOffShutdownDone) _autoOff.Tick(_autoOffMode, _imeLink.SessionActive, _pause.IsPaused); // 終了処理の後は、戻さない
             var snapshot = _pause.Refresh();
             _layerWatch.Sync(); // キーボードの増減・設定・セッションの変化に追従する
             ApplySnapshot(snapshot);
@@ -247,8 +259,31 @@ public sealed class TrayContext : ApplicationContext
         _notifyIcon.Text = text; // 127文字まで
     }
 
+    // セッションの状態か一時停止が変わった（どのスレッドからでも来る）。3秒の周期を待たずに、UI スレッドで OFF / ON を合わせる。
+    private void RefreshStateSoon()
+    {
+        try { _ui.BeginInvoke(new Action(RefreshState)); }
+        catch (InvalidOperationException) { /* 終了中 */ }
+    }
+
+    // ログオフ・シャットダウン（SystemEvents のスレッド）。トレイのプロセスが終わる前に、リマップをOFFにする。
+    private void OnSessionEnded(object? sender, Microsoft.Win32.SessionEndedEventArgs e) => ShutdownAutoOff();
+
+    private void ShutdownAutoOff()
+    {
+        lock (_autoOff)
+        {
+            if (_autoOffShutdownDone) return;
+            _autoOffShutdownDone = true;
+        }
+        try { _autoOff.Shutdown(_autoOffMode); }
+        catch (Exception ex) { TrayLog.Write("AutoOff.Shutdown: " + ex); }
+    }
+
     private void ExitTray()
     {
+        Microsoft.Win32.SystemEvents.SessionEnded -= OnSessionEnded;
+        ShutdownAutoOff(); // 「終了」メニュー。モードがONなら、リマップをOFFにしてから終わる。
         _timer.Stop();
         _layerWatch.Dispose();
         _helper.Dispose();  // キーフックと動作の実行を止める

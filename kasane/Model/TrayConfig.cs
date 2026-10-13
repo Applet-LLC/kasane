@@ -19,6 +19,14 @@ public sealed class TrayConfig
     public bool ShowLayerOnIcon { get; set; } = true;
 
     /// <summary>
+    /// トレイが動いている間だけ、リマップを有効にする（既定はON。2026-10-13）。ドライバは永続化された設定で、ログオン画面や起動直後でも
+    /// リマップを続けるので、このモードでは、トレイの終了・ログオフ・シャットダウン、セッションが非アクティブな間（ロック・ユーザー切り替え）に
+    /// キーボードのリマップをOFFにし、トレイが動いてセッションがアクティブになったらONに戻す（kasane-tray の AutoOffController）。
+    /// tray.json が無い・読めないときもON。
+    /// </summary>
+    public bool RemapOnlyWhileTrayRuns { get; set; } = true;
+
+    /// <summary>
     /// 全キーボード共通のヘルパー設定（前面のアプリの規則、HLP の動作など。2026-10-08）。キーボードごとの分は
     /// &lt;UniqId:X8&gt;\helper.json（<see cref="HelperConfig"/>）。無ければ null。
     /// </summary>

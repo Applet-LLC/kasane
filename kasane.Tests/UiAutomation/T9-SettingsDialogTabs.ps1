@@ -33,8 +33,14 @@ try {
     $main = Find-TopWindowByProcess $proc.Id -timeoutMs 8000
     Set-ForegroundWindowFor $main
 
-    # ---- Features tab ----
+    # ---- General tab (the tray runs-only remap mode; the default is ON when tray.json has no value) ----
     $dlg = Open-Settings $main $proc.Id
+    Select-TabById $dlg "TabGeneral"
+    $gen = Find-ChildByAutomationId $dlg "GeneralRemapOnlyWhileTrayCheck"
+    Chk "general tab has the remap-only-while-tray-runs checkbox" ($null -ne $gen)
+    if ($gen) { "  general check state: $(Get-ToggleState $gen)" }
+
+    # ---- Features tab ----
     Select-TabById $dlg "TabFeatures"
     $comboBefore = Get-ToggleState (Find-ChildByAutomationId $dlg "FeatureCombo")
     $want = if ($comboBefore -eq [System.Windows.Automation.ToggleState]::On) { $false } else { $true }
