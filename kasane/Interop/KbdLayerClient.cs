@@ -238,18 +238,30 @@ public sealed partial class KbdLayerClient : IDisposable
             w.Write(enabled ? 1u : 0u);
         }), 0);
 
-    /// <summary>次の物理キー押下1回分のスキャンコード（Enc16）。timeoutMs以内に無ければ null。</summary>
-    public ushort? CaptureNextKey(uint uniqId, uint timeoutMs)
+    /// <summary>CAPTURE_NEXT_KEY の Flags: 疑似Shift（E0 2A / E0 36）も捕捉する。</summary>
+    public const uint CaptureFlagAllowFakeShift = 1;
+
+    /// <summary>
+    /// 次の物理キー押下1回分のスキャンコード（Enc16）。timeoutMs以内に無ければ null。
+    /// allowFakeShift: 右ShiftをE0 36で出すキーボードを実測するとき、Shiftのスロットだけで true にする
+    /// （PrintScreenで指定すると、前置きのE0 2Aを捕まえる）。false のときは従来どおり8バイトの入力を送る（旧ドライバとも互換）。
+    /// </summary>
+    public ushort? CaptureNextKey(uint uniqId, uint timeoutMs, bool allowFakeShift = false)
     {
-        var data = Ioctl("キーの取得", IOCTL_CAPTURE_NEXT_KEY, Build(w =>
-        {
-            w.Write(uniqId);
-            w.Write(timeoutMs);
-        }), 4);
+        var data = Ioctl("キーの取得", IOCTL_CAPTURE_NEXT_KEY, BuildCaptureRequest(uniqId, timeoutMs, allowFakeShift), 4);
         ushort sc = BitConverter.ToUInt16(data, 0);
         bool timedOut = BitConverter.ToUInt16(data, 2) != 0;
         return timedOut ? null : sc;
     }
+
+    /// <summary>CAPTURE_NEXT_KEY の入力。フラグが無いときは旧形式（8バイト）のままにして、旧ドライバでも動かす。</summary>
+    public static byte[] BuildCaptureRequest(uint uniqId, uint timeoutMs, bool allowFakeShift) =>
+        Build(w =>
+        {
+            w.Write(uniqId);
+            w.Write(timeoutMs);
+            if (allowFakeShift) w.Write(CaptureFlagAllowFakeShift);
+        });
 
     /// <summary>
     /// SET_CONFIG v2（判定方式・Quick Tap・TTの回数を含む）で送る。古いドライバは、長い入力の先頭の

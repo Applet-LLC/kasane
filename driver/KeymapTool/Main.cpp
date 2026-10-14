@@ -142,13 +142,13 @@ int CmdSetEnabled(IoctlClient* client, ULONG uniqId, bool enabled) {
     return 0;
 }
 
-int CmdCapture(IoctlClient* client, ULONG uniqId, ULONG timeoutMs, bool suppress) {
+int CmdCapture(IoctlClient* client, ULONG uniqId, ULONG timeoutMs, bool suppress, bool allowFakeShift) {
     CaptureSuppressGuard guard(client, uniqId, suppress);
     if (!guard.Begin()) return 1;
 
     USHORT scanCode = 0;
     bool timedOut = false;
-    if (!client->CaptureNextKey(uniqId, timeoutMs, &scanCode, &timedOut)) return 1;
+    if (!client->CaptureNextKey(uniqId, timeoutMs, &scanCode, &timedOut, allowFakeShift)) return 1;
     if (timedOut) {
         printf("timed out, no key detected\n");
     } else {
@@ -1144,8 +1144,10 @@ void PrintUsage() {
         "      Remove the layer map (must be OFF first).\n"
         "  KeymapTool.exe --on <UniqIdHex> / --off <UniqIdHex>\n"
         "      Enable/disable the layer map (map contents are kept when OFF).\n"
-        "  KeymapTool.exe --capture <UniqIdHex> [timeoutMs] [--suppress]\n"
+        "  KeymapTool.exe --capture <UniqIdHex> [timeoutMs] [--suppress] [--allow-fake-shift]\n"
         "      One-shot test of IOCTL_KBDLAYER_CAPTURE_NEXT_KEY.\n"
+        "      --allow-fake-shift also captures E0 2A / E0 36 (for keyboards whose right Shift\n"
+        "      is E0 36). Use it only for Shift keys; PrintScreen would capture its E0 2A prefix.\n"
         "  KeymapTool.exe --calibrate <UniqIdHex> <info.json> <out-profile.json> [layoutName] [--suppress]\n"
         "      Walk every key in info.json's layout, prompting you to press it,\n"
         "      and save the physical scancode mapping to out-profile.json.\n"
@@ -1285,10 +1287,13 @@ int main(int rawArgc, char** rawArgv) {
     // --suppress はどの位置に書いてもよいオプションとして先に取り除き、
     // 残りを従来通りの位置引数として解釈する。
     bool suppress = false;
+    bool allowFakeShift = false;
     std::vector<char*> args;
     for (int i = 0; i < rawArgc; i++) {
         if (i > 0 && strcmp(rawArgv[i], "--suppress") == 0) {
             suppress = true;
+        } else if (i > 0 && strcmp(rawArgv[i], "--allow-fake-shift") == 0) {
+            allowFakeShift = true;
         } else {
             args.push_back(rawArgv[i]);
         }
@@ -1510,7 +1515,7 @@ int main(int rawArgc, char** rawArgv) {
         ULONG uniqId;
         if (argc < 3 || !ParseHexU32(argv[2], &uniqId)) { PrintUsage(); return 1; }
         ULONG timeoutMs = (argc >= 4) ? (ULONG)strtoul(argv[3], nullptr, 10) : 0;
-        return CmdCapture(&client, uniqId, timeoutMs, suppress);
+        return CmdCapture(&client, uniqId, timeoutMs, suppress, allowFakeShift);
     }
 
     if (strcmp(cmd, "--calibrate") == 0) {

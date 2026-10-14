@@ -171,11 +171,13 @@ bool IoctlClient::SetLayerMapEnabled(ULONG uniqId, bool enabled) {
     return true;
 }
 
-bool IoctlClient::CaptureNextKey(ULONG uniqId, ULONG timeoutMs, USHORT* outScanCode16, bool* outTimedOut) {
+bool IoctlClient::CaptureNextKey(ULONG uniqId, ULONG timeoutMs, USHORT* outScanCode16, bool* outTimedOut,
+                                bool allowFakeShift) {
     if (!RequireWriteAccess("IOCTL_KBDLAYER_CAPTURE_NEXT_KEY")) return false;
     KBDLAYER_CAPTURE_NEXT_KEY_INPUT input;
     input.Target.UniqId = uniqId;
     input.TimeoutMs = timeoutMs;
+    input.Flags = allowFakeShift ? KBDLAYER_CAPTURE_FLAG_ALLOW_FAKE_SHIFT : 0;
 
     KBDLAYER_CAPTURE_NEXT_KEY_OUTPUT output;
     DWORD bytesReturned = 0;

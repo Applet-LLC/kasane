@@ -322,6 +322,9 @@ typedef struct _DEVICE_EXTENSION {
     // 状態に関わらず次の押下1件で必ず消費する（2イベント目が別バッチ・別のキャプチャ
     // 待機中に届いても、NumLockや次のスロットとして誤記録しないため）。
     BOOLEAN CaptureSkipAfterE1;
+    // TRUE = 今の捕捉待機は疑似Shift（E0 2A / E0 36）も記録する（KBDLAYER_CAPTURE_FLAG_ALLOW_FAKE_SHIFT）。
+    // StartCaptureNextKeyが毎回設定する。EngineLock保持中に読み書きする。
+    BOOLEAN CaptureAllowFakeShift;
 
     // --- キーイベントの通知（WAIT_KEY_EVENT、KeyStream.c） ---
     // TRUE = 直前の観測したエントリがE1プレフィックス付き（Pauseの{E1 1D}）だったので、次の

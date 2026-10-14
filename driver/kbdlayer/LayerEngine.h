@@ -833,7 +833,8 @@ NTSTATUS
 StartCaptureNextKey(
     _In_ PDEVICE_EXTENSION devExt,
     _In_ PIRP Irp,
-    _In_ ULONG TimeoutMs
+    _In_ ULONG TimeoutMs,
+    _In_ ULONG Flags      // KBDLAYER_CAPTURE_FLAG_*
     );
 
 // 保留中の捕捉があれば、Statusで即座に完了させる（デバイス削除時。DispatchPnpが
