@@ -45,7 +45,9 @@ public:
 
     // timeoutMs=0はドライバ側既定値(KBDLAYER_CAPTURE_DEFAULT_TIMEOUT_MS)を使う。
     // 戻り値: true=IOCTL自体は成功（*outTimedOutで実際に捕捉できたか判定）。
-    bool CaptureNextKey(ULONG uniqId, ULONG timeoutMs, USHORT* outScanCode16, bool* outTimedOut);
+    // allowFakeShift: 疑似Shift（E0 2A / E0 36）も捕捉する（右ShiftをE0 36で出すキーボードの実測用）。
+    bool CaptureNextKey(ULONG uniqId, ULONG timeoutMs, USHORT* outScanCode16, bool* outTimedOut,
+                        bool allowFakeShift = false);
 
     // SET_CONFIG v2で追加した項目（kbdlayer_ioctl.hのKBDLAYER_SET_CONFIG_INPUT参照）。
     struct TapHoldOptions {

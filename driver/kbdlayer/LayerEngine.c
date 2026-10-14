@@ -5240,7 +5240,8 @@ NTSTATUS
 StartCaptureNextKey(
     _In_ PDEVICE_EXTENSION devExt,
     _In_ PIRP Irp,
-    _In_ ULONG TimeoutMs
+    _In_ ULONG TimeoutMs,
+    _In_ ULONG Flags
     )
 {
     KIRQL oldIrql;
@@ -5277,6 +5278,7 @@ StartCaptureNextKey(
     devExt->CaptureActive = TRUE;
     devExt->CaptureDone = FALSE;
     devExt->CapturedScanCode = 0;
+    devExt->CaptureAllowFakeShift = (Flags & KBDLAYER_CAPTURE_FLAG_ALLOW_FAKE_SHIFT) != 0;
     devExt->CaptureDeadline = KeQueryInterruptTime() + (ULONGLONG)TimeoutMs * 10000ULL;
     // 入力抑止のアイドルタイムアウトを延長する（キャプチャ待機そのものが
     // 「キャリブレーション継続中」のアクティビティ）。
@@ -5364,7 +5366,10 @@ CalibrationShouldDropEntry(
         BOOLEAN skip = devExt->CaptureSkipAfterE1;
         devExt->CaptureSkipAfterE1 = FALSE;
 
-        if (devExt->CaptureActive && !skip && !IsFakeShift(Entry)) {
+        // 疑似Shift（E0 2A / E0 36）は、CaptureAllowFakeShift（右ShiftをE0 36で出すキーボードの実測用）
+        // のときだけ捕捉の対象にする。
+        if (devExt->CaptureActive && !skip &&
+            (devExt->CaptureAllowFakeShift || !IsFakeShift(Entry))) {
             devExt->CapturedScanCode = EncodeScancode16(Entry->MakeCode, Entry->Flags);
             devExt->CaptureActive = FALSE;
             // IRPの完了はロック解放後にResolveCalibrationが行う。

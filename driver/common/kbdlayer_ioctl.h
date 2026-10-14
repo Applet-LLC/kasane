@@ -194,9 +194,19 @@ typedef struct _KBDLAYER_LIST_DEVICES_OUTPUT {
 // KBDLAYER_CAPTURE_MAX_TIMEOUT_MS を超える値は、その上限に切り詰める。
 // 待機中にプロセスが終了したりハンドルを閉じたりすると、IRPはSTATUS_CANCELLEDで即座に戻る。
 #define KBDLAYER_CAPTURE_MAX_TIMEOUT_MS 60000
+// Flags（旧クライアントはこの項目を送らない＝入力が8バイト。その場合は0として扱う）:
+//   KBDLAYER_CAPTURE_FLAG_ALLOW_FAKE_SHIFT: 疑似Shift（E0 2A / E0 36）も捕捉の対象にする。
+//   既定（0）では、PrintScreen等の前置きの疑似Shiftと区別できないため除外している。
+//   右ShiftをE0 36で出す一部のキーボードを実測するときだけ指定する（Shiftのスロット専用。
+//   PrintScreenのスロットで指定すると、前置きのE0 2Aが先に捕捉される）。
+#define KBDLAYER_CAPTURE_FLAG_ALLOW_FAKE_SHIFT 0x00000001
+#define KBDLAYER_CAPTURE_FLAGS_MASK            0x00000001
+// 旧クライアントの入力サイズ（Flagsを含まない）。
+#define KBDLAYER_CAPTURE_NEXT_KEY_INPUT_V1_SIZE (sizeof(KBDLAYER_TARGET) + sizeof(ULONG))
 typedef struct _KBDLAYER_CAPTURE_NEXT_KEY_INPUT {
     KBDLAYER_TARGET Target;
     ULONG TimeoutMs;
+    ULONG Flags;
 } KBDLAYER_CAPTURE_NEXT_KEY_INPUT, *PKBDLAYER_CAPTURE_NEXT_KEY_INPUT;
 
 // IOCTL_KBDLAYER_CAPTURE_NEXT_KEY の出力バッファ。

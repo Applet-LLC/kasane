@@ -1018,11 +1018,19 @@ HandleCaptureNextKey(
     PDEVICE_EXTENSION devExt;
     NTSTATUS status;
     ULONG timeoutMs;
+    ULONG flags = 0;
 
     *BytesReturned = 0;
 
-    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_CAPTURE_NEXT_KEY_INPUT)) {
+    // 旧クライアントはFlagsを含まない短い入力を送る（その場合は flags = 0）。
+    if (SystemBuffer == NULL || inputLen < KBDLAYER_CAPTURE_NEXT_KEY_INPUT_V1_SIZE) {
         return STATUS_INVALID_PARAMETER;
+    }
+    if (inputLen >= sizeof(KBDLAYER_CAPTURE_NEXT_KEY_INPUT)) {
+        flags = input->Flags;
+        if ((flags & ~KBDLAYER_CAPTURE_FLAGS_MASK) != 0) {
+            return STATUS_INVALID_PARAMETER;
+        }
     }
     if (outputLen < sizeof(KBDLAYER_CAPTURE_NEXT_KEY_OUTPUT)) {
         return STATUS_BUFFER_TOO_SMALL;
@@ -1036,7 +1044,7 @@ HandleCaptureNextKey(
     }
 
     // STATUS_PENDINGなら、IRPの完了とremove lockの解放はLayerEngine.c側が行う。
-    status = StartCaptureNextKey(devExt, Irp, timeoutMs);
+    status = StartCaptureNextKey(devExt, Irp, timeoutMs, flags);
     if (status != STATUS_PENDING) {
         IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
     }

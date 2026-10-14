@@ -303,7 +303,10 @@ public partial class CalibrationWindow : Window
             ushort? sc;
             try
             {
-                sc = await Task.Run(() => client.CaptureNextKey(_uniqId, CaptureTimeoutMs), ct);
+                // 右ShiftをE0 36で出すキーボードを実測できるよう、Shiftのスロットを記録中だけ疑似Shiftも捕捉する。
+                // 待機は500msで戻って張り直すので、記録対象が変わっても、すぐ追従する。
+                bool fakeShift = CaptureFlags.WantsFakeShift(Target?.DefaultScanCode);
+                sc = await Task.Run(() => client.CaptureNextKey(_uniqId, CaptureTimeoutMs, fakeShift), ct);
             }
             catch (OperationCanceledException) { return; }
             catch (KbdLayerException ex)
