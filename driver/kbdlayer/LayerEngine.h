@@ -797,6 +797,22 @@ CheckEmergencyRelease(
     _In_ PKEYBOARD_INPUT_DATA InputDataEnd
     );
 
+// ServiceCallbackで、キャリブレーションの後・リマップの連鎖の前に呼ぶ。Pause/Break（{E1 1D}{45}、
+// 解放は{E1 9D}{C5}）の2イベント目{45}／{C5}には、E1フラグが付かず、NumLockの0x45と区別できない。
+// そのため、Pause（0xE11D）か NumLock（0x0045）をレイヤーマップが扱っている（または、Pauseの押下を
+// 処理中として記録している）間は、E1付きのエントリのすぐ後に来る{45}を、連鎖に渡さずに取り除く
+// （Pauseを別のキーに置き換えると、Pauseのたびにこの{45}がNumLockとして処理されていた）。
+// Pause自体は{E1 1D}の1エントリだけになる（Windowsはそれで足りる。実機で確認済み）。
+// それ以外のとき（どちらのキーも扱っていない、マップが無効）は何もしない。取り除いたら、戻り値は
+// 詰めた後の終端（元と違う）。OutputLock保持中に呼ぶこと（中でEngineLockを取る）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+PKEYBOARD_INPUT_DATA
+CollapseE1Sequence(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd
+    );
+
 // GET/SET_EMERGENCY_RELEASE の実体。ドライバ全体の設定なので特定のdevExtを取らない。
 _IRQL_requires_max_(PASSIVE_LEVEL)
 VOID

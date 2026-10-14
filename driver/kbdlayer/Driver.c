@@ -634,6 +634,19 @@ VOID ServiceCallback(
             }
         }
 
+        // Pause/Breakの2イベント目{45}／{C5}を取り除く（NumLockのリマップとして処理されないように）。
+        // リマップの連鎖より前、キャリブレーション・キーイベントの観測より後。詳細はLayerEngine.cのCollapseE1Sequence。
+        {
+            PKEYBOARD_INPUT_DATA e1End = CollapseE1Sequence(devExt, InputDataStart, InputDataEnd);
+            if (e1End != InputDataEnd) {
+                compacted = TRUE;
+                InputDataEnd = e1End;
+                if (InputDataEnd == InputDataStart) {
+                    goto consumed;
+                }
+            }
+        }
+
         // Phase 6: NICOLA判定が有効な間は、複数件バッチを1件ずつに分けて流す。
         // USBキーボードでは親指キーと文字キーの同時押しが1つのレポート（=1バッチ）で
         // 届きうるが、各Resolve*は1件バッチしか扱わないため。
