@@ -29,6 +29,7 @@
     <!-- トレイ（kasane-tray）の一時停止の中身。WinFormsに依存しない2ファイルだけを取り込む
          （kasane-trayをプロジェクト参照すると、KbdLayerClientなどの型がkasaneと重複して曖昧になるため）。 -->
     <Compile Include="..\kasane-tray\PauseController.cs" Link="Tray\PauseController.cs" />
+    <Compile Include="..\kasane-tray\DesktopViewMode.cs" Link="Tray\DesktopViewMode.cs" />
     <Compile Include="..\kasane-tray\PauseStateStore.cs" Link="Tray\PauseStateStore.cs" />
     <Compile Include="..\kasane-tray\AutoOffController.cs" Link="Tray\AutoOffController.cs" />
     <Compile Include="..\kasane-tray\AutoOffStore.cs" Link="Tray\AutoOffStore.cs" />

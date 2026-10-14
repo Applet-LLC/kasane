@@ -74,6 +74,7 @@ public sealed class SettingsDialog : Window
         AddTab("TabFeatures", "機能", BuildFeaturesTab());
         AddTab("TabTiming", "タイミング", BuildTimingTab());
         AddTab("TabNicola", "NICOLA", BuildNicolaTab());
+        AddTab("TabDesktop", "デスクトップ", BuildDesktopTab());
         AddTab("TabHelper", "ヘルパー動作", new HelperActionsTab(_helper, this).Root);
         AddTab("TabAppRules", "アプリ別レイヤー", new AppRulesTab(_helper, this).Root);
         AddTab("TabEmergency", "緊急解除", BuildEmergencyTab());
@@ -122,6 +123,50 @@ public sealed class SettingsDialog : Window
             "インストーラーによる更新・削除でトレイを止めるときも、OFFにしません。\n" +
             "この設定は、この PC のこの利用者の設定です（キーボードごとの設定ではありません）。OK で保存し、トレイが数秒で読み直します。"));
         return panel;
+    }
+
+    private static readonly string[] DesktopViewLabels =
+    {
+        "通常表示", "詳細表示", "小さなアイコン表示", "リスト表示", "タイル表示",
+    };
+
+    private RadioButton _desktopKeep = null!;
+    private readonly RadioButton[] _desktopViewRadios = new RadioButton[5];
+
+    /// <summary>デスクトップ: アイコンの表示方法（のどかの DesktopListView。キーのリマップとは無関係）。OK で tray.json に保存する。</summary>
+    private UIElement BuildDesktopTab()
+    {
+        var panel = new StackPanel();
+        panel.Children.Add(new TextBlock { Text = "デスクトップのアイコンの表示方法", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
+        panel.Children.Add(Help(
+            "トレイ（タスクトレイの kasane）が起動したときに、デスクトップのアイコンの表示方法をここで選んだものにします（のどかの def option DesktopListView と同じ番号）。" +
+            "「変えない」のときは何もしません。保存は OK で行い、反映はトレイを起動し直したときです。キーのリマップとは関係ありません。\n" +
+            "OSやデスクトップの状態によっては、選んだ表示方法にならないことがあります。"));
+
+        _desktopKeep = new RadioButton { Name = "DesktopViewKeep", Content = "変えない（既定）", GroupName = "DesktopView", Margin = new Thickness(0, 2, 0, 2) };
+        panel.Children.Add(_desktopKeep);
+        for (int i = 0; i < _desktopViewRadios.Length; i++)
+        {
+            _desktopViewRadios[i] = new RadioButton
+            {
+                Name = "DesktopView" + i,
+                Content = $"{i}: {DesktopViewLabels[i]}",
+                GroupName = "DesktopView",
+                Margin = new Thickness(0, 2, 0, 2),
+            };
+            panel.Children.Add(_desktopViewRadios[i]);
+        }
+        int? current = _trayConfig.DesktopViewMode;
+        if (current is >= 0 and < 5) _desktopViewRadios[current.Value].IsChecked = true;
+        else _desktopKeep.IsChecked = true;
+        return panel;
+    }
+
+    private int? SelectedDesktopViewMode()
+    {
+        for (int i = 0; i < _desktopViewRadios.Length; i++)
+            if (_desktopViewRadios[i].IsChecked == true) return i;
+        return null;
     }
 
     private bool IsOnline => _uniqId != 0;
@@ -1063,10 +1108,13 @@ public sealed class SettingsDialog : Window
         bool imeLink = _imeLink.IsChecked == true;
         bool showLayer = _showLayerOnIcon.IsChecked == true;
         bool remapOnlyWhileTray = _remapOnlyWhileTray.IsChecked == true;
-        if (imeLink != _trayConfig.ImeLink || showLayer != _trayConfig.ShowLayerOnIcon || remapOnlyWhileTray != _trayConfig.RemapOnlyWhileTrayRuns)
+        int? desktopView = SelectedDesktopViewMode();
+        if (imeLink != _trayConfig.ImeLink || showLayer != _trayConfig.ShowLayerOnIcon || remapOnlyWhileTray != _trayConfig.RemapOnlyWhileTrayRuns
+            || desktopView != _trayConfig.DesktopViewMode)
         {
             try
             {
+                _trayConfig.DesktopViewMode = desktopView;
                 _trayConfig.ImeLink = imeLink;
                 _trayConfig.ShowLayerOnIcon = showLayer;
                 _trayConfig.RemapOnlyWhileTrayRuns = remapOnlyWhileTray;

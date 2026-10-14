@@ -25,6 +25,7 @@ public sealed class TrayContext : ApplicationContext
     private bool _autoOffShutdownDone;
     private readonly NotifyIcon _notifyIcon;
     private readonly TrayIconPromoter? _promoter; // タスクバーの設定で、アイコンを初回だけ「表に表示」にする
+    private readonly DesktopViewApplier? _desktopView; // 起動時に1回、デスクトップのアイコンの表示方法を合わせる（設定が無ければ null）
     private readonly ContextMenuStrip _menu = new();
     private readonly ToolStripMenuItem _settingsItem = new("設定") { Name = "TraySettings" };
     private readonly ToolStripMenuItem _pauseItem = new("一時停止") { Name = "TrayPause" };
@@ -93,6 +94,8 @@ public sealed class TrayContext : ApplicationContext
             _promoter = new TrayIconPromoter(exePath);
             _promoter.Start();
         }
+
+        _desktopView = DesktopViewApplier.StartIfConfigured(TrayConfig.Load().DesktopViewMode);
 
         _timer.Tick += (_, _) => RefreshState();
         _timer.Start();
@@ -306,6 +309,7 @@ public sealed class TrayContext : ApplicationContext
         {
             _timer.Dispose();
             _promoter?.Dispose();
+            _desktopView?.Dispose();
             _layerWatch.Dispose();
             _helper.Dispose();
             _imeLink.Dispose();
