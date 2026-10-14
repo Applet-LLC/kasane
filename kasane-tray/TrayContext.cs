@@ -24,6 +24,7 @@ public sealed class TrayContext : ApplicationContext
     private volatile bool _autoOffMode = true; // TrayConfig.RemapOnlyWhileTrayRuns の最新の値（ログオフの通知は別スレッドで来るため）
     private bool _autoOffShutdownDone;
     private readonly NotifyIcon _notifyIcon;
+    private readonly TrayIconPromoter? _promoter; // タスクバーの設定で、アイコンを初回だけ「表に表示」にする
     private readonly ContextMenuStrip _menu = new();
     private readonly ToolStripMenuItem _settingsItem = new("設定") { Name = "TraySettings" };
     private readonly ToolStripMenuItem _pauseItem = new("一時停止") { Name = "TrayPause" };
@@ -86,6 +87,12 @@ public sealed class TrayContext : ApplicationContext
         {
             if (e.Button == MouseButtons.Left) OpenEditor();
         };
+
+        if (Environment.ProcessPath is { } exePath)
+        {
+            _promoter = new TrayIconPromoter(exePath);
+            _promoter.Start();
+        }
 
         _timer.Tick += (_, _) => RefreshState();
         _timer.Start();
@@ -298,6 +305,7 @@ public sealed class TrayContext : ApplicationContext
         if (disposing)
         {
             _timer.Dispose();
+            _promoter?.Dispose();
             _layerWatch.Dispose();
             _helper.Dispose();
             _imeLink.Dispose();
