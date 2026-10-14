@@ -38,6 +38,11 @@ public partial class CalibrationWindow : Window
     private readonly LowLevelKeyboardHook _hook = new();
     private readonly InputCheckModel _model;
     private KbdLayerClient? _captureClient;
+    // 入力確認のキーの読み取り元。管理者でドライバに接続しているときは、ドライバから直接受ける（置き換える前の物理キー。
+    // 押下と解放の両方が確実に届く）。そうでない／失敗したときは、LL フック（右 Shift や日本語キーの解放を取りこぼすことがある）。
+    // LL フックは、どちらの場合も「キーを Windows に渡さない」ために設置する。
+    private KeyStreamSession? _keys;
+    private volatile bool _driverKeys;
     private CancellationTokenSource? _loopCts;
     private CalibrationMode _mode = CalibrationMode.InputCheck;
     private bool _ready;
@@ -69,6 +74,14 @@ public partial class CalibrationWindow : Window
         {
             _captureClient = KbdLayerClient.TryOpen(out var error);
             if (_captureClient == null) TxtLast.Text = $"ドライバに接続できないため、キャリブレーションは使えません（{error}）。";
+        }
+        if (_captureClient != null)
+        {
+            _driverKeys = true;
+            _keys = new KeyStreamSession(
+                e => Dispatcher.BeginInvoke(() => OnDriverKey(e)),
+                (state, message) => Dispatcher.BeginInvoke(() => OnKeyStreamFailed(message)));
+            _keys.Start();
         }
         ModeSingleKey.IsEnabled = ModeAllKeys.IsEnabled = _captureClient != null;
         if (_captureClient == null)
@@ -158,7 +171,10 @@ public partial class CalibrationWindow : Window
                 TxtNote.Foreground = Brushes.DimGray;
                 TxtNote.Text = "押しているキーは橙色になり、一度押したキーには ✓ が付きます。✓ が付かないキーや、押したキーと違うキーが光るときは、" +
                                "キャリブレーションが必要です。この画面が前面にある間、押したキーはWindowsに送られません。" +
-                               "なお、確認できるのはレイヤーマップで置き換えた後のキーです（置き換えている場合は、先にOFFにしてください）。";
+                               (_driverKeys
+                                   ? "キーはドライバから直接受け取ります（レイヤーマップで置き換える前の物理キー。選んでいるキーボードの入力だけ）。"
+                                   : "なお、確認できるのはレイヤーマップで置き換えた後のキーです（置き換えている場合は、先にOFFにしてください）。" +
+                                     "管理者として起動していると、ドライバから直接受け取れて、右 Shift や日本語キーの解放も確実に届きます。");
                 break;
             case CalibrationMode.SingleKey:
                 TxtInstruction.Text = _selected == null
@@ -203,7 +219,28 @@ public partial class CalibrationWindow : Window
         return map;
     }
 
+    // ドライバから直接受けたキー（管理者のとき）。選んでいるキーボードの入力だけを見る。
+    private void OnDriverKey(KeyEvent e)
+    {
+        if (!_driverKeys || !_active || e.UniqId != _uniqId) return;
+        ApplyInputKey(e.ScanCode, !e.IsBreak);
+    }
+
+    // ドライバから受けられなくなった（権限・古いドライバ・上限・失敗）。LL フックでの確認に切り替える。
+    private void OnKeyStreamFailed(string message)
+    {
+        _driverKeys = false;
+        TxtLast.Text = $"ドライバからキーを受け取れないため、Windows のキー入力（LL フック）で確認します: {message}";
+        UpdateInstruction();
+    }
+
     private void OnHookKey(ushort scan, bool isDown)
+    {
+        if (_driverKeys) return; // ドライバから受けているときは、フックは「渡さない」ためだけ
+        ApplyInputKey(scan, isDown);
+    }
+
+    private void ApplyInputKey(ushort scan, bool isDown)
     {
         if (_mode != CalibrationMode.InputCheck) return;
         var r = _model.OnKey(scan, isDown);
@@ -386,6 +423,7 @@ public partial class CalibrationWindow : Window
 
     private void Window_Closed(object? sender, EventArgs e)
     {
+        _keys?.Dispose();
         StopCapture();
         _hook.Dispose();
         // 実行中のCaptureNextKeyは最大CaptureTimeoutMsで戻る。SafeHandleは使用中の呼び出しが

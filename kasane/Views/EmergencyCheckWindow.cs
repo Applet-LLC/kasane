@@ -16,6 +16,11 @@ namespace Kasane.Views;
 public sealed class EmergencyCheckWindow : Window
 {
     private readonly LowLevelKeyboardHook _hook = new();
+    // 管理者でドライバに接続しているときは、ドライバから直接キーを受ける（置き換える前の物理キー。押下と解放が確実に届く）。
+    // LL フックは、どちらの場合も「キーを Windows に渡さない」ために設置する。
+    private readonly uint _driverUniqId;
+    private KeyStreamSession? _stream;
+    private volatile bool _driverKeys;
     private readonly List<ushort> _keys;
     private readonly HashSet<ushort> _down = new();
     private readonly Border[] _faces;
@@ -25,8 +30,10 @@ public sealed class EmergencyCheckWindow : Window
 
     public bool Succeeded => _succeeded;
 
-    public EmergencyCheckWindow(IReadOnlyList<ushort> keys)
+    /// <param name="driverUniqId">0 以外なら、そのキーボードの入力を、ドライバから直接受ける（管理者のとき）。0 なら LL フック。</param>
+    public EmergencyCheckWindow(IReadOnlyList<ushort> keys, uint driverUniqId = 0)
     {
+        _driverUniqId = driverUniqId;
         _keys = keys.ToList();
         Title = "緊急解除の組み合わせを試す";
         Width = 620;
@@ -43,7 +50,10 @@ public sealed class EmergencyCheckWindow : Window
                    $"注意: {KbdLayerClient.EmergencyHoldMs / 1000}秒以上押し続けると、緊急解除が実際に働き、接続中の全キーボードの" +
                    "レイヤーマップがOFFになります。全部が緑になったら、すぐに離してください。\n" +
                    "この画面を開いている間、押したキーはほかのアプリに届きません。" +
-                   "組み合わせのキーの割り当てをレイヤーマップで変えている場合は、OFFにしてから試してください。",
+                   (driverUniqId != 0
+                       ? "キーはドライバから直接受け取ります（レイヤーマップで置き換える前の物理キー。選んでいるキーボードの入力だけ）。"
+                       : "組み合わせのキーの割り当てをレイヤーマップで変えている場合は、OFFにしてから試してください。" +
+                         "管理者として起動していると、ドライバから直接受け取れて、右 Shift や日本語キーも確実に検出できます。"),
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, 10),
         });
@@ -75,13 +85,35 @@ public sealed class EmergencyCheckWindow : Window
         panel.Children.Add(close);
         Content = panel;
 
-        _hook.KeySwallowed += (sc, isDown) => Dispatcher.BeginInvoke(() => OnKey(sc, isDown));
+        _hook.KeySwallowed += (sc, isDown) => Dispatcher.BeginInvoke(() =>
+        {
+            if (!_driverKeys) OnKey(sc, isDown); // ドライバから受けているときは、フックは「渡さない」ためだけ
+        });
         Loaded += (_, _) =>
         {
             try { _hook.Install(); }
             catch (Exception ex) { _result.Text = $"キーの監視を始められませんでした: {ex.Message}"; }
+            if (_driverUniqId != 0)
+            {
+                _driverKeys = true;
+                _stream = new KeyStreamSession(
+                    e => Dispatcher.BeginInvoke(() =>
+                    {
+                        if (_driverKeys && e.UniqId == _driverUniqId) OnKey(e.ScanCode, !e.IsBreak);
+                    }),
+                    (state, message) => Dispatcher.BeginInvoke(() =>
+                    {
+                        _driverKeys = false;
+                        _result.Text = $"ドライバからキーを受け取れないため、Windows のキー入力（LL フック）で確認します: {message}";
+                    }));
+                _stream.Start();
+            }
         };
-        Closed += (_, _) => _hook.Dispose();
+        Closed += (_, _) =>
+        {
+            _stream?.Dispose();
+            _hook.Dispose();
+        };
     }
 
     private void OnKey(ushort scanCode, bool isDown)

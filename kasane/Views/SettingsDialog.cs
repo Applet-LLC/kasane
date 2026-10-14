@@ -537,7 +537,8 @@ public sealed class SettingsDialog : Window
                 ShowStatus(status, $"キーは{KbdLayerClient.EmergencyMinKeys}個以上指定してください。", true);
                 return;
             }
-            var dlg = new EmergencyCheckWindow(keys) { Owner = this };
+            // 管理者で、ドライバに接続しているときは、選んでいるキーボードの入力を、ドライバから直接受ける。
+            var dlg = new EmergencyCheckWindow(keys, IsOnline && _canWrite ? _uniqId : 0) { Owner = this };
             dlg.ShowDialog();
             ShowStatus(status, dlg.Succeeded
                 ? "この組み合わせは同時に検出できました。"
