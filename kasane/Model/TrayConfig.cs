@@ -27,6 +27,12 @@ public sealed class TrayConfig
     public bool RemapOnlyWhileTrayRuns { get; set; } = true;
 
     /// <summary>
+    /// デスクトップのアイコンの表示方法（のどかの def option DesktopListView と同じ番号。2026-10-14）。トレイの起動時に1回、合わせる。
+    /// 0 = 通常表示、1 = 詳細表示、2 = 小さなアイコン表示、3 = リスト表示、4 = タイル表示。null（既定）は何もしない。キーのリマップとは無関係。
+    /// </summary>
+    public int? DesktopViewMode { get; set; }
+
+    /// <summary>
     /// 全キーボード共通のヘルパー設定（前面のアプリの規則、HLP の動作など。2026-10-08）。キーボードごとの分は
     /// &lt;UniqId:X8&gt;\helper.json（<see cref="HelperConfig"/>）。無ければ null。
     /// </summary>
