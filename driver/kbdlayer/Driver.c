@@ -133,6 +133,7 @@ NTSTATUS DriverEntry(IN PDRIVER_OBJECT DriverObject, IN PUNICODE_STRING Registry
     KeInitializeSpinLock(&g_listLock);
     InitializeLayerNotify(); // WAIT_LAYER_CHANGEの保留IRPのキュー（LayerNotify.c）
     InitializeHelperNotify(); // WAIT_HELPER_EVENTのイベントと保留IRPのキュー（HelperNotify.c）
+    InitializeKeyStream();    // WAIT_KEY_EVENTのイベントと保留IRPのキュー・所有者の表（KeyStream.c）
     InitializeI8042Override(); // i8042prt書き換えの直列化用ミューテックス（I8042Override.c）
 
     DriverObject->DriverExtension->AddDevice = AddDevice;
@@ -612,6 +613,10 @@ VOID ServiceCallback(
         // 段階で、どの処理よりも先に見る（キャリブレーションの抑止中でも見逃さない）。
         // イベント自体は書き換えない（観測のみ）。
         CheckEmergencyRelease(devExt, InputDataStart, InputDataEnd);
+
+        // 生の物理キーの押下・解放を、WAIT_KEY_EVENTで待っている設定画面へ渡す（観測のみ。
+        // 所有者がいなければ、すぐ戻る）。ResolveCalibrationの入力抑止より前に見るので、抑止中のキーも見える。
+        KeyStreamObserve(devExt, InputDataStart, InputDataEnd);
 
         // キャリブレーション（キャプチャ記録・入力抑止）。キャプチャを取りこぼさない
         // よう、どのResolve*よりも先に処理する。抑止中に捨てたイベントはここで配列から

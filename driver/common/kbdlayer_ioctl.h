@@ -667,6 +667,57 @@ typedef struct _KBDLAYER_WAIT_HELPER_EVENT_OUTPUT {
 // トレイが1つずつ待つだけ。）
 #define KBDLAYER_MAX_PENDING_HELPER_WAITS 16
 
+// --- キーイベントの継続的な通知（IOCTL_KBDLAYER_WAIT_KEY_EVENT、2026-10-14） ---
+//
+// キーボードから届いた生の物理キー（レイヤーマップなどで置き換える前のスキャンコード）の
+// 押下・解放を、ドライバ全体で1本のキュー（KBDLAYER_KEY_EVENT_QUEUE_SIZE件のリング）に積み、
+// WAIT_KEY_EVENTで待っているアプリへ渡す。設定画面の「入力確認」「同時押しを試す」が使う
+// （LLフックは、キーボードレイアウトDLLの影響で右Shiftや日本語キーの解放を取りこぼす）。
+// 構造はWAIT_HELPER_EVENTと同じ（保留IRP、LastSeq、Dropped）。違い:
+//  - **キー入力が丸見えになる**（キーロガーになりうる）ので、FILE_WRITE_ACCESS（管理者のみ。
+//    制御デバイスのSDDLが、Everyoneには読み取りしか与えない）。CAPTURE_NEXT_KEYと同じ方針。
+//  - 積むのは、このIOCTLで待ち始めたハンドル（所有者）が1つ以上あるときだけ。所有者は、ハンドルの
+//    クローズ（プロセスの終了・クラッシュを含む）で外れる。WAITの合間も、所有者でいる間は積む。
+//  - 疑似Shift（E0 2A / E0 36）は出さない。Pause/BreakはE11Dの押下・解放だけを出す（2イベント目の {45}/{C5} は出さない）。
+//  - オートリピートの押下も、そのまま届く（区別しない）。
+
+// イベント1件（16バイト）。
+typedef struct _KBDLAYER_KEY_EVENT {
+    ULONG  Seq;       // ドライバ全体で単調に増える番号（0とKBDLAYER_KEY_SEQ_LATESTは使わない）
+    ULONG  UniqId;    // 押されたキーボードのDeviceId（KBDLAYER_TARGET.UniqIdと同じ値）
+    USHORT ScanCode;  // Enc16（上位バイト: 0 / 0xE0 / 0xE1、下位バイト: MakeCode）
+    UCHAR  IsBreak;   // 0 = 押下（オートリピートを含む）、1 = 解放
+    UCHAR  Reserved;
+    ULONG  TimeMs;    // KeQueryInterruptTime（起動からの時間）のミリ秒
+} KBDLAYER_KEY_EVENT, *PKBDLAYER_KEY_EVENT;
+
+// ドライバ全体のキューの件数。
+#define KBDLAYER_KEY_EVENT_QUEUE_SIZE 256
+
+// WAIT_KEY_EVENTのLastSeqに渡すと、「今より後のイベント」を待つ。
+#define KBDLAYER_KEY_SEQ_LATEST 0xFFFFFFFFUL
+
+// IOCTL_KBDLAYER_WAIT_KEY_EVENT の入力。完了の条件と使い方は WAIT_HELPER_EVENT と同じ
+// （初回は LastSeq = KBDLAYER_KEY_SEQ_LATEST、以後は出力のSeq）。
+typedef struct _KBDLAYER_WAIT_KEY_EVENT_INPUT {
+    ULONG LastSeq;
+    ULONG Flags;   // 予約（0）
+} KBDLAYER_WAIT_KEY_EVENT_INPUT, *PKBDLAYER_WAIT_KEY_EVENT_INPUT;
+
+// IOCTL_KBDLAYER_WAIT_KEY_EVENT の出力。続けてCount件のKBDLAYER_KEY_EVENT。
+// 出力バッファは、少なくともこの構造体＋イベント1件分が必要（足りなければSTATUS_BUFFER_TOO_SMALL）。
+typedef struct _KBDLAYER_WAIT_KEY_EVENT_OUTPUT {
+    ULONG Seq;      // 返した最後のイベントのSeq（次のLastSeqに渡す）
+    ULONG Count;    // 続くイベントの件数（1以上）
+    ULONG Dropped;  // LastSeqより後に起きたが、キューから押し出されて返せなかった件数
+    ULONG Reserved;
+    // KBDLAYER_KEY_EVENT Events[Count];
+} KBDLAYER_WAIT_KEY_EVENT_OUTPUT, *PKBDLAYER_WAIT_KEY_EVENT_OUTPUT;
+
+// 同時に保留できるWAIT_KEY_EVENTの数、所有者（待ち始めたハンドル）の数。超えるとSTATUS_INSUFFICIENT_RESOURCES。
+#define KBDLAYER_MAX_PENDING_KEY_WAITS  4
+#define KBDLAYER_MAX_KEY_STREAM_OWNERS  4
+
 // --- デバイスの永続化スコープ（E-2: DeviceIdは一意でない前提で設計する） ---
 //
 // devExt->DeviceId（Target.UniqIdで指定するアドレッシング用ID。ExtraInformationへの刻印にも
@@ -866,5 +917,9 @@ typedef struct _KBDLAYER_I8042_CONFIG {
 // FILE_READ_ACCESSにする。昇格していないトレイから呼ぶ。
 #define IOCTL_KBDLAYER_WAIT_HELPER_EVENT \
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x81E, METHOD_BUFFERED, FILE_READ_ACCESS)
+
+// キーイベントの継続的な通知。キー入力が丸見えになるので FILE_WRITE_ACCESS（管理者のみ）。
+#define IOCTL_KBDLAYER_WAIT_KEY_EVENT \
+    CTL_CODE(FILE_DEVICE_KBDLAYER, 0x81F, METHOD_BUFFERED, FILE_WRITE_ACCESS)
 
 #endif // _KBDLAYER_COMMON_IOCTL_H_

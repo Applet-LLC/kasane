@@ -434,6 +434,50 @@ HelperNotifyCleanupOwner(
     _In_ PFILE_OBJECT FileObject
     );
 
+// --- キーイベントの継続的な通知（WAIT_KEY_EVENT、KeyStream.c） ---
+
+// DriverEntryから呼ぶ。イベントのリング・所有者の表・保留IRPのキャンセル安全キューを初期化する。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+InitializeKeyStream(
+    VOID
+    );
+
+// ServiceCallbackの先頭（CheckEmergencyReleaseの隣、OutputLock保持中）から、生の物理スキャンコードの
+// バッチをそのまま渡して呼ぶ。観測のみ（イベントは書き換えない）。所有者がいなければ、すぐ戻る。
+// 待っているIRPの完了は、ロックを放した後のKeyStreamFlushIfNeededで行う。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+KeyStreamObserve(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd
+    );
+
+// 積んだイベントがあれば、待っているIRPを完了させる。EngineLock・OutputLockを保持していない
+// 状態で呼ぶこと（LayerNotifyIfChangedから呼ぶ）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+KeyStreamFlushIfNeeded(
+    VOID
+    );
+
+// WAIT_KEY_EVENTのIRPを保留にする（呼んだハンドルを所有者にする）。成功時はSTATUS_PENDINGを返し、
+// 以後の完了はKeyStream.cが行う。STATUS_PENDING以外を返したときは、IRPの完了は呼び出し元が行う。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+StartWaitKeyEvent(
+    _In_ PIRP Irp,
+    _In_ ULONG LastSeq
+    );
+
+// ハンドルのクローズ（IRP_MJ_CLEANUP）時に、そのハンドルを所有者から外し、保留IRPをSTATUS_CANCELLEDで完了させる。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+KeyStreamCleanupOwner(
+    _In_ PFILE_OBJECT FileObject
+    );
+
 // AddDeviceから呼ばれる: devExt->NicolaTimer/NicolaDpcとNicolaStateを初期化する。
 _IRQL_requires_max_(PASSIVE_LEVEL)
 VOID

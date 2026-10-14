@@ -585,6 +585,62 @@ bool IoctlClient::WaitHelperEvent(ULONG lastSeq, KBDLAYER_WAIT_HELPER_EVENT_OUTP
     return true;
 }
 
+bool IoctlClient::WaitKeyEvent(ULONG lastSeq, KBDLAYER_WAIT_KEY_EVENT_OUTPUT* outHeader,
+                               std::vector<KBDLAYER_KEY_EVENT>* outEvents, bool* outCancelled,
+                               bool* outUnsupported, bool* outAccessDenied) {
+    KBDLAYER_WAIT_KEY_EVENT_INPUT input;
+    input.LastSeq = lastSeq;
+    input.Flags = 0;
+
+    std::vector<unsigned char> buffer(sizeof(KBDLAYER_WAIT_KEY_EVENT_OUTPUT) +
+                                      KBDLAYER_KEY_EVENT_QUEUE_SIZE * sizeof(KBDLAYER_KEY_EVENT));
+    *outCancelled = false;
+    *outUnsupported = false;
+    *outAccessDenied = false;
+    outEvents->clear();
+
+    DWORD bytesReturned = 0;
+    BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_WAIT_KEY_EVENT,
+                              &input, sizeof(input),
+                              buffer.data(), (DWORD)buffer.size(),
+                              &bytesReturned, NULL);
+    if (!ok) {
+        DWORD error = GetLastError();
+        if (error == ERROR_OPERATION_ABORTED) {
+            *outCancelled = true;
+            fprintf(stderr, "The wait was cancelled.\n");
+            return false;
+        }
+        if (error == ERROR_ACCESS_DENIED) {
+            *outAccessDenied = true;
+            fprintf(stderr, "Access denied. Watching raw key events needs Administrator rights.\n");
+            return false;
+        }
+        if (error == ERROR_INVALID_FUNCTION) {
+            // STATUS_INVALID_DEVICE_REQUEST: キーイベントの通知より前のドライバ。
+            *outUnsupported = true;
+            fprintf(stderr, "This driver does not support key events (WAIT_KEY_EVENT). Update kbdlayer.sys.\n");
+            return false;
+        }
+        fprintf(stderr, "IOCTL_KBDLAYER_WAIT_KEY_EVENT failed. Error: %lu\n", error);
+        return false;
+    }
+    if (bytesReturned < sizeof(KBDLAYER_WAIT_KEY_EVENT_OUTPUT)) {
+        fprintf(stderr, "IOCTL_KBDLAYER_WAIT_KEY_EVENT returned too few bytes (%lu).\n", bytesReturned);
+        return false;
+    }
+
+    const KBDLAYER_WAIT_KEY_EVENT_OUTPUT* header = (const KBDLAYER_WAIT_KEY_EVENT_OUTPUT*)buffer.data();
+    ULONG count = header->Count;
+    ULONG fits = (bytesReturned - (ULONG)sizeof(KBDLAYER_WAIT_KEY_EVENT_OUTPUT)) / (ULONG)sizeof(KBDLAYER_KEY_EVENT);
+    if (count > fits) count = fits;
+    *outHeader = *header;
+    const KBDLAYER_KEY_EVENT* events =
+        (const KBDLAYER_KEY_EVENT*)(buffer.data() + sizeof(KBDLAYER_WAIT_KEY_EVENT_OUTPUT));
+    outEvents->assign(events, events + count);
+    return true;
+}
+
 bool IoctlClient::SetLayerState(ULONG uniqId, ULONG op, ULONG layer, ULONG mask, ULONG flags,
                                 KBDLAYER_LAYER_STATE* out) {
     KBDLAYER_SET_LAYER_STATE_INPUT input;
