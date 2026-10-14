@@ -560,6 +560,14 @@ public sealed class SettingsDialog : Window
         buttons.Children.Add(clear);
         buttons.Children.Add(reset);
         panel.Children.Add(buttons);
+        // 管理者で、ドライバに接続していないと、「同時押しを試す」は低レベルキーフックで見る。その制限は、画面を開く前に、このタブで分かるようにする。
+        if (!writable)
+        {
+            var limit = Help("「同時押しを試す」は、低レベルキーフックで確認しているため、選択しているキーボードレイアウトに依存して、正常に取れないキーが存在します。その場合には、管理者権限モードでやり直してください。");
+            limit.Name = "EmergencyHookLimitNote";
+            limit.Foreground = Brushes.Firebrick;
+            panel.Children.Add(limit);
+        }
         if (IsOnline && !_canWrite)
             panel.Children.Add(Help("閲覧専用モード（管理者として実行していない）のため、変更はできません。"));
         panel.Children.Add(status);
