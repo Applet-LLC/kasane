@@ -5413,6 +5413,70 @@ CalibrationShouldDropEntry(
 
 _IRQL_requires_max_(DISPATCH_LEVEL)
 PKEYBOARD_INPUT_DATA
+CollapseE1Sequence(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd
+    )
+{
+    KIRQL oldIrql;
+    BOOLEAN anyE1 = devExt->E1FollowPending;
+    BOOLEAN managed;
+    PKEYBOARD_INPUT_DATA write;
+
+    // ホットパス: 待ちが無く、バッチにE1付きのエントリが無ければ、何もしない（ロックも取らない）。
+    if (!anyE1) {
+        for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
+            if (p->Flags & KEY_E1) {
+                anyE1 = TRUE;
+                break;
+            }
+        }
+        if (!anyE1) {
+            return InputDataEnd;
+        }
+    }
+
+    // リマップが、PauseかNumLockを扱っているか（どちらかを扱っていると、Pauseの{45}が誤って処理される）。
+    // 押下（make）で決めた扱いを記録して、解放（break）は、その記録に従う（押下と解放で食い違うと、
+    // NumLockの解放だけが消えて押しっぱなしになる）。
+    KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
+    managed = FALSE;
+    if (devExt->LayerMapEnabled && devExt->LayerMap != NULL) {
+        managed = (FindKeyEntry(devExt->LayerMap, 0xE11D) != NULL) ||
+                  (FindKeyEntry(devExt->LayerMap, 0x0045) != NULL);
+    }
+    KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+
+    write = InputDataStart;
+    for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
+        if (devExt->E1FollowPending) {
+            devExt->E1FollowPending = FALSE;
+            // 続きの{45}（E0/E1なし。解放側は{C5}で、MakeCodeは同じ0x45）だけを取り除く。別のキーが来たら
+            // （続きが届かなかった場合）、取り除かずに普通に処理する。
+            if ((p->Flags & (KEY_E0 | KEY_E1)) == 0 && (p->MakeCode & 0x00FF) == 0x45) {
+                continue;
+            }
+        }
+        if (p->Flags & KEY_E1) {
+            BOOLEAN isBreak = (p->Flags & KEY_BREAK) != 0;
+            // 押下は今の状態で決めて記録し、解放は押下の記録に従う。
+            BOOLEAN collapse = isBreak ? devExt->E1CollapsedWhileDown : managed;
+            devExt->E1CollapsedWhileDown = isBreak ? FALSE : managed;
+            if (collapse) {
+                devExt->E1FollowPending = TRUE;
+            }
+        }
+        if (write != p) {
+            *write = *p;
+        }
+        write++;
+    }
+    return write;
+}
+
+_IRQL_requires_max_(DISPATCH_LEVEL)
+PKEYBOARD_INPUT_DATA
 ResolveCalibration(
     _In_ PDEVICE_EXTENSION devExt,
     _In_ PKEYBOARD_INPUT_DATA InputDataStart,

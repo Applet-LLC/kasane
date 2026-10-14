@@ -330,6 +330,16 @@ typedef struct _DEVICE_EXTENSION {
     // デバイスごとに持つ。KeyStreamObserveがOutputLock保持中に読み書きする。
     BOOLEAN KeyStreamSkipAfterE1;
 
+    // --- Pause/Break の2イベント目（CollapseE1Sequence、LayerEngine.c） ---
+    // TRUE = 直前に見たE1付きのエントリ（Pauseの{E1 1D}）のあとの{45}を、まだ受け取っていない。次の
+    // エントリが{45}（E0/E1なし）なら、リマップの連鎖に渡さずに取り除く（NumLockとして処理されないように）。
+    // バッチをまたいでも効くよう、デバイスごとに持つ。OutputLock保持中に読み書きする。
+    BOOLEAN E1FollowPending;
+    // TRUE = 直近のPauseの押下（make）で、続きの{45}を取り除いた。解放（break）の{C5}も、押下と同じ扱い
+    // （取り除く／通す）にするための記録。押下と解放で扱いが食い違うと、NumLockの解放だけが
+    // 消えて、押しっぱなしになる（押下のあとにマップが差し替わった場合に起こりうる）。OutputLock保持中に読み書きする。
+    BOOLEAN E1CollapsedWhileDown;
+
     // --- 緊急時の解除手段（release-roadmap-priority.md 項番3） ---
     // グローバル設定（g_EmergencyKeyCount/g_EmergencyScanCodes、LayerEngine.c）のうち、
     // このデバイスで現在押されている物理キーのビットマスク。全ビットが揃ってから
