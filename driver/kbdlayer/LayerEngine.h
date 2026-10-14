@@ -449,7 +449,7 @@ InitializeKeyStream(
 _IRQL_requires_max_(DISPATCH_LEVEL)
 VOID
 KeyStreamObserve(
-    _In_ ULONG UniqId,
+    _In_ PDEVICE_EXTENSION devExt,
     _In_ PKEYBOARD_INPUT_DATA InputDataStart,
     _In_ PKEYBOARD_INPUT_DATA InputDataEnd
     );

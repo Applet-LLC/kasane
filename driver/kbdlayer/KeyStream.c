@@ -325,7 +325,7 @@ KeyStreamQueueLocked(
 _IRQL_requires_max_(DISPATCH_LEVEL)
 VOID
 KeyStreamObserve(
-    _In_ ULONG UniqId,
+    _In_ PDEVICE_EXTENSION devExt,
     _In_ PKEYBOARD_INPUT_DATA InputDataStart,
     _In_ PKEYBOARD_INPUT_DATA InputDataEnd
     )
@@ -337,6 +337,11 @@ KeyStreamObserve(
     // ホットパス: 所有者がいなければ、読み取り1回で戻る（単純な値の読み取り。境界でのレースは、
     // 高々、待ち始めた直後の1バッチ分の取りこぼしにしかならない）。
     if (g_KeyOwnerCount == 0) {
+        // 所有者がいない間は積まないが、Pause の 2 イベント目の状態だけは追う（待ち始めた直後に続きの 1 件が届いて、
+        // NumLock の押下として出ないように）。バッチの最後のエントリが E1 付きなら、次の 1 件を捨てる。
+        if (InputDataEnd > InputDataStart) {
+            devExt->KeyStreamSkipAfterE1 = ((InputDataEnd - 1)->Flags & KEY_E1) ? TRUE : FALSE;
+        }
         return;
     }
 
@@ -347,8 +352,16 @@ KeyStreamObserve(
         USHORT scan = (USHORT)(p->MakeCode & 0x00FF);
         USHORT prefix = 0;
 
+        // Pause/Break は 2 イベント（{E1 1D}{45}、解放は {E1 9D}{C5}）で届き、2 イベント目には E1 が
+        // 付かない（NumLock の 0x45 と同じに見える）。E1 付きの次の 1 件は、フラグに関わらず捨てる
+        // （バッチをまたいでも効くよう、デバイスごとの状態で持つ。LayerEngine.c の CaptureSkipAfterE1 と同じ）。
+        if (devExt->KeyStreamSkipAfterE1) {
+            devExt->KeyStreamSkipAfterE1 = FALSE;
+            continue;
+        }
         if (p->Flags & KEY_E1) {
-            // Pause/Break（E1 1D 45）は2イベントで届く。最初の1D だけを E11D として出し、続きは捨てる。
+            devExt->KeyStreamSkipAfterE1 = TRUE;
+            // 最初の 1D だけを E11D として出す（E1 付きのシーケンスは、Pause 以外には無い）。
             if (scan != 0x1D) {
                 continue;
             }
@@ -361,7 +374,7 @@ KeyStreamObserve(
             }
             prefix = 0xE0;
         }
-        KeyStreamQueueLocked(UniqId, (USHORT)((prefix << 8) | scan), (p->Flags & KEY_BREAK) != 0, timeMs);
+        KeyStreamQueueLocked(devExt->DeviceId, (USHORT)((prefix << 8) | scan), (p->Flags & KEY_BREAK) != 0, timeMs);
         queued = TRUE;
     }
     KeReleaseSpinLock(&g_KeyEventLock, oldIrql);

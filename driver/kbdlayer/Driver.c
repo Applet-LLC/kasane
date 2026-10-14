@@ -616,7 +616,7 @@ VOID ServiceCallback(
 
         // 生の物理キーの押下・解放を、WAIT_KEY_EVENTで待っている設定画面へ渡す（観測のみ。
         // 所有者がいなければ、すぐ戻る）。ResolveCalibrationの入力抑止より前に見るので、抑止中のキーも見える。
-        KeyStreamObserve(devExt->DeviceId, InputDataStart, InputDataEnd);
+        KeyStreamObserve(devExt, InputDataStart, InputDataEnd);
 
         // キャリブレーション（キャプチャ記録・入力抑止）。キャプチャを取りこぼさない
         // よう、どのResolve*よりも先に処理する。抑止中に捨てたイベントはここで配列から

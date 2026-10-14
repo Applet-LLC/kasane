@@ -323,6 +323,13 @@ typedef struct _DEVICE_EXTENSION {
     // 待機中に届いても、NumLockや次のスロットとして誤記録しないため）。
     BOOLEAN CaptureSkipAfterE1;
 
+    // --- キーイベントの通知（WAIT_KEY_EVENT、KeyStream.c） ---
+    // TRUE = 直前の観測したエントリがE1プレフィックス付き（Pauseの{E1 1D}）だったので、次の
+    // エントリ（同じシーケンスの2イベント目{45}。E1フラグは付かず、NumLockのスキャンコードと
+    // 同じに見える）は出さずに捨てる。解放側（{E1 9D}{C5}）も同じ。バッチをまたいでも効くよう、
+    // デバイスごとに持つ。KeyStreamObserveがOutputLock保持中に読み書きする。
+    BOOLEAN KeyStreamSkipAfterE1;
+
     // --- 緊急時の解除手段（release-roadmap-priority.md 項番3） ---
     // グローバル設定（g_EmergencyKeyCount/g_EmergencyScanCodes、LayerEngine.c）のうち、
     // このデバイスで現在押されている物理キーのビットマスク。全ビットが揃ってから
