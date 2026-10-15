@@ -38,7 +38,8 @@ internal sealed class AboutForm : Form
         Controls.Add(new Label { Name = "AboutVersion", Text = $"バージョン {AppInfo.VersionText}", AutoSize = true, Location = new Point(24, 62) });
         Controls.Add(new Label { Name = "AboutPublisher", Text = AppInfo.Publisher, ForeColor = SystemColors.GrayText, AutoSize = true, Location = new Point(24, 110) });
 
-        var ok = new Button { Name = "AboutOk", Text = "OK", DialogResult = DialogResult.OK, Size = new Size(80, 28), Location = new Point(222, 128) };
+        var ok = new Button { Name = "AboutOk", Text = "OK", Size = new Size(80, 28), Location = new Point(222, 128) };
+        ok.Click += (_, _) => Close(); // Show() で開く（非モーダル）ので、DialogResult では閉じない
         Controls.Add(ok);
         AcceptButton = ok;
         CancelButton = ok;
