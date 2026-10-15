@@ -6,7 +6,9 @@ namespace Kasane.Views;
 
 /// <summary>
 /// マクロ・コンボ・タップダンス編集画面の共通部分: 左にID一覧、右に選択中IDの編集欄、下にOK/キャンセル。
-/// 編集内容は派生クラスが作業用コピーに持ち、OKで検証が通ったときだけ呼び出し元へ返す。
+/// 編集内容は派生クラスが作業用コピーに持ち、「適用」またはOKで検証が通ったときだけ呼び出し元へ返す
+/// （<see cref="Applied"/>）。同時に開ける別ウィンドウ（非モーダル）として使う。「適用」は画面を閉じずに反映し、OKは反映して閉じ、
+/// キャンセル・×は反映せずに閉じる。
 /// </summary>
 public abstract class IdListEditorWindow : Window
 {
@@ -21,8 +23,14 @@ public abstract class IdListEditorWindow : Window
     /// </summary>
     protected readonly string?[] Names;
 
-    /// <summary>OKで確定した名前の表（番号 → 名前）。名前が1つも無ければ null。</summary>
+    /// <summary>「適用」またはOKで確定した名前の表（番号 → 名前）。名前が1つも無ければ null。</summary>
     public Dictionary<int, string>? ResultNames { get; private set; }
+
+    /// <summary>
+    /// 検証が通って、編集内容を確定したとき（「適用」・OK）に呼ぶ。呼び出し側は、このときの
+    /// 派生クラスの Result と <see cref="ResultNames"/> をプロジェクトへ取り込む。
+    /// </summary>
+    public event Action? Applied;
 
     /// <summary>プロジェクトの名前の表を、編集用の配列に写す。派生クラスのコンストラクターから呼ぶ。</summary>
     protected void LoadNames(IReadOnlyDictionary<int, string>? names)
@@ -44,21 +52,19 @@ public abstract class IdListEditorWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         ShowInTaskbar = false;
 
+        var apply = new Button { Name = "ApplyButton", Content = "適用", Width = 90, Margin = new Thickness(0, 0, 24, 0) }; // OKとは少し間を空ける
+        apply.Click += (_, _) => { if (Commit()) ShowValidation("適用しました。", isError: false); };
         var ok = new Button { Name = "OkButton", Content = "OK", IsDefault = true, Width = 90 };
-        ok.Click += (_, _) =>
+        ok.Click += (_, _) => { if (Commit()) Close(); };
+        // 非モーダルなので、IsCancel（ShowDialog 用）ではなく、自分で閉じる。Esc も同じ。
+        var cancel = new Button { Name = "CancelButton", Content = "キャンセル", Width = 90, Margin = new Thickness(6, 0, 0, 0) };
+        cancel.Click += (_, _) => Close();
+        PreviewKeyDown += (_, e) =>
         {
-            if (ValidateAll(out var error))
-            {
-                var names = new Dictionary<int, string>();
-                for (int i = 0; i < Names.Length; i++)
-                    if (!string.IsNullOrWhiteSpace(Names[i])) names[i] = Names[i]!;
-                ResultNames = names.Count > 0 ? names : null;
-                DialogResult = true;
-            }
-            else ShowValidation(error, isError: true);
+            if (e.Key == System.Windows.Input.Key.Escape && !e.Handled) { e.Handled = true; Close(); }
         };
-        var cancel = new Button { Name = "CancelButton", Content = "キャンセル", IsCancel = true, Width = 90 };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
+        buttons.Children.Add(apply);
         buttons.Children.Add(ok);
         buttons.Children.Add(cancel);
 
@@ -88,6 +94,22 @@ public abstract class IdListEditorWindow : Window
             for (int i = 0; i < _count; i++) _list.Items.Add(ItemText(i));
             _list.SelectedIndex = 0;
         };
+    }
+
+    // 検証し、通れば名前の表を確定して Applied を起こす（「適用」・OK 共通）。通らなければ画面にエラーを出して false。
+    private bool Commit()
+    {
+        if (!ValidateAll(out var error))
+        {
+            ShowValidation(error, isError: true);
+            return false;
+        }
+        var names = new Dictionary<int, string>();
+        for (int i = 0; i < Names.Length; i++)
+            if (!string.IsNullOrWhiteSpace(Names[i])) names[i] = Names[i]!;
+        ResultNames = names.Count > 0 ? names : null;
+        Applied?.Invoke();
+        return true;
     }
 
     // 右側の先頭に、名前の欄を出す（番号は変わらない。名前は一覧とドキュメントでの見分けのためだけ）。
