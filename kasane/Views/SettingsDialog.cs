@@ -139,8 +139,8 @@ public sealed class SettingsDialog : Window
         var panel = new StackPanel();
         panel.Children.Add(new TextBlock { Text = "デスクトップのアイコンの表示方法", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
         panel.Children.Add(Help(
-            "トレイ（タスクトレイの kasane）が起動したときに、デスクトップのアイコンの表示方法をここで選んだものにします（のどかの def option DesktopListView と同じ番号）。" +
-            "「変えない」のときは何もしません。保存は OK で行い、反映はトレイを起動し直したときです。キーのリマップとは関係ありません。\n" +
+            "トレイ（タスクトレイの kasane）が起動したときと、ここを変えたときに、デスクトップのアイコンの表示方法をここで選んだものにします（のどかの def option DesktopListView と同じ番号）。" +
+            "「変えない」のときは何もしません。OK で保存すると、数秒で反映されます（トレイが動いていれば。起動時にも反映します）。キーのリマップとは関係ありません。\n" +
             "OSやデスクトップの状態によっては、選んだ表示方法にならないことがあります。"));
 
         _desktopKeep = new RadioButton { Name = "DesktopViewKeep", Content = "変えない（既定）", GroupName = "DesktopView", Margin = new Thickness(0, 2, 0, 2) };

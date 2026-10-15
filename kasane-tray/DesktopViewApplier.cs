@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 namespace Kasane.Tray;
 
 /// <summary>
-/// トレイの起動時に、デスクトップのアイコンの表示方法を tray.json の DesktopViewMode に合わせる（のどかの DesktopListView の代わり）。
+/// トレイの起動時と、tray.json の変更時に、デスクトップのアイコンの表示方法を tray.json の DesktopViewMode に合わせる（のどかの DesktopListView の代わり）。
 /// やり方は Raymond Chen の「Programmatically setting the view mode of the desktop」と同じ:
 /// IShellWindows::FindWindowSW でデスクトップを探し、IShellBrowser → IShellView → IFolderView::SetCurrentViewMode を呼ぶ。
 /// ログオン直後はエクスプローラーのデスクトップがまだ無いことがあるので、できるまで1秒ごとに最大60秒ほど試す。

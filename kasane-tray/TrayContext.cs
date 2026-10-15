@@ -25,7 +25,8 @@ public sealed class TrayContext : ApplicationContext
     private bool _autoOffShutdownDone;
     private readonly NotifyIcon _notifyIcon;
     private readonly TrayIconPromoter? _promoter; // タスクバーの設定で、アイコンを初回だけ「表に表示」にする
-    private readonly DesktopViewApplier? _desktopView; // 起動時に1回、デスクトップのアイコンの表示方法を合わせる（設定が無ければ null）
+    private DesktopViewApplier? _desktopView; // デスクトップのアイコンの表示方法を合わせている最中のもの（設定が無ければ null）
+    private int? _desktopViewApplied;        // 最後に反映を始めた DesktopViewMode（設定が変わったかを見るため）
     private readonly ContextMenuStrip _menu = new();
     private readonly ToolStripMenuItem _settingsItem = new("設定") { Name = "TraySettings" };
     private readonly ToolStripMenuItem _pauseItem = new("一時停止") { Name = "TrayPause" };
@@ -95,9 +96,9 @@ public sealed class TrayContext : ApplicationContext
             _promoter.Start();
         }
 
-        _desktopView = DesktopViewApplier.StartIfConfigured(TrayConfig.Load().DesktopViewMode);
+        SyncDesktopView();
 
-        _timer.Tick += (_, _) => RefreshState();
+        _timer.Tick += (_, _) => { RefreshState(); SyncDesktopView(); };
         _timer.Start();
         StartPendingImport();
         RefreshState();
@@ -200,6 +201,17 @@ public sealed class TrayContext : ApplicationContext
             TrayLog.Write("TogglePause: " + ex);
             Notify($"一時停止・再開に失敗しました: {ex.Message}");
         }
+    }
+
+    // tray.json の DesktopViewMode が、最後に反映したものと変わっていたら、反映し直す（起動時の1回目も同じ経路）。
+    // null（変えない）に戻したときは何もしない（デスクトップは今の表示のまま）。
+    private void SyncDesktopView()
+    {
+        int? mode = TrayConfig.Load().DesktopViewMode;
+        if (mode == _desktopViewApplied) return;
+        _desktopViewApplied = mode;
+        _desktopView?.Dispose();
+        _desktopView = DesktopViewApplier.StartIfConfigured(mode);
     }
 
     private void RefreshState()
