@@ -447,7 +447,7 @@ public partial class MainWindow : Window
     {
         if (_project == null) return;
         string current = _project.Layers[_layer][slot.Index];
-        var dlg = new KeyAssignDialog(slot, _layer, current, _project.Layers.Count, _project.UniqId) { Owner = this };
+        var dlg = new KeyAssignDialog(slot, _layer, current, _project.Layers.Count, _project.UniqId, _project) { Owner = this };
         if (dlg.ShowDialog() != true || dlg.ResultToken == current) return;
         _project.Layers[_layer][slot.Index] = dlg.ResultToken;
         MarkDirty();
