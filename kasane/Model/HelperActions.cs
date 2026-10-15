@@ -317,8 +317,13 @@ public static class LayerOps
 /// </summary>
 public sealed record LayerRequest(uint UniqId, ushort DeviceHash16, IReadOnlyList<int> Layers, LayerOp Op);
 
-/// <summary>動作1件の実行依頼（キーの押下・オートリピート・解放ごとに1件）。</summary>
-public sealed record ActionRequest(HelperActionBody Body, uint UniqId, ushort DeviceHash16, bool IsBreak, bool IsRepeat);
+/// <summary>
+/// 動作1件の実行依頼（キーの押下・オートリピート・解放ごとに1件）。
+/// <paramref name="SuppressKeys"/>: Sequence の実行の間だけ OS から隠す、物理的に押されている修飾キー（<see cref="KeycodeTable.ModifierScanCodes"/> の並びのビット。
+/// トリガーの修飾キーのうち、押している側）。0 は隠さない。<paramref name="Done"/>: 隠した実行が終わった（または捨てられた）ときに呼ぶ。
+/// </summary>
+public sealed record ActionRequest(HelperActionBody Body, uint UniqId, ushort DeviceHash16, bool IsBreak, bool IsRepeat,
+    byte SuppressKeys = 0, Action? Done = null);
 
 /// <summary>動作の実行が頼る外の世界（実際の入力・起動・一時停止・レイヤー）。</summary>
 public interface IActionEnvironment
@@ -330,6 +335,8 @@ public interface IActionEnvironment
     void TogglePause();
     void Layer(LayerRequest request);
     void Log(string message);
+    /// <summary>いま物理的に押されている修飾キー（<see cref="KeycodeTable.ModifierScanCodes"/> の並びのビット）。隠した修飾キーを戻すかの判断に使う。</summary>
+    byte PhysicalKeys() => 0;
 }
 
 /// <summary>動作を実行する。1つのスレッドから順に呼ぶこと。</summary>
@@ -366,7 +373,8 @@ public sealed class ActionExecutor
                 break;
 
             case HelperActionBody.Sequence:
-                RunSteps(r.IsBreak ? body.ReleaseSteps : body.Steps);
+                if (!r.IsBreak && r.SuppressKeys != 0) RunSuppressed(r);
+                else RunSteps(r.IsBreak ? body.ReleaseSteps : body.Steps);
                 break;
 
             case HelperActionBody.AppLayer:
@@ -401,6 +409,46 @@ public sealed class ActionExecutor
     }
 
     private static string? Expand(string? s) => string.IsNullOrEmpty(s) ? null : Environment.ExpandEnvironmentVariables(s);
+
+    // Alt・Win を離す／戻すと、単独で押して離したことになり、メニューやスタートが開く。間に入れるキー（F24。QMK の DUMMY_MOD_NEUTRALIZER と同じ考え）。
+    private const ushort NeutralizerScanCode = 0x0076;
+    private const byte AltWinKeys = 0xCC; // ModifierScanCodes の LALT(2)・LGUI(3)・RALT(6)・RGUI(7)
+
+    /// <summary>
+    /// 手順の間だけ、トリガーの修飾キー（物理的に押している分）を OS から隠す。終わったら、まだ押している分だけ戻す。
+    /// 手順の中で例外や打ち切りがあっても、必ず戻す。
+    /// </summary>
+    private void RunSuppressed(ActionRequest r)
+    {
+        byte keys = r.SuppressKeys;
+        try
+        {
+            NeutralizeIfNeeded(keys);
+            SendMods(keys, up: true);
+            RunSteps(r.Body.Steps);
+        }
+        finally
+        {
+            byte restore = (byte)(keys & _env.PhysicalKeys());
+            SendMods(restore, up: false);
+            NeutralizeIfNeeded(restore);
+            r.Done?.Invoke();
+        }
+    }
+
+    private void SendMods(byte keys, bool up)
+    {
+        for (int bit = 0; bit < KeycodeTable.ModifierScanCodes.Length; bit++)
+            if ((keys & (1 << bit)) != 0)
+                _env.Send(new InputOp(InputKind.Key, KeycodeTable.ModifierScanCodes[bit], Up: up));
+    }
+
+    private void NeutralizeIfNeeded(byte keys)
+    {
+        if ((keys & AltWinKeys) == 0) return;
+        _env.Send(new InputOp(InputKind.Key, NeutralizerScanCode));
+        _env.Send(new InputOp(InputKind.Key, NeutralizerScanCode, Up: true));
+    }
 
     private void RunSteps(List<HelperStep>? steps)
     {

@@ -29,10 +29,13 @@ public sealed class ActionRunner : IDisposable
     private readonly Win32ActionEnvironment _env;
     private bool _disposed;
 
+    /// <summary>物理的に押している修飾キー（キーフックが追う）。隠した修飾キーを戻すかの判断に使う。フックを作ったあとに設定する。</summary>
+    public Func<byte>? PhysicalKeys { get; set; }
+
     public ActionRunner(Func<HelperActionBody, bool> allow, Action<LayerRequest> layer, Action togglePause)
     {
         _allow = allow;
-        _env = new Win32ActionEnvironment(_cts.Token, layer, togglePause);
+        _env = new Win32ActionEnvironment(_cts.Token, layer, togglePause, () => PhysicalKeys?.Invoke() ?? 0);
         _thread = new Thread(Loop) { IsBackground = true, Name = "kasane-actions" };
         _thread.Start();
     }
@@ -44,7 +47,10 @@ public sealed class ActionRunner : IDisposable
         try
         {
             if ((!request.IsBreak && _queue.Count >= PressCapacity) || !_queue.TryAdd(request))
+            {
                 TrayLog.Write("ActionRunner: キューが満杯のため、動作を捨てました");
+                request.Done?.Invoke();
+            }
         }
         catch (InvalidOperationException) { /* 終了中 */ }
     }
@@ -58,7 +64,7 @@ public sealed class ActionRunner : IDisposable
             {
                 try
                 {
-                    if (!request.IsBreak && !_allow(request.Body)) continue;
+                    if (!request.IsBreak && !_allow(request.Body)) { request.Done?.Invoke(); continue; }
                     executor.Execute(request);
                 }
                 catch (Exception ex) { TrayLog.Write("ActionRunner: " + ex); }
@@ -95,13 +101,17 @@ internal sealed class Win32ActionEnvironment : IActionEnvironment
     private readonly CancellationToken _token;
     private readonly Action<LayerRequest> _layer;
     private readonly Action _togglePause;
+    private readonly Func<byte> _physicalKeys;
 
-    public Win32ActionEnvironment(CancellationToken token, Action<LayerRequest> layer, Action togglePause)
+    public Win32ActionEnvironment(CancellationToken token, Action<LayerRequest> layer, Action togglePause, Func<byte> physicalKeys)
     {
+        _physicalKeys = physicalKeys;
         _token = token;
         _layer = layer;
         _togglePause = togglePause;
     }
+
+    public byte PhysicalKeys() => _physicalKeys();
 
     public void Send(InputOp op)
     {

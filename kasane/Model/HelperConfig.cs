@@ -286,6 +286,12 @@ public sealed class HelperActionBody
     public string? LayerOp { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool Repeat { get; set; }
+    /// <summary>
+    /// true のとき、トリガー（キー＋修飾キー）で動かす Sequence の実行中も、押している修飾キーを OS に残す（既定の false は、実行の間だけ隠す。
+    /// Ctrl+F1 でマクロを出すときに、出力へ Ctrl が掛からないようにする）。トリガー以外（HLP）には関係ない。
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool KeepMods { get; set; }
     public List<HelperStep>? Steps { get; set; }
     /// <summary>キーを離したときに実行する手順（マウスのボタンを押している間だけ押す、など）。</summary>
     public List<HelperStep>? ReleaseSteps { get; set; }

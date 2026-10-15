@@ -295,6 +295,7 @@ public class HelperActionsTests
         public List<LayerRequest> Layers = new();
         public int PauseToggles;
         public bool SleepResult = true;
+        public byte Physical;
 
         public void Send(InputOp op) => Sent.Add(op);
         public bool Sleep(int milliseconds) { Sleeps.Add(milliseconds); return SleepResult; }
@@ -302,6 +303,7 @@ public class HelperActionsTests
         public void TogglePause() => PauseToggles++;
         public void Layer(LayerRequest request) => Layers.Add(request);
         void IActionEnvironment.Log(string message) => Log.Add(message);
+        byte IActionEnvironment.PhysicalKeys() => Physical;
     }
 
     private static ActionRequest Press(HelperActionBody b, bool repeat = false) => new(b, Kb1, (ushort)(Kb1 >> 16), false, repeat);
@@ -358,6 +360,114 @@ public class HelperActionsTests
         env.Sent.Clear();
         ex.Execute(Release(body));
         Assert.Equal(new[] { new InputOp(InputKind.MouseButton, HelperMouseButtons.Left, Up: true) }, env.Sent);
+    }
+
+    // ------------------------------------------------------------------
+    // 修飾キーを隠す（Ctrl+F1 などのトリガーで Sequence を動かすとき）
+    // ------------------------------------------------------------------
+
+    private const byte LCtrlBit = 1 << 0, LAltBit = 1 << 2, RCtrlBit = 1 << 4;
+
+    private static HelperActionBody KeyA() => new()
+    {
+        Type = HelperActionBody.Sequence,
+        Steps = new() { new HelperStep { Key = "KC_A" } },
+    };
+
+    private static InputOp Mod(int bit, bool up) => new(InputKind.Key, Kasane.Keycodes.KeycodeTable.ModifierScanCodes[bit], Up: up);
+
+    [Fact]
+    public void Sequence_Suppressed_ReleasesModifierThenRestoresIfStillHeld()
+    {
+        var env = new FakeEnv { Physical = LCtrlBit };
+        int done = 0;
+        new ActionExecutor(env).Execute(Press(KeyA()) with { SuppressKeys = LCtrlBit, Done = () => done++ });
+
+        var a = Kasane.Keycodes.KeycodeTable.TryResolveBaseKey("KC_A", out ushort sc) ? sc : (ushort)0;
+        Assert.Equal(new[]
+        {
+            Mod(0, up: true),
+            new InputOp(InputKind.Key, a), new InputOp(InputKind.Key, a, Up: true),
+            Mod(0, up: false),
+        }, env.Sent);
+        Assert.Equal(1, done);
+    }
+
+    [Fact]
+    public void Sequence_Suppressed_DoesNotRestoreModifierReleasedDuringSequence()
+    {
+        var env = new FakeEnv { Physical = 0 }; // 実行の間に、物理的に離された
+        new ActionExecutor(env).Execute(Press(KeyA()) with { SuppressKeys = LCtrlBit });
+
+        Assert.Equal(Mod(0, up: true), env.Sent[0]);
+        Assert.DoesNotContain(Mod(0, up: false), env.Sent);
+    }
+
+    [Fact]
+    public void Sequence_Suppressed_OnlyRestoresTheSideStillHeld()
+    {
+        var env = new FakeEnv { Physical = RCtrlBit };
+        new ActionExecutor(env).Execute(Press(KeyA()) with { SuppressKeys = (byte)(LCtrlBit | RCtrlBit) });
+
+        Assert.Contains(Mod(4, up: false), env.Sent);
+        Assert.DoesNotContain(Mod(0, up: false), env.Sent);
+    }
+
+    [Fact]
+    public void Sequence_Suppressed_AltIsNeutralizedBeforeReleaseAndAfterRestore()
+    {
+        var env = new FakeEnv { Physical = LAltBit };
+        new ActionExecutor(env).Execute(Press(KeyA()) with { SuppressKeys = LAltBit });
+
+        var f24 = new InputOp(InputKind.Key, 0x0076);
+        var f24Up = f24 with { Up = true };
+        Assert.Equal(new[] { f24, f24Up, Mod(2, up: true) }, env.Sent.Take(3));
+        Assert.Equal(new[] { Mod(2, up: false), f24, f24Up }, env.Sent.TakeLast(3));
+    }
+
+    [Fact]
+    public void Sequence_Suppressed_RestoresAndSignalsDoneEvenWhenCancelled()
+    {
+        var env = new FakeEnv { Physical = LCtrlBit, SleepResult = false };
+        var body = new HelperActionBody
+        {
+            Type = HelperActionBody.Sequence,
+            Steps = new() { new HelperStep { DelayMs = 50 }, new HelperStep { Key = "KC_A" } },
+        };
+        int done = 0;
+        new ActionExecutor(env).Execute(Press(body) with { SuppressKeys = LCtrlBit, Done = () => done++ });
+
+        Assert.Equal(Mod(0, up: false), env.Sent.Last());
+        Assert.Equal(1, done);
+    }
+
+    [Fact]
+    public void Sequence_NotSuppressedWhenNoKeysOrOnRelease()
+    {
+        var env = new FakeEnv { Physical = LCtrlBit };
+        var ex = new ActionExecutor(env);
+        var body = KeyA();
+        body.ReleaseSteps = new() { new HelperStep { Key = "KC_B" } };
+
+        ex.Execute(Press(body));
+        Assert.DoesNotContain(Mod(0, up: true), env.Sent);
+
+        env.Sent.Clear();
+        ex.Execute(Release(body) with { SuppressKeys = LCtrlBit });
+        Assert.DoesNotContain(Mod(0, up: true), env.Sent);
+    }
+
+    [Fact]
+    public void KeepMods_IsSavedOnlyWhenSet()
+    {
+        var plain = new HelperConfig { Triggers = { new HelperTrigger { Key = "KC_F1", Mods = "MOD_LCTL", Action = KeyA() } } };
+        Assert.DoesNotContain("KeepMods", plain.ToJson());
+
+        var keep = KeyA();
+        keep.KeepMods = true;
+        var json = new HelperConfig { Triggers = { new HelperTrigger { Key = "KC_F1", Mods = "MOD_LCTL", Action = keep } } }.ToJson();
+        Assert.Contains("KeepMods", json);
+        Assert.True(HelperConfig.FromJson(json)!.Triggers[0].Action.KeepMods);
     }
 
     [Fact]
