@@ -355,7 +355,7 @@ public partial class MainWindow : Window
             {
                 Content = name == null ? $" {i} " : $" {i}: {name} ",
                 Padding = new Thickness(10, 3, 10, 3),
-                ToolTip = ProjectService.LayerLabel(_project, i),
+                ToolTip = "左: 選択、右: メニュー",
             });
         }
         LstLayers.SelectedIndex = Math.Min(_layer, _project.Layers.Count - 1);
