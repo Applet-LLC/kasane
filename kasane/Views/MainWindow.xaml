@@ -68,8 +68,6 @@
             <Separator Width="24" Background="Transparent" />
             <Button x:Name="BtnApply" Content="キーボードに適用（ON）" FontWeight="Bold" Click="BtnApply_Click" />
             <Button x:Name="BtnOff" Content="OFF（素通しに戻す）" Click="BtnOff_Click" />
-            <Separator Width="24" Background="Transparent" />
-            <Button x:Name="BtnAbout" Content="バージョン情報..." Click="BtnAbout_Click" />
         </WrapPanel>
 
         <TextBlock DockPanel.Dock="Bottom" Margin="10,0" Foreground="DimGray" TextWrapping="Wrap"

@@ -17,8 +17,6 @@ public static class AppInfo
     /// <summary>1.00 の形（実行中の exe のバージョンから）。</summary>
     public static string VersionText => FormatVersion(Assembly.GetEntryAssembly()?.GetName().Version);
 
-    /// <summary>1.0.0 の形（ビルド番号まで）。</summary>
-    public static string BuildText => Assembly.GetEntryAssembly()?.GetName().Version?.ToString(3) ?? "?";
 
     /// <summary>「主.副」を2桁で（1.0.0 → 1.00、1.12.3 → 1.12）。分からなければ「?」。</summary>
     public static string FormatVersion(Version? version) =>

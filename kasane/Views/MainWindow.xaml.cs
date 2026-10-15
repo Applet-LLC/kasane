@@ -547,10 +547,13 @@ public partial class MainWindow : Window
         MarkDirty();
     }
 
-    private void BtnSettings_Click(object sender, RoutedEventArgs e)
+    private void BtnSettings_Click(object sender, RoutedEventArgs e) => OpenSettings(null);
+
+    private void OpenSettings(string? tab)
     {
         if (_project == null) return;
         var dlg = new SettingsDialog(_project, IsOnline ? _client : null, IsOnline ? SelectedDevice!.UniqId : 0, CanWrite) { Owner = this };
+        if (tab != null) dlg.SelectTab(tab);
         if (dlg.ShowDialog() == true) MarkDirty();
     }
 
@@ -728,16 +731,14 @@ public partial class MainWindow : Window
 
     private void UpdateTitle() => Title = Kasane.Model.AppInfo.DisplayName + (_dirty ? " *" : "");
 
-    private void BtnAbout_Click(object sender, RoutedEventArgs e) => ShowAbout();
-
-    private void ShowAbout() => new AboutWindow { Owner = this }.ShowDialog();
-
     // 画面の何もないところ（ボタンの列・余白）を右クリックしたときのメニュー。キーボードの図の上は、キーごとの右クリック（実測値を消す等）があるので出さない。
+    // バージョン情報は、設定の一番右のタブ。
     private ContextMenu BuildMainMenu()
     {
         var menu = new ContextMenu();
         var about = new MenuItem { Name = "MenuAbout", Header = "バージョン情報..." };
-        about.Click += (_, _) => ShowAbout();
+        about.Click += (_, _) => OpenSettings(SettingsDialog.AboutTab);
+        menu.Opened += (_, _) => about.IsEnabled = _project != null;
         menu.Items.Add(about);
         return menu;
     }
