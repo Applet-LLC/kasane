@@ -32,6 +32,7 @@ public sealed class TrayContext : ApplicationContext
     private readonly ToolStripMenuItem _pauseItem = new("一時停止") { Name = "TrayPause" };
     private readonly ToolStripMenuItem _layerItem = new("レイヤー") { Name = "TrayLayers" };
     private readonly ToolStripMenuItem _licenseItem = new("ライセンス") { Name = "TrayLicense" };
+    private readonly ToolStripMenuItem _aboutItem = new("バージョン情報") { Name = "TrayAbout" };
     private readonly ToolStripMenuItem _exitItem = new("終了") { Name = "TrayExit" };
     private readonly System.Windows.Forms.Timer _timer = new() { Interval = PollIntervalMs };
 
@@ -74,14 +75,15 @@ public sealed class TrayContext : ApplicationContext
         _settingsItem.Click += (_, _) => OpenEditor();
         _pauseItem.Click += (_, _) => TogglePause();
         _licenseItem.Click += (_, _) => Notify(AppLauncher.OpenOrActivate(AppLauncher.FindLicense(), "ライセンス管理"));
+        _aboutItem.Click += (_, _) => AboutForm.ShowSingle();
         _exitItem.Click += (_, _) => ExitTray();
-        _menu.Items.AddRange(new ToolStripItem[] { _settingsItem, _pauseItem, _layerItem, _licenseItem, new ToolStripSeparator(), _exitItem });
+        _menu.Items.AddRange(new ToolStripItem[] { _settingsItem, _pauseItem, _layerItem, _licenseItem, _aboutItem, new ToolStripSeparator(), _exitItem });
         _menu.Opening += (_, _) => { RefreshState(); RebuildLayerMenu(); }; // 開く直前に、最新の状態にする
 
         _notifyIcon = new NotifyIcon
         {
             Icon = _unavailableIcon,
-            Text = "kasane",
+            Text = AppInfo.NameWithVersion,
             ContextMenuStrip = _menu,
             Visible = true,
         };
@@ -180,14 +182,14 @@ public sealed class TrayContext : ApplicationContext
     {
         // 起動中（ウィンドウが出るまで）に押し直されても、2つ目を起動しない。
         if (StartingNotice.IsShowing) return;
-        Notify(AppLauncher.OpenOrActivate(AppLauncher.FindEditor(), "kasane",
-            started => StartingNotice.ShowFor(started, "kasane の設定画面を準備しています…")));
+        Notify(AppLauncher.OpenOrActivate(AppLauncher.FindEditor(), AppInfo.DisplayName,
+            started => StartingNotice.ShowFor(started, $"{AppInfo.DisplayName} の設定画面を準備しています…")));
     }
 
     /// <summary>失敗の理由があれば、バルーンで知らせる。</summary>
     private void Notify(string? error)
     {
-        if (error != null) _notifyIcon.ShowBalloonTip(5000, "kasane", error, ToolTipIcon.Warning);
+        if (error != null) _notifyIcon.ShowBalloonTip(5000, AppInfo.DisplayName, error, ToolTipIcon.Warning);
     }
 
     private void TogglePause()
@@ -264,10 +266,10 @@ public sealed class TrayContext : ApplicationContext
 
         (Icon icon, string text) = snapshot.Status switch
         {
-            TrayStatus.Paused => (_pausedIcon, "kasane — 一時停止中"),
-            TrayStatus.DriverUnavailable => (_unavailableIcon, "kasane — ドライバに接続できません"),
-            _ when snapshot.ActiveCount == 0 => (_normalIcon, "kasane — リマップ中のキーボードはありません"),
-            _ => (_normalIcon, $"kasane — 動作中（{snapshot.ActiveCount}台）"),
+            TrayStatus.Paused => (_pausedIcon, $"{AppInfo.NameWithVersion} - 一時停止中"),
+            TrayStatus.DriverUnavailable => (_unavailableIcon, $"{AppInfo.NameWithVersion} - ドライバに接続できません"),
+            _ when snapshot.ActiveCount == 0 => (_normalIcon, $"{AppInfo.NameWithVersion} - リマップ中のキーボードはありません"),
+            _ => (_normalIcon, $"{AppInfo.NameWithVersion} - 動作中（{snapshot.ActiveCount}台）"),
         };
         var ime = _imeLink.Status;
         if (snapshot.Status == TrayStatus.Running && ime.Linked && ime.TargetCount > 0)

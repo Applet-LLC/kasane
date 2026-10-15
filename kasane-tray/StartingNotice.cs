@@ -30,7 +30,7 @@ internal sealed class StartingNotice : Form
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.CenterScreen;
         TopMost = true;
-        Text = "kasane";
+        Text = Kasane.Model.AppInfo.DisplayName;
         Name = "StartingNotice";
         ClientSize = new Size(340, 84);
         Font = SystemFonts.MessageBoxFont ?? Font;
