@@ -27,6 +27,7 @@ public sealed class HelperHost : IDisposable
         _runner = new ActionRunner(Allow, ime.RequestLayer, togglePause);
         _events = new HelperEventService(OnHelperEvent, () => _ime.SessionActive && _ime.Store.Current.HasAnyActions);
         _hook = new KeyHookService(() => _table, Allow, _runner.Enqueue);
+        _runner.PhysicalKeys = () => _hook.PhysicalKeys;
         _ime.StateChanged += OnStateChanged;
 
         _table = TriggerTable.Build(_ime.Store.Current);

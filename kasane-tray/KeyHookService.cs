@@ -30,6 +30,10 @@ public sealed class KeyHookService : IDisposable
     private readonly ManualResetEventSlim _ready = new(false);
     private readonly NativeMethods.LowLevelKeyboardProc _proc; // GCされないよう保持する
     private readonly Dictionary<ushort, ActionRequest> _swallowed = new(); // フックのスレッドだけで使う
+    // 物理的に押している修飾キー（KeycodeTable.ModifierScanCodes の並びのビット）。フックが見る、注入でないイベントから追う。
+    // 実行中に修飾キーを OS から隠す（注入で離す）と GetAsyncKeyState の値が変わるため、そちらは使えない。
+    private volatile byte _physKeys;
+    private int _suppressActive; // 修飾キーを隠している実行の数。0 のときだけ、OS の状態で追跡を直す
     private volatile bool _stop;
     private uint _threadId;
     private IntPtr _hook;
@@ -46,6 +50,9 @@ public sealed class KeyHookService : IDisposable
 
     /// <summary>フックを張っているか（テストと診断用）。</summary>
     public bool Installed => _hook != IntPtr.Zero;
+
+    /// <summary>いま物理的に押している修飾キー（どのスレッドからでも読める）。</summary>
+    public byte PhysicalKeys => _physKeys;
 
     public void Start()
     {
@@ -84,6 +91,7 @@ public sealed class KeyHookService : IDisposable
 
     private void Install()
     {
+        _physKeys = ReadPhysicalKeys();
         _hook = NativeMethods.SetWindowsHookExW(NativeMethods.WH_KEYBOARD_LL, _proc, NativeMethods.GetModuleHandleW(null), 0);
         if (_hook == IntPtr.Zero) TrayLog.Write("KeyHook: SetWindowsHookEx に失敗 (" + Marshal.GetLastWin32Error() + ")");
     }
@@ -120,14 +128,17 @@ public sealed class KeyHookService : IDisposable
 
         ushort scan = (ushort)(((info.flags & NativeMethods.LLKHF_EXTENDED) != 0 ? 0xE000 : 0) | (int)(info.scanCode & 0xFF));
 
+        int modBit = Array.IndexOf(Kasane.Keycodes.KeycodeTable.ModifierScanCodes, scan);
+        if (modBit >= 0) _physKeys = down ? (byte)(_physKeys | (1 << modBit)) : (byte)(_physKeys & ~(1 << modBit)); // 修飾キー自身は飲み込まない
+
         if (_swallowed.TryGetValue(scan, out var pressed))
         {
             if (up)
             {
                 _swallowed.Remove(scan);
-                if (ActionExecutor.NeedsRelease(pressed.Body)) _dispatch(pressed with { IsBreak = true, IsRepeat = false });
+                if (ActionExecutor.NeedsRelease(pressed.Body)) _dispatch(pressed with { IsBreak = true, IsRepeat = false, SuppressKeys = 0, Done = null });
             }
-            else if (pressed.Body.Repeat) _dispatch(pressed with { IsBreak = false, IsRepeat = true });
+            else if (pressed.Body.Repeat) _dispatch(pressed with { IsBreak = false, IsRepeat = true, Done = null });
             return true; // 押している間のオートリピートも、解放も飲み込む
         }
         if (!down) return false;
@@ -135,24 +146,44 @@ public sealed class KeyHookService : IDisposable
         var table = _table();
         if (table.IsEmpty || !table.HasKey(scan)) return false;
         ushort hash16 = (ushort)(((ulong)info.dwExtraInfo.ToInt64() >> 16) & 0xFFFF);
-        var body = table.Lookup(scan, CurrentMods(), hash16);
+        // 隠している実行が無いときは、OS の状態で追跡を直す（フックが見逃したイベントがあっても、ずれたままにしない）。
+        if (Volatile.Read(ref _suppressActive) == 0) _physKeys = ReadPhysicalKeys();
+        byte mods = CurrentMods();
+        var body = table.Lookup(scan, mods, hash16);
         if (body == null || !_allow(body)) return false;
 
-        var request = new ActionRequest(body, 0, hash16, IsBreak: false, IsRepeat: false);
+        // Sequence は、実行の間だけトリガーの修飾キー（押している側）を OS から隠す。KeepMods で残せる。
+        byte suppress = body.Type == HelperActionBody.Sequence && !body.KeepMods
+            ? (byte)(_physKeys & (mods | (mods << 4)))
+            : (byte)0;
+        Action? done = null;
+        if (suppress != 0)
+        {
+            Interlocked.Increment(ref _suppressActive);
+            done = () => Interlocked.Decrement(ref _suppressActive);
+        }
+        var request = new ActionRequest(body, 0, hash16, IsBreak: false, IsRepeat: false, suppress, done);
         _swallowed[scan] = request;
         _dispatch(request);
         return true;
     }
 
-    // 押している修飾キー（左右を区別しない）。
-    private static byte CurrentMods()
+    // 押している修飾キー（左右を区別しない）。TriggerTable の ModCtrl・ModShift・ModAlt・ModWin のビット（= ModifierScanCodes の下位4ビットと同じ並び）。
+    private byte CurrentMods()
     {
-        byte mods = 0;
-        if (Down(0x11)) mods |= TriggerTable.ModCtrl;   // VK_CONTROL
-        if (Down(0x10)) mods |= TriggerTable.ModShift;  // VK_SHIFT
-        if (Down(0x12)) mods |= TriggerTable.ModAlt;    // VK_MENU
-        if (Down(0x5B) || Down(0x5C)) mods |= TriggerTable.ModWin; // VK_LWIN / VK_RWIN
-        return mods;
+        byte k = _physKeys;
+        return (byte)((k | (k >> 4)) & 0x0F);
+    }
+
+    // ModifierScanCodes の並び（LCTL LSFT LALT LGUI RCTL RSFT RALT RGUI）の仮想キー。
+    private static readonly int[] ModifierVks = { 0xA2, 0xA0, 0xA4, 0x5B, 0xA3, 0xA1, 0xA5, 0x5C };
+
+    private static byte ReadPhysicalKeys()
+    {
+        byte keys = 0;
+        for (int bit = 0; bit < ModifierVks.Length; bit++)
+            if (Down(ModifierVks[bit])) keys |= (byte)(1 << bit);
+        return keys;
     }
 
     private static bool Down(int vk) => (GetAsyncKeyState(vk) & 0x8000) != 0;

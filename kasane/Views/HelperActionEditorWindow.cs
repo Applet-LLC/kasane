@@ -53,6 +53,7 @@ public sealed class HelperActionEditorWindow : Window
     private readonly CheckBox[] _layers = new CheckBox[16];
     private readonly ComboBox _layerOp = new() { Name = "ActionLayerOp", Width = 300 };
     private readonly CheckBox _repeat = new() { Name = "ActionRepeat", Content = "キーを押し続けたとき（オートリピート）も繰り返す", Margin = new Thickness(0, 8, 0, 0) };
+    private readonly CheckBox _keepMods = new() { Name = "ActionKeepMods", Content = "実行中も、押している修飾キー（Ctrl など）を送る（チェックしないと、実行の間だけ隠す）", Margin = new Thickness(0, 6, 0, 0) };
     private readonly StackPanel _launchPanel = new();
     private readonly StackPanel _sequencePanel = new();
     private readonly StackPanel _layerPanel = new();
@@ -160,6 +161,7 @@ public sealed class HelperActionEditorWindow : Window
         panel.Children.Add(_layerPanel);
         panel.Children.Add(_pausePanel);
         panel.Children.Add(_repeat);
+        panel.Children.Add(_keepMods);
         panel.Children.Add(_status);
 
         var ok = new Button { Name = "OkButton", Content = "OK", IsDefault = true, Width = 90 };
@@ -210,6 +212,7 @@ public sealed class HelperActionEditorWindow : Window
         int op = Array.FindIndex(LayerOps, o => string.Equals(o, body.LayerOp, StringComparison.OrdinalIgnoreCase));
         _layerOp.SelectedIndex = op < 0 ? 0 : op;
         _repeat.IsChecked = body.Repeat;
+        _keepMods.IsChecked = body.KeepMods;
     }
 
     private void ShowPanels()
@@ -225,6 +228,8 @@ public sealed class HelperActionEditorWindow : Window
         _layerPanel.Visibility = type == HelperActionBody.AppLayer ? Visibility.Visible : Visibility.Collapsed;
         _pausePanel.Visibility = type == HelperActionBody.PauseToggle ? Visibility.Visible : Visibility.Collapsed;
         _repeat.Visibility = type == HelperActionBody.PauseToggle ? Visibility.Collapsed : Visibility.Visible;
+        // 修飾キーを隠すのは、トリガー（キー＋修飾キー）で動かす操作（Sequence）だけ。
+        _keepMods.Visibility = _mode == HelperEditMode.Trigger && type == HelperActionBody.Sequence ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void Browse()
@@ -250,7 +255,12 @@ public sealed class HelperActionEditorWindow : Window
     // 入力欄から動作を作る。書き方の誤りは errors に入れる。
     private HelperActionBody BuildBody(List<string> errors)
     {
-        var body = new HelperActionBody { Type = SelectedType, Repeat = _repeat.IsChecked == true && SelectedType != HelperActionBody.PauseToggle };
+        var body = new HelperActionBody
+        {
+            Type = SelectedType,
+            Repeat = _repeat.IsChecked == true && SelectedType != HelperActionBody.PauseToggle,
+            KeepMods = _mode == HelperEditMode.Trigger && SelectedType == HelperActionBody.Sequence && _keepMods.IsChecked == true,
+        };
         switch (body.Type)
         {
             case HelperActionBody.Launch:
