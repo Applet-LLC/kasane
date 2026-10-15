@@ -22,7 +22,7 @@ function Find-TrayIcon {
         if ($w.Current.ClassName -match "Overflow") {
             foreach ($e in $w.FindAll('Descendants', [System.Windows.Automation.Condition]::TrueCondition)) {
                 # The tooltip popup and its text have the same name; only the button is the icon.
-                if ($e.Current.Name -like "kasane*" -and $e.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button) { return $e }
+                if ($e.Current.Name -like "かさね*" -and $e.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button) { return $e }
             }
         }
     }
@@ -78,7 +78,7 @@ try {
     $icon = Get-TrayIcon
     Chk "the tray icon exists in the notification area" ($null -ne $icon)
     "  tooltip: '$($icon.Current.Name)'"
-    Chk "the tooltip starts with kasane" ($icon.Current.Name -match "kasane")
+    Chk "the tooltip starts with かさね" ($icon.Current.Name -match "かさね")
 
     # left click -> editor
     $icon.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()

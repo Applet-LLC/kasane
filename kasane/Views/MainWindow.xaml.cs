@@ -44,6 +44,8 @@ public partial class MainWindow : Window
         KbdCanvas.KeyClicked += Keyboard_KeyClicked;
         KbdCanvas.KeyRightClicked += Keyboard_KeyRightClicked;
         LstLayers.ContextMenu = BuildLayerMenu();
+        if (Content is FrameworkElement root) root.ContextMenu = BuildMainMenu();
+        KbdCanvas.ContextMenuOpening += (_, e) => e.Handled = true;
     }
 
     /// <summary>利用者がつけた名前を返す。いま開いているキーボードは、編集中の内容（まだ保存していない名前の変更）を使う。</summary>
@@ -547,10 +549,13 @@ public partial class MainWindow : Window
         MarkDirty();
     }
 
-    private void BtnSettings_Click(object sender, RoutedEventArgs e)
+    private void BtnSettings_Click(object sender, RoutedEventArgs e) => OpenSettings(null);
+
+    private void OpenSettings(string? tab)
     {
         if (_project == null) return;
         var dlg = new SettingsDialog(_project, IsOnline ? _client : null, IsOnline ? SelectedDevice!.UniqId : 0, CanWrite) { Owner = this };
+        if (tab != null) dlg.SelectTab(tab);
         if (dlg.ShowDialog() == true) MarkDirty();
     }
 
@@ -726,7 +731,19 @@ public partial class MainWindow : Window
         UpdateTitle();
     }
 
-    private void UpdateTitle() => Title = "kasane" + (_dirty ? " *" : "");
+    private void UpdateTitle() => Title = Kasane.Model.AppInfo.DisplayName + (_dirty ? " *" : "");
+
+    // 画面の何もないところ（ボタンの列・余白）を右クリックしたときのメニュー。キーボードの図の上は、キーごとの右クリック（実測値を消す等）があるので出さない。
+    // バージョン情報は、設定の一番右のタブ。
+    private ContextMenu BuildMainMenu()
+    {
+        var menu = new ContextMenu();
+        var about = new MenuItem { Name = "MenuAbout", Header = "バージョン情報..." };
+        about.Click += (_, _) => OpenSettings(SettingsDialog.AboutTab);
+        menu.Opened += (_, _) => about.IsEnabled = _project != null;
+        menu.Items.Add(about);
+        return menu;
+    }
 
     private void UpdateButtons()
     {

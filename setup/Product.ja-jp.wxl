@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <WixLocalization Culture="ja-jp" xmlns="http://schemas.microsoft.com/wix/2006/localization">
   <String Id="ProductName">かさね Subscription</String>
+  <String Id="ShortcutKeymapName">かさね</String>
+  <String Id="ShortcutTrayName">かさね Tray</String>
   <String Id="DowngradeError">新しいバージョンのかさね Subscription がすでにインストールされています。</String>
   <String Id="Error1722">セットアップの一部として実行されたプログラムが正常に終了しませんでした。直前にかさねをアンインストールした場合は、コンピューターを再起動してから、もう一度インストールしてください。それでも失敗するときは、サポート担当者に問い合わせてください。（エラー 1722 {{、処理: [2]、場所: [3]、コマンド: [4]}}）</String>
   <String Id="LicenseSvcDescription">かさね サブスクリプションライセンス管理</String>

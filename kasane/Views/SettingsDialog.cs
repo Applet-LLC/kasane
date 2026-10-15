@@ -74,13 +74,14 @@ public sealed class SettingsDialog : Window
         AddTab("TabFeatures", "機能", BuildFeaturesTab());
         AddTab("TabTiming", "タイミング", BuildTimingTab());
         AddTab("TabNicola", "NICOLA", BuildNicolaTab());
-        AddTab("TabDesktop", "デスクトップ", BuildDesktopTab());
         AddTab("TabHelper", "ヘルパー動作", new HelperActionsTab(_helper, this).Root);
         AddTab("TabAppRules", "アプリ別レイヤー", new AppRulesTab(_helper, this).Root);
         AddTab("TabEmergency", "緊急解除", BuildEmergencyTab());
         AddTab("TabScope", "共有範囲", BuildScopeTab());
         AddTab("TabDataDir", "保存先", BuildDataDirTab());
         AddTab("TabI8042", "i8042prt", BuildI8042Tab());
+        AddTab("TabDesktop", "デスクトップ", BuildDesktopTab());
+        AddTab(AboutTab, "バージョン情報", BuildAboutTab());
         _tabs.SelectionChanged += OnTabChanged;
 
         var ok = new Button { Name = "OkButton", Content = "OK", IsDefault = true, Width = 90 };
@@ -167,6 +168,26 @@ public sealed class SettingsDialog : Window
         for (int i = 0; i < _desktopViewRadios.Length; i++)
             if (_desktopViewRadios[i].IsChecked == true) return i;
         return null;
+    }
+
+    /// <summary>バージョン情報のタブの名前（一番右）。メイン画面の右クリックのメニューからも、このタブを選んで開く。</summary>
+    public const string AboutTab = "TabAbout";
+
+    /// <summary>名前を指定してタブを選ぶ。</summary>
+    public void SelectTab(string name)
+    {
+        if (_tabs.Items.Cast<TabItem>().FirstOrDefault(item => item.Name == name) is { } tab) _tabs.SelectedItem = tab;
+    }
+
+    /// <summary>バージョン情報: 名前・バージョン・（1行あけて）発行元。保存するものはない。</summary>
+    private UIElement BuildAboutTab()
+    {
+        var panel = new StackPanel { Margin = new Thickness(8, 8, 0, 0) };
+        panel.Children.Add(new TextBlock { Name = "AboutName", Text = AppInfo.DisplayName, FontSize = 26, FontWeight = FontWeights.Bold });
+        panel.Children.Add(new TextBlock { Name = "AboutVersion", Text = $"バージョン {AppInfo.VersionText}", FontSize = 15, Margin = new Thickness(0, 6, 0, 0) });
+        panel.Children.Add(new TextBlock { Text = " ", Margin = new Thickness(0, 2, 0, 0) }); // 空行
+        panel.Children.Add(new TextBlock { Name = "AboutPublisher", Text = AppInfo.Publisher, Foreground = Brushes.DimGray });
+        return panel;
     }
 
     private bool IsOnline => _uniqId != 0;

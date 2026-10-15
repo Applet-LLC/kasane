@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <WixLocalization Culture="en-us" xmlns="http://schemas.microsoft.com/wix/2006/localization">
   <String Id="ProductName">kasane Subscription</String>
+  <String Id="ShortcutKeymapName">kasane</String>
+  <String Id="ShortcutTrayName">kasane Tray</String>
   <String Id="DowngradeError">A newer version of kasane Subscription is already installed.</String>
   <String Id="Error1722">A program run as part of the setup did not finish as expected. If you have just uninstalled kasane, restart the computer and run the installer again. If it still fails, contact support. (Error 1722 {{, action: [2], location: [3], command: [4]}})</String>
   <String Id="LicenseSvcDescription">kasane subscription license management</String>

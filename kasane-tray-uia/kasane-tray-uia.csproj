@@ -11,6 +11,8 @@
     右クリックのメニュー（設定・一時停止・ライセンス・終了）を出す。ドライバの操作は読み取り側のIOCTL
     （一覧とON/OFF）だけなので、管理者権限は要らない。
   -->
+  <Import Project="..\AppVersion.props" />
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
@@ -48,6 +50,7 @@
     <Compile Include="..\kasane\Interop\NativeMethods.cs" Link="Shared\NativeMethods.cs" />
     <Compile Include="..\kasane\Keycodes\KeycodeTable.cs" Link="Shared\KeycodeTable.cs" />
     <Compile Include="..\kasane\Model\TrayConfig.cs" Link="Shared\TrayConfig.cs" />
+    <Compile Include="..\kasane\Model\AppInfo.cs" Link="Shared\AppInfo.cs" />
     <Compile Include="..\kasane\Model\HelperConfig.cs" Link="Shared\HelperConfig.cs" />
     <Compile Include="..\kasane\Model\HelperActions.cs" Link="Shared\HelperActions.cs" />
     <EmbeddedResource Include="..\kasane-license\Resources\app.ico" Link="app.ico" />

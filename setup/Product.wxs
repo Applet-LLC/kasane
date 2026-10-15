@@ -397,7 +397,7 @@
                   Target="[LICENSEGUIDIR]kasane-license.exe"
                   WorkingDirectory="LICENSEGUIDIR"
                   Icon="ICO_App" />
-        <Shortcut Id="ShortcutKeymapGui" Name="kasane"
+        <Shortcut Id="ShortcutKeymapGui" Name="!(loc.ShortcutKeymapName)"
                   Target="[KEYMAPGUIDIR]kasane.exe"
                   WorkingDirectory="KEYMAPGUIDIR"
                   Icon="ICO_App" />
@@ -406,7 +406,7 @@
           シェル（エクスプローラー）経由の起動なので uiAccess が付く。二重起動は mutex（Local\kasane-tray）で止まる。
           uiAccess の無い版（kasane-tray-nua.exe）は、救済用に手で起動するもので、ショートカットにしない。
         -->
-        <Shortcut Id="ShortcutTray" Name="kasane Tray"
+        <Shortcut Id="ShortcutTray" Name="!(loc.ShortcutTrayName)"
                   Target="[TRAYDIR]kasane-tray.exe"
                   WorkingDirectory="TRAYDIR"
                   Icon="ICO_App" />
