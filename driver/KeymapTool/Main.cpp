@@ -618,17 +618,23 @@ int CmdSetFeatures(IoctlClient* client, ULONG uniqId, const char* macro, const c
     return 0;
 }
 
-// --set-key-override <UniqIdHex> <Id> [<TriggerMods> <TriggerKey> <Replacement>]
+// --set-key-override <UniqIdHex> <Id> [<TriggerMods> <TriggerKey> <Replacement> [repeat]]
 // 引数無しならそのIdをクリアする。TriggerModsはMOD_*を|でつないだもの、TriggerKeyは単純キー(KC_xxx)、
-// Replacementは単純キーか修飾付きキー（LCTL(KC_Z)等）。
+// Replacementは単純キー、修飾付きキー（LCTL(KC_Z)等）、またはMACRO(n)。repeatは、ReplacementがMACRO(n)のとき、
+// オートリピートでマクロを繰り返す（既定は繰り返さない）。
 int CmdSetKeyOverride(IoctlClient* client, ULONG uniqId, ULONG id, int argc, char** argv) {
     if (argc == 0) {
         if (!client->SetKeyOverride(uniqId, id, nullptr)) return 1;
         printf("SET_KEY_OVERRIDE ok. UniqId=%08X Id=%lu cleared.\n", uniqId, id);
         return 0;
     }
-    if (argc != 3) {
-        fprintf(stderr, "--set-key-override: expected <TriggerMods> <TriggerKey> <Replacement>, or none to clear\n");
+    if (argc != 3 && argc != 4) {
+        fprintf(stderr, "--set-key-override: expected <TriggerMods> <TriggerKey> <Replacement> [repeat], or none to clear\n");
+        return 1;
+    }
+    const bool repeat = (argc == 4);
+    if (repeat && _stricmp(argv[3], "repeat") != 0) {
+        fprintf(stderr, "--set-key-override: the 4th argument must be \"repeat\" (got \"%s\")\n", argv[3]);
         return 1;
     }
 
@@ -643,18 +649,24 @@ int CmdSetKeyOverride(IoctlClient* client, ULONG uniqId, ULONG id, int argc, cha
         return 1;
     }
     if (!KeycodeTable::Resolve(argv[2], &replacement) ||
-        (replacement.ActionType != KBDLAYER_ACTION_KEY && replacement.ActionType != KBDLAYER_ACTION_MODDED_KEY) ||
-        replacement.Param2 == 0) {
-        fprintf(stderr, "--set-key-override: Replacement \"%s\" must be a plain key or a modified key (LCTL(kc))\n", argv[2]);
+        (replacement.ActionType != KBDLAYER_ACTION_KEY && replacement.ActionType != KBDLAYER_ACTION_MODDED_KEY &&
+         replacement.ActionType != KBDLAYER_ACTION_MACRO) ||
+        (replacement.ActionType != KBDLAYER_ACTION_MACRO && replacement.Param2 == 0)) {
+        fprintf(stderr, "--set-key-override: Replacement \"%s\" must be a plain key, a modified key (LCTL(kc)) or MACRO(n)\n", argv[2]);
+        return 1;
+    }
+    if (repeat && replacement.ActionType != KBDLAYER_ACTION_MACRO) {
+        fprintf(stderr, "--set-key-override: \"repeat\" is only valid when Replacement is MACRO(n)\n");
         return 1;
     }
 
     KBDLAYER_KEY_OVERRIDE_ENTRY entry = {};
     entry.TriggerMods = mods;
     entry.TriggerScanCode = trigger.Param2;
+    entry.Flags = repeat ? KBDLAYER_KEY_OVERRIDE_FLAG_REPEAT : 0;
     entry.Replacement = { replacement.ActionType, replacement.Param1, replacement.Param2 };
     if (!client->SetKeyOverride(uniqId, id, &entry)) return 1;
-    printf("SET_KEY_OVERRIDE ok. UniqId=%08X Id=%lu: %s + %s -> %s\n", uniqId, id, argv[0], argv[1], argv[2]);
+    printf("SET_KEY_OVERRIDE ok. UniqId=%08X Id=%lu: %s + %s -> %s%s\n", uniqId, id, argv[0], argv[1], argv[2], repeat ? " (repeat)" : "");
     return 0;
 }
 
@@ -665,8 +677,8 @@ int CmdGetKeyOverride(IoctlClient* client, ULONG uniqId, ULONG id) {
     if (!used) {
         printf("UniqId=%08X Id=%lu: (not set)\n", uniqId, id);
     } else {
-        printf("UniqId=%08X Id=%lu: TriggerMods=0x%02X TriggerScanCode=0x%04X Replacement Type=%u Param1=0x%02X Param2=0x%04X\n",
-               uniqId, id, entry.TriggerMods, entry.TriggerScanCode,
+        printf("UniqId=%08X Id=%lu: TriggerMods=0x%02X Flags=0x%02X TriggerScanCode=0x%04X Replacement Type=%u Param1=0x%02X Param2=0x%04X\n",
+               uniqId, id, entry.TriggerMods, entry.Flags, entry.TriggerScanCode,
                entry.Replacement.Type, entry.Replacement.Param1, entry.Replacement.Param2);
     }
     return 0;
@@ -1239,7 +1251,7 @@ void PrintUsage() {
         "      keyboards with different layouts under global can give unintended mappings.\n"
         "  KeymapTool.exe --get-features <UniqIdHex>\n"
         "      Show which optional features are enabled on this keyboard.\n"
-        "  KeymapTool.exe --set-key-override <UniqIdHex> <Id> [<TriggerMods> <TriggerKey> <Replacement>]\n"
+        "  KeymapTool.exe --set-key-override <UniqIdHex> <Id> [<TriggerMods> <TriggerKey> <Replacement> [repeat]]\n"
         "      Define key override <Id> (0-31): while all modifier kinds in <TriggerMods>\n"
         "      (e.g. MOD_LSFT, MOD_LCTL|MOD_LSFT; left/right are not distinguished) are held,\n"
         "      the key that outputs <TriggerKey> (KC_xxx, after layers) sends <Replacement>\n"

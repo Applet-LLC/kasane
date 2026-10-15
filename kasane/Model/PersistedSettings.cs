@@ -130,7 +130,7 @@ public sealed class PersistedSettings
             ms.Position = (long)id * KeyOverrideEntryBytes;
             w.Write(1u);
             w.Write(e.TriggerMods);
-            w.Write((byte)0);
+            w.Write(e.Flags);
             w.Write(e.TriggerScanCode);
             WriteAction(w, e.Replacement);
         }

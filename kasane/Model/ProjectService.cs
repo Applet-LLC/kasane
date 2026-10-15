@@ -619,6 +619,7 @@ public static class ProjectService
                     Mods = KeycodeTable.ModMaskToNames(ko.TriggerMods),
                     Key = KeycodeTable.KeyToken(ko.TriggerScanCode),
                     Replacement = KeycodeTable.ToToken(ko.Replacement),
+                    RepeatMacro = (ko.Flags & KeyOverrideEntry.FlagRepeat) != 0,
                 });
             }
         }
@@ -644,9 +645,12 @@ public static class ProjectService
         if (!KeycodeTable.TryResolve(ko.Key.Trim(), out var key) || key.Type != ActionType.Key || key.Param2 == 0)
             errors.Add($"キー置換{ko.Id}: キー「{ko.Key}」は単純なキー(KC_*)にしてください");
         if (!KeycodeTable.TryResolve(ko.Replacement.Trim(), out var replacement) ||
-            replacement.Type is not (ActionType.Key or ActionType.ModdedKey) || replacement.Param2 == 0)
-            errors.Add($"キー置換{ko.Id}: 置き換え先「{ko.Replacement}」はキー(KC_*)か修飾付きキー(LCTL(KC_Z)等)にしてください");
-        return errors.Count == before ? new KeyOverrideEntry(mods, key.Param2, replacement) : null;
+            replacement.Type is not (ActionType.Key or ActionType.ModdedKey or ActionType.Macro) ||
+            (replacement.Type != ActionType.Macro && replacement.Param2 == 0))
+            errors.Add($"キー置換{ko.Id}: 置き換え先「{ko.Replacement}」はキー(KC_*)、修飾付きキー(LCTL(KC_Z)等)、マクロ(MACRO(n))にしてください");
+        // オートリピートの印は、置き換え先がマクロのときだけ有効（ドライバも、マクロ以外では受け付けない）。
+        byte flags = ko.RepeatMacro && replacement.Type == ActionType.Macro ? KeyOverrideEntry.FlagRepeat : (byte)0;
+        return errors.Count == before ? new KeyOverrideEntry(mods, key.Param2, replacement, flags) : null;
     }
 
     /// <summary>
