@@ -1119,7 +1119,8 @@ ForwardToClass(
     }
     // Key Overrideの置き換え中に別のキーが押されたら、一時的に離していた修飾キーを、そのキーの
     // makeより前に戻す（置き換えは続く。置き換え先のキー自身のmake=オートリピートでは戻さない）。
-    if (devExt->SuppressedMods != 0 &&
+    // ただし、置き換え先がMACRO(n)のキー置換がマクロを送っている間は戻さない（マクロの出力に修飾キーが掛かるため）。
+    if (devExt->SuppressedMods != 0 && !devExt->KeyOverrideMacroSending &&
         BatchHasOtherKeyMake(InputDataStart, InputDataEnd, devExt->SuppressOwnerScanCode)) {
         RestoreSuppressedModifiers(devExt);
     }
@@ -2053,7 +2054,10 @@ SendKeyOverrideMacro(
     // 条件の修飾キーをOS上で離す（あるべき状態からSuppressedModsが外れたので、安全網がbreakを送る。
     // Alt・Winは、単独押しにならないようCtrlのタップも挟まれる）。
     ReleaseLeakedModifiers(devExt);
+    // マクロの各キーが、離した修飾キーを先に戻させないようにする（ForwardToClassの規則を、送っている間だけ止める）。
+    devExt->KeyOverrideMacroSending = TRUE;
     SendMacroSteps(devExt, Steps, StepCount);
+    devExt->KeyOverrideMacroSending = FALSE;
 
     // 今回離した分のうち、まだ物理的に押されているものを戻す（OSで押されていないビットだけを送る）。
     devExt->SuppressedMods = Previous;

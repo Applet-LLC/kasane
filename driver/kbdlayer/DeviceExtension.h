@@ -150,6 +150,10 @@ typedef struct _DEVICE_EXTENSION {
     // OutputLockで保護する（書くのはすべてOutputLock保持中）。
     UCHAR SuppressedMods;
     USHORT SuppressOwnerScanCode;
+    // 置き換え先がMACRO(n)のキー置換が、マクロを送っている最中（SendKeyOverrideMacro。OutputLock保持中だけTRUE）。
+    // マクロの各キーも「置き換え中に別のキーが押された」に当たるので、ForwardToClassの、離していた修飾キーを
+    // 先に戻す処理を、この間は止める（止めないと、マクロの最初のキーの直前にCtrlが戻り、出力にCtrlが掛かる）。
+    BOOLEAN KeyOverrideMacroSending;
 
     // --- One Shot Mod（OSM、2026-10-02。LayerEngine.cのResolveModdedKey参照） ---
     // OneShotMods: OSMをタップした（別のキーを押さずに離した）後、次のキーのために押したままにしている
