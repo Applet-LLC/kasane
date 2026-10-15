@@ -27,7 +27,7 @@
                     ToolTip="このキーボードに、わかりやすい名前を付けます（設定画面の表示だけに使います）" />
             <Button x:Name="BtnIdentify" Content="押して特定..." Click="BtnIdentify_Click"
                     ToolTip="キーを1つ押して、どのキーボードかを選びます" />
-            <Button Content="一覧を更新" Click="BtnRefreshDevices_Click" />
+            <Button x:Name="BtnRefreshDevices" Content="一覧を更新" Click="BtnRefreshDevices_Click" />
             <TextBlock Text="レイアウト:" VerticalAlignment="Center" Margin="20,0,4,0" />
             <ComboBox x:Name="CmbLayout" Width="110" SelectionChanged="CmbLayout_SelectionChanged" />
             <Button x:Name="BtnAddKle" Content="KLEから追加..." Click="BtnLoadKle_Click"
@@ -44,8 +44,8 @@
                     </ItemsPanelTemplate>
                 </ListBox.ItemsPanel>
             </ListBox>
-            <Button Content="＋ 追加" Click="BtnAddLayer_Click" />
-            <Button Content="− 最後を削除" Click="BtnRemoveLayer_Click" />
+            <Button x:Name="BtnAddLayer" Content="＋ 追加" Click="BtnAddLayer_Click" />
+            <Button x:Name="BtnRemoveLayer" Content="− 最後を削除" Click="BtnRemoveLayer_Click" />
         </StackPanel>
 
         <StatusBar DockPanel.Dock="Bottom">

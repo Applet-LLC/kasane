@@ -509,44 +509,99 @@ public partial class MainWindow : Window
         int differs = dlg.Results.Count(r => r.Value != _layout.Slots[r.Key].DefaultScanCode);
         SetStatus($"{dlg.Results.Count}キーを実測しました（既定と異なる値: {differs}キー）。適用すると反映されます。");
     }
+    // ------------------------------------------------------------------
+    // マクロ・コンボ・タップダンス・キー置換の編集画面
+    // 4つとも、同時に開ける別ウィンドウ（非モーダル）。マクロの画面を開いたまま、他の画面で MACRO(n) の番号と名前を見ながら編集できる。
+    // 同じ種類は1つだけ（もう一度ボタンを押すと前面に出す）。「適用」・OKで、その時点の内容をプロジェクトへ取り込む。
+    // 開いている間は、プロジェクトや配列が入れ替わる操作（キーボード・レイアウトの切り替え、インポート、レイヤーの追加・削除など）を無効にする。
+    // ------------------------------------------------------------------
+
+    private readonly Dictionary<string, IdListEditorWindow> _editors = new();
+
+    private void OpenEditor<T>(string key, Func<T> create, Action<T> apply) where T : IdListEditorWindow
+    {
+        if (_editors.TryGetValue(key, out var existing))
+        {
+            if (existing.WindowState == WindowState.Minimized) existing.WindowState = WindowState.Normal;
+            existing.Activate();
+            return;
+        }
+        var window = create();
+        window.Owner = this;
+        // 開いた順に少しずらして、先に開いた画面（マクロの一覧など）が隠れないようにする。
+        window.WindowStartupLocation = WindowStartupLocation.Manual;
+        double offset = 40 * _editors.Count;
+        window.Left = Left + 40 + offset;
+        window.Top = Top + 40 + offset;
+        window.Applied += () =>
+        {
+            apply(window);
+            MarkDirty();
+        };
+        window.Closed += (_, _) =>
+        {
+            _editors.Remove(key);
+            UpdateEditorLock();
+        };
+        _editors[key] = window;
+        UpdateEditorLock();
+        window.Show();
+    }
+
+    // 編集画面が開いている間、プロジェクトや配列を入れ替える操作を無効にする（画面の内容とプロジェクトがずれるのを防ぐ）。
+    private void UpdateEditorLock()
+    {
+        bool free = _editors.Count == 0;
+        CmbDevice.IsEnabled = free;
+        CmbLayout.IsEnabled = free;
+        BtnRenameKeyboard.IsEnabled = free;
+        BtnIdentify.IsEnabled = free && !IsReadOnly;
+        BtnRefreshDevices.IsEnabled = free;
+        BtnAddKle.IsEnabled = free;
+        BtnAddLayer.IsEnabled = free;
+        BtnRemoveLayer.IsEnabled = free;
+        BtnImportExport.IsEnabled = free;
+        if (!free) SetStatus("編集画面（マクロ・コンボ・タップダンス・キー置換）を開いている間は、キーボードやレイアウトの切り替え、インポート、レイヤーの追加・削除はできません。");
+    }
+
     private void BtnMacros_Click(object sender, RoutedEventArgs e)
     {
         if (_project == null) return;
-        var dlg = new MacroEditorWindow(_project.Macros, _project.MacroNames) { Owner = this };
-        if (dlg.ShowDialog() != true) return;
-        _project.Macros = dlg.Result;
-        _project.MacroNames = dlg.ResultNames;
-        MarkDirty();
+        OpenEditor("macros", () => new MacroEditorWindow(_project.Macros, _project.MacroNames), w =>
+        {
+            _project.Macros = w.Result;
+            _project.MacroNames = w.ResultNames;
+        });
     }
 
     private void BtnCombos_Click(object sender, RoutedEventArgs e)
     {
         if (_project == null || _layout == null) return;
-        var dlg = new ComboEditorWindow(_project, _layout) { Owner = this };
-        if (dlg.ShowDialog() != true) return;
-        _project.Combos = dlg.Result;
-        _project.ComboNames = dlg.ResultNames;
-        MarkDirty();
+        OpenEditor("combos", () => new ComboEditorWindow(_project, _layout), w =>
+        {
+            _project.Combos = w.Result;
+            _project.ComboNames = w.ResultNames;
+        });
     }
 
     private void BtnTapDances_Click(object sender, RoutedEventArgs e)
     {
         if (_project == null) return;
-        var dlg = new TapDanceEditorWindow(_project.TapDances, _project.TapDanceNames) { Owner = this };
-        if (dlg.ShowDialog() != true) return;
-        _project.TapDances = dlg.Result;
-        _project.TapDanceNames = dlg.ResultNames;
-        MarkDirty();
+        OpenEditor("tapdances", () => new TapDanceEditorWindow(_project.TapDances, _project.TapDanceNames), w =>
+        {
+            _project.TapDances = w.Result;
+            _project.TapDanceNames = w.ResultNames;
+        });
     }
 
     private void BtnKeyOverrides_Click(object sender, RoutedEventArgs e)
     {
         if (_project == null) return;
-        var dlg = new KeyOverrideEditorWindow(_project.KeyOverrides, _project.KeyOverrideNames) { Owner = this };
-        if (dlg.ShowDialog() != true) return;
-        _project.KeyOverrides = dlg.Result;
-        _project.KeyOverrideNames = dlg.ResultNames;
-        MarkDirty();
+        OpenEditor("keyoverrides", () => new KeyOverrideEditorWindow(_project.KeyOverrides, _project.KeyOverrideNames), w =>
+        {
+            _project.KeyOverrides = w.Result;
+            _project.KeyOverrideNames = w.ResultNames;
+        });
     }
 
     private void BtnSettings_Click(object sender, RoutedEventArgs e) => OpenSettings(null);
@@ -778,6 +833,14 @@ public partial class MainWindow : Window
 
     private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        // 編集画面が開いていれば、閉じると「適用」していない内容が捨てられることを確かめる。
+        if (_editors.Count > 0 &&
+            MessageBox.Show(this, "編集画面が開いています。閉じると、「適用」していない編集内容は捨てられます。\n閉じますか？",
+                Title, MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK)
+        {
+            e.Cancel = true;
+            return;
+        }
         if (!PersistBeforeLeave() || !ConfirmUnapplied()) { e.Cancel = true; return; }
         _client?.Dispose();
     }
