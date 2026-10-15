@@ -33,13 +33,17 @@ public partial class KeyAssignDialog : Window
 
     public string ResultToken { get; private set; }
 
-    public KeyAssignDialog(KeySlot slot, int layer, string currentToken, int layerCount, uint uniqId = 0)
+    private readonly KeymapProject? _project; // レイヤー・マクロ・タップダンスの名前を選択肢に出すため（無ければ番号だけ）
+
+    public KeyAssignDialog(KeySlot slot, int layer, string currentToken, int layerCount, uint uniqId = 0, KeymapProject? project = null)
     {
         InitializeComponent();
         _layerCount = layerCount;
         _uniqId = uniqId;
+        _project = project;
         ResultToken = currentToken;
-        TxtHeader.Text = $"{slot.Description} ／ レイヤー{layer}";
+        string? layerName = project == null ? null : ProjectService.LayerName(project, layer);
+        TxtHeader.Text = $"{slot.Description} ／ レイヤー{layer}" + (layerName != null ? $"（{layerName}）" : "");
 
         for (int bit = 0; bit < 8; bit++)
         {
@@ -134,7 +138,7 @@ public partial class KeyAssignDialog : Window
     private UIElement LayerPanel()
     {
         var func = Combo(new[] { "MO", "TG", "DF", "OSL", "TO", "TT", "LM", "OSM" }, "FuncCombo");
-        var layer = Combo(Layers.Select(i => i.ToString()), "LayerCombo");
+        var layer = NamedCombo(NamedChoice.Layers(_project), "LayerCombo");
         layer.SelectedIndex = Math.Min(1, KbdLayerClient.MaxLayers - 1);
         return Form(
             "MO(n): 押している間だけレイヤーnを有効にする\nTG(n): 押すたびにレイヤーnをON/OFFする\n" +
@@ -149,7 +153,7 @@ public partial class KeyAssignDialog : Window
             () =>
             {
                 string f = (string)func.SelectedItem;
-                if (f != "LM" && f != "OSM") return $"{f}({layer.SelectedItem})";
+                if (f != "LM" && f != "OSM") return $"{f}({Num(layer)})";
                 byte mask = CheckedMask();
                 if (mask == 0)
                 {
@@ -159,7 +163,7 @@ public partial class KeyAssignDialog : Window
                 }
                 return f == "OSM"
                     ? $"OSM({KeycodeTable.ModMaskToNames(mask)})"
-                    : $"LM({layer.SelectedItem},{KeycodeTable.ModMaskToNames(mask)})";
+                    : $"LM({Num(layer)},{KeycodeTable.ModMaskToNames(mask)})";
             });
     }
 
@@ -174,28 +178,27 @@ public partial class KeyAssignDialog : Window
 
     private UIElement LayerTapPanel()
     {
-        var layer = Combo(Layers.Select(i => i.ToString()), "LayerCombo");
+        var layer = NamedCombo(NamedChoice.Layers(_project), "LayerCombo");
         layer.SelectedIndex = Math.Min(1, KbdLayerClient.MaxLayers - 1);
         var tap = Id(new TextBox { Text = "KC_SPACE", Width = 160, FontFamily = new FontFamily("Consolas") }, "TapKeyBox");
         return Form("短く押すとタップのキー、長押し（または他のキーと同時押し）でレイヤーを有効にする。",
             ("レイヤー", layer), ("タップのキー", tap),
-            () => $"LT({layer.SelectedItem},{tap.Text.Trim()})");
+            () => $"LT({Num(layer)},{tap.Text.Trim()})");
     }
 
     private UIElement MacroPanel()
     {
         var kind = Combo(new[] { "MACRO", "TAPDANCE" }, "KindCombo");
-        var id = Combo(Enumerable.Range(0, KbdLayerClient.MaxMacroCount).Select(i => i.ToString()), "IdCombo");
+        var id = NamedCombo(NamedChoice.Macros(_project), "IdCombo");
         kind.SelectionChanged += (_, _) =>
         {
-            int max = (string)kind.SelectedItem == "MACRO" ? KbdLayerClient.MaxMacroCount : KbdLayerClient.MaxTapDanceCount;
-            id.ItemsSource = Enumerable.Range(0, max).Select(i => i.ToString()).ToList();
+            id.ItemsSource = (string)kind.SelectedItem == "MACRO" ? NamedChoice.Macros(_project) : NamedChoice.TapDances(_project);
             id.SelectedIndex = 0;
         };
         return Form("MACRO(n): マクロnを実行する（中身は「マクロ...」で編集）\n" +
                     "TAPDANCE(n): タップ回数・長押しで動作を変える（中身は「タップダンス...」で編集）",
             ("種類", kind), ("番号", id),
-            () => $"{kind.SelectedItem}({id.SelectedItem})");
+            () => $"{kind.SelectedItem}({Num(id)})");
     }
 
     // ------------------------------------------------------------------
@@ -294,6 +297,16 @@ public partial class KeyAssignDialog : Window
         c.SelectedIndex = 0;
         return c;
     }
+
+    /// <summary>番号で選ぶ欄（レイヤー・マクロ・タップダンス）。名前を付けてあるものは「3: 名前」と出す。値は <see cref="Num"/> で取る。</summary>
+    private static ComboBox NamedCombo(IEnumerable<NamedChoice> items, string automationId)
+    {
+        var c = Id(new ComboBox { Width = 240, ItemsSource = items.ToList() }, automationId);
+        c.SelectedIndex = 0;
+        return c;
+    }
+
+    private static int Num(ComboBox combo) => ((NamedChoice)combo.SelectedItem).Number;
 
     private UIElement Form(string help, (string Label, Control Input) a, (string Label, Control Input) b, Func<string?> build)
     {
