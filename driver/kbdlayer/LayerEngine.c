@@ -1119,7 +1119,8 @@ ForwardToClass(
     }
     // Key Overrideの置き換え中に別のキーが押されたら、一時的に離していた修飾キーを、そのキーの
     // makeより前に戻す（置き換えは続く。置き換え先のキー自身のmake=オートリピートでは戻さない）。
-    if (devExt->SuppressedMods != 0 &&
+    // ただし、置き換え先がMACRO(n)のキー置換がマクロを送っている間は戻さない（マクロの出力に修飾キーが掛かるため）。
+    if (devExt->SuppressedMods != 0 && !devExt->KeyOverrideMacroSending &&
         BatchHasOtherKeyMake(InputDataStart, InputDataEnd, devExt->SuppressOwnerScanCode)) {
         RestoreSuppressedModifiers(devExt);
     }
@@ -1926,6 +1927,20 @@ MatchKeyOverrideLocked(
             continue;
         }
 
+        if (entry->Replacement.Type == KBDLAYER_ACTION_MACRO) {
+            // 置き換え先がマクロ。マクロの機能がOFFなら発動しない（次の候補を見る。無ければキーはそのまま通る）。
+            // 戻り値の形（呼び出し側のRunKeyOverrideMacroだけが見る）: Type=MACRO、Param1=マクロID、
+            // Param2=1ならオートリピートで繰り返す（押下の記録には入れない）。条件の修飾キーは全部隠す。
+            if (!(devExt->EnabledFeatures & KBDLAYER_FEATURE_MACRO)) {
+                continue;
+            }
+            OutAction->Type = KBDLAYER_ACTION_MACRO;
+            OutAction->Param1 = entry->Replacement.Param1;
+            OutAction->Param2 = (entry->Flags & KBDLAYER_KEY_OVERRIDE_FLAG_REPEAT) ? 1 : 0;
+            *OutSuppress = (UCHAR)(down & triggerKinds);
+            return TRUE;
+        }
+
         replacementMods = (entry->Replacement.Type == KBDLAYER_ACTION_MODDED_KEY) ? entry->Replacement.Param1 : 0;
         OutAction->Type = KBDLAYER_ACTION_INTERNAL_KEY_OVERRIDE;
         OutAction->Param1 = replacementMods;
@@ -1934,6 +1949,125 @@ MatchKeyOverrideLocked(
         return TRUE;
     }
     return FALSE;
+}
+
+// Alt・Winを「戻す」makeを送った直後に、何も押さずに離されると、メニューやスタートが開く。
+// 間にCtrlのタップを挟んで防ぐ（SendAddedModifiersのbreak側と同じ考え。OSで押されていないほうのCtrlを使う）。
+// OutputLock保持中・EngineLock非保持で呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+SendMenuNeutralizer(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    USHORT ctrl = 0;
+
+    if (!(devExt->OutputModsDown & KBDLAYER_MOD_LCTL)) {
+        ctrl = s_ModifierScanCodes[0];
+    } else if (!(devExt->OutputModsDown & KBDLAYER_MOD_RCTL)) {
+        ctrl = s_ModifierScanCodes[4];
+    }
+    if (ctrl != 0) {
+        SendRawModifierEvent(devExt, ctrl, KEY_MAKE);
+        SendRawModifierEvent(devExt, ctrl, KEY_BREAK);
+    }
+    devExt->LastOutputWasModifier = FALSE;
+}
+
+// Key Overrideの置き換え先がMACRO(n)のときの処理（ResolveModdedKeyの新しい押下から呼ぶ）は2段に分ける。
+// 条件の修飾キーをOS上で離し、マクロのステップを送り、まだ物理的に押されている修飾キーを戻す。
+// キーを離すのを待たずに戻す（マクロは押した時点で送り終わるため。離したときの戻し忘れの経路を増やさない）。
+
+// マクロのステップを控え、条件の修飾キーを隠す記録をする（新しい押下とリピートで共通。EngineLock保持中に呼ぶ）。
+// 未設定のマクロは何も送らないので、修飾キーも離さない（*OutHide=0）。別の置き換えがすでに離している修飾キー
+// （SuppressedMods）はそのままにして、今回新しく離す分（*OutHide）だけを、送った後で戻す。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+BeginKeyOverrideMacroLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ ULONG MacroId,
+    _In_ UCHAR Suppress,
+    _Out_writes_(KBDLAYER_MAX_MACRO_STEPS) PKBDLAYER_MACRO_STEP Steps,
+    _Out_ PULONG OutStepCount,
+    _Out_ PUCHAR OutPrevious,
+    _Out_ PUCHAR OutHide
+    )
+{
+    *OutStepCount = CopyMacroStepsLocked(devExt, MacroId, Steps);
+    *OutPrevious = devExt->SuppressedMods;
+    *OutHide = (*OutStepCount == 0) ? (UCHAR)0 : (UCHAR)(Suppress & ~*OutPrevious);
+    devExt->SuppressedMods = (UCHAR)(*OutPrevious | *OutHide);
+}
+
+// 1段目（EngineLock保持中）: 押下の記録と、送るステップの控えと、離す修飾キーの記録。
+// - キーの押下の記録: Match->Param2が0（既定）ならSWALLOWED（解放もオートリピートも飲み込む）、
+//   1ならACTION(INTERNAL_KEY_OVERRIDE_MACRO)（オートリピートのたびにResolveModdedKeyが、修飾キーを離してから
+//   同じマクロを再実行し、解放は飲み込む）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+PrepareKeyOverrideMacroLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ USHORT ScanCode,
+    _In_ const KBDLAYER_ACTION* Match,
+    _In_ UCHAR Suppress,
+    _Out_writes_(KBDLAYER_MAX_MACRO_STEPS) PKBDLAYER_MACRO_STEP Steps,
+    _Out_ PULONG OutStepCount,
+    _Out_ PUCHAR OutPrevious,
+    _Out_ PUCHAR OutHide
+    )
+{
+    KBDLAYER_ACTION record;
+
+    if (Match->Param2 != 0) {
+        RtlZeroMemory(&record, sizeof(record));
+        record.Type = KBDLAYER_ACTION_INTERNAL_KEY_OVERRIDE_MACRO;
+        record.Param1 = Match->Param1;
+        record.Param2 = Suppress; // リピートのたびに離す修飾キー（ResolveModdedKeyの再実行で使う）
+        SetHeldKeyLocked(devExt, ScanCode, KBDLAYER_HELD_ACTION, &record);
+    } else {
+        SetHeldKeyLocked(devExt, ScanCode, KBDLAYER_HELD_SWALLOWED, NULL);
+    }
+
+    // マクロの実行は「実際に何かを送出する行為」なので、OSL(layer)の一発消費として扱う（ResolveMacroと同じ）。
+    if (devExt->OneShotLayerPending) {
+        devExt->ActiveLayerMask &= ~devExt->OneShotLayerBit;
+        devExt->OneShotLayerPending = FALSE;
+    }
+
+    BeginKeyOverrideMacroLocked(devExt, Match->Param1, Suppress, Steps, OutStepCount, OutPrevious, OutHide);
+}
+
+// 2段目（EngineLock非保持・OutputLock保持中）: 修飾キーを離し、マクロを送り、押されているものを戻す。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+SendKeyOverrideMacro(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_reads_(StepCount) const KBDLAYER_MACRO_STEP* Steps,
+    _In_ ULONG StepCount,
+    _In_ UCHAR Previous,
+    _In_ UCHAR Hide
+    )
+{
+    const UCHAR menuMods = KBDLAYER_MOD_LALT | KBDLAYER_MOD_RALT | KBDLAYER_MOD_LGUI | KBDLAYER_MOD_RGUI;
+    UCHAR restore;
+
+    // 条件の修飾キーをOS上で離す（あるべき状態からSuppressedModsが外れたので、安全網がbreakを送る。
+    // Alt・Winは、単独押しにならないようCtrlのタップも挟まれる）。
+    ReleaseLeakedModifiers(devExt);
+    // マクロの各キーが、離した修飾キーを先に戻させないようにする（ForwardToClassの規則を、送っている間だけ止める）。
+    devExt->KeyOverrideMacroSending = TRUE;
+    SendMacroSteps(devExt, Steps, StepCount);
+    devExt->KeyOverrideMacroSending = FALSE;
+
+    // 今回離した分のうち、まだ物理的に押されているものを戻す（OSで押されていないビットだけを送る）。
+    devExt->SuppressedMods = Previous;
+    restore = (UCHAR)(Hide & devExt->RealModsDown);
+    if (restore != 0) {
+        SendAddedModifiers(devExt, restore, KEY_MAKE);
+        if ((restore & menuMods) != 0) {
+            SendMenuNeutralizer(devExt);
+        }
+    }
 }
 
 _IRQL_requires_max_(DISPATCH_LEVEL)
@@ -2031,6 +2165,34 @@ ResolveModdedKey(
         return TRUE;
     }
 
+    // --- Key Overrideのマクロ（オートリピートで繰り返す設定）として押下中のキー ---
+    // 解放は記録を消して飲み込む。リピートは、条件の修飾キーを離してから同じマクロをもう一度送る
+    // （マップのON/OFF・差し替えにかかわらず記録どおり。マクロの機能がOFFなら何も送らない）。
+    if (held->State == KBDLAYER_HELD_ACTION &&
+        held->Action.Type == KBDLAYER_ACTION_INTERNAL_KEY_OVERRIDE_MACRO) {
+        KBDLAYER_MACRO_STEP repeatSteps[KBDLAYER_MAX_MACRO_STEPS];
+        ULONG repeatStepCount = 0;
+        UCHAR repeatPrevious = 0;
+        UCHAR repeatHide = 0;
+
+        if (isBreak) {
+            SetHeldKeyLocked(devExt, scanCode, KBDLAYER_HELD_NONE, NULL);
+        } else if (devExt->EnabledFeatures & KBDLAYER_FEATURE_MACRO) {
+            // まだ押されている条件の修飾キーだけを離す。
+            UCHAR stillDown = (UCHAR)(held->Action.Param2 & (devExt->RealModsDown | AddedModsUnion(devExt)));
+            BeginKeyOverrideMacroLocked(devExt, held->Action.Param1, stillDown,
+                                        repeatSteps, &repeatStepCount, &repeatPrevious, &repeatHide);
+        }
+        KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+        if (!isBreak && repeatStepCount != 0) {
+            SendKeyOverrideMacro(devExt, repeatSteps, repeatStepCount, repeatPrevious, repeatHide);
+        }
+        if (SystemArgument3 != NULL) {
+            *(PULONG)SystemArgument3 = 1;
+        }
+        return TRUE;
+    }
+
     // --- 新しい押下 ---
     if (isBreak || held->State != KBDLAYER_HELD_NONE ||
         !devExt->LayerMapEnabled || devExt->LayerMap == NULL) {
@@ -2076,6 +2238,22 @@ ResolveModdedKey(
             if (outScanCode == 0 || !MatchKeyOverrideLocked(devExt, outScanCode, &action, &suppress)) {
                 KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
                 return FALSE;
+            }
+            if (action.Type == KBDLAYER_ACTION_MACRO) {
+                // 置き換え先がマクロ。記録と控えをEngineLock内で作り、ロックを離してから送る（2段）。
+                KBDLAYER_MACRO_STEP macroSteps[KBDLAYER_MAX_MACRO_STEPS];
+                ULONG macroStepCount = 0;
+                UCHAR macroPrevious = 0;
+                UCHAR macroHide = 0;
+
+                PrepareKeyOverrideMacroLocked(devExt, scanCode, &action, suppress,
+                                              macroSteps, &macroStepCount, &macroPrevious, &macroHide);
+                KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+                SendKeyOverrideMacro(devExt, macroSteps, macroStepCount, macroPrevious, macroHide);
+                if (SystemArgument3 != NULL) {
+                    *(PULONG)SystemArgument3 = 1;
+                }
+                return TRUE;
             }
             mask = action.Param1;
             isOverride = TRUE;
@@ -4742,7 +4920,12 @@ IsValidKeyOverrideEntry(
     _In_ const KBDLAYER_KEY_OVERRIDE_ENTRY* Entry
     )
 {
-    if (Entry->TriggerMods == 0 || Entry->Flags != 0 || Entry->TriggerScanCode == 0) {
+    if (Entry->TriggerMods == 0 || Entry->TriggerScanCode == 0 ||
+        (Entry->Flags & ~KBDLAYER_KEY_OVERRIDE_FLAG_REPEAT) != 0) {
+        return FALSE;
+    }
+    // REPEATはMACROのときだけ意味がある。
+    if (Entry->Flags != 0 && Entry->Replacement.Type != KBDLAYER_ACTION_MACRO) {
         return FALSE;
     }
     switch (Entry->Replacement.Type) {
@@ -4750,6 +4933,8 @@ IsValidKeyOverrideEntry(
         return Entry->Replacement.Param2 != 0;
     case KBDLAYER_ACTION_MODDED_KEY:
         return Entry->Replacement.Param1 != 0 && Entry->Replacement.Param2 != 0;
+    case KBDLAYER_ACTION_MACRO:
+        return Entry->Replacement.Param1 < KBDLAYER_MAX_MACRO_COUNT;
     default:
         return FALSE;
     }

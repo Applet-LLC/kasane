@@ -67,7 +67,7 @@ public static class PortableExporter
 
         kb.Macros = p.Macros.Select(CloneMacro).ToList();
         kb.TapDances = p.TapDances.Select(CloneTapDance).ToList();
-        kb.KeyOverrides = p.KeyOverrides.Select(k => new KeyOverrideDef { Id = k.Id, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement }).ToList();
+        kb.KeyOverrides = p.KeyOverrides.Select(k => new KeyOverrideDef { Id = k.Id, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement, RepeatMacro = k.RepeatMacro }).ToList();
         kb.Combos = new List<PortableCombo>();
         foreach (var c in p.Combos)
         {

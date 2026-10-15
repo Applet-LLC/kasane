@@ -57,6 +57,13 @@ typedef struct _KBDLAYER_MAP_TABLE {
 // 一時的に離した修飾キー（devExt->SuppressedMods）を解放時に戻す処理が加わる。
 #define KBDLAYER_ACTION_INTERNAL_KEY_OVERRIDE 0x80
 
+// Key Overrideの置き換え先がMACRO(n)で、オートリピートで繰り返す設定（KBDLAYER_KEY_OVERRIDE_FLAG_REPEAT）のときの押下記録。
+// Param1=マクロID、Param2=リピートのたびに一時的に離す修飾キー（条件の種類。KBDLAYER_MOD_*のビット）。
+// 繰り返さない設定のときは、記録の種別ではなくSWALLOWED（解放もリピートも飲み込む）を使う。
+// ResolveModdedKeyだけがこの記録を処理する（リピート＝マクロの再実行、解放＝記録を消して飲み込む）。
+// 通常のMACRO記録（ResolveMacroが再実行する）にしないのは、リピート時にも条件の修飾キーを離す必要があるため。
+#define KBDLAYER_ACTION_INTERNAL_KEY_OVERRIDE_MACRO 0x81
+
 typedef struct _KBDLAYER_HELD_KEY {
     UCHAR State;            // KBDLAYER_HELD_*
     KBDLAYER_ACTION Action; // State==KBDLAYER_HELD_ACTIONのときの、押下時に使ったアクション
@@ -143,6 +150,10 @@ typedef struct _DEVICE_EXTENSION {
     // OutputLockで保護する（書くのはすべてOutputLock保持中）。
     UCHAR SuppressedMods;
     USHORT SuppressOwnerScanCode;
+    // 置き換え先がMACRO(n)のキー置換が、マクロを送っている最中（SendKeyOverrideMacro。OutputLock保持中だけTRUE）。
+    // マクロの各キーも「置き換え中に別のキーが押された」に当たるので、ForwardToClassの、離していた修飾キーを
+    // 先に戻す処理を、この間は止める（止めないと、マクロの最初のキーの直前にCtrlが戻り、出力にCtrlが掛かる）。
+    BOOLEAN KeyOverrideMacroSending;
 
     // --- One Shot Mod（OSM、2026-10-02。LayerEngine.cのResolveModdedKey参照） ---
     // OneShotMods: OSMをタップした（別のキーを押さずに離した）後、次のキーのために押したままにしている

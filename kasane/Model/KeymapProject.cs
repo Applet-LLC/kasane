@@ -34,8 +34,11 @@ public sealed class KeyOverrideDef
     public string Mods { get; set; } = "";
     /// <summary>条件のキー（KC_*。レイヤーで解決した後の出力キー）。</summary>
     public string Key { get; set; } = "";
-    /// <summary>置き換え先（KC_* か LCTL(KC_Z) のような修飾付きキー）。</summary>
+    /// <summary>置き換え先（KC_*、LCTL(KC_Z) のような修飾付きキー、または MACRO(n)）。</summary>
     public string Replacement { get; set; } = "";
+    /// <summary>置き換え先が MACRO(n) のとき、キーを押し続けたときのオートリピートでマクロを繰り返す（既定はオフ）。</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool RepeatMacro { get; set; }
 }
 
 /// <summary>

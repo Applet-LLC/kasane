@@ -399,12 +399,12 @@ public static class PortableImporter
         foreach (var k in src)
         {
             if (mode == ImportMode.Append &&
-                target.KeyOverrides.Any(x => x.Mods == k.Mods && x.Key == k.Key && x.Replacement == k.Replacement)) continue;
+                target.KeyOverrides.Any(x => x.Mods == k.Mods && x.Key == k.Key && x.Replacement == k.Replacement && x.RepeatMacro == k.RepeatMacro)) continue;
             int id = k.Id;
             if (id < 0 || id >= KbdLayerClient.MaxKeyOverrideCount || target.KeyOverrides.Any(x => x.Id == id))
                 id = FreeId(target.KeyOverrides.Select(x => x.Id), KbdLayerClient.MaxKeyOverrideCount);
             if (id < 0) { r.Warn($"キー置換の空きが無いため、キー置換{k.Id}は読み込めませんでした（上限{KbdLayerClient.MaxKeyOverrideCount}）"); continue; }
-            target.KeyOverrides.Add(new KeyOverrideDef { Id = id, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement });
+            target.KeyOverrides.Add(new KeyOverrideDef { Id = id, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement, RepeatMacro = k.RepeatMacro });
             map[k.Id] = id;
             added++;
         }

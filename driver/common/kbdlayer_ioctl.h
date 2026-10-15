@@ -343,15 +343,24 @@ typedef struct _KBDLAYER_GET_MACRO_OUTPUT {
 //     キーを離したときに、まだ押されている修飾キーを戻す。
 //   - 置き換え中に条件の修飾キーを離しても、置き換えはキーを離すまで続く（押下と解放を同じ出力にする）。
 //   - 置き換え中に別のキーを押すと、そのキーの前に一時的に離していた修飾キーを戻す（置き換えは続く）。
-//   - ReplacementはKEYかMODDED_KEY。
+//   - ReplacementはKEY、MODDED_KEY、MACRO（2026-10-15）。
+//   - ReplacementがMACRO（Param1=マクロID）のときは、キーを押した時点でマクロを1回送る。送る間だけ、
+//     TriggerModsの種類の修飾キー（押されている分）をOS上で離し、送り終えたら、まだ押されているものを
+//     戻す（マクロの出力に条件の修飾キーが掛からない）。キーの解放は飲み込む。マクロの機能
+//     （KBDLAYER_FEATURE_MACRO）がOFFのときは、この置き換えは発動しない（キーはそのまま通る）。
+//     オートリピートでは、既定では何もしない。KBDLAYER_KEY_OVERRIDE_FLAG_REPEATを立てたときだけ、
+//     リピートのたびに同じマクロを再実行する（マクロキー MACRO(n) のオートリピートと同じ）。
 //   - 機能別ON/OFFのKBDLAYER_FEATURE_KEYOVERRIDEで無効にできる。
 #define KBDLAYER_MAX_KEY_OVERRIDE_COUNT 32
 
+// KBDLAYER_KEY_OVERRIDE_ENTRY.Flags のビット。ReplacementがMACROのときだけ指定できる。
+#define KBDLAYER_KEY_OVERRIDE_FLAG_REPEAT 0x01 // オートリピートでマクロを繰り返す
+
 typedef struct _KBDLAYER_KEY_OVERRIDE_ENTRY {
     UCHAR TriggerMods;            // KBDLAYER_MOD_* のOR（0以外）
-    UCHAR Flags;                  // 予約。常に0。
+    UCHAR Flags;                  // KBDLAYER_KEY_OVERRIDE_FLAG_*のOR。未定義のビットは0
     USHORT TriggerScanCode;       // Enc16（0以外）
-    KBDLAYER_ACTION Replacement;  // KEY / MODDED_KEY
+    KBDLAYER_ACTION Replacement;  // KEY / MODDED_KEY / MACRO
 } KBDLAYER_KEY_OVERRIDE_ENTRY, *PKBDLAYER_KEY_OVERRIDE_ENTRY;
 
 // IOCTL_KBDLAYER_SET_KEY_OVERRIDE の入力バッファ。

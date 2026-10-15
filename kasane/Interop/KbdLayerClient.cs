@@ -22,7 +22,11 @@ public sealed record MacroStep(ushort ScanCode, bool IsBreak);
 
 public sealed record ComboEntry(ushort ScanCode1, ushort ScanCode2, KeyAction Output);
 /// <summary>KBDLAYER_KEY_OVERRIDE_ENTRY。TriggerModsはKBDLAYER_MOD_*のOR、TriggerScanCodeは出力キー（Enc16）。</summary>
-public sealed record KeyOverrideEntry(byte TriggerMods, ushort TriggerScanCode, KeyAction Replacement);
+public sealed record KeyOverrideEntry(byte TriggerMods, ushort TriggerScanCode, KeyAction Replacement, byte Flags = 0)
+{
+    /// <summary>KBDLAYER_KEY_OVERRIDE_FLAG_REPEAT。置き換え先が MACRO のとき、オートリピートでマクロを繰り返す。</summary>
+    public const byte FlagRepeat = 0x01;
+}
 
 public sealed record TapDanceEntry(KeyAction SingleTap, KeyAction SingleHold, KeyAction DoubleTap, KeyAction TripleTap);
 
@@ -361,7 +365,7 @@ public sealed partial class KbdLayerClient : IDisposable
             w.Write(uniqId);
             w.Write((uint)id);
             w.Write((byte)(entry?.TriggerMods ?? 0));
-            w.Write((byte)0); // Flags（予約）
+            w.Write((byte)(entry?.Flags ?? 0)); // Flags（KeyOverrideEntry.FlagRepeat）
             w.Write((ushort)(entry?.TriggerScanCode ?? 0));
             WriteAction(w, entry?.Replacement ?? KeyAction.None);
         }), 0);
@@ -376,8 +380,9 @@ public sealed partial class KbdLayerClient : IDisposable
         using var r = new BinaryReader(new MemoryStream(data));
         bool used = r.ReadUInt32() != 0;
         byte mods = r.ReadByte();
-        r.ReadByte(); // Flags
-        var e = new KeyOverrideEntry(mods, r.ReadUInt16(), ReadAction(r));
+        byte flags = r.ReadByte();
+        ushort triggerScanCode = r.ReadUInt16();
+        var e = new KeyOverrideEntry(mods, triggerScanCode, ReadAction(r), flags);
         return used ? e : null;
     }
 
