@@ -156,6 +156,24 @@ public static class ProjectService
         NormalizeLayerNames(project);
     }
 
+    /// <summary>
+    /// キーに割り当てたもの（MO(1)・LT(2,…)・MACRO(3)・TAPDANCE(0) など）が指す、名前つきのレイヤー・マクロ・タップダンスの表示（ツールチップ用）。
+    /// 名前を付けていない・名前のあるものを指していないときは null。
+    /// </summary>
+    public static string? TargetNameNote(KeymapProject project, KeyAction action)
+    {
+        if (ActionType.ReferencesLayer(action.Type))
+            return LayerName(project, action.Param1) is { } ln ? $"レイヤー{action.Param1}「{ln}」" : null;
+        string? name = action.Type switch
+        {
+            ActionType.Macro => project.MacroNames is { } m && m.TryGetValue(action.Param1, out var mn) ? mn : null,
+            ActionType.TapDance => project.TapDanceNames is { } t && t.TryGetValue(action.Param1, out var tn) ? tn : null,
+            _ => null,
+        };
+        if (string.IsNullOrWhiteSpace(name)) return null;
+        return (action.Type == ActionType.Macro ? "マクロ" : "タップダンス") + $"{action.Param1}「{name}」";
+    }
+
     /// <summary>画面に出す、レイヤーの呼び名。名前があれば「レイヤー3「仕事」」、無ければ「レイヤー3」。</summary>
     public static string LayerLabel(KeymapProject project, int layer) =>
         LayerName(project, layer) is { } n ? $"レイヤー{layer}「{n}」" : $"レイヤー{layer}";

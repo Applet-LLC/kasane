@@ -434,7 +434,9 @@ public partial class MainWindow : Window
 
         string scText = sc == null ? "不明（要実測）"
             : $"0x{sc:X4}" + (project.MeasuredScanCodes.ContainsKey(slot.Index) ? "（実測）" : "（既定）");
-        string tip = $"{slot.Description}\n{ProjectService.LayerLabel(_project!, _layer)}: {token}\nスキャンコード: {scText}";
+        string tip = $"{slot.Description}\n{ProjectService.LayerLabel(_project!, _layer)}: {token}";
+        if (ProjectService.TargetNameNote(project, action) is { } targetNote) tip += $"\n→ {targetNote}"; // 指す先のレイヤー・マクロ・タップダンスの名前
+        tip += $"\nスキャンコード: {scText}";
 
         // 変更していないキーは刻印をそのまま出す（キーコード名はUS配列基準なので、JIS配列では
         // 刻印と食い違うキーがある）。変更したキーだけ、割り当てたキーコードの短い名前を出す。

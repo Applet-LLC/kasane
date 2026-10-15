@@ -35,3 +35,29 @@ public class NamedChoiceTests
         Assert.Equal("0: Esc/半角", NamedChoice.TapDances(project)[0].ToString());
     }
 }
+
+/// <summary>キーのツールチップに出す、指す先の名前。</summary>
+public class TargetNameNoteTests
+{
+    private static KeymapProject Project() => new()
+    {
+        Layers = new() { new(), new() },
+        LayerNames = new() { null, "数字" },
+        MacroNames = new() { [2] = "署名" },
+        TapDanceNames = new() { [0] = "Esc/半角" },
+    };
+
+    [Theory]
+    [InlineData("MO(1)", "レイヤー1「数字」")]
+    [InlineData("LT(1,KC_A)", "レイヤー1「数字」")]
+    [InlineData("MACRO(2)", "マクロ2「署名」")]
+    [InlineData("TAPDANCE(0)", "タップダンス0「Esc/半角」")]
+    [InlineData("MO(0)", null)]
+    [InlineData("MACRO(3)", null)]
+    [InlineData("KC_A", null)]
+    public void Note(string token, string? expected)
+    {
+        Assert.True(Kasane.Keycodes.KeycodeTable.TryResolve(token, out var action));
+        Assert.Equal(expected, ProjectService.TargetNameNote(Project(), action));
+    }
+}
