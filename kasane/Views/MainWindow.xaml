@@ -54,6 +54,8 @@
 
         <WrapPanel DockPanel.Dock="Bottom" Margin="8,4,8,8">
             <Button x:Name="BtnCalibrateAll" Content="キャリブレーション..." ToolTip="キーの入力確認、個別キー・全キーのキャリブレーション（最初は入力確認モード）" Click="BtnCalibrateAll_Click" />
+            <Button x:Name="BtnHelper" Content="ヘルパー..." Click="BtnHelper_Click"
+                    ToolTip="設定の「ヘルパー動作」タブを開く（キーでプログラム起動・文字列入力・アプリ別レイヤーなど）" />
             <Button x:Name="BtnMacros" Content="マクロ..." Click="BtnMacros_Click" />
             <Button x:Name="BtnCombos" Content="コンボ..." Click="BtnCombos_Click" />
             <Button x:Name="BtnTapDances" Content="タップダンス..." Click="BtnTapDances_Click" />
@@ -63,8 +65,6 @@
             <Separator Width="24" Background="Transparent" />
             <Button x:Name="BtnImportExport" Content="インポート／エクスポート..." Click="BtnImportExport_Click"
                     ToolTip="設定をファイル（*.kasane.json）に書き出す・読み込む（全体一括・このキーボード・レイヤー1枚）" />
-            <Button x:Name="BtnExport" Content="エクスポート（KeymapTool用JSON）..." Click="BtnExport_Click"
-                    ToolTip="KeymapTool --apply-simple に渡す keymap.json / profile.json を書き出す（マクロ・コンボ等は含まれない）。バックアップや受け渡しには「インポート／エクスポート...」を使う" />
             <Separator Width="24" Background="Transparent" />
             <Button x:Name="BtnApply" Content="キーボードに適用（ON）" FontWeight="Bold" Click="BtnApply_Click" />
             <Button x:Name="BtnOff" Content="OFF（素通しに戻す）" Click="BtnOff_Click" />

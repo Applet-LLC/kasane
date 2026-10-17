@@ -670,6 +670,9 @@ public partial class MainWindow : Window
 
     private void BtnSettings_Click(object sender, RoutedEventArgs e) => OpenSettings(null);
 
+    // 設定の「ヘルパー動作」タブを選んだ状態で、設定画面を開く。
+    private void BtnHelper_Click(object sender, RoutedEventArgs e) => OpenSettings("TabHelper");
+
     private void OpenSettings(string? tab)
     {
         if (_project == null) return;
@@ -765,24 +768,6 @@ public partial class MainWindow : Window
                 SetProject(reloaded, layout, dirty: true);
                 SetStatus("全体一括で読み込みました（まだ「キーボードに適用」していません）。");
             }
-        }
-    }
-
-    private void BtnExport_Click(object sender, RoutedEventArgs e)
-    {
-        if (_project == null || _layout == null) return;
-        var dlg = new Microsoft.Win32.OpenFolderDialog { Title = "keymap.json と profile.json を書き出すフォルダ" };
-        if (dlg.ShowDialog(this) != true) return;
-        try
-        {
-            var warnings = ProjectService.Export(_project, _layout, dlg.FolderName);
-            MessageBox.Show(this,
-                $"書き出しました:\n{dlg.FolderName}\\keymap.json\n{dlg.FolderName}\\profile.json" +
-                (warnings.Count > 0 ? "\n\n注意:\n" + string.Join("\n", warnings) : ""), Title);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show(this, ex.Message, "エクスポートできません", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
