@@ -33,7 +33,8 @@ public static class KeycodeCatalog
             "KC_KP_1", "KC_KP_2", "KC_KP_3", "KC_KP_4", "KC_KP_5", "KC_KP_6", "KC_KP_7", "KC_KP_8", "KC_KP_9",
             "KC_KP_0", "KC_KP_DOT",
         }),
-        new("JIS", new[] { "KC_ZKHK", "KC_RO", "KC_KANA", "KC_JYEN", "KC_HENK", "KC_MHEN" }),
+        // NLS（National Language Support）キー: 日本語キーボードにあるキー（半角/全角・ろ・かな・¥・変換・無変換）。
+        new("NLS", new[] { "KC_ZKHK", "KC_RO", "KC_KANA", "KC_JYEN", "KC_HENK", "KC_MHEN" }),
         // ブラウザー・アプリ起動・電源のキーも、ここに並べる（2026-10-08。カテゴリの数を変えないため。
         // 表に名前の無いキーは、キーコード欄に SC_XXXX と書けば出力できる）。
         new("メディア・システム", new[]
