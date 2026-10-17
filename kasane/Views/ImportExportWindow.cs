@@ -42,6 +42,8 @@ public sealed class ImportExportWindow : Window
     private readonly ComboBox _exLayerCombo = new() { Name = "ExportLayerCombo", Width = 80 };
     private readonly CheckBox _exHelper = new() { Name = "ExportHelperCheck", Content = "ヘルパー設定（動作・トリガー・アプリ別レイヤー）を含める", IsChecked = true, Margin = new Thickness(0, 8, 0, 0) };
     private readonly CheckBox _exMeasured = new() { Name = "ExportMeasuredCheck", Content = "実測したスキャンコードを含める（同じキーボードへのバックアップ用）", Margin = new Thickness(0, 2, 0, 0) };
+    private readonly RadioButton _exFormatKasane = new() { Name = "ExportFormatKasane", Content = "kasane の設定ファイル（*.kasane.json。レイヤー・マクロ・コンボなどすべて）", GroupName = "ExFormat", IsChecked = true, Margin = new Thickness(0, 2, 0, 2) };
+    private readonly RadioButton _exFormatKeymapTool = new() { Name = "ExportFormatKeymapTool", Content = "KeymapTool 用 JSON（keymap.json と profile.json。レイヤーと較正だけ。マクロ・コンボ等は含まれない）", GroupName = "ExFormat", Margin = new Thickness(0, 2, 0, 2) };
     private readonly TextBox _exReport = ReportBox("ExportReport");
 
     // インポート
@@ -182,6 +184,11 @@ public sealed class ImportExportWindow : Window
         layerRow.Children.Add(new TextBlock { Text = "レイヤー", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
         layerRow.Children.Add(_exLayerCombo);
         p.Children.Add(layerRow);
+        p.Children.Add(new TextBlock { Text = "形式（「このキーボード」のときだけ選べます）", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 10, 0, 2) });
+        p.Children.Add(_exFormatKasane);
+        p.Children.Add(_exFormatKeymapTool);
+        p.Children.Add(Help("KeymapTool 用 JSON は、コマンドライン版の KeymapTool --apply-simple に渡す入力ファイルです（CLI で管理したい場合に使います）。" +
+                            "バックアップや、他のパソコンへの受け渡しには、kasane の設定ファイルを使ってください。"));
         p.Children.Add(_exHelper);
         p.Children.Add(_exMeasured);
 
@@ -189,6 +196,8 @@ public sealed class ImportExportWindow : Window
         _exLayerCombo.IsEnabled = _exLayer.IsChecked == true; // レイヤー1枚のときだけ選べる
         _exLayer.Checked += (_, _) => _exLayerCombo.IsEnabled = true;
         _exLayer.Unchecked += (_, _) => _exLayerCombo.IsEnabled = false;
+        foreach (var r in new[] { _exAll, _exKeyboard, _exLayer, _exFormatKasane, _exFormatKeymapTool }) { r.Checked += (_, _) => UpdateExportFormat(); r.Unchecked += (_, _) => UpdateExportFormat(); }
+        UpdateExportFormat();
 
         var go = new Button { Name = "ExportDoButton", Content = "書き出す...", Width = 110, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 10, 0, 0) };
         go.Click += (_, _) => DoExport();
@@ -197,10 +206,40 @@ public sealed class ImportExportWindow : Window
         return p;
     }
 
+    // 形式は「このキーボード」のときだけ選べる。KeymapTool 用 JSON のときは、含める項目（ヘルパー・実測）は関係しない。
+    private void UpdateExportFormat()
+    {
+        bool keyboard = _exKeyboard.IsChecked == true;
+        _exFormatKasane.IsEnabled = _exFormatKeymapTool.IsEnabled = keyboard;
+        bool kasane = !keyboard || _exFormatKasane.IsChecked == true;
+        _exHelper.IsEnabled = _exMeasured.IsEnabled = kasane;
+    }
+
+    private bool ExportAsKeymapTool => _exKeyboard.IsChecked == true && _exFormatKeymapTool.IsChecked == true;
+
+    // KeymapTool 用 JSON（keymap.json と profile.json）を、選んだフォルダへ書き出す。
+    private void DoExportKeymapTool()
+    {
+        var dlg = new OpenFolderDialog { Title = "keymap.json と profile.json を書き出すフォルダ" };
+        if (dlg.ShowDialog(this) != true) return;
+        try
+        {
+            var warnings = ProjectService.Export(_project, _layout, dlg.FolderName);
+            ShowReport(_exReport, new PortableReport(),
+                $"書き出しました:\n{dlg.FolderName}\\keymap.json\n{dlg.FolderName}\\profile.json" +
+                (warnings.Count > 0 ? "\n\n注意:\n" + string.Join("\n", warnings) : ""));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            ShowReport(_exReport, new PortableReport(), $"書き出せませんでした: {ex.Message}");
+        }
+    }
+
     private PortableScope ExportScope => _exAll.IsChecked == true ? PortableScope.All : _exLayer.IsChecked == true ? PortableScope.Layer : PortableScope.Keyboard;
 
     private void DoExport()
     {
+        if (ExportAsKeymapTool) { DoExportKeymapTool(); return; }
         var scope = ExportScope;
         var report = new PortableReport();
         var options = new ExportOptions { IncludeHelper = _exHelper.IsChecked == true, IncludeMeasured = _exMeasured.IsChecked == true };
