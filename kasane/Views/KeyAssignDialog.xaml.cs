@@ -54,7 +54,7 @@ public partial class KeyAssignDialog : Window
         // 非モーダルのときは、IsCancel だけでは閉じない（ShowDialog 用の動き）ので、自分で閉じる。
         BtnCancel.Click += (_, _) => { if (NonModal) Close(); };
         // トークン欄は、マクロの編集画面の「他の画面の入力欄に挿入」の入れ先にもなる。
-        MacroInsert.Register(TxtToken, token => TxtToken.Text = token);
+        MacroInsert.Register(TxtToken, token => TxtToken.Text = token, acceptsTapDance: true);
         string? layerName = project == null ? null : ProjectService.LayerName(project, layer);
         TxtHeader.Text = $"{slot.Description} ／ レイヤー{layer}" + (layerName != null ? $"（{layerName}）" : "");
 
@@ -208,14 +208,15 @@ public partial class KeyAssignDialog : Window
             id.ItemsSource = (string)kind.SelectedItem == "MACRO" ? NamedChoice.Macros(_project) : NamedChoice.TapDances(_project);
             id.SelectedIndex = 0;
         };
-        // 番号の横の「マクロ...」で、番号・名前・中身の一覧から選べる（選ぶと種類もMACROになる）。
+        // 番号の横の「マクロ...」「タップダンス...」で、番号・名前・中身の一覧から選べる（選ぶと種類も合わせる）。ボタンの名前は種類に合わせて変わる。
         var pick = Id(new Button { Content = "マクロ...", Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(8, 1, 8, 1),
-                                   ToolTip = "マクロの一覧（番号・名前・中身）から選びます。" }, "MacroPickButton");
+                                   ToolTip = "一覧（番号・名前・中身）から選びます。" }, "MacroPickButton");
+        kind.SelectionChanged += (_, _) => pick.Content = (string)kind.SelectedItem == "MACRO" ? "マクロ..." : "タップダンス...";
         pick.Click += (_, _) =>
         {
-            var dlg = new MacroPickerWindow { Owner = this };
+            var dlg = new MacroPickerWindow((string)kind.SelectedItem) { Owner = this };
             if (dlg.ShowDialog() != true || dlg.Result is not { } m) return;
-            kind.SelectedItem = "MACRO";                  // 種類を変えると番号の一覧が作り直される
+            kind.SelectedItem = m.Kind;                   // 種類を変えると番号の一覧が作り直される
             id.SelectedIndex = Math.Min(m.Id, id.Items.Count - 1);
         };
         var idRow = new ContentControl { Content = new StackPanel { Orientation = Orientation.Horizontal, Children = { id, pick } } };

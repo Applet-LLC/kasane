@@ -40,3 +40,33 @@ public class MacroInfoTests
         finally { MacroDirectory.Provider = old; }
     }
 }
+
+/// <summary>タップダンスも同じ一覧の部品で選ぶ（Kind=TAPDANCE）。</summary>
+public class TapDanceInfoTests
+{
+    [Fact]
+    public void TapDanceToken_UsesTapDanceName() =>
+        Assert.Equal("TAPDANCE(3)", new MacroInfo(3, null, "KC_A / 長押し KC_B /  / ", "TAPDANCE").Token);
+
+    [Fact]
+    public void DefaultKindIsMacro() => Assert.Equal("MACRO(5)", new MacroInfo(5, null, "KC_A").Token);
+
+    [Fact]
+    public void Directory_TapDancesAreSeparateFromMacros()
+    {
+        var oldMacro = MacroDirectory.Provider;
+        var oldTap = MacroDirectory.TapDanceProvider;
+        try
+        {
+            MacroDirectory.Provider = () => new[] { new MacroInfo(1, null, "KC_A") };
+            MacroDirectory.TapDanceProvider = () => new[] { new MacroInfo(2, "Esc/半角", "KC_ESC", "TAPDANCE") };
+            Assert.Equal("MACRO(1)", MacroDirectory.Items.Single().Token);
+            Assert.Equal("TAPDANCE(2)", MacroDirectory.TapDances.Single().Token);
+        }
+        finally
+        {
+            MacroDirectory.Provider = oldMacro;
+            MacroDirectory.TapDanceProvider = oldTap;
+        }
+    }
+}
