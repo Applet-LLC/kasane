@@ -13,7 +13,9 @@ public static class KeycodeField
 {
     /// <param name="append">true なら、欄の末尾に空白区切りで足す（マクロのように複数のキーを並べる欄）。false なら置き換える。</param>
     /// <param name="allowMods">選ぶ画面に修飾キー（Ctrl+C のような形）のチェックを出す。</param>
-    public static StackPanel Wrap(TextBox box, bool append = false, bool allowMods = true)
+    /// <param name="acceptsMacro">true なら、MACRO(n) を入れられる欄（コンボ・タップダンス・キー置換の出力など）。「マクロ...」ボタンを足し、
+    /// マクロの編集画面の「他の画面の入力欄に挿入」の入れ先にもなる（<see cref="MacroInsert"/>）。</param>
+    public static StackPanel Wrap(TextBox box, bool append = false, bool allowMods = true, bool acceptsMacro = false)
     {
         void Put(string token) =>
             box.Text = append && box.Text.Trim().Length > 0 ? box.Text.TrimEnd() + " " + token : token;
@@ -61,6 +63,26 @@ public static class KeycodeField
         panel.Children.Add(box);
         panel.Children.Add(capture);
         panel.Children.Add(pick);
+
+        if (acceptsMacro)
+        {
+            MacroInsert.Register(box, Put);
+            var macro = new Button
+            {
+                Name = box.Name.Length > 0 ? box.Name + "Macro" : "",
+                Content = "マクロ...",
+                Margin = new Thickness(4, 0, 0, 0),
+                Padding = new Thickness(8, 1, 8, 1),
+                ToolTip = "マクロの一覧（番号・名前・中身）から選んで、MACRO(n) を入れます。",
+            };
+            macro.Click += (_, _) =>
+            {
+                session.Cancel();
+                var dlg = new MacroPickerWindow { Owner = Window.GetWindow(box) };
+                if (dlg.ShowDialog() == true && dlg.Result is { } m) Put(m.Token);
+            };
+            panel.Children.Add(macro);
+        }
         return panel;
     }
 }

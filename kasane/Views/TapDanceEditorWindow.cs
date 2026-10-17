@@ -55,10 +55,10 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
         }
         foreach (var b in new[] { single, hold, dbl, triple }) b.TextChanged += (_, _) => Changed();
 
-        Detail.Children.Add(Row("1回タップ", KeycodeField.Wrap(single)));
-        Detail.Children.Add(Row("長押し", KeycodeField.Wrap(hold)));
-        Detail.Children.Add(Row("2回タップ", KeycodeField.Wrap(dbl)));
-        Detail.Children.Add(Row("3回タップ", KeycodeField.Wrap(triple)));
+        Detail.Children.Add(Row("1回タップ", KeycodeField.Wrap(single, acceptsMacro: true)));
+        Detail.Children.Add(Row("長押し", KeycodeField.Wrap(hold, acceptsMacro: true)));
+        Detail.Children.Add(Row("2回タップ", KeycodeField.Wrap(dbl, acceptsMacro: true)));
+        Detail.Children.Add(Row("3回タップ", KeycodeField.Wrap(triple, acceptsMacro: true)));
     }
 
     protected override bool ValidateAll(out string error)

@@ -26,6 +26,30 @@ public sealed class MacroEditorWindow : IdListEditorWindow
 
     protected override string Summary(int id) => _texts[id];
 
+    /// <summary>編集中の内容から、名前か中身があるマクロの一覧を作る（他の画面の「マクロ...」の選択肢になる）。</summary>
+    public IReadOnlyList<MacroInfo> Snapshot()
+    {
+        var list = new List<MacroInfo>();
+        for (int i = 0; i < _texts.Length; i++)
+            if (_texts[i].Length > 0 || !string.IsNullOrWhiteSpace(Names[i]))
+                list.Add(new MacroInfo(i, Names[i], _texts[i]));
+        return list;
+    }
+
+    // 一覧の行のダブルクリック: 他の画面（コンボ・タップダンス・キー置換・キーの割り当て）で最後に選んだ入力欄へ MACRO(n) を入れる。
+    protected override void OnItemActivated(int id) => InsertIntoOtherWindow(id);
+
+    private void InsertIntoOtherWindow(int id)
+    {
+        if (_texts[id].Length == 0)
+        {
+            ShowValidation("中身が空のマクロは入れられません。", isError: true);
+            return;
+        }
+        bool ok = MacroInsert.TryInsert($"MACRO({id})", out var reason);
+        ShowValidation(ok ? $"MACRO({id}) を入れました。" : reason, isError: !ok);
+    }
+
     protected override void ShowDetail(int id)
     {
         var box = KeycodeBox(_texts[id], "MacroBox");
@@ -39,6 +63,18 @@ public sealed class MacroEditorWindow : IdListEditorWindow
             ShowValidation(errors.Count == 0 ? "OK" : string.Join("\n", errors), errors.Count > 0);
         };
         Detail.Children.Add(Row($"マクロ {id}", KeycodeField.Wrap(box, append: true)));
+
+        var insert = new System.Windows.Controls.Button
+        {
+            Name = "InsertMacroButton",
+            Content = $"他の画面の入力欄に MACRO({id}) を入れる",
+            Margin = new System.Windows.Thickness(110, 8, 0, 0),
+            Padding = new System.Windows.Thickness(10, 3, 10, 3),
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+            ToolTip = "コンボ・タップダンス・キー置換・キーの割り当ての画面で、最後に選んだ入力欄へ入れます（一覧の行をダブルクリックでも同じ）。",
+        };
+        insert.Click += (_, _) => InsertIntoOtherWindow(id);
+        Detail.Children.Add(insert);
     }
 
     private MacroDef ToDef(int id) => new()

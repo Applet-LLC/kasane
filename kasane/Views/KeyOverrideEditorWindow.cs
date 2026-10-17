@@ -70,7 +70,7 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
 
         Detail.Children.Add(Row("修飾キー", mods));
         Detail.Children.Add(Row("キー", KeycodeField.Wrap(key, allowMods: false)));
-        Detail.Children.Add(Row("置き換え先", KeycodeField.Wrap(replacement)));
+        Detail.Children.Add(Row("置き換え先", KeycodeField.Wrap(replacement, acceptsMacro: true)));
         Detail.Children.Add(repeat);
         repeat.Visibility = IsMacro(replacement.Text) ? Visibility.Visible : Visibility.Collapsed;
     }
