@@ -195,7 +195,7 @@ public sealed class KleImportWindow : Window
 
     private void ChooseFile()
     {
-        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "KLE JSON (*.json)|*.json", Title = "KLE の配列（JSON）を開く", InitialDirectory = DialogDefaults.Documents, ClientGuid = DialogDefaults.Kle };
+        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "KLE JSON (*.json)|*.json", Title = "KLE の配列（JSON）を開く", InitialDirectory = DialogDefaults.DataFolder, ClientGuid = DialogDefaults.Kle };
         if (dlg.ShowDialog(this) == true) LoadFile(dlg.FileName);
     }
 

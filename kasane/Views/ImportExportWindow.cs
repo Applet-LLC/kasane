@@ -223,7 +223,7 @@ public sealed class ImportExportWindow : Window
         var dlg = new OpenFolderDialog
         {
             Title = "keymap.json と profile.json を書き出すフォルダ",
-            InitialDirectory = DialogDefaults.Documents,
+            InitialDirectory = DialogDefaults.DataFolder,
             ClientGuid = DialogDefaults.KeymapToolExport,
         };
         if (dlg.ShowDialog(this) != true) return;
@@ -255,7 +255,7 @@ public sealed class ImportExportWindow : Window
             var dlg = new SaveFileDialog
             {
                 Title = "書き出し先",
-                InitialDirectory = DialogDefaults.Documents,
+                InitialDirectory = DialogDefaults.DataFolder,
                 ClientGuid = DialogDefaults.SettingsExport,
                 Filter = "kasane の設定 (*.kasane.json)|*.kasane.json|すべてのファイル|*.*",
                 FileName = FileNameFor(scope, _uniqId),
@@ -352,7 +352,7 @@ public sealed class ImportExportWindow : Window
         var dlg = new OpenFileDialog
         {
             Title = "読み込むファイル",
-            InitialDirectory = DialogDefaults.Documents,
+            InitialDirectory = DialogDefaults.DataFolder,
             ClientGuid = DialogDefaults.SettingsImport,
             Filter = "kasane の設定 (*.kasane.json)|*.kasane.json;*.json|すべてのファイル|*.*",
             CheckFileExists = true,
