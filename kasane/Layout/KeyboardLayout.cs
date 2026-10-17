@@ -92,7 +92,7 @@ public sealed class KeyboardLayout
     public static IEnumerable<string> EnumerateBundledLayoutFiles()
     {
         var dir = Path.Combine(AppContext.BaseDirectory, "Layouts");
-        return Directory.Exists(dir) ? Directory.GetFiles(dir, "*.json").OrderBy(f => f) : Enumerable.Empty<string>();
+        return Directory.Exists(dir) ? Directory.GetFiles(dir, "kle-*.json").OrderBy(f => f) : Enumerable.Empty<string>();
     }
 
     public static string NameFromPath(string path)

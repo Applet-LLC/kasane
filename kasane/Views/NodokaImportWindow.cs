@@ -132,6 +132,8 @@ public sealed class NodokaImportWindow : Window
         var dlg = new OpenFileDialog
         {
             Title = "のどかの設定ファイル",
+            InitialDirectory = DialogDefaults.Documents,
+            ClientGuid = DialogDefaults.Nodoka,
             Filter = "のどかの設定 (*.nodoka)|*.nodoka|すべてのファイル|*.*",
             CheckFileExists = true,
         };

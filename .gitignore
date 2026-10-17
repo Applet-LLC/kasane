@@ -74,3 +74,8 @@ kbdlayer-license-svc/appsettings.json
 
 # Local agent instructions (points to the private dev-notes checklist); kept local, never committed.
 CLAUDE.md
+
+# 書き出しの試験でレイアウトの同梱フォルダに出力されたファイル（コミットしない）
+kasane/Layouts/*.kasane.json
+kasane/Layouts/keymap.json
+kasane/Layouts/profile.json

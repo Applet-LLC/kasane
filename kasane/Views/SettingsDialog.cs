@@ -408,7 +408,7 @@ public sealed class SettingsDialog : Window
         });
         Btn("NicolaLoadButton", "nicola.json を読み込む...", (_, _) =>
         {
-            var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "NICOLA (*.json)|*.json", Title = "nicola.json を開く" };
+            var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "NICOLA (*.json)|*.json", Title = "nicola.json を開く", InitialDirectory = DialogDefaults.Documents, ClientGuid = DialogDefaults.Nicola };
             if (dlg.ShowDialog(this) != true) return;
             try
             {
@@ -421,7 +421,7 @@ public sealed class SettingsDialog : Window
         Btn("NicolaSaveButton", "nicola.json に書き出す...", (_, _) =>
         {
             if (_nicola == null) { ShowStatus(_nicolaSummary, "書き出す設定がありません（「表を編集...」か「規格書の配列にする」で作ってください）。", true); return; }
-            var dlg = new Microsoft.Win32.SaveFileDialog { Filter = "NICOLA (*.json)|*.json", FileName = "nicola.json", Title = "nicola.json に書き出す" };
+            var dlg = new Microsoft.Win32.SaveFileDialog { Filter = "NICOLA (*.json)|*.json", FileName = "nicola.json", Title = "nicola.json に書き出す", InitialDirectory = DialogDefaults.Documents, ClientGuid = DialogDefaults.Nicola };
             if (dlg.ShowDialog(this) != true) return;
             try { NicolaService.Save(_nicola, dlg.FileName); RefreshNicola(); }
             catch (Exception ex) { ShowStatus(_nicolaSummary, $"書き出せませんでした: {ex.Message}", true); }
