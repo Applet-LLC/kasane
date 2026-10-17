@@ -44,6 +44,8 @@ public partial class MainWindow : Window
         KbdCanvas.KeyClicked += Keyboard_KeyClicked;
         KbdCanvas.KeyRightClicked += Keyboard_KeyRightClicked;
         LstLayers.ContextMenu = BuildLayerMenu();
+        MacroDirectory.Provider = CurrentMacros; // 他の画面の「マクロ...」の選択肢
+
         if (Content is FrameworkElement root) root.ContextMenu = BuildMainMenu();
         KbdCanvas.ContextMenuOpening += (_, e) => e.Handled = true;
     }
@@ -447,15 +449,57 @@ public partial class MainWindow : Window
         return new KeyVisual(main, bg, border, thickness, tip, fg);
     }
 
+    // キーの割り当て画面は、編集画面（マクロなど）と同じ非モーダルの別ウィンドウ。マクロの画面を開いたまま、一覧を見たり、
+    // 行のダブルクリックで MACRO(n) を入れたりできる。1つだけ（開いている間にほかのキーを押すと、その画面が前に出る）。
+    // 開いている間は、編集画面と同じく、キーボード・レイアウトの切り替えなどを無効にする（UpdateEditorLock）。
+    private KeyAssignDialog? _keyAssign;
+
     private void Keyboard_KeyClicked(KeySlot slot)
     {
         if (_project == null) return;
-        string current = _project.Layers[_layer][slot.Index];
-        var dlg = new KeyAssignDialog(slot, _layer, current, _project.Layers.Count, _project.UniqId, _project) { Owner = this };
-        if (dlg.ShowDialog() != true || dlg.ResultToken == current) return;
-        _project.Layers[_layer][slot.Index] = dlg.ResultToken;
-        MarkDirty();
-        KbdCanvas.Update(slot, VisualFor(slot));
+        if (_keyAssign != null)
+        {
+            _keyAssign.Activate();
+            return;
+        }
+        int layer = _layer;
+        string current = _project.Layers[layer][slot.Index];
+        var dlg = new KeyAssignDialog(slot, layer, current, _project.Layers.Count, _project.UniqId, _project) { Owner = this, NonModal = true };
+        dlg.WindowStartupLocation = WindowStartupLocation.Manual;
+        dlg.Left = Left + 40 + 40 * _editors.Count; // 開いている編集画面と重ならないよう、少しずらす
+        dlg.Top = Top + 40 + 40 * _editors.Count;
+        dlg.Assigned += () =>
+        {
+            if (dlg.ResultToken == current || layer >= _project.Layers.Count) return;
+            _project.Layers[layer][slot.Index] = dlg.ResultToken;
+            MarkDirty();
+            KbdCanvas.Update(slot, VisualFor(slot));
+        };
+        dlg.Closed += (_, _) =>
+        {
+            _keyAssign = null;
+            UpdateEditorLock();
+        };
+        _keyAssign = dlg;
+        UpdateEditorLock();
+        dlg.Show();
+    }
+
+    // 他の画面の「マクロ...」が出す一覧。マクロの編集画面が開いていれば、その画面の編集中の内容、なければプロジェクトの内容。
+    private IReadOnlyList<MacroInfo> CurrentMacros()
+    {
+        if (_editors.TryGetValue("macros", out var editor) && editor is MacroEditorWindow macroEditor) return macroEditor.Snapshot();
+        var list = new List<MacroInfo>();
+        if (_project == null) return list;
+        var contents = new Dictionary<int, string>();
+        foreach (var d in _project.Macros) contents[d.Id] = string.Join(" ", d.Keys);
+        for (int i = 0; i < KbdLayerClient.MaxMacroCount; i++)
+        {
+            contents.TryGetValue(i, out var content);
+            string? name = _project.MacroNames != null && _project.MacroNames.TryGetValue(i, out var n) ? n : null;
+            if (!string.IsNullOrEmpty(content) || !string.IsNullOrWhiteSpace(name)) list.Add(new MacroInfo(i, name, content ?? ""));
+        }
+        return list;
     }
 
     private void Keyboard_KeyRightClicked(KeySlot slot)
@@ -551,7 +595,7 @@ public partial class MainWindow : Window
     // 編集画面が開いている間、プロジェクトや配列を入れ替える操作を無効にする（画面の内容とプロジェクトがずれるのを防ぐ）。
     private void UpdateEditorLock()
     {
-        bool free = _editors.Count == 0;
+        bool free = _editors.Count == 0 && _keyAssign == null;
         CmbDevice.IsEnabled = free;
         CmbLayout.IsEnabled = free;
         BtnRenameKeyboard.IsEnabled = free;
@@ -561,7 +605,7 @@ public partial class MainWindow : Window
         BtnAddLayer.IsEnabled = free;
         BtnRemoveLayer.IsEnabled = free;
         BtnImportExport.IsEnabled = free;
-        if (!free) SetStatus("編集画面（マクロ・コンボ・タップダンス・キー置換）を開いている間は、キーボードやレイアウトの切り替え、インポート、レイヤーの追加・削除はできません。");
+        if (!free) SetStatus("編集画面（マクロ・コンボ・タップダンス・キー置換・キーの割り当て）を開いている間は、キーボードやレイアウトの切り替え、インポート、レイヤーの追加・削除はできません。");
     }
 
     private void BtnMacros_Click(object sender, RoutedEventArgs e)
@@ -834,7 +878,7 @@ public partial class MainWindow : Window
     private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         // 編集画面が開いていれば、閉じると「適用」していない内容が捨てられることを確かめる。
-        if (_editors.Count > 0 &&
+        if ((_editors.Count > 0 || _keyAssign != null) &&
             MessageBox.Show(this, "編集画面が開いています。閉じると、「適用」していない編集内容は捨てられます。\n閉じますか？",
                 Title, MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK)
         {

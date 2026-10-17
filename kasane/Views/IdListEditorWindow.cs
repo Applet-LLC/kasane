@@ -81,6 +81,11 @@ public abstract class IdListEditorWindow : Window
         root.Children.Add(new ScrollViewer { Content = right, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
         Content = root;
 
+        // 一覧の行のダブルクリック。派生クラスが使い道を決める（マクロの画面は、他の画面の入力欄へ挿入する）。
+        _list.MouseDoubleClick += (_, e) =>
+        {
+            if (_list.SelectedIndex >= 0 && e.OriginalSource is FrameworkElement { DataContext: string }) OnItemActivated(_list.SelectedIndex);
+        };
         _list.SelectionChanged += (_, _) =>
         {
             if (_list.SelectedIndex < 0) return;
@@ -162,6 +167,9 @@ public abstract class IdListEditorWindow : Window
     /// （例: "SingleTap"）。省略時は無名（呼び出し側が複数箇所で使い回す場合など）。</summary>
     protected static TextBox KeycodeBox(string text, string? name = null) =>
         new() { Name = name ?? "", Text = text, Width = 300, FontFamily = new FontFamily("Consolas") };
+
+    /// <summary>一覧の行をダブルクリックしたとき（既定では何もしない）。</summary>
+    protected virtual void OnItemActivated(int id) { }
 
     protected abstract string Summary(int id);
     protected abstract void ShowDetail(int id);

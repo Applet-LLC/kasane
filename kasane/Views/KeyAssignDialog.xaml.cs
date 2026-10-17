@@ -33,6 +33,15 @@ public partial class KeyAssignDialog : Window
 
     public string ResultToken { get; private set; }
 
+    /// <summary>
+    /// true なら、<c>Show()</c> で開く非モーダルの画面として使う（メイン画面から。マクロの編集画面などを開いたまま使える）。
+    /// OK で <see cref="Assigned"/> を起こして閉じ、キャンセル・× は何も起こさず閉じる。false（既定）は <c>ShowDialog()</c> 用で、OK が DialogResult を true にする。
+    /// </summary>
+    public bool NonModal { get; init; }
+
+    /// <summary>非モーダルで OK されたとき（<see cref="ResultToken"/> が確定している）。</summary>
+    public event Action? Assigned;
+
     private readonly KeymapProject? _project; // レイヤー・マクロ・タップダンスの名前を選択肢に出すため（無ければ番号だけ）
 
     public KeyAssignDialog(KeySlot slot, int layer, string currentToken, int layerCount, uint uniqId = 0, KeymapProject? project = null)
@@ -42,6 +51,10 @@ public partial class KeyAssignDialog : Window
         _uniqId = uniqId;
         _project = project;
         ResultToken = currentToken;
+        // 非モーダルのときは、IsCancel だけでは閉じない（ShowDialog 用の動き）ので、自分で閉じる。
+        BtnCancel.Click += (_, _) => { if (NonModal) Close(); };
+        // トークン欄は、マクロの編集画面の「他の画面の入力欄に挿入」の入れ先にもなる。
+        MacroInsert.Register(TxtToken, token => TxtToken.Text = token);
         string? layerName = project == null ? null : ProjectService.LayerName(project, layer);
         TxtHeader.Text = $"{slot.Description} ／ レイヤー{layer}" + (layerName != null ? $"（{layerName}）" : "");
 
@@ -195,9 +208,20 @@ public partial class KeyAssignDialog : Window
             id.ItemsSource = (string)kind.SelectedItem == "MACRO" ? NamedChoice.Macros(_project) : NamedChoice.TapDances(_project);
             id.SelectedIndex = 0;
         };
+        // 番号の横の「マクロ...」で、番号・名前・中身の一覧から選べる（選ぶと種類もMACROになる）。
+        var pick = Id(new Button { Content = "マクロ...", Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(8, 1, 8, 1),
+                                   ToolTip = "マクロの一覧（番号・名前・中身）から選びます。" }, "MacroPickButton");
+        pick.Click += (_, _) =>
+        {
+            var dlg = new MacroPickerWindow { Owner = this };
+            if (dlg.ShowDialog() != true || dlg.Result is not { } m) return;
+            kind.SelectedItem = "MACRO";                  // 種類を変えると番号の一覧が作り直される
+            id.SelectedIndex = Math.Min(m.Id, id.Items.Count - 1);
+        };
+        var idRow = new ContentControl { Content = new StackPanel { Orientation = Orientation.Horizontal, Children = { id, pick } } };
         return Form("MACRO(n): マクロnを実行する（中身は「マクロ...」で編集）\n" +
                     "TAPDANCE(n): タップ回数・長押しで動作を変える（中身は「タップダンス...」で編集）",
-            ("種類", kind), ("番号", id),
+            ("種類", kind), ("番号", idRow),
             () => $"{kind.SelectedItem}({Num(id)})");
     }
 
@@ -446,6 +470,11 @@ public partial class KeyAssignDialog : Window
             return;
         }
         ResultToken = token;
-        DialogResult = true;
+        if (NonModal)
+        {
+            Assigned?.Invoke();
+            Close();
+        }
+        else DialogResult = true;
     }
 }
