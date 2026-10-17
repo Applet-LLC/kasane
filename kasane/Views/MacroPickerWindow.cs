@@ -4,7 +4,7 @@ using System.Windows.Media;
 
 namespace Kasane.Views;
 
-/// <summary>マクロを一覧（番号: 名前 — 中身）から選ぶ小さな画面。入力欄の「マクロ...」ボタンから開く。</summary>
+/// <summary>マクロ（またはタップダンス）を一覧（番号: 名前 — 中身）から選ぶ小さな画面。入力欄の「マクロ...」ボタンから開く。</summary>
 public sealed class MacroPickerWindow : Window
 {
     private readonly ListBox _list = new() { Name = "MacroPickList", Width = 560, Height = 300, FontFamily = new FontFamily("Consolas") };
@@ -12,16 +12,19 @@ public sealed class MacroPickerWindow : Window
     /// <summary>選んだマクロ。キャンセルなら null。</summary>
     public MacroInfo? Result { get; private set; }
 
-    public MacroPickerWindow()
+    /// <param name="kind">"MACRO"（既定）か "TAPDANCE"。</param>
+    public MacroPickerWindow(string kind = "MACRO")
     {
+        bool tapDance = kind == "TAPDANCE";
+        string noun = tapDance ? "タップダンス" : "マクロ";
         Name = "MacroPickerWindow";
-        Title = "マクロを選ぶ";
+        Title = $"{noun}を選ぶ";
         SizeToContent = SizeToContent.WidthAndHeight;
         ResizeMode = ResizeMode.NoResize;
         ShowInTaskbar = false;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
-        var items = MacroDirectory.Items;
+        var items = tapDance ? MacroDirectory.TapDances : MacroDirectory.Items;
         foreach (var m in items) _list.Items.Add(m);
         if (items.Count > 0) _list.SelectedIndex = 0;
 
@@ -41,8 +44,8 @@ public sealed class MacroPickerWindow : Window
         panel.Children.Add(new TextBlock
         {
             Text = items.Count > 0
-                ? "使うマクロを選んでください（ダブルクリックでも選べます）。"
-                : "マクロがありません。画面下の「マクロ...」で作ってください。",
+                ? $"使う{noun}を選んでください（ダブルクリックでも選べます）。"
+                : $"{noun}がありません。画面下の「{noun}...」で作ってください。",
             Margin = new Thickness(0, 0, 0, 8),
         });
         panel.Children.Add(_list);

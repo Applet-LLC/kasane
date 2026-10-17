@@ -28,6 +28,30 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
     protected override string Summary(int id) =>
         _defs[id] is { } t ? $"{t.SingleTap} / 長押し {t.SingleHold} / {t.DoubleTap} / {t.TripleTap}" : "";
 
+    /// <summary>編集中の内容から、使われているタップダンスの一覧を作る（他の画面の「タップダンス...」の選択肢になる）。</summary>
+    public IReadOnlyList<MacroInfo> Snapshot()
+    {
+        var list = new List<MacroInfo>();
+        for (int i = 0; i < _defs.Length; i++)
+            if (_defs[i] != null || !string.IsNullOrWhiteSpace(Names[i]))
+                list.Add(new MacroInfo(i, Names[i], Summary(i), "TAPDANCE"));
+        return list;
+    }
+
+    // 一覧の行のダブルクリック: キーの割り当て画面のキーコード欄へ TAPDANCE(n) を入れる。
+    protected override void OnItemActivated(int id) => InsertIntoOtherWindow(id);
+
+    private void InsertIntoOtherWindow(int id)
+    {
+        if (_defs[id] == null)
+        {
+            ShowValidation("中身が空のタップダンスは入れられません。", isError: true);
+            return;
+        }
+        bool ok = MacroInsert.TryInsert($"TAPDANCE({id})", out var reason);
+        ShowValidation(ok ? $"TAPDANCE({id}) を入れました。" : reason, isError: !ok);
+    }
+
     protected override void ShowDetail(int id)
     {
         var d = _defs[id];
@@ -59,6 +83,18 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
         Detail.Children.Add(Row("長押し", KeycodeField.Wrap(hold, acceptsMacro: true)));
         Detail.Children.Add(Row("2回タップ", KeycodeField.Wrap(dbl, acceptsMacro: true)));
         Detail.Children.Add(Row("3回タップ", KeycodeField.Wrap(triple, acceptsMacro: true)));
+
+        var insert = new System.Windows.Controls.Button
+        {
+            Name = "InsertTapDanceButton",
+            Content = $"キーの割り当て画面の入力欄に TAPDANCE({id}) を入れる",
+            Margin = new System.Windows.Thickness(110, 8, 0, 0),
+            Padding = new System.Windows.Thickness(10, 3, 10, 3),
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+            ToolTip = "キーの割り当て画面のキーコード欄を一度クリックしてから押します（一覧の行をダブルクリックでも同じ）。",
+        };
+        insert.Click += (_, _) => InsertIntoOtherWindow(id);
+        Detail.Children.Add(insert);
     }
 
     protected override bool ValidateAll(out string error)

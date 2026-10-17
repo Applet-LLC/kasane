@@ -45,6 +45,7 @@ public partial class MainWindow : Window
         KbdCanvas.KeyRightClicked += Keyboard_KeyRightClicked;
         LstLayers.ContextMenu = BuildLayerMenu();
         MacroDirectory.Provider = CurrentMacros; // 他の画面の「マクロ...」の選択肢
+        MacroDirectory.TapDanceProvider = CurrentTapDances; // 同じく「タップダンス...」の選択肢
 
         if (Content is FrameworkElement root) root.ContextMenu = BuildMainMenu();
         KbdCanvas.ContextMenuOpening += (_, e) => e.Handled = true;
@@ -483,6 +484,25 @@ public partial class MainWindow : Window
         _keyAssign = dlg;
         UpdateEditorLock();
         dlg.Show();
+    }
+
+    // 他の画面の「タップダンス...」が出す一覧。タップダンスの編集画面が開いていれば、その編集中の内容、なければプロジェクトの内容。
+    private IReadOnlyList<MacroInfo> CurrentTapDances()
+    {
+        if (_editors.TryGetValue("tapdances", out var editor) && editor is TapDanceEditorWindow tapDanceEditor) return tapDanceEditor.Snapshot();
+        var list = new List<MacroInfo>();
+        if (_project == null) return list;
+        var defs = new Dictionary<int, TapDanceDef>();
+        foreach (var d in _project.TapDances) defs[d.Id] = d;
+        for (int i = 0; i < KbdLayerClient.MaxTapDanceCount; i++)
+        {
+            defs.TryGetValue(i, out var def);
+            string? name = _project.TapDanceNames != null && _project.TapDanceNames.TryGetValue(i, out var n) ? n : null;
+            if (def == null && string.IsNullOrWhiteSpace(name)) continue;
+            string content = def == null ? "" : $"{def.SingleTap} / 長押し {def.SingleHold} / {def.DoubleTap} / {def.TripleTap}";
+            list.Add(new MacroInfo(i, name, content, "TAPDANCE"));
+        }
+        return list;
     }
 
     // 他の画面の「マクロ...」が出す一覧。マクロの編集画面が開いていれば、その画面の編集中の内容、なければプロジェクトの内容。
