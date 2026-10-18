@@ -47,7 +47,9 @@ public abstract class IdListEditorWindow : Window
         _count = count;
         Names = new string?[count];
         Title = title;
-        Width = 900;
+        // 右側に「押して入力」「選ぶ...」「マクロ...」のボタンが並ぶので、横幅に余裕を持たせる（狭いとボタンが隠れる）。
+        Width = 1120;
+        MinWidth = 900;
         Height = 560;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         ShowInTaskbar = false;
@@ -78,7 +80,7 @@ public abstract class IdListEditorWindow : Window
         DockPanel.SetDock(_list, Dock.Left);
         root.Children.Add(buttons);
         root.Children.Add(_list);
-        root.Children.Add(new ScrollViewer { Content = right, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
+        root.Children.Add(new ScrollViewer { Content = right, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto });
         Content = root;
 
         // 一覧の行のダブルクリック。派生クラスが使い道を決める（マクロの画面は、他の画面の入力欄へ挿入する）。

@@ -153,7 +153,7 @@ public sealed class KeyHookService : IDisposable
         if (body == null || !_allow(body)) return false;
 
         // Sequence は、実行の間だけトリガーの修飾キー（押している側）を OS から隠す。KeepMods で残せる。
-        byte suppress = body.Type == HelperActionBody.Sequence && !body.KeepMods
+        byte suppress = body.Type is HelperActionBody.Sequence or HelperActionBody.TextInput && !body.KeepMods
             ? (byte)(_physKeys & (mods | (mods << 4)))
             : (byte)0;
         Action? done = null;

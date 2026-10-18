@@ -30,13 +30,14 @@ public static class KeycodeField
             ToolTip = "このボタンを押したあと、入力したいキーを押します（Esc で取消）。Win キーや Alt+Tab は取れないので「選ぶ...」を使ってください。",
         };
         KeycodeCapture? session = null;
+        // 末尾に足していく欄（マクロ）は、取り込みを続けて、何個でも続けて入れられる（Esc かボタンをもう一度押すと終わる）。
         session = new KeycodeCapture(
             token => Put(token),
-            () => { capture.Content = "押して入力"; box.Focus(); });
+            () => { capture.Content = "押して入力"; box.Focus(); }) { Continuous = append };
         capture.Click += (_, _) =>
         {
             if (session.IsActive) { session.Cancel(); return; }
-            capture.Content = "キーを押してください…";
+            capture.Content = append ? "キーを押す（Esc で終了）" : "キーを押してください…";
             session.Start();
         };
         box.Unloaded += (_, _) => session.Cancel();
@@ -55,6 +56,12 @@ public static class KeycodeField
         pick.Click += (_, _) =>
         {
             session.Cancel();
+            if (append)
+            {
+                // 足していく欄（マクロ）: 「追加」で欄の末尾に足し、画面は開いたまま（続けて選べる）。「閉じる」で終わる。
+                new KeycodePickerWindow(allowMods, onAdd: Put) { Owner = Window.GetWindow(box) }.ShowDialog();
+                return;
+            }
             var dlg = new KeycodePickerWindow(allowMods) { Owner = Window.GetWindow(box) };
             if (dlg.ShowDialog() == true && dlg.ResultToken.Length > 0) Put(dlg.ResultToken);
         };

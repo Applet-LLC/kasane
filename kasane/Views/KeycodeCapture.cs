@@ -28,6 +28,9 @@ public sealed class KeycodeCapture
         _onEnded = onEnded;
     }
 
+    /// <summary>true なら、キーを取ったあとも取り込みを続ける（マクロのように、続けて何個も入れる欄用。Esc か、ボタンをもう一度押すと終わる）。</summary>
+    public bool Continuous { get; init; }
+
     public bool IsActive => _active;
 
     public void Start()
@@ -66,7 +69,7 @@ public sealed class KeycodeCapture
         string? token = vk == VK_PAUSE ? "KC_PAUS" : TokenFromKeyMessage(lParam);
         if (token == null) return; // NumLock OFF のときの偽の Shift など。次のキーを待つ
 
-        End();
+        if (!Continuous) End();
         _onCaptured(token);
     }
 

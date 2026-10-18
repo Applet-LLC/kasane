@@ -20,9 +20,14 @@ public sealed class KeycodePickerWindow : Window
 
     public string ResultToken { get; private set; } = "";
 
-    public KeycodePickerWindow(bool allowMods)
+    private readonly Action<string>? _onAdd;
+
+    /// <param name="onAdd">指定すると「追加」モード: 選んだキーを、画面を閉じずにこの処理へ渡す（マクロの末尾に、続けて足していく用）。
+    /// 指定しなければ、OK で <see cref="ResultToken"/> を返して閉じる（1つだけ選ぶ用）。</param>
+    public KeycodePickerWindow(bool allowMods, Action<string>? onAdd = null)
     {
-        Title = "キーを選ぶ";
+        _onAdd = onAdd;
+        Title = onAdd == null ? "キーを選ぶ" : "キーを選ぶ（「追加」で続けて入れられます）";
         Name = "KeycodePicker";
         Width = 1180;
         Height = 600;
@@ -35,14 +40,19 @@ public sealed class KeycodePickerWindow : Window
         tabs.Items.Add(new TabItem { Header = "キーボード", Name = "PickerTabKeyboard", Content = soft });
         tabs.Items.Add(new TabItem { Header = "一覧", Name = "PickerTabList", Content = BuildList() });
 
-        var ok = new Button { Name = "PickerOk", Content = "OK", IsDefault = true, Width = 80, IsEnabled = false };
-        ok.Click += (_, _) => { ResultToken = _token.Text; DialogResult = true; };
+        var ok = new Button { Name = "PickerOk", Content = onAdd == null ? "OK" : "追加", IsDefault = true, Width = 80, IsEnabled = false };
+        ok.Click += (_, _) =>
+        {
+            if (_onAdd != null) { _onAdd(_token.Text); return; }
+            ResultToken = _token.Text;
+            DialogResult = true;
+        };
         _token.TextChanged += (_, _) => ok.IsEnabled = _token.Text.Length > 0;
 
         var bottom = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal };
         buttons.Children.Add(ok);
-        buttons.Children.Add(new Button { Name = "PickerCancel", Content = "キャンセル", IsCancel = true, Width = 80 });
+        buttons.Children.Add(new Button { Name = "PickerCancel", Content = onAdd == null ? "キャンセル" : "閉じる", IsCancel = true, Width = 80 });
         DockPanel.SetDock(buttons, Dock.Right);
         bottom.Children.Add(buttons);
         var tokenLabel = new TextBlock { Text = "選んだキー:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
@@ -111,7 +121,14 @@ public sealed class KeycodePickerWindow : Window
             };
             string key = kc;
             b.Click += (_, _) => SetBase(key);
-            b.MouseDoubleClick += (_, _) => { SetBase(key); if (_token.Text.Length > 0) { ResultToken = _token.Text; DialogResult = true; } };
+            b.MouseDoubleClick += (_, _) =>
+            {
+                SetBase(key);
+                if (_token.Text.Length == 0) return;
+                if (_onAdd != null) { _onAdd(_token.Text); return; } // 追加モード: 閉じずに足す
+                ResultToken = _token.Text;
+                DialogResult = true;
+            };
             panel.Children.Add(b);
         }
         return panel;
