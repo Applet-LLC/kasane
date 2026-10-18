@@ -754,3 +754,99 @@ public class HelperActionsTests
         Assert.False(_driver.Bit(Kb1, 2));
     }
 }
+
+/// <summary>ヘルパー動作の種類「文字列」（Text）: 設定した文字列を、そのまま入力する。</summary>
+public class HelperTextActionTests
+{
+    private sealed class Env : IActionEnvironment
+    {
+        public List<InputOp> Sent = new();
+        public byte Physical;
+        public void Send(InputOp op) => Sent.Add(op);
+        public bool Sleep(int milliseconds) => true;
+        public void Shell(string path, string? args, string? workDir) { }
+        public void TogglePause() { }
+        public void Layer(LayerRequest request) { }
+        void IActionEnvironment.Log(string message) { }
+        byte IActionEnvironment.PhysicalKeys() => Physical;
+    }
+
+    private static HelperActionBody TextBody(string text) => new() { Type = HelperActionBody.TextInput, Text = text };
+    private static ActionRequest Press(HelperActionBody b) => new(b, 1, 1, false, false);
+
+    [Fact]
+    public void SendsTheStringAsIs_EachCharacterAsUnicode()
+    {
+        var env = new Env();
+        new ActionExecutor(env).Execute(Press(TextBody("Apple 漢字")));
+
+        var chars = env.Sent.Where(o => o.Kind == InputKind.Unicode && !o.Up).Select(o => (char)o.Value).ToArray();
+        Assert.Equal("Apple 漢字", new string(chars));
+        Assert.Equal(env.Sent.Count / 2, env.Sent.Count(o => o.Up)); // 1文字ごとに押下と解放
+    }
+
+    [Fact]
+    public void BackslashIsNotAnEscape()
+    {
+        var env = new Env();
+        new ActionExecutor(env).Execute(Press(TextBody(@"C:\tmp\n")));
+
+        var chars = env.Sent.Where(o => o.Kind == InputKind.Unicode && !o.Up).Select(o => (char)o.Value).ToArray();
+        Assert.Equal(@"C:\tmp\n", new string(chars));
+    }
+
+    [Fact]
+    public void NewlineBecomesEnter_AndReleaseSendsNothing()
+    {
+        var env = new Env();
+        var ex = new ActionExecutor(env);
+        ex.Execute(Press(TextBody("a\r\nb")));
+        Assert.Contains(env.Sent, o => o.Kind == InputKind.Key && o.Value == 0x001C && !o.Up); // Enter（CRLF は1回）
+        Assert.Single(env.Sent, o => o.Kind == InputKind.Key && o.Value == 0x001C && !o.Up);
+
+        env.Sent.Clear();
+        ex.Execute(new ActionRequest(TextBody("a"), 1, 1, true, false)); // 解放
+        Assert.Empty(env.Sent);
+    }
+
+    [Fact]
+    public void Trigger_HidesTheModifiersWhileTyping_LikeSequence()
+    {
+        var env = new Env { Physical = 1 }; // 左Ctrl
+        new ActionExecutor(env).Execute(Press(TextBody("a")) with { SuppressKeys = 1 });
+
+        Assert.Equal(new InputOp(InputKind.Key, Kasane.Keycodes.KeycodeTable.ModifierScanCodes[0], Up: true), env.Sent.First());
+        Assert.Equal(new InputOp(InputKind.Key, Kasane.Keycodes.KeycodeTable.ModifierScanCodes[0]), env.Sent.Last());
+    }
+
+    [Fact]
+    public void Validation_EmptyAndTooLongAreErrors()
+    {
+        var errors = new List<string>();
+        HelperSettingsModel.ValidateBody(TextBody(""), "x", errors);
+        Assert.Contains(errors, e => e.Contains("空"));
+
+        errors.Clear();
+        HelperSettingsModel.ValidateBody(TextBody(new string('a', HelperActionBody.MaxTextLength + 1)), "x", errors);
+        Assert.Contains(errors, e => e.Contains("長すぎ"));
+
+        errors.Clear();
+        HelperSettingsModel.ValidateBody(TextBody(new string('あ', HelperActionBody.MaxTextLength)), "x", errors);
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void RoundTripsThroughJson_AndSummaryShowsTheText()
+    {
+        var cfg = new HelperConfig { Triggers = { new HelperTrigger { Key = "KC_F1", Mods = "MOD_LCTL", Action = TextBody("Apple 漢字") } } };
+        var json = cfg.ToJson();
+        Assert.Contains("\"Type\": \"Text\"", json);
+        var back = HelperConfig.FromJson(json)!;
+        Assert.Equal("Apple 漢字", back.Triggers[0].Action.Text);
+        Assert.Contains("Apple 漢字", HelperSummary.Body(back.Triggers[0].Action));
+    }
+
+    [Fact]
+    public void LongTextIsShortenedInTheSummary() =>
+        Assert.EndsWith("…", HelperSummary.Body(TextBody(new string('x', 100))).Replace("（繰り返す）", ""));
+}

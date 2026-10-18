@@ -171,6 +171,12 @@ public sealed class HelperSettingsModel
                 foreach (var e in SequenceCompiler.Compile(body.ReleaseSteps).Errors) errors.Add($"{owner}（離したとき）: {e}");
                 break;
 
+            case HelperActionBody.TextInput:
+                if (string.IsNullOrEmpty(body.Text)) errors.Add($"{owner}: Text の文字列が空です");
+                else if (body.Text.Length > HelperActionBody.MaxTextLength)
+                    errors.Add($"{owner}: Text の文字列が長すぎます（{HelperActionBody.MaxTextLength} 文字まで）");
+                break;
+
             case HelperActionBody.AppLayer:
                 if ((body.Layers?.Count ?? 0) == 0) errors.Add($"{owner}: AppLayer のレイヤーが空です");
                 else if (body.Layers!.Any(l => l is < 0 or >= 16)) errors.Add($"{owner}: レイヤーは 0〜15 です");
@@ -183,7 +189,7 @@ public sealed class HelperSettingsModel
                 break;
 
             default:
-                errors.Add($"{owner}: 種類 '{body.Type}' は未対応です（Launch / Open / Sequence / AppLayer / PauseToggle）");
+                errors.Add($"{owner}: 種類 '{body.Type}' は未対応です（Launch / Open / Sequence / Text / AppLayer / PauseToggle）");
                 break;
         }
     }
@@ -211,10 +217,18 @@ public static class HelperSummary
         HelperActionBody.Launch => "起動: " + (b.Path ?? "") + (string.IsNullOrWhiteSpace(b.Args) ? "" : " " + b.Args),
         HelperActionBody.Open => "開く: " + (b.Path ?? ""),
         HelperActionBody.Sequence => $"操作 {b.Steps?.Count ?? 0} 手順" + ((b.ReleaseSteps?.Count ?? 0) > 0 ? $" + 離したとき {b.ReleaseSteps!.Count} 手順" : ""),
+        HelperActionBody.TextInput => "文字列: " + ShortText(b.Text),
         HelperActionBody.AppLayer => $"レイヤー {string.Join(",", b.Layers ?? new List<int>())} を {(string.IsNullOrWhiteSpace(b.LayerOp) ? "On" : b.LayerOp)}",
         HelperActionBody.PauseToggle => "一時停止・再開",
         _ => $"（不明な種類 '{b.Type}'）",
     } + (b.Repeat ? "（繰り返す）" : "");
+
+    // 一覧に出す文字列（長ければ省略。改行は ↵）。
+    private static string ShortText(string? text)
+    {
+        string t = (text ?? "").Replace("\r", "").Replace("\n", "↵").Replace("\t", "→");
+        return t.Length <= 24 ? t : t[..24] + "…";
+    }
 
     public static string Action(HelperAction a) =>
         $"HLP({a.Id})  {(string.IsNullOrWhiteSpace(a.Name) ? "" : a.Name + "  ")}— {Body(a.Action)}";

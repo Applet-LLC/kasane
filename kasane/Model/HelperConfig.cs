@@ -277,11 +277,18 @@ public sealed class HelperActionBody
     public const string Sequence = "Sequence";
     public const string AppLayer = "AppLayer";
     public const string PauseToggle = "PauseToggle";
+    /// <summary>文字列（<see cref="Text"/>）を、そのまま入力する（"Apple 漢字" など。エディタの現在位置に追記される）。種類名は "Text"。</summary>
+    public const string TextInput = "Text";
+
+    /// <summary><see cref="Text"/> の最大文字数（1文字につき入力が2件で、手順の上限 <see cref="SequenceCompiler.MaxOps"/> に収めるため）。</summary>
+    public const int MaxTextLength = 900;
 
     public string Type { get; set; } = "";
     public string? Path { get; set; }
     public string? Args { get; set; }
     public string? WorkDir { get; set; }
+    /// <summary>TextInput の入力する文字列。そのまま送る（改行は Enter、タブは Tab。バックスラッシュなどの特別な書き方は無い）。</summary>
+    public string? Text { get; set; }
     public List<int>? Layers { get; set; }
     public string? LayerOp { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]

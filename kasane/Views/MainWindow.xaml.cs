@@ -466,9 +466,12 @@ public partial class MainWindow : Window
         int layer = _layer;
         string current = _project.Layers[layer][slot.Index];
         var dlg = new KeyAssignDialog(slot, layer, current, _project.Layers.Count, _project.UniqId, _project) { Owner = this, NonModal = true };
+        // 高さはメイン画面と同じにする（「画面のキーボード」で、キーボード全体が縦に収まるように）。画面の外に出ないよう収める。
+        var work = SystemParameters.WorkArea;
+        dlg.Height = Math.Min(ActualHeight, work.Height);
         dlg.WindowStartupLocation = WindowStartupLocation.Manual;
-        dlg.Left = Left + 40 + 40 * _editors.Count; // 開いている編集画面と重ならないよう、少しずらす
-        dlg.Top = Top + 40 + 40 * _editors.Count;
+        dlg.Left = Math.Max(work.Left, Math.Min(Left + 40 + 40 * _editors.Count, work.Right - dlg.Width)); // 開いている編集画面と重ならないよう、少しずらす
+        dlg.Top = Math.Max(work.Top, Math.Min(Top + 20 * _editors.Count, work.Bottom - dlg.Height));
         dlg.Assigned += () =>
         {
             if (dlg.ResultToken == current || layer >= _project.Layers.Count) return;
@@ -595,8 +598,9 @@ public partial class MainWindow : Window
         // 開いた順に少しずらして、先に開いた画面（マクロの一覧など）が隠れないようにする。
         window.WindowStartupLocation = WindowStartupLocation.Manual;
         double offset = 40 * _editors.Count;
-        window.Left = Left + 40 + offset;
-        window.Top = Top + 40 + offset;
+        var work = SystemParameters.WorkArea;
+        window.Left = Math.Max(work.Left, Math.Min(Left + 40 + offset, work.Right - window.Width));
+        window.Top = Math.Max(work.Top, Math.Min(Top + 40 + offset, work.Bottom - window.Height));
         window.Applied += () =>
         {
             apply(window);

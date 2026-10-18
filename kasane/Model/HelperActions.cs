@@ -373,9 +373,18 @@ public sealed class ActionExecutor
                 break;
 
             case HelperActionBody.Sequence:
-                if (!r.IsBreak && r.SuppressKeys != 0) RunSuppressed(r);
+                if (!r.IsBreak && r.SuppressKeys != 0) RunSuppressed(r, body.Steps);
                 else RunSteps(r.IsBreak ? body.ReleaseSteps : body.Steps);
                 break;
+
+            case HelperActionBody.TextInput:
+            {
+                if (r.IsBreak) return;
+                var steps = TextSteps(body);
+                if (r.SuppressKeys != 0) RunSuppressed(r, steps);
+                else RunSteps(steps);
+                break;
+            }
 
             case HelperActionBody.AppLayer:
             {
@@ -408,6 +417,10 @@ public sealed class ActionExecutor
         }
     }
 
+    /// <summary>TextInput の文字列を、1つの text 手順にする（空なら null）。</summary>
+    private static List<HelperStep>? TextSteps(HelperActionBody body) =>
+        string.IsNullOrEmpty(body.Text) ? null : new List<HelperStep> { new() { Text = body.Text } };
+
     private static string? Expand(string? s) => string.IsNullOrEmpty(s) ? null : Environment.ExpandEnvironmentVariables(s);
 
     // Alt・Win を離す／戻すと、単独で押して離したことになり、メニューやスタートが開く。間に入れるキー（F24。QMK の DUMMY_MOD_NEUTRALIZER と同じ考え）。
@@ -418,14 +431,14 @@ public sealed class ActionExecutor
     /// 手順の間だけ、トリガーの修飾キー（物理的に押している分）を OS から隠す。終わったら、まだ押している分だけ戻す。
     /// 手順の中で例外や打ち切りがあっても、必ず戻す。
     /// </summary>
-    private void RunSuppressed(ActionRequest r)
+    private void RunSuppressed(ActionRequest r, List<HelperStep>? steps)
     {
         byte keys = r.SuppressKeys;
         try
         {
             NeutralizeIfNeeded(keys);
             SendMods(keys, up: true);
-            RunSteps(r.Body.Steps);
+            RunSteps(steps);
         }
         finally
         {

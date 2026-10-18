@@ -27,6 +27,7 @@ public sealed class HelperActionEditorWindow : Window
         (HelperActionBody.Sequence, "キー・文字列・マウスの操作 (Sequence)"),
         (HelperActionBody.AppLayer, "アプリ管理レイヤーの操作 (AppLayer)"),
         (HelperActionBody.PauseToggle, "一時停止・再開 (PauseToggle)"),
+        (HelperActionBody.TextInput, "文字列を入力する (Text)"), // 末尾に足す（UI Automation 試験が種類を番号で選ぶため）
     };
 
     private static readonly string[] LayerOps = { "On", "Off", "Toggle", "Hold" };
@@ -50,6 +51,8 @@ public sealed class HelperActionEditorWindow : Window
     private readonly TextBox _workDir = Box("ActionWorkDir", 380, mono: true);
     private readonly TextBox _steps = MultiLine("ActionSteps");
     private readonly TextBox _releaseSteps = MultiLine("ActionReleaseSteps");
+    private readonly TextBox _text = MultiLine("ActionText");
+    private readonly StackPanel _textPanel = new();
     private readonly CheckBox[] _layers = new CheckBox[16];
     private readonly ComboBox _layerOp = new() { Name = "ActionLayerOp", Width = 300 };
     private readonly CheckBox _repeat = new() { Name = "ActionRepeat", Content = "キーを押し続けたとき（オートリピート）も繰り返す", Margin = new Thickness(0, 8, 0, 0) };
@@ -141,6 +144,13 @@ public sealed class HelperActionEditorWindow : Window
         _sequencePanel.Children.Add(StepInsertBar.Create(_releaseSteps));
         _sequencePanel.Children.Add(_releaseSteps);
 
+        // Text
+        _textPanel.Children.Add(Help(
+            "入力した文字列を、そのまま送ります（例: Apple 漢字）。キーボードで打ったように、いま入力できる場所（エディタなど）の現在の位置に追記されます。" +
+            "日本語や記号もそのまま送れます。改行は Enter、タブは Tab として送ります。バックスラッシュなどに特別な意味はありません（そのまま送ります）。" +
+            $"{HelperActionBody.MaxTextLength} 文字までです。"));
+        _textPanel.Children.Add(_text);
+
         // AppLayer
         _layerPanel.Children.Add(Help("アプリ管理レイヤーを操作します（IME連動・前面のアプリの規則と合わせて、ORで効きます）。対象は、そのキーを押したキーボードです。"));
         var wrap = new WrapPanel();
@@ -158,6 +168,7 @@ public sealed class HelperActionEditorWindow : Window
 
         panel.Children.Add(_launchPanel);
         panel.Children.Add(_sequencePanel);
+        panel.Children.Add(_textPanel);
         panel.Children.Add(_layerPanel);
         panel.Children.Add(_pausePanel);
         panel.Children.Add(_repeat);
@@ -207,6 +218,7 @@ public sealed class HelperActionEditorWindow : Window
         _workDir.Text = body.WorkDir ?? "";
         _steps.Text = StepText.Format(body.Steps);
         _releaseSteps.Text = StepText.Format(body.ReleaseSteps);
+        _text.Text = body.Text ?? "";
         foreach (int l in body.Layers ?? new List<int>())
             if (l >= 0 && l < _layers.Length) _layers[l].IsChecked = true;
         int op = Array.FindIndex(LayerOps, o => string.Equals(o, body.LayerOp, StringComparison.OrdinalIgnoreCase));
@@ -225,11 +237,12 @@ public sealed class HelperActionEditorWindow : Window
             ? "起動するプログラムのパス（notepad.exe のように、PATH にあるものは名前だけでもよい）。"
             : "開く URL・ファイル・フォルダ。関連付けられたアプリで開きます。";
         _sequencePanel.Visibility = type == HelperActionBody.Sequence ? Visibility.Visible : Visibility.Collapsed;
+        _textPanel.Visibility = type == HelperActionBody.TextInput ? Visibility.Visible : Visibility.Collapsed;
         _layerPanel.Visibility = type == HelperActionBody.AppLayer ? Visibility.Visible : Visibility.Collapsed;
         _pausePanel.Visibility = type == HelperActionBody.PauseToggle ? Visibility.Visible : Visibility.Collapsed;
         _repeat.Visibility = type == HelperActionBody.PauseToggle ? Visibility.Collapsed : Visibility.Visible;
-        // 修飾キーを隠すのは、トリガー（キー＋修飾キー）で動かす操作（Sequence）だけ。
-        _keepMods.Visibility = _mode == HelperEditMode.Trigger && type == HelperActionBody.Sequence ? Visibility.Visible : Visibility.Collapsed;
+        // 修飾キーを隠すのは、トリガー（キー＋修飾キー）で動かす操作（Sequence・Text）だけ。
+        _keepMods.Visibility = _mode == HelperEditMode.Trigger && type is HelperActionBody.Sequence or HelperActionBody.TextInput ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void Browse()
@@ -259,7 +272,7 @@ public sealed class HelperActionEditorWindow : Window
         {
             Type = SelectedType,
             Repeat = _repeat.IsChecked == true && SelectedType != HelperActionBody.PauseToggle,
-            KeepMods = _mode == HelperEditMode.Trigger && SelectedType == HelperActionBody.Sequence && _keepMods.IsChecked == true,
+            KeepMods = _mode == HelperEditMode.Trigger && SelectedType is HelperActionBody.Sequence or HelperActionBody.TextInput && _keepMods.IsChecked == true,
         };
         switch (body.Type)
         {
@@ -278,6 +291,9 @@ public sealed class HelperActionEditorWindow : Window
                 errors.AddRange(releaseErrors.Select(e => "離したとき " + e));
                 body.Steps = steps.Count > 0 ? steps : null;
                 body.ReleaseSteps = releaseSteps.Count > 0 ? releaseSteps : null;
+                break;
+            case HelperActionBody.TextInput:
+                body.Text = _text.Text.Length > 0 ? _text.Text : null; // 前後の空白も含めて、そのまま
                 break;
             case HelperActionBody.AppLayer:
                 body.Layers = Enumerable.Range(0, _layers.Length).Where(i => _layers[i].IsChecked == true).ToList();
