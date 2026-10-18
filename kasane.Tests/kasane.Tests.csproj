@@ -35,6 +35,9 @@
     <Compile Include="..\kasane-tray\AutoOffStore.cs" Link="Tray\AutoOffStore.cs" />
     <Compile Include="..\kasane-tray\ImeLinkController.cs" Link="Tray\ImeLinkController.cs" />
     <Compile Include="..\kasane-tray\Win32ImeSource.cs" Link="Tray\Win32ImeSource.cs" />
+    <Compile Include="..\kasane-tray\SiriusHook.cs" Link="Tray\SiriusHook.cs" />
+    <Compile Include="..\kasane-tray\TsfSiriusImeSource.cs" Link="Tray\TsfSiriusImeSource.cs" />
+    <Compile Include="..\kasane-tray\ImeSourceSelector.cs" Link="Tray\ImeSourceSelector.cs" />
     <Compile Include="..\kasane-tray\AppLayerArbiter.cs" Link="Tray\AppLayerArbiter.cs" />
     <Compile Include="..\kasane-tray\AppRuleController.cs" Link="Tray\AppRuleController.cs" />
     <Compile Include="..\kasane-tray\ActionLayerController.cs" Link="Tray\ActionLayerController.cs" />

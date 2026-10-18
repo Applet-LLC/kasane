@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Kasane.Model;
 
@@ -16,6 +17,17 @@ public sealed class TrayConfig
     /// NICOLAを使わずに、IMEのON/OFFとレイヤーだけを連動させたいときは、<see cref="HelperConfig.ImeLayers"/>（設定の「IME連動」タブ）を使う。
     /// </summary>
     public bool ImeLink { get; set; }
+
+    /// <summary>
+    /// IME の状態の取得方法（<see cref="Model.ImeSourceMode"/> の名前。Imm32 / ImmThenTsf / TsfThenImm）。既定は ImmThenTsf（IMM32 を先に試し、
+    /// 取れなかったときだけ TSF。TSF は、天狼（sirius）のフックの DLL が前面のアプリの中で読んだ値）。Imm32 を選ぶと、フックを入れない。
+    /// 無い・読めない値は既定。設定の「IME連動」タブで選ぶ。
+    /// </summary>
+    public string ImeSource { get; set; } = nameof(ImeSourceMode.ImmThenTsf);
+
+    /// <summary><see cref="ImeSource"/> を解釈したもの（保存はしない）。</summary>
+    [JsonIgnore]
+    public ImeSourceMode ImeSourceMode => ImeSourceModes.Parse(ImeSource);
 
     /// <summary>トレイのアイコンの右下に、今のレイヤー番号を重ねる（基底のレイヤーだけのときは重ねない）。既定はON。</summary>
     public bool ShowLayerOnIcon { get; set; } = true;
@@ -74,4 +86,25 @@ public sealed class TrayConfig
             throw;
         }
     }
+}
+
+/// <summary>IME の状態の取得方法（tray.json の ImeSource）。</summary>
+public enum ImeSourceMode
+{
+    /// <summary>IMM32 だけ（天狼のフックは入れない）。</summary>
+    Imm32,
+    /// <summary>IMM32 を先に使い、取れなかったときだけ TSF（既定）。</summary>
+    ImmThenTsf,
+    /// <summary>TSF を先に使い、取れなかったときは IMM32。</summary>
+    TsfThenImm,
+}
+
+public static class ImeSourceModes
+{
+    /// <summary>名前から。無い・知らない名前は既定（ImmThenTsf）。大文字小文字は区別しない。</summary>
+    public static ImeSourceMode Parse(string? text) =>
+        Enum.TryParse<ImeSourceMode>(text?.Trim(), ignoreCase: true, out var mode) && Enum.IsDefined(mode) ? mode : ImeSourceMode.ImmThenTsf;
+
+    /// <summary>天狼のフック（TSF）を使う取得方法か。</summary>
+    public static bool UsesTsf(this ImeSourceMode mode) => mode != ImeSourceMode.Imm32;
 }

@@ -41,6 +41,13 @@ public sealed class ImeLinkHost : IDisposable
     private volatile bool _nicolaLink;  // tray.json の ImeLink（全キーボード共通の、NICOLAの IME 連動。キーボードごとの設定が先）
     private bool _disposed;
 
+    // IME の状態の取得元（IMM32 と、天狼のフック経由の TSF）。フックは、TSF を使う設定で、連動が有効なときだけ入れる。
+    private readonly TsfSiriusImeSource _tsfSource;
+    private readonly ImeSourceSelector _imeSource;
+    private SiriusHook? _siriusHook;
+    private Kasane.Model.ImeSourceMode _imeSourceMode = Kasane.Model.ImeSourceMode.ImmThenTsf;
+    private bool _siriusFailed; // 入れられなかった（DLL が無いなど）。設定が変わるまで、数秒ごとに試し直さない
+
     public ImeLinkHost()
     {
         var config = TrayConfig.Load();
@@ -56,9 +63,14 @@ public sealed class ImeLinkHost : IDisposable
         Store.Reload(config);
         _enabled = Store.Current.AnyNicolaLink(_nicolaLink) || Store.Current.HasAnyImeLayerLink;
 
+        var imm = new Win32ImeSource();
+        _tsfSource = new TsfSiriusImeSource(imm);
+        _imeSource = new ImeSourceSelector(imm, _tsfSource);
+        ApplyImeSource(config);
+
         _service = new ImeLinkService(
             new ImeLinkController(new ImeLayerSource(_arbiter, () => Store.Current, uniqId => Store.Current.NicolaLinkFor(uniqId, _nicolaLink))),
-            new Win32ImeSource(),
+            _imeSource,
             () => _enabled,
             () => SessionActive,
             _ruleTick);
@@ -138,9 +150,54 @@ public sealed class ImeLinkHost : IDisposable
         _nicolaLink = config.ImeLink;
         bool reloaded = Store.Reload(config);
         _enabled = Store.Current.AnyNicolaLink(_nicolaLink) || Store.Current.HasAnyImeLayerLink;
+        ApplyImeSource(config);
         if (!reloaded) return false;
         _service.Poke();
         return true;
+    }
+
+    /// <summary>
+    /// 設定の IME の取得方法に合わせて、取得元の順序を切り替え、天狼のフックを入れる／外す（UI スレッド）。
+    /// フックは、TSF を使う設定で、IME 連動が有効なときだけ入れる（<c>Imm32</c> を選ぶと、全プロセスへの注入をしない）。
+    /// 入れられなくても（DLL が無い・読めない）、IMM32 だけで動き続ける。
+    /// </summary>
+    private void ApplyImeSource(TrayConfig config)
+    {
+        var mode = config.ImeSourceMode;
+        if (mode != _imeSourceMode) _siriusFailed = false; // 設定を変えたら、入れ直しを試す
+        _imeSourceMode = mode;
+        _imeSource.Mode = mode;
+
+        bool wantHook = mode.UsesTsf() && _enabled && !_siriusFailed;
+        if (wantHook && _siriusHook == null)
+        {
+            _siriusHook = SiriusHook.TryInstall(out string error);
+            if (_siriusHook != null)
+            {
+                _tsfSource.Attach(_siriusHook);
+                TrayLog.Write($"Sirius: フックを入れました（{mode}）");
+            }
+            else
+            {
+                _siriusFailed = true;
+                TrayLog.Write("Sirius: TSF は使えません（IMM32 だけで動きます）: " + error);
+            }
+        }
+        else if (!(mode.UsesTsf() && _enabled) && _siriusHook != null)
+        {
+            ReleaseSiriusHook();
+        }
+    }
+
+    // 読むのをやめてから外す（読んでいる最中に共有メモリを外すと、アクセス違反になる）。
+    private void ReleaseSiriusHook()
+    {
+        var hook = _siriusHook;
+        if (hook == null) return;
+        _siriusHook = null;
+        _tsfSource.Detach();
+        hook.Dispose();
+        TrayLog.Write("Sirius: フックを外しました");
     }
 
     /// <summary>一時停止中か（トレイのタイマーから伝える）。一時停止中は、前面のアプリの規則を止める。</summary>
@@ -218,6 +275,7 @@ public sealed class ImeLinkHost : IDisposable
         if (_focusHook != IntPtr.Zero) UnhookWinEvent(_focusHook);
         if (_nameChangeHook != IntPtr.Zero) UnhookWinEvent(_nameChangeHook);
         _service.Dispose();
+        ReleaseSiriusHook(); // 読むスレッドを止めてから外す
         _arbiter.Shutdown(); // 念のため（通常は、上で両方の入力源が空になり、ハンドルは閉じている）
     }
 

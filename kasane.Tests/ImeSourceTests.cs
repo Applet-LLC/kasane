@@ -1,0 +1,204 @@
+using System.IO;
+using System.Text.Json;
+using Kasane.Model;
+using Kasane.Tray;
+using Xunit;
+
+namespace Kasane.Tests;
+
+public class ImeSourceModeTests
+{
+    [Theory]
+    [InlineData(null, ImeSourceMode.ImmThenTsf)]
+    [InlineData("", ImeSourceMode.ImmThenTsf)]
+    [InlineData("Imm32", ImeSourceMode.Imm32)]
+    [InlineData("ImmThenTsf", ImeSourceMode.ImmThenTsf)]
+    [InlineData("TsfThenImm", ImeSourceMode.TsfThenImm)]
+    [InlineData("  tsfthenimm ", ImeSourceMode.TsfThenImm)]
+    [InlineData("unknown", ImeSourceMode.ImmThenTsf)]
+    [InlineData("42", ImeSourceMode.ImmThenTsf)] // 数字は名前ではない（範囲外の値を作らない）
+    public void Parse(string? text, ImeSourceMode expected) => Assert.Equal(expected, ImeSourceModes.Parse(text));
+
+    [Fact]
+    public void UsesTsf_IsFalseOnlyForImm32()
+    {
+        Assert.False(ImeSourceMode.Imm32.UsesTsf());
+        Assert.True(ImeSourceMode.ImmThenTsf.UsesTsf());
+        Assert.True(ImeSourceMode.TsfThenImm.UsesTsf());
+    }
+
+    [Fact]
+    public void TrayConfig_DefaultIsImmThenTsf()
+    {
+        var config = new TrayConfig();
+        Assert.Equal("ImmThenTsf", config.ImeSource);
+        Assert.Equal(ImeSourceMode.ImmThenTsf, config.ImeSourceMode);
+    }
+
+    [Fact]
+    public void TrayConfig_SaveAndLoad_KeepsImeSource_AndDoesNotWriteDerivedProperty()
+    {
+        string path = Path.Combine(Path.GetTempPath(), "kasane-test-tray-" + Guid.NewGuid().ToString("N") + ".json");
+        try
+        {
+            new TrayConfig { ImeSource = "Imm32" }.Save(path);
+            Assert.Equal(ImeSourceMode.Imm32, TrayConfig.Load(path).ImeSourceMode);
+            using var doc = JsonDocument.Parse(File.ReadAllText(path));
+            Assert.False(doc.RootElement.TryGetProperty("ImeSourceMode", out _)); // 派生のプロパティは保存しない
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void TrayConfig_OldFileWithoutImeSource_GetsDefault()
+    {
+        string path = Path.Combine(Path.GetTempPath(), "kasane-test-tray-" + Guid.NewGuid().ToString("N") + ".json");
+        try
+        {
+            File.WriteAllText(path, "{ \"ImeLink\": true }");
+            var config = TrayConfig.Load(path);
+            Assert.True(config.ImeLink);
+            Assert.Equal(ImeSourceMode.ImmThenTsf, config.ImeSourceMode);
+        }
+        finally { File.Delete(path); }
+    }
+}
+
+public class FallbackImeSourceTests
+{
+    private sealed class Fake : IImeSource
+    {
+        private readonly ImeState _state;
+        public int Calls;
+        public Fake(ImeState state) => _state = state;
+        public ImeState Read() { Calls++; return _state; }
+    }
+
+    private static readonly ImeState Kana = new(true, true, ImeConversion.Native | ImeConversion.FullShape);
+    private static readonly ImeState Off = new(true, false, 0);
+
+    [Fact]
+    public void FirstKnown_SecondIsNotAsked()
+    {
+        var first = new Fake(Kana);
+        var second = new Fake(Off);
+        Assert.Equal(Kana, new FallbackImeSource(first, second).Read());
+        Assert.Equal(0, second.Calls);
+    }
+
+    [Fact]
+    public void FirstUnknown_UsesSecond()
+    {
+        var second = new Fake(Off);
+        Assert.Equal(Off, new FallbackImeSource(new Fake(ImeState.Unknown), second).Read());
+        Assert.Equal(1, second.Calls);
+    }
+
+    [Fact]
+    public void BothUnknown_IsUnknown()
+    {
+        Assert.False(new FallbackImeSource(new Fake(ImeState.Unknown), new Fake(ImeState.Unknown)).Read().Known);
+    }
+
+    [Fact]
+    public void FirstOff_IsKnown_SoSecondIsNotAsked()
+    {
+        // OFF も「取れた」値。TSF に聞き直さない。
+        var second = new Fake(Kana);
+        Assert.Equal(Off, new FallbackImeSource(new Fake(Off), second).Read());
+        Assert.Equal(0, second.Calls);
+    }
+
+    [Fact]
+    public void Selector_FollowsModeAndOrder()
+    {
+        var imm = new Fake(Off);
+        var tsf = new Fake(Kana);
+        var selector = new ImeSourceSelector(imm, tsf);
+
+        selector.Mode = ImeSourceMode.Imm32;
+        Assert.Equal(Off, selector.Read());
+        Assert.Equal(0, tsf.Calls); // IMM32 だけのときは TSF を見ない
+
+        selector.Mode = ImeSourceMode.TsfThenImm;
+        Assert.Equal(Kana, selector.Read());
+
+        selector.Mode = ImeSourceMode.ImmThenTsf;
+        Assert.Equal(Off, selector.Read());
+    }
+
+    [Fact]
+    public void Selector_ImmThenTsf_FallsBackToTsf_WhenImmUnknown()
+    {
+        var selector = new ImeSourceSelector(new Fake(ImeState.Unknown), new Fake(Kana)) { Mode = ImeSourceMode.ImmThenTsf };
+        Assert.Equal(Kana, selector.Read());
+    }
+}
+
+public class SiriusTests
+{
+    private static SiriusLayout.Native Native(uint size = 1808, uint version = 1) => new()
+    {
+        CbSize = size, Version = version, HWndFocus = 0, HWndFront = 8, Conversion = 1064, ImeStatus = 1228,
+        SupportTsf = 1248, SupportTsfOpenClose = 1252, SupportTsfConversion = 1256, ProcessId = 1700, IsHooked = 1800,
+    };
+
+    [Fact]
+    public void Layout_Valid()
+    {
+        var layout = SiriusLayout.From(Native());
+        Assert.NotNull(layout);
+        Assert.Equal(1064, layout!.Value.Conversion);
+        Assert.Equal(1228, layout.Value.ImeStatus);
+        Assert.Equal(1800, layout.Value.IsHooked);
+    }
+
+    [Fact]
+    public void Layout_RejectsOtherVersion() => Assert.Null(SiriusLayout.From(Native(version: 2)));
+
+    [Fact]
+    public void Layout_RejectsZeroSize() => Assert.Null(SiriusLayout.From(Native(size: 0)));
+
+    [Fact]
+    public void Layout_RejectsFieldPastEnd()
+    {
+        // IsHooked（1 バイト）が最後のバイトに収まるぎりぎり／1 バイト足りない。
+        Assert.NotNull(SiriusLayout.From(Native(size: 1801)));
+        Assert.Null(SiriusLayout.From(Native(size: 1800)));
+    }
+
+    [Fact]
+    public void Layout_RejectsHugeOffset_WithoutOverflow()
+    {
+        var n = Native();
+        n.Conversion = uint.MaxValue - 1;
+        Assert.Null(SiriusLayout.From(n));
+    }
+
+    private static SiriusSnapshot Snap(bool hooked = true, bool openClose = true, bool conversion = true, uint open = 1, uint mode = 0x09)
+        => new(hooked, 0x1234, openClose, conversion, open, mode);
+
+    [Fact]
+    public void Decide_On_WithConversion() =>
+        Assert.Equal(new ImeState(true, true, 0x09), SiriusDecoder.Decide(Snap(), focusInForeground: true));
+
+    [Fact]
+    public void Decide_Off_DoesNotNeedConversion() =>
+        Assert.Equal(new ImeState(true, false, 0), SiriusDecoder.Decide(Snap(open: 0, conversion: false), focusInForeground: true));
+
+    [Fact]
+    public void Decide_OnWithoutConversionSupport_IsUnknown() =>
+        Assert.False(SiriusDecoder.Decide(Snap(conversion: false), focusInForeground: true).Known);
+
+    [Fact]
+    public void Decide_NotHooked_IsUnknown() =>
+        Assert.False(SiriusDecoder.Decide(Snap(hooked: false), focusInForeground: true).Known);
+
+    [Fact]
+    public void Decide_OpenCloseNotSupported_IsUnknown() =>
+        Assert.False(SiriusDecoder.Decide(Snap(openClose: false), focusInForeground: true).Known);
+
+    [Fact]
+    public void Decide_FocusNotInForeground_IsUnknown() =>
+        Assert.False(SiriusDecoder.Decide(Snap(), focusInForeground: false).Known); // 前面のアプリの値ではない
+}

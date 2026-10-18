@@ -51,6 +51,7 @@ public sealed class SettingsDialog : Window
     private CheckBox _imeLink = null!;
     private bool _globalNicolaLink; // 全キーボード共通の、NICOLAのIME連動（tray.json の ImeLink。OK のとき保存）
     private CheckBox _showLayerOnIcon = null!;
+    private ComboBox _imeSourceBox = null!; // IME の状態の取得方法（tray.json の ImeSource）
     private readonly TrayConfig _trayConfig = TrayConfig.Load();
     private TextBlock _nicolaSummary = null!;
     // ヘルパー動作・アプリ別レイヤー（このキーボードの helper.json と、共通の tray.json の Helper。OKで直接保存する）
@@ -376,10 +377,31 @@ public sealed class SettingsDialog : Window
         var root = new StackPanel();
         root.Children.Add(new TextBlock { Text = "IME の ON/OFF とレイヤーの連動", FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 6) });
         root.Children.Add(new ImeLayerTab(_helper, this).Root);
+        root.Children.Add(BuildImeSourceRow());
         root.Children.Add(new Separator { Margin = new Thickness(0, 14, 0, 10) });
         root.Children.Add(new TextBlock { Text = "NICOLA（親指シフト）", FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 6) });
         root.Children.Add(BuildNicolaTab());
         return root;
+    }
+
+    // IME の状態の取得方法。IMM32 は、アプリの IME ウィンドウへの問い合わせ。TSF は、天狼（sirius）のフックの DLL が各アプリの中で読んだ値
+    // （IMM32 で取れないアプリ・TSF だけのアプリの補い）。フックは全アプリに DLL を読み込ませるので、Imm32 を選ぶと入れない。
+    private static readonly string[] ImeSourceLabels =
+    {
+        "IMM32 のみ（フックを入れない）",
+        "IMM32 を先に、取れなければ TSF（既定）",
+        "TSF を先に、取れなければ IMM32",
+    };
+
+    private UIElement BuildImeSourceRow()
+    {
+        var panel = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
+        _imeSourceBox = new ComboBox { Name = "ImeSourceBox", Width = 360, ItemsSource = ImeSourceLabels, SelectedIndex = (int)_trayConfig.ImeSourceMode };
+        Row(panel, "IME の状態の取得方法", _imeSourceBox,
+            "IMM32 で IME の状態が取れないアプリ（TSF だけのアプリなど）では、TSF で補います。TSF は、全アプリに入る小さな DLL（sirius_hook）が読んだ値を使います。" +
+            "「IMM32 のみ」を選ぶと、その DLL を入れません。変更は、OKで保存され、数秒でトレイに反映されます。",
+            labelWidth: 170);
+        return panel;
     }
 
     private UIElement BuildNicolaTab()
@@ -1154,12 +1176,14 @@ public sealed class SettingsDialog : Window
         bool showLayer = _showLayerOnIcon.IsChecked == true;
         bool remapOnlyWhileTray = _remapOnlyWhileTray.IsChecked == true;
         int? desktopView = SelectedDesktopViewMode();
-        if (imeLink != _trayConfig.ImeLink || showLayer != _trayConfig.ShowLayerOnIcon || remapOnlyWhileTray != _trayConfig.RemapOnlyWhileTrayRuns
+        string imeSource = ((ImeSourceMode)Math.Max(0, _imeSourceBox.SelectedIndex)).ToString();
+        if (imeSource != _trayConfig.ImeSource || imeLink != _trayConfig.ImeLink || showLayer != _trayConfig.ShowLayerOnIcon || remapOnlyWhileTray != _trayConfig.RemapOnlyWhileTrayRuns
             || desktopView != _trayConfig.DesktopViewMode)
         {
             try
             {
                 _trayConfig.DesktopViewMode = desktopView;
+                _trayConfig.ImeSource = imeSource;
                 _trayConfig.ImeLink = imeLink;
                 _trayConfig.ShowLayerOnIcon = showLayer;
                 _trayConfig.RemapOnlyWhileTrayRuns = remapOnlyWhileTray;
