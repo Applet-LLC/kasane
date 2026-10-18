@@ -196,8 +196,22 @@ public sealed class SettingsDialog : Window
         var panel = new StackPanel { Margin = new Thickness(8, 8, 0, 0) };
         panel.Children.Add(new TextBlock { Name = "AboutName", Text = AppInfo.DisplayName, FontSize = 26, FontWeight = FontWeights.Bold });
         panel.Children.Add(new TextBlock { Name = "AboutVersion", Text = $"バージョン {AppInfo.VersionText}", FontSize = 15, Margin = new Thickness(0, 6, 0, 0) });
-        panel.Children.Add(new TextBlock { Text = " ", Margin = new Thickness(0, 2, 0, 0) }); // 空行
-        panel.Children.Add(new TextBlock { Name = "AboutPublisher", Text = AppInfo.Publisher, Foreground = Brushes.DimGray });
+        panel.Children.Add(new TextBlock { Name = "AboutBuildTime", Text = $"ビルド日時 {AppInfo.BuildTimeText}", Margin = new Thickness(0, 4, 0, 0) });
+        // 実行しているファイルの、インストール先を含むフルパス（長くても折り返して、選んでコピーできる）。
+        panel.Children.Add(new TextBox
+        {
+            Name = "AboutPath", Text = AppInfo.ExePath, IsReadOnly = true, BorderThickness = new Thickness(0), Background = Brushes.Transparent,
+            Foreground = Brushes.DimGray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(-2, 6, 0, 0),
+        });
+        var link = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run(AppInfo.Website)) { NavigateUri = new Uri(AppInfo.Website) };
+        link.RequestNavigate += (_, e) =>
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true }); }
+            catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException) { /* ブラウザーを起動できない */ }
+            e.Handled = true;
+        };
+        panel.Children.Add(new TextBlock(link) { Name = "AboutWebsite", Margin = new Thickness(0, 14, 0, 0) });
+        panel.Children.Add(new TextBlock { Name = "AboutCopyright", Text = AppInfo.Copyright, Foreground = Brushes.DimGray, Margin = new Thickness(0, 4, 0, 0) });
         return panel;
     }
 

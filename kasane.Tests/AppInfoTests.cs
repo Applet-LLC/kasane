@@ -20,3 +20,29 @@ public class AppInfoTests
     [Fact]
     public void DisplayNameIsKana() => Assert.Equal("かさね", AppInfo.DisplayName);
 }
+
+/// <summary>バージョン情報に出す、ビルド日時・著作権・サイト（2026-10-19）。</summary>
+public class AppInfoAboutTests
+{
+    [Fact]
+    public void ParseBuildDate_ReadsUtcIsoAndConvertsToLocal()
+    {
+        var local = AppInfo.ParseBuildDate("2026-10-18T06:31:26Z");
+        Assert.NotNull(local);
+        Assert.Equal(new DateTime(2026, 10, 18, 6, 31, 26, DateTimeKind.Utc).ToLocalTime(), local);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("not a date")]
+    public void ParseBuildDate_ReturnsNullWhenUnreadable(string? text) => Assert.Null(AppInfo.ParseBuildDate(text));
+
+    [Fact]
+    public void AboutTexts()
+    {
+        Assert.Equal("Copyright 2026 Applet LLC", AppInfo.Copyright);
+        Assert.Equal("https://appletllc.com/", AppInfo.Website);
+        Assert.NotEmpty(AppInfo.BuildTimeText); // テストの実行ファイルの更新日時、または「?」
+    }
+}
