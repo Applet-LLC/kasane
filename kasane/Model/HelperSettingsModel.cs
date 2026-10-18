@@ -115,7 +115,7 @@ public sealed class HelperSettingsModel
     }
 
     public static bool IsEmpty(HelperConfig c) =>
-        c.AppLayerRules.Count == 0 && c.Actions.Count == 0 && c.Triggers.Count == 0 && c.ImeLayers == null;
+        c.AppLayerRules.Count == 0 && c.Actions.Count == 0 && c.Triggers.Count == 0 && c.ImeLayers == null && c.NicolaImeLink == null;
 
     private static HelperConfig Clone(HelperConfig? c) =>
         c == null ? new HelperConfig() : HelperConfig.FromJson(c.ToJson()) ?? new HelperConfig();

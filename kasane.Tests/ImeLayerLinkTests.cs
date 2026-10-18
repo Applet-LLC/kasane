@@ -169,3 +169,48 @@ public class ImeLayerLinkTests
         Assert.Contains(model.Validate(), e => e.Contains("IME連動") && e.Contains("1つ以上"));
     }
 }
+
+/// <summary>NICOLAのIME連動を、キーボードごと／全キーボード共通で設定できる（2026-10-19）。</summary>
+public class NicolaLinkScopeTests
+{
+    private static HelperConfigSet Set(Dictionary<uint, HelperConfig> perDevice) => new(null, perDevice);
+
+    [Fact]
+    public void DeviceSettingPrecedesGlobal()
+    {
+        var set = Set(new()
+        {
+            [1] = new HelperConfig { NicolaImeLink = true },
+            [2] = new HelperConfig { NicolaImeLink = false },
+            [3] = new HelperConfig(),
+        });
+
+        Assert.True(set.NicolaLinkFor(1, global: false));   // このキーボードだけ連動する
+        Assert.False(set.NicolaLinkFor(2, global: true));   // このキーボードだけ連動しない
+        Assert.True(set.NicolaLinkFor(3, global: true));    // 設定が無ければ共通に従う
+        Assert.False(set.NicolaLinkFor(3, global: false));
+        Assert.True(set.NicolaLinkFor(99, global: true));   // 知らないキーボードも共通
+    }
+
+    [Theory]
+    [InlineData(false, false, false)]  // 共通オフ、キーボードごとの設定なし: 見ない
+    [InlineData(true, false, true)]    // 共通オン
+    [InlineData(false, true, true)]    // 共通オフでも、あるキーボードがオン
+    public void AnyNicolaLink_DecidesWhetherToWatchTheIme(bool global, bool deviceOn, bool expected)
+    {
+        var set = Set(deviceOn ? new() { [1] = new HelperConfig { NicolaImeLink = true } } : new());
+        Assert.Equal(expected, set.AnyNicolaLink(global));
+    }
+
+    [Fact]
+    public void SettingIsSavedOnlyWhenSet_AndKeepsTheFileNonEmpty()
+    {
+        Assert.DoesNotContain("NicolaImeLink", new HelperConfig().ToJson());
+        Assert.True(HelperSettingsModel.IsEmpty(new HelperConfig()));
+
+        var c = new HelperConfig { NicolaImeLink = false }; // 「連動しない」も、選んだ設定として残す
+        Assert.False(HelperSettingsModel.IsEmpty(c));
+        var back = HelperConfig.FromJson(c.ToJson())!;
+        Assert.False(back.NicolaImeLink);
+    }
+}

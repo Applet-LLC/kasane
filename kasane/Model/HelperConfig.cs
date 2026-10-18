@@ -30,6 +30,14 @@ public sealed class HelperConfig
     /// </summary>
     public ImeLayerLink? ImeLayers { get; set; }
 
+    /// <summary>
+    /// NICOLAのIME連動（IMEがかなモードのときだけ NICOLA のレイヤーを立てる）を、このキーボードで使うか（2026-10-19）。
+    /// null は、全キーボード共通の設定（tray.json の <see cref="TrayConfig.ImeLink"/>）に従う。キーボードごとの設定（helper.json）が、共通より先
+    /// （<see cref="HelperConfigSet.NicolaLinkFor"/>）。共通の設定の側（tray.json の Helper）では使わない（共通は ImeLink）。
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? NicolaImeLink { get; set; }
+
     /// <summary>HLP(id) のキー（ドライバのヘルパーイベント）で動かす動作（P3）。</summary>
     public List<HelperAction> Actions { get; set; } = new();
 
@@ -403,6 +411,13 @@ public sealed class HelperConfigSet
         if (PerDevice.TryGetValue(uniqId, out var device) && device.ImeLayers != null) return device.ImeLayers;
         return Global?.ImeLayers;
     }
+
+    /// <summary>そのキーボードで NICOLA の IME 連動を使うか。キーボードごとの設定があればそれを、無ければ共通の設定（<paramref name="global"/>＝tray.json の ImeLink）に従う。</summary>
+    public bool NicolaLinkFor(uint uniqId, bool global) =>
+        PerDevice.TryGetValue(uniqId, out var device) && device.NicolaImeLink is bool own ? own : global;
+
+    /// <summary>どれかのキーボードで NICOLA の IME 連動を使うか（共通がオン、またはキーボードごとにオンがある）。トレイが IME の状態を見るかどうかの判定。</summary>
+    public bool AnyNicolaLink(bool global) => global || PerDevice.Values.Any(c => c.NicolaImeLink == true);
 
     /// <summary>IME 連動のレイヤー設定が1つでも有効か（トレイが IME の状態を見るかどうかの判定）。</summary>
     public bool HasAnyImeLayerLink => (Global?.ImeLayers?.IsActive ?? false) || PerDevice.Values.Any(c => c.ImeLayers?.IsActive ?? false);

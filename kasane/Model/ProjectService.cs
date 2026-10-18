@@ -139,6 +139,15 @@ public static class ProjectService
         return clean.Count > 0 ? clean : null;
     }
 
+    /// <summary>そのキーボードで NICOLA の IME 連動を使うか（キーボードごとの設定が先。無ければ tray.json の ImeLink）。</summary>
+    public static bool NicolaImeLinkFor(uint uniqId)
+    {
+        bool global = TrayConfig.Load().ImeLink;
+        if (uniqId == 0) return global;
+        var device = HelperConfig.Load(HelperConfig.DevicePath(uniqId));
+        return device?.NicolaImeLink ?? global;
+    }
+
     /// <summary>レイヤーの名前（無ければ null）。</summary>
     public static string? LayerName(KeymapProject project, int layer) =>
         project.LayerNames != null && layer >= 0 && layer < project.LayerNames.Count && !string.IsNullOrWhiteSpace(project.LayerNames[layer])
@@ -456,7 +465,7 @@ public static class ProjectService
         {
             nicolaBlob = NicolaService.BuildBlob(project.Nicola, warnings, errors);
             // IME連動（トレイ）が、IMEがかなモードのときにそのレイヤーを立てる。使わない場合は、そのレイヤーに切り替えるキーが要る。
-            if (project.Nicola.Layer >= project.Layers.Count && !TrayConfig.Load().ImeLink)
+            if (project.Nicola.Layer >= project.Layers.Count && !NicolaImeLinkFor(project.UniqId))
                 warnings.Add($"NICOLAのレイヤー{project.Nicola.Layer}はキーマップにありません（IME連動を使わない場合は、そのレイヤーに切り替えるキー（TG({project.Nicola.Layer})等）が無いと、親指シフトは働きません）");
         }
         if (project.EnabledFeatures is uint f && (f & ~KbdLayerClient.FeatureAll) != 0)

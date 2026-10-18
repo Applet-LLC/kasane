@@ -58,15 +58,15 @@ public sealed class ImeLayerSource : IImeLayerDriver
 
     private readonly AppLayerArbiter _arbiter;
     private readonly Func<Kasane.Model.HelperConfigSet>? _config;
-    private readonly Func<bool> _nicolaLink;
+    private readonly Func<uint, bool> _nicolaLinkFor;
 
     /// <param name="config">ヘルパー設定（IME連動のレイヤーの設定。無ければ、レイヤーだけの連動はしない）。</param>
-    /// <param name="nicolaLink">NICOLAのIME連動（tray.json の ImeLink）が有効か。false なら、NICOLAのキーボードは調べない。</param>
-    public ImeLayerSource(AppLayerArbiter arbiter, Func<Kasane.Model.HelperConfigSet>? config = null, Func<bool>? nicolaLink = null)
+    /// <param name="nicolaLinkFor">そのキーボードで NICOLA の IME 連動を使うか（キーボードごとの設定、無ければ tray.json の ImeLink）。false なら、そのキーボードの NICOLA は調べない。</param>
+    public ImeLayerSource(AppLayerArbiter arbiter, Func<Kasane.Model.HelperConfigSet>? config = null, Func<uint, bool>? nicolaLinkFor = null)
     {
         _arbiter = arbiter;
         _config = config;
-        _nicolaLink = nicolaLink ?? (() => true);
+        _nicolaLinkFor = nicolaLinkFor ?? (_ => true);
     }
 
     public IReadOnlyList<NicolaTarget> FindTargets()
@@ -74,11 +74,10 @@ public sealed class ImeLayerSource : IImeLayerDriver
         using var client = KbdLayerAppLayerDriver.Open();
         var targets = new List<NicolaTarget>();
         var config = _config?.Invoke();
-        bool nicolaLink = _nicolaLink();
         foreach (var d in client.ListDevices())
         {
             if (d.UniqId == 0 || !d.HasLayerMap) continue;
-            if (nicolaLink)
+            if (_nicolaLinkFor(d.UniqId))
             {
                 var blob = client.GetNicola(d.UniqId);
                 // KBDLAYER_NICOLA_HEADER: Version(0) Enabled(4) Layer(8)
