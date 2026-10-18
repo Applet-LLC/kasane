@@ -21,6 +21,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "KeymapTool", "driver\Keymap
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NicolaCoreTest", "driver\NicolaCoreTest\NicolaCoreTest.vcxproj", "{B7D4E2A1-5C3F-4E8B-9A61-2F0C7D4B8E93}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sirius_hook", "sirius\sirius_hook\sirius_hook.vcxproj", "{E3CBB6F7-DFE6-4C5F-A479-BF2C63D8D7D1}"
+EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "kasane-license-svc", "kasane-license-svc\kasane-license-svc.csproj", "{F8C5891D-BE18-4C67-8D66-06921FB36C5F}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "kasane", "kasane\kasane.csproj", "{3F1C9A52-6E4B-4D7A-9C1E-8B2D5A7F0E41}"
@@ -122,6 +124,14 @@ Global
 		{B7D4E2A1-5C3F-4E8B-9A61-2F0C7D4B8E93}.Release|x64.Build.0 = Release|x64
 		{B7D4E2A1-5C3F-4E8B-9A61-2F0C7D4B8E93}.Release|Any CPU.ActiveCfg = Release|x64
 		{B7D4E2A1-5C3F-4E8B-9A61-2F0C7D4B8E93}.Release|Any CPU.Build.0 = Release|x64
+		{E3CBB6F7-DFE6-4C5F-A479-BF2C63D8D7D1}.Debug|x64.ActiveCfg = Debug|x64
+		{E3CBB6F7-DFE6-4C5F-A479-BF2C63D8D7D1}.Debug|x64.Build.0 = Debug|x64
+		{E3CBB6F7-DFE6-4C5F-A479-BF2C63D8D7D1}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{E3CBB6F7-DFE6-4C5F-A479-BF2C63D8D7D1}.Debug|Any CPU.Build.0 = Debug|x64
+		{E3CBB6F7-DFE6-4C5F-A479-BF2C63D8D7D1}.Release|x64.ActiveCfg = Release|x64
+		{E3CBB6F7-DFE6-4C5F-A479-BF2C63D8D7D1}.Release|x64.Build.0 = Release|x64
+		{E3CBB6F7-DFE6-4C5F-A479-BF2C63D8D7D1}.Release|Any CPU.ActiveCfg = Release|x64
+		{E3CBB6F7-DFE6-4C5F-A479-BF2C63D8D7D1}.Release|Any CPU.Build.0 = Release|x64
 		{B7D4E2A1-5C3F-4E8B-9A61-2F0C7D4B8E93}.Release|x86.ActiveCfg = Release|Win32
 		{B7D4E2A1-5C3F-4E8B-9A61-2F0C7D4B8E93}.Release|x86.Build.0 = Release|Win32
 		{F8C5891D-BE18-4C67-8D66-06921FB36C5F}.Debug|x64.ActiveCfg = Debug|x64
