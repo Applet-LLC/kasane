@@ -76,6 +76,7 @@ public sealed class SettingsDialog : Window
         AddTab("TabNicola", "NICOLA", BuildNicolaTab());
         AddTab("TabHelper", "ヘルパー動作", new HelperActionsTab(_helper, this).Root);
         AddTab("TabAppRules", "アプリ別レイヤー", new AppRulesTab(_helper, this).Root);
+        AddTab("TabImeLayer", "IME連動", new ImeLayerTab(_helper, this).Root);
         AddTab("TabEmergency", "緊急解除", BuildEmergencyTab());
         AddTab("TabScope", "共有範囲", BuildScopeTab());
         AddTab("TabDataDir", "保存先", BuildDataDirTab());

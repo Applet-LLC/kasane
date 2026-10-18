@@ -114,7 +114,8 @@ public sealed class HelperSettingsModel
         }
     }
 
-    public static bool IsEmpty(HelperConfig c) => c.AppLayerRules.Count == 0 && c.Actions.Count == 0 && c.Triggers.Count == 0;
+    public static bool IsEmpty(HelperConfig c) =>
+        c.AppLayerRules.Count == 0 && c.Actions.Count == 0 && c.Triggers.Count == 0 && c.ImeLayers == null;
 
     private static HelperConfig Clone(HelperConfig? c) =>
         c == null ? new HelperConfig() : HelperConfig.FromJson(c.ToJson()) ?? new HelperConfig();
@@ -144,6 +145,14 @@ public sealed class HelperSettingsModel
             if (!modsOk) errors.Add($"{owner}: 修飾キー '{t.Mods}' を解決できません（MOD_LCTL|MOD_LSFT や ctrl|shift のような書き方）");
             if (keyOk && modsOk && !triggers.Add((sc, mods))) errors.Add($"{owner}: 同じキーと修飾キーのトリガーが重複しています");
             ValidateBody(t.Action, owner, errors);
+        }
+
+        if (c.ImeLayers is { } ime)
+        {
+            if (ime.Layers.Any(l => l is < 0 or >= 16)) errors.Add($"{label}のIME連動: レイヤーは 0〜15 です");
+            if (ime.Enabled && ime.Layers.Count == 0) errors.Add($"{label}のIME連動: 立てるレイヤーを1つ以上選んでください");
+            if (!string.Equals(ime.Mode, ImeLayerLink.ModeOn, StringComparison.OrdinalIgnoreCase) && !ime.KanaOnly)
+                errors.Add($"{label}のIME連動: Mode '{ime.Mode}' は On / Kana のどちらかです");
         }
 
         int n = 0;

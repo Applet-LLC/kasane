@@ -272,7 +272,7 @@ public sealed class TrayContext : ApplicationContext
             _ => (_normalIcon, $"{AppInfo.NameWithVersion} - 動作中（{snapshot.ActiveCount}台）"),
         };
         var ime = _imeLink.Status;
-        if (snapshot.Status == TrayStatus.Running && ime.Linked && ime.TargetCount > 0)
+        if (snapshot.Status == TrayStatus.Running && ime.HasNicola)
             text += ime.NicolaOn ? "・NICOLA 入力中" : "・NICOLA 待機（IME連動）";
         if (snapshot.Status == TrayStatus.Running && snapshot.ActiveCount > 0 && _showLayer && _layerBadge != null)
         {
