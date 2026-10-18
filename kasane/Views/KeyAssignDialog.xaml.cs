@@ -86,7 +86,7 @@ public partial class KeyAssignDialog : Window
     {
         if (LstCategories.SelectedItem is not string name) return;
         var cat = KeycodeCatalog.Categories.FirstOrDefault(c => c.Name == name);
-        CategoryContent.Content = cat != null ? KeyButtons(cat.Keycodes) : name switch
+        CategoryContent.Content = cat != null ? CategoryKeys(cat) : name switch
         {
             CatLayer => LayerPanel(),
             CatModTap => ModTapPanel(),
@@ -95,6 +95,22 @@ public partial class KeyAssignDialog : Window
             CatSoftKeyboard => SoftKeyboard(),
             _ => MacroPanel(),
         };
+    }
+
+    // 分類のキーのボタン。NLS は、キーボードの配列に関係なく選べることを、一言添える
+    // （US配列のキーボードにこれらのキーは無いが、出力としては割り当てられる。たとえば、US配列のキーに「変換」を割り当てられる）。
+    private UIElement CategoryKeys(KeycodeCatalog.Category cat)
+    {
+        if (cat.Name != "NLS") return KeyButtons(cat.Keycodes);
+        var panel = new StackPanel();
+        panel.Children.Add(new TextBlock
+        {
+            Text = "NLS（National Language Support）キー: 日本語キーボードにあるキーです。使っているキーボード（US配列など）に無いキーも、" +
+                   "出力としては割り当てられます（例: US配列のキーに「変換」を割り当てる）。",
+            TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, Margin = new Thickness(4, 4, 4, 8),
+        });
+        panel.Children.Add(KeyButtons(cat.Keycodes));
+        return panel;
     }
 
     private UIElement KeyButtons(IEnumerable<string> keycodes)
