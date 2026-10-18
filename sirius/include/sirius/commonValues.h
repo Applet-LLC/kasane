@@ -77,6 +77,23 @@ struct CcommonValues
     bool m_isHooked;
 };
 
+// kasane: フィールドの位置（バイト）。SiriusGetLayout で得る。version はこの構造体の形が変わったら上げる。
+#define SIRIUS_LAYOUT_VERSION 1
+struct SiriusLayout
+{
+    DWORD cbSize;               // sizeof(CcommonValues)
+    DWORD version;              // SIRIUS_LAYOUT_VERSION
+    DWORD hWndFocus;            // HWND（x64 では 8 バイト）
+    DWORD hWndFront;            // HWND
+    DWORD conversion;           // DWORD
+    DWORD imeStatus;            // DWORD
+    DWORD supportTsf;           // BOOL
+    DWORD supportTsfOpenClose;  // BOOL
+    DWORD supportTsfConversion; // BOOL
+    DWORD processId;            // DWORD
+    DWORD isHooked;             // bool（1 バイト）
+};
+
 #ifdef SIRIUS_HOOK_EXPORTS
 #define SIRIUS_HOOK_API __declspec(dllexport)
 #else
@@ -90,6 +107,7 @@ extern "C" {
   SIRIUS_HOOK_API void SiriusReleaseHook();
   SIRIUS_HOOK_API CcommonValues* SiriusSetupHook(DWORD dwMessageId);
   SIRIUS_HOOK_API CcommonValues* SiriusCommonValue();
+  SIRIUS_HOOK_API void SiriusGetLayout(SiriusLayout* out);
 };
 
 #endif // !defined(AFX_COMMONVALUES_H__E5ADF547_DF32_4834_A7DD_9396EA49100B__INCLUDED_)

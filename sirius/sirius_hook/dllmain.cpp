@@ -61,24 +61,7 @@ BOOL ProcessAttach(HINSTANCE hInstance)
   }
   setupTsfValues();
 
-  HMODULE dll = LoadLibrary(TEXT("user32.dll"));
-  FUNCTYPE ChangeWindowMessageFilter = (FUNCTYPE)GetProcAddress(dll, "ChangeWindowMessageFilter");
-  FUNCTYPE7 ChangeWindowMessageFilterEx = (FUNCTYPE7)GetProcAddress(dll, "ChangeWindowMessageFilterEx");
-
-  HWND m_hwndTaskTray = FindWindow(L"nodokaTasktray", NULL);
-
-  if(ChangeWindowMessageFilterEx != NULL)		// 7 or later
-  {
-    if(m_hwndTaskTray != NULL)
-	{
-      ChangeWindowMessageFilterEx(m_hwndTaskTray, WM_APP + 123, MSGFLT_ALLOW, 0);
-	}
-
-  }
-  else if(ChangeWindowMessageFilter != NULL)	// Vista
-  {
-    ChangeWindowMessageFilter(WM_APP + 123, MSGFLT_ADD);	// WM_APP_NotifyTSF
-  }
+  // kasane: のどかへの通知（FindWindow("nodokaTasktray")・ChangeWindowMessageFilter）は削除。ホストは共有メモリを読む。
 
   return TRUE;
 }

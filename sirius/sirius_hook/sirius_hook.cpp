@@ -270,7 +270,7 @@ static bool allocateCommonValue(DWORD msg = 0)
   sa.lpSecurityDescriptor = &sd;
   sa.bInheritHandle = TRUE;
 
-  hMapping = ::CreateFileMapping((HANDLE)-1, &sa, PAGE_READWRITE, 0, sizeof(CcommonValues), L"SIRIUS_COMMON_VALUES3");
+  hMapping = ::CreateFileMapping((HANDLE)-1, &sa, PAGE_READWRITE, 0, sizeof(CcommonValues), L"KASANE_SIRIUS_VALUES1");
   if (!hMapping) {
     LOG("CreateFileMapping() failed. Error=%d", GetLastError());
     return false;
@@ -535,4 +535,22 @@ CcommonValues* SiriusCommonValue()
 {
   allocateCommonValue();
   return pCv;
+}
+
+// kasane: ホスト側が構造体のフィールドの位置を DLL から得る（C# 側で構造体を再定義しない）。
+// 値は DLL 自身の offsetof なので、構造体を変えても、ホストは再ビルドなしで合う。
+void SiriusGetLayout(SiriusLayout* out)
+{
+  if (!out) return;
+  out->cbSize = sizeof(CcommonValues);
+  out->version = SIRIUS_LAYOUT_VERSION;
+  out->hWndFocus = (DWORD)offsetof(CcommonValues, m_hWndFocus);
+  out->hWndFront = (DWORD)offsetof(CcommonValues, m_hWndFront);
+  out->conversion = (DWORD)offsetof(CcommonValues, m_conversion);
+  out->imeStatus = (DWORD)offsetof(CcommonValues, m_bImeStatus);
+  out->supportTsf = (DWORD)offsetof(CcommonValues, m_supportTsf);
+  out->supportTsfOpenClose = (DWORD)offsetof(CcommonValues, m_supportTsfOpenClose);
+  out->supportTsfConversion = (DWORD)offsetof(CcommonValues, m_supportTsfConversion);
+  out->processId = (DWORD)offsetof(CcommonValues, m_processId);
+  out->isHooked = (DWORD)offsetof(CcommonValues, m_isHooked);
 }

@@ -347,9 +347,6 @@ Exit:
         } else {
             m_composition = false;
         }
-        HWND tmpNodokaTasktray = FindWindow(L"nodokaTasktray", NULL);
-        if(tmpNodokaTasktray != NULL)
-          SendNotifyMessage(tmpNodokaTasktray, WM_APP + 123, 0x02, DWORD(m_composition));
     }
 
     if (pszSavedCompositionText)

@@ -140,9 +140,6 @@ public:
       if (SUCCEEDED(hr = m_iComp->GetValue(&v))) {
         if (v.vt != VT_EMPTY) {
           *m_pAddr = v.ulVal;
-          HWND tmpNodokaTasktray = FindWindow(L"nodokaTasktray", NULL);
-          if(tmpNodokaTasktray != NULL)
-            SendNotifyMessage(tmpNodokaTasktray, WM_APP + 123, 0x01, (DWORD)v.ulVal);
         }
       }
     }
