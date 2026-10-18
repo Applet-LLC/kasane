@@ -15,6 +15,17 @@ internal static class Program
             return;
         }
 
+        // 診断: TSF で IME の状態を読めるかの調査（kasane-tray.exe --probe-tsf [回数 [間隔秒]]）。3秒待ってから、前面のウィンドウについて、
+        // IMM32 と TSF（グローバル・自分のスレッド）の値を、%TEMP%\kasane-tsf-probe.txt に追記する。アプリや IME の状態を切り替えながら測る。
+        int probeIndex = Array.IndexOf(args, "--probe-tsf");
+        if (probeIndex >= 0)
+        {
+            int count = probeIndex + 1 < args.Length && int.TryParse(args[probeIndex + 1], out int c) ? Math.Clamp(c, 1, 600) : 1;
+            int interval = probeIndex + 2 < args.Length && int.TryParse(args[probeIndex + 2], out int s) ? Math.Clamp(s, 1, 60) : 3;
+            TsfImeProbe.Run(Path.Combine(Path.GetTempPath(), "kasane-tsf-probe.txt"), count, interval);
+            return;
+        }
+
         // 1つのログインセッションに、トレイは1つだけ（2つ目を起動しても、何もせずに終わる）。
         using var mutex = new Mutex(initiallyOwned: true, @"Local\kasane-tray", out bool createdNew);
         if (!createdNew) return;
