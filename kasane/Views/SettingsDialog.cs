@@ -49,6 +49,7 @@ public sealed class SettingsDialog : Window
     private NicolaDef? _nicola;
     private ComboBox _nicolaMode = null!;
     private CheckBox _imeLink = null!;
+    private bool _globalNicolaLink; // 全キーボード共通の、NICOLAのIME連動（tray.json の ImeLink。OK のとき保存）
     private CheckBox _showLayerOnIcon = null!;
     private readonly TrayConfig _trayConfig = TrayConfig.Load();
     private TextBlock _nicolaSummary = null!;
@@ -62,6 +63,7 @@ public sealed class SettingsDialog : Window
         _uniqId = client != null ? onlineUniqId : 0;
         _canWrite = canWrite;
         _nicola = project.Nicola?.Clone();
+        _globalNicolaLink = _trayConfig.ImeLink;
         _helper = new HelperSettingsModel(project.UniqId != 0 ? project.UniqId : _uniqId, _trayConfig);
 
         Title = "設定";
@@ -73,7 +75,7 @@ public sealed class SettingsDialog : Window
         AddTab("TabGeneral", "全般", BuildGeneralTab());
         AddTab("TabFeatures", "機能", BuildFeaturesTab());
         AddTab("TabTiming", "タイミング", BuildTimingTab());
-        AddTab("TabNicola", "NICOLA", BuildNicolaTab());
+        AddTab("TabImeLayer", "IME連動", BuildImeTab()); // 以前の「NICOLA」タブの内容も、ここにある（2026-10-19）
         AddTab("TabHelper", "ヘルパー動作", new HelperActionsTab(_helper, this).Root);
         AddTab("TabAppRules", "アプリ別レイヤー", new AppRulesTab(_helper, this).Root);
         AddTab("TabEmergency", "緊急解除", BuildEmergencyTab());
@@ -123,6 +125,15 @@ public sealed class SettingsDialog : Window
             "制約: トレイが異常終了したとき（クラッシュ・強制終了・電源断など）は、OFFにできず、次の起動のログオン画面ではリマップが効いたままです。" +
             "インストーラーによる更新・削除でトレイを止めるときも、OFFにしません。\n" +
             "この設定は、この PC のこの利用者の設定です（キーボードごとの設定ではありません）。OK で保存し、トレイが数秒で読み直します。"));
+
+        _showLayerOnIcon = new CheckBox
+        {
+            Name = "ShowLayerOnIconCheck",
+            Content = "トレイのアイコンに、今のレイヤー番号を重ねる（基底のレイヤーだけのときは重ねない）",
+            IsChecked = _trayConfig.ShowLayerOnIcon,
+            Margin = new Thickness(0, 12, 0, 8),
+        };
+        panel.Children.Add(_showLayerOnIcon);
         return panel;
     }
 
@@ -344,6 +355,19 @@ public sealed class SettingsDialog : Window
     // NICOLA
     // ------------------------------------------------------------------
 
+    // 「IME連動」タブ: 上に「IMEのON/OFFとレイヤーの連動」（NICOLAを使わなくても使える）、下に「NICOLA（親指シフト）」の設定。
+    // 以前は別々のタブ（IME連動・NICOLA）だった。NICOLAを使わない人も、IME連動をここだけで設定できる。
+    private UIElement BuildImeTab()
+    {
+        var root = new StackPanel();
+        root.Children.Add(new TextBlock { Text = "IME の ON/OFF とレイヤーの連動", FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 6) });
+        root.Children.Add(new ImeLayerTab(_helper, this).Root);
+        root.Children.Add(new Separator { Margin = new Thickness(0, 14, 0, 10) });
+        root.Children.Add(new TextBlock { Text = "NICOLA（親指シフト）", FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 6) });
+        root.Children.Add(BuildNicolaTab());
+        return root;
+    }
+
     private UIElement BuildNicolaTab()
     {
         var panel = new StackPanel();
@@ -354,7 +378,7 @@ public sealed class SettingsDialog : Window
             "nicola.json（CLIの --set-nicola と同じ形式）の読み込み・書き出しもできます。\n" +
             "NICOLAを使うと、親指キーの単独打鍵のキー（Enter・Spaceなど）が、Ctrl・Shiftなどを押している間のために、" +
             "NICOLAのレイヤーのキー割り当てとして自動で足されます。\n" +
-            "キーボードへの反映は「キーボードに適用」で行います。IME連動の設定は、OKでこのPCの利用者ごとに保存され、数秒でトレイに反映されます。"));
+            "キーボードへの反映は「キーボードに適用」で行います。IME連動の設定は、OKで保存され（このキーボードごと、または全キーボード共通。このPCの利用者ごと）、数秒でトレイに反映されます。"));
 
         if (IsOnline)
         {
@@ -364,24 +388,10 @@ public sealed class SettingsDialog : Window
             panel.Children.Add(new TextBlock { Name = "NicolaDriverStatus", Text = "キーボードの現在の設定: " + driverText, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) });
         }
 
-        _imeLink = new CheckBox
-        {
-            Name = "NicolaImeLinkCheck",
-            Content = "IME連動: IMEがかなモードのときだけNICOLAにする（タスクトレイの kasane が必要）",
-            IsChecked = _trayConfig.ImeLink,
-            Margin = new Thickness(0, 0, 0, 8),
-        };
-        _imeLink.Click += (_, _) => RefreshNicola();
-        panel.Children.Add(_imeLink);
-
-        _showLayerOnIcon = new CheckBox
-        {
-            Name = "ShowLayerOnIconCheck",
-            Content = "トレイのアイコンに、今のレイヤー番号を重ねる（基底のレイヤーだけのときは重ねない）",
-            IsChecked = _trayConfig.ShowLayerOnIcon,
-            Margin = new Thickness(0, 0, 0, 8),
-        };
-        panel.Children.Add(_showLayerOnIcon);
+        // IME連動（NICOLA）は、このキーボードごとか、全キーボード共通かを選べる（キーボードごとの設定が先）。
+        var linkPanel = new NicolaLinkPanel(_helper, this, () => _globalNicolaLink, v => _globalNicolaLink = v, () => RefreshNicola());
+        _imeLink = linkPanel.LinkCheck;
+        panel.Children.Add(linkPanel.Root);
 
         _nicolaMode = new ComboBox { Name = "NicolaModeBox", Width = 360, ItemsSource = NicolaModeLabels };
         _nicolaMode.SelectedIndex = _project.Nicola != null ? 1 : _project.ClearNicola ? 2 : 0;
@@ -1091,7 +1101,7 @@ public sealed class SettingsDialog : Window
             NicolaService.BuildBlob(_nicola, new List<string>(), errors);
             if (errors.Count > 0)
             {
-                Fail("TabNicola", string.Join("\n", errors));
+                Fail("TabImeLayer", string.Join("\n", errors));
                 return false;
             }
         }
@@ -1126,7 +1136,7 @@ public sealed class SettingsDialog : Window
         }
 
         // IME連動はプロジェクトではなく、このPCの利用者の設定（トレイが数秒ごとに読む）。変えたときだけ保存する。
-        bool imeLink = _imeLink.IsChecked == true;
+        bool imeLink = _globalNicolaLink;
         bool showLayer = _showLayerOnIcon.IsChecked == true;
         bool remapOnlyWhileTray = _remapOnlyWhileTray.IsChecked == true;
         int? desktopView = SelectedDesktopViewMode();
@@ -1143,7 +1153,7 @@ public sealed class SettingsDialog : Window
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                Fail("TabNicola", $"トレイの設定を保存できませんでした: {ex.Message}");
+                Fail("TabImeLayer", $"トレイの設定を保存できませんでした: {ex.Message}");
                 return false;
             }
         }

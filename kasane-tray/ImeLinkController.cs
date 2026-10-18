@@ -18,10 +18,13 @@ public readonly record struct ImeState(bool Known, bool Open, uint ConversionMod
 }
 
 /// <summary>
-/// IME連動の対象: NICOLAが設定されて有効なキーボードと、そのNICOLAのレイヤー。MapEnabled は、そのキーボードのレイヤーマップがONか
-/// （NICOLAはレイヤーマップがONのときだけ動く。OFF＝緊急解除・一時停止のキーボードでは、レイヤーを立てても入力は変わらない）。
+/// IME連動の対象: IMEの状態に合わせて立てるレイヤー。2種類ある。
+///  - NICOLA（<see cref="IsNicola"/>）: NICOLAが設定されて有効なキーボードと、そのNICOLAのレイヤー。IMEがかな入力のときに立てる。
+///  - レイヤーだけの連動（NICOLAではない。設定の「IME連動」タブ）: 設定したレイヤー。<see cref="KanaOnly"/> が true ならかな入力のとき、false ならIMEがONのとき（半角英数を含む）。
+/// MapEnabled は、そのキーボードのレイヤーマップがONか（NICOLAはレイヤーマップがONのときだけ動く。OFF＝緊急解除・一時停止のキーボードでは、
+/// レイヤーを立てても入力は変わらない）。
 /// </summary>
-public sealed record NicolaTarget(uint UniqId, int Layer, bool MapEnabled = true);
+public sealed record NicolaTarget(uint UniqId, int Layer, bool MapEnabled = true, bool IsNicola = true, bool KanaOnly = true);
 
 /// <summary>IME連動が使うドライバの操作（テストでは偽物に差し替える）。失敗は例外で知らせる。</summary>
 public interface IImeLayerDriver
@@ -36,9 +39,12 @@ public interface IImeLayerDriver
     void Release();
 }
 
-public sealed record ImeLinkStatus(bool Linked, bool NicolaOn, int TargetCount)
+public sealed record ImeLinkStatus(bool Linked, bool NicolaOn, int TargetCount, int NicolaTargetCount = -1)
 {
     public static readonly ImeLinkStatus Off = new(false, false, 0);
+
+    /// <summary>NICOLAの対象があるか（トレイのツールチップに、NICOLAの状態を出すかの判定。指定が無いときは、対象があればNICOLAとみなす）。</summary>
+    public bool HasNicola => Linked && (NicolaTargetCount < 0 ? TargetCount > 0 : NicolaTargetCount > 0);
 }
 
 /// <summary>
@@ -58,12 +64,14 @@ public sealed class ImeLinkController
     private readonly IImeLayerDriver _driver;
     private readonly Func<long> _nowMs;
 
-    private bool _imeOn;
+    private bool _imeOn;    // IMEがかな入力（NICOLAと、かな入力だけの連動）
+    private bool _imeOpen;  // IMEがON（半角英数を含む）
     private bool _holding;
     private long _lastVerify = long.MinValue;
     private long _lastTargetRefresh = long.MinValue;
     private IReadOnlyList<NicolaTarget> _targets = Array.Empty<NicolaTarget>();
     private bool _lastApplied;
+    private bool _lastAppliedOpen;
     // 私たちがレイヤーを操作したキーボードとレイヤー。NICOLAをクリアして対象から外れたキーボードのレイヤーを戻すために覚える。
     private readonly HashSet<(uint UniqId, int Layer)> _driven = new();
 
@@ -76,6 +84,9 @@ public sealed class ImeLinkController
     /// <summary>IMEの状態から、NICOLAを立てるか。取れないときは直前の判断を保つ。</summary>
     public static bool Decide(ImeState state, bool previous) => state.Known ? state.IsKanaInput : previous;
 
+    /// <summary>IMEがONか（半角英数のモードも含む）。取れないときは直前の判断を保つ。</summary>
+    public static bool DecideOpen(ImeState state, bool previous) => state.Known ? state.Open : previous;
+
     public ImeLinkStatus Tick(ImeState ime, bool enabled, bool sessionActive)
     {
         if (!enabled || !sessionActive)
@@ -85,6 +96,7 @@ public sealed class ImeLinkController
         }
 
         _imeOn = Decide(ime, _imeOn);
+        _imeOpen = DecideOpen(ime, _imeOpen);
         long now = _nowMs();
 
         if (now - _lastTargetRefresh >= TargetRefreshIntervalMs || _lastTargetRefresh == long.MinValue)
@@ -105,27 +117,32 @@ public sealed class ImeLinkController
             return new ImeLinkStatus(true, false, 0);
         }
 
-        if (_imeOn != _lastApplied || now - _lastVerify >= VerifyIntervalMs || _lastVerify == long.MinValue)
+        if (_imeOn != _lastApplied || _imeOpen != _lastAppliedOpen || now - _lastVerify >= VerifyIntervalMs || _lastVerify == long.MinValue)
         {
             _lastVerify = now;
             _lastApplied = _imeOn;
-            foreach (var t in _targets)
+            _lastAppliedOpen = _imeOpen;
+            // 同じキーボードの同じレイヤーを複数の対象が指していたら、どれかが立てたいときに立てる（OR）。
+            foreach (var group in _targets.GroupBy(t => (t.UniqId, t.Layer)))
             {
+                bool want = group.Any(t => t.KanaOnly ? _imeOn : _imeOpen);
                 try
                 {
-                    if (_driver.IsAppLayerOn(t.UniqId, t.Layer) != _imeOn) _driver.SetAppLayer(t.UniqId, t.Layer, _imeOn);
+                    if (_driver.IsAppLayerOn(group.Key.UniqId, group.Key.Layer) != want) _driver.SetAppLayer(group.Key.UniqId, group.Key.Layer, want);
                     _holding = true;
-                    _driven.Add((t.UniqId, t.Layer));
+                    _driven.Add((group.Key.UniqId, group.Key.Layer));
                 }
                 catch (Exception ex) when (IsDriverFailure(ex))
                 {
                     _lastApplied = !_imeOn; // 次の周期でやり直す
+                    _lastAppliedOpen = !_imeOpen;
                     _lastTargetRefresh = long.MinValue; // 対象の一覧も読み直す
                 }
             }
         }
-        // NICOLAが入力中なのは、IMEがかなモードで、レイヤーマップがONのキーボードがあるとき。
-        return new ImeLinkStatus(true, _imeOn && _targets.Any(t => t.MapEnabled), _targets.Count);
+        // NICOLAが入力中なのは、IMEがかなモードで、レイヤーマップがONのNICOLAのキーボードがあるとき。
+        int nicola = _targets.Count(t => t.IsNicola);
+        return new ImeLinkStatus(true, _imeOn && _targets.Any(t => t.IsNicola && t.MapEnabled), _targets.Count, nicola);
     }
 
     /// <summary>
@@ -155,7 +172,9 @@ public sealed class ImeLinkController
         if (_holding) SafeRelease();
         _holding = false;
         _imeOn = false;
+        _imeOpen = false;
         _lastApplied = false;
+        _lastAppliedOpen = false;
         _lastVerify = long.MinValue;
         _lastTargetRefresh = long.MinValue;
         _targets = Array.Empty<NicolaTarget>();

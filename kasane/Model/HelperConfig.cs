@@ -24,6 +24,20 @@ public sealed class HelperConfig
     /// <summary>前面のアプリの規則。上から順に見て、最初に一致したものを使う（<see cref="AppLayerRule.Default"/> は最後に見る）。</summary>
     public List<AppLayerRule> AppLayerRules { get; set; } = new();
 
+    /// <summary>
+    /// IME のON/OFFに合わせて、アプリ管理レイヤーを立てる・下ろす設定（2026-10-19。NICOLA とは無関係。無ければ null）。
+    /// キーボードごと（helper.json）が、共通（tray.json の Helper）より先（<see cref="HelperConfigSet.ImeLinkFor"/>）。
+    /// </summary>
+    public ImeLayerLink? ImeLayers { get; set; }
+
+    /// <summary>
+    /// NICOLAのIME連動（IMEがかなモードのときだけ NICOLA のレイヤーを立てる）を、このキーボードで使うか（2026-10-19）。
+    /// null は、全キーボード共通の設定（tray.json の <see cref="TrayConfig.ImeLink"/>）に従う。キーボードごとの設定（helper.json）が、共通より先
+    /// （<see cref="HelperConfigSet.NicolaLinkFor"/>）。共通の設定の側（tray.json の Helper）では使わない（共通は ImeLink）。
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? NicolaImeLink { get; set; }
+
     /// <summary>HLP(id) のキー（ドライバのヘルパーイベント）で動かす動作（P3）。</summary>
     public List<HelperAction> Actions { get; set; } = new();
 
@@ -332,6 +346,33 @@ public sealed class HelperStep
 }
 
 /// <summary>
+/// IME のON/OFFとレイヤーの連動（NICOLA を使わない）。IME がON（<see cref="ModeOn"/>。半角英数のモードも含む）、または
+/// かな入力（<see cref="ModeKana"/>。IME ON で日本語の入力モード）のとき、<see cref="Layers"/> のアプリ管理レイヤーを立て、そうでなければ下ろす。
+/// タスクトレイの kasane が動いているときだけ働く。
+/// </summary>
+public sealed class ImeLayerLink
+{
+    public const string ModeOn = "On";
+    public const string ModeKana = "Kana";
+
+    /// <summary>連動するか。false にすると、共通の設定がある場合でも、このキーボードだけ連動しない。</summary>
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>立てるレイヤー（0〜15）。</summary>
+    public List<int> Layers { get; set; } = new();
+
+    /// <summary>"On"（IME が ON のとき。既定）か "Kana"（かな入力のときだけ）。</summary>
+    public string Mode { get; set; } = ModeOn;
+
+    [JsonIgnore]
+    public bool KanaOnly => string.Equals(Mode, ModeKana, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>連動して立てるレイヤーがあるか（有効で、レイヤーが1つ以上）。</summary>
+    [JsonIgnore]
+    public bool IsActive => Enabled && Layers.Any(l => l is >= 0 and < 16);
+}
+
+/// <summary>
 /// 読み込んだヘルパー設定の一式（全キーボード共通の分と、キーボードごとの分）。トレイは、これを丸ごと差し替えて使う
 /// （読み込みと使う側が別のスレッドでも、途中の状態が見えない）。
 /// </summary>
@@ -360,6 +401,26 @@ public sealed class HelperConfigSet
             .Where(r => r.Enabled);
         return rules;
     }
+
+    /// <summary>
+    /// そのキーボードに効く IME 連動のレイヤー設定。キーボードごとの設定があればそれを、無ければ共通の設定を使う
+    /// （キーボードごとの設定が「無効」なら、共通の設定があっても、そのキーボードは連動しない）。無ければ null。
+    /// </summary>
+    public ImeLayerLink? ImeLinkFor(uint uniqId)
+    {
+        if (PerDevice.TryGetValue(uniqId, out var device) && device.ImeLayers != null) return device.ImeLayers;
+        return Global?.ImeLayers;
+    }
+
+    /// <summary>そのキーボードで NICOLA の IME 連動を使うか。キーボードごとの設定があればそれを、無ければ共通の設定（<paramref name="global"/>＝tray.json の ImeLink）に従う。</summary>
+    public bool NicolaLinkFor(uint uniqId, bool global) =>
+        PerDevice.TryGetValue(uniqId, out var device) && device.NicolaImeLink is bool own ? own : global;
+
+    /// <summary>どれかのキーボードで NICOLA の IME 連動を使うか（共通がオン、またはキーボードごとにオンがある）。トレイが IME の状態を見るかどうかの判定。</summary>
+    public bool AnyNicolaLink(bool global) => global || PerDevice.Values.Any(c => c.NicolaImeLink == true);
+
+    /// <summary>IME 連動のレイヤー設定が1つでも有効か（トレイが IME の状態を見るかどうかの判定）。</summary>
+    public bool HasAnyImeLayerLink => (Global?.ImeLayers?.IsActive ?? false) || PerDevice.Values.Any(c => c.ImeLayers?.IsActive ?? false);
 
     /// <summary>HLP(id) の動作が1つでもあるか（トレイがドライバのヘルパーイベントを待つかどうかの判定）。</summary>
     public bool HasAnyActions => (Global?.Actions.Count ?? 0) > 0 || PerDevice.Values.Any(c => c.Actions.Count > 0);

@@ -57,25 +57,41 @@ public sealed class ImeLayerSource : IImeLayerDriver
     public const string SourceName = "ime";
 
     private readonly AppLayerArbiter _arbiter;
+    private readonly Func<Kasane.Model.HelperConfigSet>? _config;
+    private readonly Func<uint, bool> _nicolaLinkFor;
 
-    public ImeLayerSource(AppLayerArbiter arbiter)
+    /// <param name="config">ヘルパー設定（IME連動のレイヤーの設定。無ければ、レイヤーだけの連動はしない）。</param>
+    /// <param name="nicolaLinkFor">そのキーボードで NICOLA の IME 連動を使うか（キーボードごとの設定、無ければ tray.json の ImeLink）。false なら、そのキーボードの NICOLA は調べない。</param>
+    public ImeLayerSource(AppLayerArbiter arbiter, Func<Kasane.Model.HelperConfigSet>? config = null, Func<uint, bool>? nicolaLinkFor = null)
     {
         _arbiter = arbiter;
+        _config = config;
+        _nicolaLinkFor = nicolaLinkFor ?? (_ => true);
     }
 
     public IReadOnlyList<NicolaTarget> FindTargets()
     {
         using var client = KbdLayerAppLayerDriver.Open();
         var targets = new List<NicolaTarget>();
+        var config = _config?.Invoke();
         foreach (var d in client.ListDevices())
         {
             if (d.UniqId == 0 || !d.HasLayerMap) continue;
-            var blob = client.GetNicola(d.UniqId);
-            // KBDLAYER_NICOLA_HEADER: Version(0) Enabled(4) Layer(8)
-            if (blob.Length < KbdLayerClient.NicolaHeaderSize) continue;
-            bool enabled = BitConverter.ToUInt32(blob, 4) != 0;
-            uint layer = BitConverter.ToUInt32(blob, 8);
-            if (enabled && layer < KbdLayerClient.MaxLayers) targets.Add(new NicolaTarget(d.UniqId, (int)layer, d.Enabled));
+            if (_nicolaLinkFor(d.UniqId))
+            {
+                var blob = client.GetNicola(d.UniqId);
+                // KBDLAYER_NICOLA_HEADER: Version(0) Enabled(4) Layer(8)
+                if (blob.Length >= KbdLayerClient.NicolaHeaderSize)
+                {
+                    bool enabled = BitConverter.ToUInt32(blob, 4) != 0;
+                    uint layer = BitConverter.ToUInt32(blob, 8);
+                    if (enabled && layer < KbdLayerClient.MaxLayers) targets.Add(new NicolaTarget(d.UniqId, (int)layer, d.Enabled));
+                }
+            }
+            // NICOLAとは無関係の、レイヤーだけの連動（設定の「IME連動」タブ）。
+            if (config?.ImeLinkFor(d.UniqId) is { IsActive: true } link)
+                foreach (int layer in link.Layers.Where(l => l is >= 0 and < KbdLayerClient.MaxLayers).Distinct())
+                    targets.Add(new NicolaTarget(d.UniqId, layer, d.Enabled, IsNicola: false, KanaOnly: link.KanaOnly));
         }
         return targets;
     }

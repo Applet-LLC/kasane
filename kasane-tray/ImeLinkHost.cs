@@ -37,13 +37,14 @@ public sealed class ImeLinkHost : IDisposable
     private readonly AppLayerArbiter _arbiter;
     private readonly AppRuleTick _ruleTick;
     private readonly ActionLayerController _actions;
-    private volatile bool _enabled;
+    private volatile bool _enabled;     // NICOLAのIME連動、またはレイヤーだけの連動のどちらかが有効（IMEの状態を見る）
+    private volatile bool _nicolaLink;  // tray.json の ImeLink（全キーボード共通の、NICOLAの IME 連動。キーボードごとの設定が先）
     private bool _disposed;
 
     public ImeLinkHost()
     {
         var config = TrayConfig.Load();
-        _enabled = config.ImeLink;
+        _nicolaLink = config.ImeLink;
 
         _arbiter = new AppLayerArbiter(new KbdLayerAppLayerDriver());
         _actions = new ActionLayerController(_arbiter, new KbdLayerDriverAccess());
@@ -53,9 +54,10 @@ public sealed class ImeLinkHost : IDisposable
             new ForegroundInfo(),
             Store);
         Store.Reload(config);
+        _enabled = Store.Current.AnyNicolaLink(_nicolaLink) || Store.Current.HasAnyImeLayerLink;
 
         _service = new ImeLinkService(
-            new ImeLinkController(new ImeLayerSource(_arbiter)),
+            new ImeLinkController(new ImeLayerSource(_arbiter, () => Store.Current, uniqId => Store.Current.NicolaLinkFor(uniqId, _nicolaLink))),
             new Win32ImeSource(),
             () => _enabled,
             () => SessionActive,
@@ -133,8 +135,10 @@ public sealed class ImeLinkHost : IDisposable
     public bool ReloadConfig()
     {
         var config = TrayConfig.Load();
-        _enabled = config.ImeLink;
-        if (!Store.Reload(config)) return false;
+        _nicolaLink = config.ImeLink;
+        bool reloaded = Store.Reload(config);
+        _enabled = Store.Current.AnyNicolaLink(_nicolaLink) || Store.Current.HasAnyImeLayerLink;
+        if (!reloaded) return false;
         _service.Poke();
         return true;
     }

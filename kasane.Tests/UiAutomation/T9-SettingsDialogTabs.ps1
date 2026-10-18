@@ -56,7 +56,7 @@ try {
         (Find-ChildByAutomationId $dlg "FeatureMacro") -and (Find-ChildByAutomationId $dlg "FeatureTapDance") -and (Find-ChildByAutomationId $dlg "FeatureKeyOverride"))
 
     # ---- NICOLA tab ----
-    Select-TabById $dlg "TabNicola"
+    Select-TabById $dlg "TabImeLayer"
     # IME link checkbox (saved to tray.json on OK only when changed; this test never toggles it). It reflects tray.json (default: on).
     $imeLinkState = Get-ToggleState (Find-ChildByAutomationId $dlg "NicolaImeLinkCheck")
     $trayJson = Join-Path $env:LOCALAPPDATA "applet\kasane\tray.json"
@@ -105,7 +105,7 @@ try {
     Chk "settings dialog closes on OK (nicola)" (Close-WithOk $dlg $proc.Id)
 
     $dlg = Open-Settings $main $proc.Id
-    Select-TabById $dlg "TabNicola"
+    Select-TabById $dlg "TabImeLayer"
     Chk "NICOLA mode round-trips ('use')" ((Get-ComboSelectedName (Find-ChildByAutomationId $dlg "NicolaModeBox")) -match "この設定を使う")
     $before = Get-AllTopWindowHandles $proc.Id
     Invoke-Element (Find-ChildByAutomationId $dlg "NicolaEditButton")

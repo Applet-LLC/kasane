@@ -519,7 +519,7 @@ IMEをオンにしてから切り替えキーを押すと親指シフトにな�
 ON/OFFに合わせてIMEもオン/オフしたい場合は、`"onEnter"`/`"onExit"` に、使っているIMEの設定で
 IMEオン/オフに割り当てたキー（例: `KC_HENK`/`KC_MHEN`）を指定します。
 判定の細かい調整（同時打鍵判定時間など）は `samples/README.md` の NICOLA の節を参照してください。
-GUI（kasane）の **設定...** →「NICOLA」タブでも同じ設定ができ、配列の表を画面で編集して
+GUI（kasane）の **設定...** →「IME連動」タブ（下の「NICOLA（親指シフト）」の部分）でも同じ設定ができ、配列の表を画面で編集して
 `nicola.json` に書き出すこともできます。
 
 ### IMEに合わせて自動で切り替える（IME連動）
@@ -535,8 +535,11 @@ GUI（kasane）の **設定...** →「NICOLA」タブでも同じ設定がで�
   下の「Ctrl・Shiftを押している間の親指キー」の割り当てをキーマップに入れておくのが確実です。
 - IMEが半角英数モードのとき、IMEがOFFのとき、前面のウィンドウのIMEの状態が取れないとき（管理者として動いている
   ウィンドウなど。直前の状態を保ちます）の扱いは、トレイのツールチップ（「NICOLA 入力中」「NICOLA 待機」）で確認できます。
-- やめるときは、GUIの **設定...** →「NICOLA」の「IME連動」のチェックを外します（`%LOCALAPPDATA%\applet\kasane\tray.json`
-  の `"ImeLink": false`。数秒でトレイに反映されます）。トレイを終了しても止まります。
+- この連動は、**既定ではオフ**です（2026-10-19 から。以前はオン）。使うときは、GUIの **設定...** →「IME連動」タブの「NICOLA」の「IME連動」にチェックを入れます
+  （`%LOCALAPPDATA%\applet\kasane\tray.json` の `"ImeLink": true`。環境変数 `KASANE` を設定しているときは、そのフォルダの `tray.json`。数秒でトレイに反映されます）。
+  一度設定した値は、再インストールでも変わりません（インストーラーは `tray.json` を書き換えません）。やめるときは、チェックを外します（`"ImeLink": false`）。トレイを終了しても止まります。
+- NICOLAを使わずに、IMEのON/OFFとレイヤーだけを連動させたいときは、GUIの **設定...** →「IME連動」を使います（`helper.json` または `tray.json` の
+  `Helper` の `ImeLayers`。[HELPER.md](HELPER.md) の「IME連動のレイヤー」）。
 - キーボード側の切り替えキー（`TG(1)`）と同時に使うこともできます。実効のレイヤーは両方のORなので、IME連動で立てたレイヤーは
   `TG` では消せません。
 
@@ -552,7 +555,7 @@ GUI（kasane）の **設定...** →「NICOLA」タブでも同じ設定がで�
 | IMEがONのとき、変換を単独で押す | スペース |
 
 1. `nicola-enter-space.json` を使います（`"thumbLeftTap": "KC_ENTER"`、`"thumbRightTap": "KC_SPC"`）。
-   `--set-nicola <ID> nicola-enter-space.json`、またはGUIの **設定...** →「NICOLA」で読み込んで適用します。
+   `--set-nicola <ID> nicola-enter-space.json`、またはGUIの **設定...** →「IME連動」タブの「NICOLA」で読み込んで適用します。
 2. **IMEがOFFのときの無変換でIMEをONにする**のは、Windowsの設定で行います: Microsoft IME の設定の
    「キーとタッチのカスタマイズ」（「キーの割り当て」）で、**無変換キーを「IME-オン」**にします（画面の名前は
    Windowsの版で少し違います）。IMEがOFFのときはNICOLAが働かないので、無変換はそのままIMEに届いてIMEがONになります。
