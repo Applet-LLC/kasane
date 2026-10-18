@@ -454,6 +454,13 @@ New-Item -ItemType Directory -Path $noticesStaging -Force | Out-Null
 $noticesSource = Join-Path $repoRoot "THIRD-PARTY-NOTICES.txt"
 if (-not (Test-Path -LiteralPath $noticesSource)) { throw "THIRD-PARTY-NOTICES.txt not found: $noticesSource" }
 Copy-Item -LiteralPath $noticesSource -Destination $noticesStaging -Force
+# 使用許諾（License.*.rtf）と README も、インストール先の直下に入れる（配布の zip の直下と同じ並び）。
+foreach ($f in @(
+        (Join-Path $PSScriptRoot "License\License.en-US.rtf"), (Join-Path $PSScriptRoot "License\License.ja-JP.rtf"),
+        (Join-Path $PSScriptRoot "dist-readme\README.en-US.txt"), (Join-Path $PSScriptRoot "dist-readme\README.ja-JP.txt"))) {
+    if (-not (Test-Path -LiteralPath $f)) { throw "install-root document not found: $f" }
+    Copy-Item -LiteralPath $f -Destination $noticesStaging -Force
+}
 
 $thirdPartyStaging = Join-Path $stagingRoot "third-party"
 if (Test-Path -LiteralPath $thirdPartyStaging) { Remove-Item -LiteralPath $thirdPartyStaging -Recurse -Force }
