@@ -123,7 +123,7 @@ void SimpleLogger(char* fn, int line, char* fmt, ...) {
       stSimpleLogStartDay = st;
   }
   sprintf_s(buf2, 1000, "%02d:%02d:%02d.%03d\t%08x:%08x\t%d:%d\t%d\t%s\t%s(%d): %s",st.wHour,st.wMinute,st.wSecond,st.wMilliseconds,
-    ::GetCurrentProcessId(), ::GetCurrentThreadId(), ::GetCurrentProcessId(), ::GetCurrentThreadId(), hSimpleLog, modname, fn, line, buf);
+    ::GetCurrentProcessId(), ::GetCurrentThreadId(), ::GetCurrentProcessId(), ::GetCurrentThreadId(), (int)(INT_PTR)hSimpleLog, modname, fn, line, buf);
 
   DWORD wsize;
   OVERLAPPED ol = {NULL};

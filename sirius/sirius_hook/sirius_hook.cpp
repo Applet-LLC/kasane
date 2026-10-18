@@ -197,11 +197,11 @@ static void cmdGetImeStatusEx(LPARAM)
     pCv->m_conversion = conv;
     pCv->m_sentence = sent;
   }
-  COMPOSITIONFORM comp = {-1, {-1, -1}, {-1, -1, -1, -1}};
+  COMPOSITIONFORM comp = {(DWORD)-1, {-1, -1}, {-1, -1, -1, -1}};
   if (ImmGetCompositionWindow(hImc, &comp)) {
      pCv->m_composition = comp;
   }
-  CANDIDATEFORM candi = {-1, -1, {-1, -1}, {-1, -1, -1, -1}};
+  CANDIDATEFORM candi = {(DWORD)-1, (DWORD)-1, {-1, -1}, {-1, -1, -1, -1}};
   if (ImmGetCandidateWindow(hImc, 0, &candi)) {
      pCv->m_candidate = candi;
   }
