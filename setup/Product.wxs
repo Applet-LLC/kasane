@@ -218,6 +218,7 @@
           <Directory Id="KEYMAPGUIDIR" Name="keymap-gui" />
           <Directory Id="TRAYDIR" Name="tray" />
           <Directory Id="SAMPLESDIR" Name="samples" />
+          <Directory Id="THIRDPARTYDIR" Name="third-party" />
         </Directory>
         </Directory>
       </Directory>
@@ -240,6 +241,9 @@
       <ComponentRef Id="CMP_DriverToolsArm64" />
       <ComponentRef Id="CMP_Shortcuts" />
       <ComponentGroupRef Id="CG_Symbol" />
+      <!-- サードパーティノーティス（THIRD-PARTY-NOTICES.txt）と、各ライセンスのファイル（third-party\）。HarvestDirectory で収穫（KasaneSetup.wixproj）。 -->
+      <ComponentGroupRef Id="CG_Notices" />
+      <ComponentGroupRef Id="CG_ThirdParty" />
     </Feature>
 
     <Feature Id="F_KbdDriver" Title="Keyboard Driver (kbdlayer)" Level="1" Absent="disallow">

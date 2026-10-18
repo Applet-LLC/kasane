@@ -45,6 +45,19 @@ Copy-Item -LiteralPath (Join-Path $readmeDir "README.en-US.txt") -Destination $s
 Copy-Item -LiteralPath (Join-Path $licenseDir "License.ja-JP.rtf") -Destination $stagingDir -Force
 Copy-Item -LiteralPath (Join-Path $licenseDir "License.en-US.rtf") -Destination $stagingDir -Force
 
+# サードパーティノーティス: zip の直下に THIRD-PARTY-NOTICES.txt と、各ライセンスのファイルを入れた third-party\ を置く（インストール先と同じ並び）。
+$repoRoot = Split-Path -Parent $setupDir
+$noticesFile = Join-Path $repoRoot "THIRD-PARTY-NOTICES.txt"
+$thirdPartyDir = Join-Path $repoRoot "third-party"
+foreach ($p in @($noticesFile, $thirdPartyDir)) {
+    if (-not (Test-Path -LiteralPath $p)) { throw "Package-Dist: third-party notice material missing: $p" }
+}
+Copy-Item -LiteralPath $noticesFile -Destination $stagingDir -Force
+$thirdPartyStagingDir = Join-Path $stagingDir "third-party"
+New-Item -ItemType Directory -Path $thirdPartyStagingDir -Force | Out-Null
+Get-ChildItem -LiteralPath $thirdPartyDir -File |
+    ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $thirdPartyStagingDir -Force }
+
 if (Test-Path -LiteralPath $zipPath) {
     Remove-Item -LiteralPath $zipPath -Force
 }

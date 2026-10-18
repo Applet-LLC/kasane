@@ -6,4 +6,12 @@
   <PropertyGroup>
     <Version>1.0.0</Version>
   </PropertyGroup>
+
+  <!--
+    ビルド日時（UTC）を、アセンブリのメタデータ BuildDate に埋め込む（バージョン情報の「ビルド日時」。AppInfo.BuildTime）。
+    Release のときだけ（毎回値が変わるので、Debug で埋めると、ビルドのたびに再コンパイルになる）。Debug は、exe の更新日時を使う。
+  -->
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <AssemblyMetadata Include="BuildDate" Value="$([System.DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ'))" />
+  </ItemGroup>
 </Project>

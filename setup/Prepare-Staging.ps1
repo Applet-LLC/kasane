@@ -446,6 +446,31 @@ Get-ChildItem -LiteralPath (Join-Path $repoRoot "driver/KeymapTool/samples") -Fi
     ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $samplesStaging -Force }
 Write-Host "[samples] staged: $((Get-ChildItem $samplesStaging).Count) files"
 
+# サードパーティノーティス: リポジトリ直下の THIRD-PARTY-NOTICES.txt はインストール先の直下に、third-party\ の各ライセンスのファイルは
+# インストール先の third-party\ に入る（MSI は KasaneSetup.wixproj の HarvestDirectory で収穫する。配布の zip にも同じものを入れる: Package-Dist.ps1）。
+$noticesStaging = Join-Path $stagingRoot "notices"
+if (Test-Path -LiteralPath $noticesStaging) { Remove-Item -LiteralPath $noticesStaging -Recurse -Force }
+New-Item -ItemType Directory -Path $noticesStaging -Force | Out-Null
+$noticesSource = Join-Path $repoRoot "THIRD-PARTY-NOTICES.txt"
+if (-not (Test-Path -LiteralPath $noticesSource)) { throw "THIRD-PARTY-NOTICES.txt not found: $noticesSource" }
+Copy-Item -LiteralPath $noticesSource -Destination $noticesStaging -Force
+# 使用許諾（License.*.rtf）と README も、インストール先の直下に入れる（配布の zip の直下と同じ並び）。
+foreach ($f in @(
+        (Join-Path $PSScriptRoot "License\License.en-US.rtf"), (Join-Path $PSScriptRoot "License\License.ja-JP.rtf"),
+        (Join-Path $PSScriptRoot "dist-readme\README.en-US.txt"), (Join-Path $PSScriptRoot "dist-readme\README.ja-JP.txt"))) {
+    if (-not (Test-Path -LiteralPath $f)) { throw "install-root document not found: $f" }
+    Copy-Item -LiteralPath $f -Destination $noticesStaging -Force
+}
+
+$thirdPartyStaging = Join-Path $stagingRoot "third-party"
+if (Test-Path -LiteralPath $thirdPartyStaging) { Remove-Item -LiteralPath $thirdPartyStaging -Recurse -Force }
+New-Item -ItemType Directory -Path $thirdPartyStaging -Force | Out-Null
+$thirdPartySource = Join-Path $repoRoot "third-party"
+if (-not (Test-Path -LiteralPath $thirdPartySource)) { throw "third-party folder not found: $thirdPartySource" }
+Get-ChildItem -LiteralPath $thirdPartySource -File |
+    ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $thirdPartyStaging -Force }
+Write-Host "[notices] staged: THIRD-PARTY-NOTICES.txt + third-party\ $((Get-ChildItem $thirdPartyStaging).Count) files"
+
 # kasane-launcher: ユーザーが最初に実行する WinForms ランチャー（kbdaddid-license-launcher
 # / Install-kbdaddidLicense.exe と同じ方針）。ここで staging/launcher に置いておくことで、
 # 他のアプリバイナリと同じ EV 署名パス（Step 3 -StagingRoot）に自然に乗る。
