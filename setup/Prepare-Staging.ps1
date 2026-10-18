@@ -437,6 +437,17 @@ Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kasane-tray" `
     -ExeFileName "kasane-tray-nua.exe" `
     -DestDir (Join-Path $stagingRoot "app/tray")
 
+# 天狼（sirius）のフック用 DLL（IME の状態を TSF で読む。トレイが exe と同じフォルダから読み込む。sirius\ フォルダ、x64 の Release）。
+# 他のプロセスに注入される DLL なので、VC++ ランタイムは静的リンク（/MT）。動的リンクの古いビルドが入ると止める。
+Copy-RequiredToolExe -ExeFileName "sirius_hook_for_nodoka_x64.dll" -DestDir (Join-Path $stagingRoot "app/tray") -CandidatePaths @(
+    (Join-Path $repoRoot "sirius/bin/Release/sirius_hook_for_nodoka_x64.dll")
+)
+$siriusText = [System.Text.Encoding]::GetEncoding(28591).GetString([System.IO.File]::ReadAllBytes((Join-Path $stagingRoot "app/tray/sirius_hook_for_nodoka_x64.dll")))
+$siriusCrt = ([regex]'(?i)(vcruntime140(_1)?|msvcp140(_\d+)?|ucrtbase|concrt140|vccorlib140|api-ms-win-crt-[a-z0-9\-]+)\.dll').Match($siriusText)
+if ($siriusCrt.Success) {
+    throw "staged sirius_hook_for_nodoka_x64.dll imports '$($siriusCrt.Value)' (dynamic VC++ runtime). Rebuild sirius_hook (x64, Release; /MT) and run again."
+}
+
 # KeymapToolのサンプルキーマップ（docs/TUTORIAL-CLI.md で使う tutorial-*.json、動作確認用 test-keymap-*.json、
 # README.md）。samples/temp/ は作業用の参照資料なので含めない。
 $samplesStaging = Join-Path $stagingRoot "samples"

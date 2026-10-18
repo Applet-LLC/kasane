@@ -120,8 +120,8 @@ IME の ON/OFF に合わせて、アプリ管理レイヤーを立てる・下�
 - キーボードごとの設定（`helper.json`）が先、無ければ共通（`tray.json` の `Helper`）を使います。
 - 立てるレイヤーは、IME 連動（NICOLA）・前面のアプリの規則と同じアプリ管理レイヤーで、キーボード側の `TG` などとは OR で重なります。
 - 前面のウィンドウの IME の状態が取れないとき（管理者として動いているウィンドウ、応答しないアプリなど）は、直前の状態を保ちます。
-- IME の状態は、IMM32（`WM_IME_CONTROL` の `IMC_GETOPENSTATUS`・`IMC_GETCONVERSIONMODE`）で読みます。Text Services Framework（TSF）は使っていません。
-  TSF の IME 状態（`GUID_COMPARTMENT_KEYBOARD_OPENCLOSE` など）は、別プロセスの前面アプリの値としては、空でした（2026-10-18 の測定。Microsoft IME、メモ帳・Edge・Chrome・VS Code・Windows ターミナル・Word・設定・管理者のウィンドウ）。
+- IME の状態は、IMM32（`WM_IME_CONTROL` の `IMC_GETOPENSTATUS`・`IMC_GETCONVERSIONMODE`）で読み、取れないときは Text Services Framework（TSF）で補います（設定の「IME連動」タブの「IME の状態の取得方法」。既定は「IMM32 を先に、取れなければ TSF」。
+  「IMM32 のみ」を選ぶと、TSF 用の DLL（天狼の sirius_hook）を入れません）。TSF の値は、別プロセスのトレイからは読めない（空。2026-10-18 の測定）ので、全アプリに入る小さな DLL が、アプリの中で読んだ値を使います。32bit のアプリ・ARM64 ネイティブのアプリには、この DLL は入りません。
   IMM32 で状態が取れない、または追従しないアプリ: 管理者として動くウィンドウ（UIPI）、設定アプリなど一部のストアアプリ（値が固定）。新しいメモ帳でも、ON が読めないことがありました。
   そのようなアプリが前面のとき、直前の状態を保ちます。
 - NICOLA の連動と、同じレイヤーを指していても構いません（どちらかが立てたいときに立てます）。
