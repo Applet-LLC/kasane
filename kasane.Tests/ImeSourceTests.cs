@@ -261,6 +261,67 @@ public class SiriusTests
     public void Decide_OpenCloseNotSupported_IsUnknown() =>
         Assert.False(SiriusDecoder.Decide(Snap(openClose: false), focusInForeground: true).Known);
 
+    [Theory]
+    [InlineData(false, true, true, TsfReason.NotHooked)]
+    [InlineData(true, false, true, TsfReason.OpenCloseUnsupported)]
+    [InlineData(true, true, false, TsfReason.FocusNotForeground)]
+    public void Decide_ReportsReason(bool hooked, bool openClose, bool inForeground, TsfReason expected)
+    {
+        var state = SiriusDecoder.Decide(Snap(hooked: hooked, openClose: openClose), inForeground, out var reason);
+        Assert.False(state.Known);
+        Assert.Equal(expected, reason);
+    }
+
+    [Fact]
+    public void Decide_OnWithoutConversion_ReportsConversionUnsupported()
+    {
+        SiriusDecoder.Decide(Snap(conversion: false), true, out var reason);
+        Assert.Equal(TsfReason.ConversionUnsupported, reason);
+        SiriusDecoder.Decide(Snap(), true, out reason);
+        Assert.Equal(TsfReason.Ok, reason);
+    }
+
+    [Fact]
+    public void Selector_AppendsTsfReason_WhenTsfAskedAndUnknown()
+    {
+        var lines = new List<string>();
+        var tsf = new DiagFake(reasonCode: 5, text: "TSF: テスト理由");
+        var selector = new ImeSourceSelector(new StubSource(ImeState.Unknown), tsf, lines.Add) { Mode = ImeSourceMode.ImmThenTsf };
+        selector.Read();
+        Assert.Equal("IME: - 取得できず （TSF: テスト理由）", lines[0]);
+
+        tsf.ReasonCode = 6; // 理由が変わった → 書く
+        tsf.Text = "TSF: 別の理由";
+        selector.Read();
+        Assert.Equal(2, lines.Count);
+        Assert.Contains("別の理由", lines[1]);
+    }
+
+    [Fact]
+    public void Selector_DoesNotAppendReason_WhenImmSucceeds_AndTsfNotAsked()
+    {
+        var lines = new List<string>();
+        var selector = new ImeSourceSelector(new StubSource(new ImeState(true, true, 0x9)), new DiagFake(5, "x"), lines.Add) { Mode = ImeSourceMode.ImmThenTsf };
+        selector.Read();
+        Assert.DoesNotContain("TSF:", lines[0]);
+    }
+
+    private sealed class StubSource : IImeSource
+    {
+        private readonly ImeState _state;
+        public StubSource(ImeState state) => _state = state;
+        public ImeState Read() => _state;
+    }
+
+    private sealed class DiagFake : IImeSource, IImeSourceDiagnostics
+    {
+        public int ReasonCode { get; set; }
+        public string Text { get; set; }
+        public DiagFake(int reasonCode, string text) { ReasonCode = reasonCode; Text = text; }
+        public ImeState Read() => ImeState.Unknown;
+        public string DescribeLast() => Text;
+    }
+
     [Fact]
     public void Decide_FocusNotInForeground_IsUnknown() =>
         Assert.False(SiriusDecoder.Decide(Snap(), focusInForeground: false).Known); // 前面のアプリの値ではない

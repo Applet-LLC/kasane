@@ -40,6 +40,18 @@ internal readonly record struct SiriusLayout(
 internal readonly record struct SiriusSnapshot(
     bool Hooked, long HWndFocus, bool SupportOpenClose, bool SupportConversion, uint ImeStatus, uint Conversion);
 
+/// <summary>TSF（共有メモリ）から IME の状態を採れなかった理由（ログ用）。</summary>
+public enum TsfReason
+{
+    Ok = 0,
+    NotAttached,          // フックを入れていない
+    NoTarget,             // 前面が、見ないウィンドウ（トレイ自身・シェル）
+    NotHooked,            // DLL がフックの設置済みと言っていない
+    OpenCloseUnsupported, // 共有メモリの値が、TSF の OpenClose を読めたものではない（その窓に DLL が入っていない・TSF を使わない）
+    FocusNotForeground,   // 共有メモリの値は、前面ではない別のウィンドウのもの
+    ConversionUnsupported // ON だが、変換モードが TSF で読めていない
+}
+
 internal static class SiriusDecoder
 {
     /// <summary>
@@ -48,11 +60,17 @@ internal static class SiriusDecoder
     ///    共有メモリはシステム全体で1つで、最後にフォーカスを受けたウィンドウの値なので、前面のウィンドウのものかを確かめる。
     ///  - OFF なら、変換モードは聞かない（IMM32 と同じ）。ON で変換モードが TSF で読めないなら、かな入力か分からないので不明。
     /// </summary>
-    public static ImeState Decide(in SiriusSnapshot s, bool focusInForeground)
+    public static ImeState Decide(in SiriusSnapshot s, bool focusInForeground) => Decide(s, focusInForeground, out _);
+
+    /// <summary>上と同じ判断。採れなかったとき、その理由も返す。</summary>
+    public static ImeState Decide(in SiriusSnapshot s, bool focusInForeground, out TsfReason reason)
     {
-        if (!s.Hooked || !s.SupportOpenClose || !focusInForeground) return ImeState.Unknown;
+        reason = TsfReason.Ok;
+        if (!s.Hooked) { reason = TsfReason.NotHooked; return ImeState.Unknown; }
+        if (!s.SupportOpenClose) { reason = TsfReason.OpenCloseUnsupported; return ImeState.Unknown; }
+        if (!focusInForeground) { reason = TsfReason.FocusNotForeground; return ImeState.Unknown; }
         if (s.ImeStatus == 0) return new ImeState(true, false, 0);
-        if (!s.SupportConversion) return ImeState.Unknown;
+        if (!s.SupportConversion) { reason = TsfReason.ConversionUnsupported; return ImeState.Unknown; }
         return new ImeState(true, true, s.Conversion);
     }
 }

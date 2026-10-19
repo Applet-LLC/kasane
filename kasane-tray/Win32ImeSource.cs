@@ -80,6 +80,13 @@ public sealed class Win32ImeSource : IImeSource
         return true;
     }
 
+    /// <summary>ウィンドウを持つプロセスの名前（ログ用。IME 連動のスレッドから呼ぶ）。ウィンドウが無ければ「なし」。</summary>
+    internal string ProcessLabelOfWindow(IntPtr hwnd)
+    {
+        if (hwnd == IntPtr.Zero || GetWindowThreadProcessId(hwnd, out uint pid) == 0) return "なし";
+        return ProcessNameCached(pid);
+    }
+
     /// <summary>前面のアプリのプロセス名（ログ用。IME 連動のスレッドから呼ぶ。プロセス名は前に調べたものを使う）。</summary>
     internal string ForegroundLabel()
     {
