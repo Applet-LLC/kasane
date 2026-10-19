@@ -80,6 +80,15 @@ public sealed class Win32ImeSource : IImeSource
         return true;
     }
 
+    /// <summary>前面のアプリのプロセス名（ログ用。IME 連動のスレッドから呼ぶ。プロセス名は前に調べたものを使う）。</summary>
+    internal string ForegroundLabel()
+    {
+        IntPtr foreground = GetForegroundWindow();
+        if (foreground == IntPtr.Zero) return "";
+        GetWindowThreadProcessId(foreground, out uint pid);
+        return ProcessNameCached(pid);
+    }
+
     private ImeState ReadCore(bool wantDetail, out string detail)
     {
         if (!TryGetTarget(wantDetail, out IntPtr foreground, out uint threadId, out string cls, out string process, out detail))

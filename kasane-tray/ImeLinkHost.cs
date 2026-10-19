@@ -65,7 +65,7 @@ public sealed class ImeLinkHost : IDisposable
 
         var imm = new Win32ImeSource();
         _tsfSource = new TsfSiriusImeSource(imm);
-        _imeSource = new ImeSourceSelector(imm, _tsfSource);
+        _imeSource = new ImeSourceSelector(imm, _tsfSource, TrayLog.Write, imm.ForegroundLabel);
         ApplyImeSource(config);
 
         _service = new ImeLinkService(

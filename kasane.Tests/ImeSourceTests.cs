@@ -128,6 +128,69 @@ public class FallbackImeSourceTests
     }
 
     [Fact]
+    public void Describe_OffOnRomajiKanaAndUnknown()
+    {
+        Assert.Equal("取得できず", ImeSourceSelector.Describe(ImeState.Unknown));
+        Assert.Equal("OFF", ImeSourceSelector.Describe(Off));
+        Assert.StartsWith("ON ローマ字入力（日本語、", ImeSourceSelector.Describe(new ImeState(true, true, 0x19))); // NATIVE|FULLSHAPE|ROMAN
+        Assert.StartsWith("ON カナ入力（日本語、", ImeSourceSelector.Describe(new ImeState(true, true, 0x09)));
+        Assert.StartsWith("ON ローマ字入力（半角英数、", ImeSourceSelector.Describe(new ImeState(true, true, 0x10)));
+        Assert.Contains("0x19", ImeSourceSelector.Describe(new ImeState(true, true, 0x19)));
+    }
+
+    [Fact]
+    public void Selector_LogsSourceAndState_OnlyWhenChanged()
+    {
+        var lines = new List<string>();
+        var imm = new Fake(Kana);
+        var tsf = new Fake(Off);
+        string app = "notepad";
+        var selector = new ImeSourceSelector(imm, tsf, lines.Add, () => app) { Mode = ImeSourceMode.ImmThenTsf };
+
+        selector.Read();
+        selector.Read(); // 変わらない → 書かない
+        Assert.Single(lines);
+        Assert.StartsWith("IME: IMM32 ON ", lines[0]);
+        Assert.EndsWith("[notepad]", lines[0]);
+
+        app = "chrome"; // 前面のアプリが変わった → 書く
+        selector.Read();
+        Assert.Equal(2, lines.Count);
+        Assert.EndsWith("[chrome]", lines[1]);
+    }
+
+    [Fact]
+    public void Selector_LogsTsf_WhenImmUnknown_AndDash_WhenBothUnknown()
+    {
+        var lines = new List<string>();
+        var imm = new SwitchableFake();
+        var selector = new ImeSourceSelector(imm, new Fake(Off), lines.Add) { Mode = ImeSourceMode.ImmThenTsf };
+
+        selector.Read();
+        Assert.Equal("IME: TSF OFF", lines[^1]);
+
+        var bothUnknown = new ImeSourceSelector(new Fake(ImeState.Unknown), new Fake(ImeState.Unknown), lines.Add) { Mode = ImeSourceMode.ImmThenTsf };
+        bothUnknown.Read();
+        Assert.Equal("IME: - 取得できず", lines[^1]);
+    }
+
+    [Fact]
+    public void Selector_Imm32Mode_LogsImm32_AndNeverAsksTsf()
+    {
+        var lines = new List<string>();
+        var tsf = new Fake(Kana);
+        var selector = new ImeSourceSelector(new Fake(Off), tsf, lines.Add) { Mode = ImeSourceMode.Imm32 };
+        selector.Read();
+        Assert.Equal("IME: IMM32 OFF", lines[0]);
+        Assert.Equal(0, tsf.Calls);
+    }
+
+    private sealed class SwitchableFake : IImeSource
+    {
+        public ImeState Read() => ImeState.Unknown;
+    }
+
+    [Fact]
     public void Selector_ImmThenTsf_FallsBackToTsf_WhenImmUnknown()
     {
         var selector = new ImeSourceSelector(new Fake(ImeState.Unknown), new Fake(Kana)) { Mode = ImeSourceMode.ImmThenTsf };
