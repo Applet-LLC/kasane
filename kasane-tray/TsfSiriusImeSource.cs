@@ -40,15 +40,19 @@ internal sealed class TsfSiriusImeSource : IImeSource, IImeSourceDiagnostics
         lock (_gate)
         {
             if (_hook == null) { _reason = TsfReason.NotAttached; return ImeState.Unknown; }
-            if (!_foreground.TryGetTarget(wantDetail: false, out IntPtr foreground, out uint threadId, out _, out _, out _))
+            if (!_foreground.TryGetTarget(wantDetail: false, out IntPtr foreground, out _, out _, out _, out _))
             {
                 _reason = TsfReason.NoTarget;
                 return ImeState.Unknown;
             }
 
             var snapshot = _hook.Read();
-            // 共有メモリの HWND は「最後にフォーカスを受けたウィンドウ」。前面のアプリのスレッドのものか。
-            bool inForeground = snapshot.HWndFocus != 0 && GetWindowThreadProcessId((IntPtr)snapshot.HWndFocus, out _) == threadId;
+            // 共有メモリの HWND は「最後にフォーカスを受けたウィンドウ」。前面のアプリ（プロセス）のものか。スレッドでは比べない
+            // （新しいメモ帳などの WinUI 系アプリは、フォーカスを持つウィンドウが、前面のウィンドウとは別のスレッドにある）。
+            bool inForeground = snapshot.HWndFocus != 0
+                && GetWindowThreadProcessId((IntPtr)snapshot.HWndFocus, out uint focusPid) != 0
+                && GetWindowThreadProcessId(foreground, out uint foregroundPid) != 0
+                && focusPid == foregroundPid;
             _lastFocusHwnd = snapshot.HWndFocus;
             _lastForeground = foreground;
             var state = SiriusDecoder.Decide(snapshot, inForeground, out _reason);
