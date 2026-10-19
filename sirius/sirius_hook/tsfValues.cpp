@@ -10,6 +10,7 @@
 #include "tsfValues.h"
 #include "sirius_hook.h"
 #include <sirius/siriusLogger.h>
+#include "sirius_timing.h"
 
 tsfValues::tsfValues(ITfThreadMgr* iTMgr, CcommonValues* pCv) {
   m_openClose = NULL;
@@ -150,6 +151,7 @@ bool uninstallWatcher()
 
 bool setupThreadTsfValues(CcommonValues* pCv)
 {
+  sirius_timing::Scope timingAll("setupThreadTsfValues", 0, 1.0);
   ITfThreadMgr* iTMgr = NULL;
   if (!SUCCEEDED(GetThreadMgr(&iTMgr))) {
     iTMgr = NULL;
@@ -168,6 +170,7 @@ bool setupThreadTsfValues(CcommonValues* pCv)
 
 void releaseThreadTsfValues()
 {
+  sirius_timing::Scope timing("releaseThreadTsfValues", 0, 1.0);
   EnterCriticalSection(&cs);
   if (pValuesTable->find((tsfValues*)TlsGetValue(dwTlsIndex)) != pValuesTable->end()) {
     pValuesTable->erase((tsfValues*)TlsGetValue(dwTlsIndex));

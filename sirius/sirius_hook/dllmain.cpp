@@ -20,6 +20,7 @@ typedef BOOL (__stdcall *FUNCTYPE7)(HWND, UINT, DWORD, int);
 #define MSGFLT_ALLOW	1
 #endif
 
+#include "sirius_timing.h"
 HMODULE siriusHookModule = NULL;
 PTF_GETTHREADMGR GetThreadMgr = NULL;
 static HMODULE hMsctf = NULL;
@@ -87,6 +88,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
   {
     case DLL_PROCESS_ATTACH:
     {
+      sirius_timing::Scope timing("DllMain.attach", 0, 0.0);
       if (!ProcessAttach(siriusHookModule))
       {
         ProcessDettach(siriusHookModule);
@@ -97,7 +99,10 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     case DLL_THREAD_ATTACH:
       break;
     case DLL_THREAD_DETACH:
+    {
+      sirius_timing::Scope timing("DllMain.threadDetach", 0, 1.0);
       releaseThreadTsfValues();
+    }
       break;
     case DLL_PROCESS_DETACH:
       ProcessDettach(siriusHookModule);

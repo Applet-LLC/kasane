@@ -15,6 +15,7 @@
 #include "sirius_hook.h"
 #include "tsfValues.h"
 #include "tlsDeclaration.h"
+#include "sirius_timing.h"
 
 #ifdef _DEBUG
 #undef THIS_FILE
@@ -256,6 +257,7 @@ static void doCommand(cmd command, LPARAM lParam)
 static bool allocateCommonValue(DWORD msg = 0)
 {
   if (pCv) return true;
+  sirius_timing::Scope timing("allocateCommonValue", 0, 0.0); // 取れないプロセスでは、全メッセージで繰り返される（回数が見える）
 
   SECURITY_DESCRIPTOR sd;
   SECURITY_ATTRIBUTES sa;
@@ -363,6 +365,7 @@ static void messageHookCore(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 #endif
     pCv->m_processId = GetCurrentProcessId();
     pCv->m_threadId = GetCurrentThreadId();
+    sirius_timing::Scope timingSetup("WM_SETFOCUS.setup", 0, 1.0);
     if (!setupThreadTsfValues(pCv)) {
       updateImeStatus(hWnd);
     } else if (!tsfInitComplete()) {
@@ -415,7 +418,11 @@ static LRESULT CALLBACK CallWndRetProc(int nCode, WPARAM wParam, LPARAM lParam) 
     return ::CallNextHookEx(hSendMessageHook, nCode, wParam, lParam);
   CWPRETSTRUCT* pmsg = (CWPRETSTRUCT*)lParam;
   if(allocateCommonValue(pmsg->message)){
-	messageHookCore(pmsg->hwnd, pmsg->message, pmsg->wParam, pmsg->lParam);
+	{
+      static sirius_timing::Agg agg;
+      sirius_timing::Scope timing("messageHookCore", (unsigned)pmsg->message, 3.0, &agg);
+      messageHookCore(pmsg->hwnd, pmsg->message, pmsg->wParam, pmsg->lParam);
+    }
   }
   return ::CallNextHookEx(hSendMessageHook, nCode, wParam, lParam);
 }
@@ -453,7 +460,10 @@ static LRESULT CALLBACK SysGetMsgProc(int nCode, WPARAM wParam, LPARAM lParam) {
 		case WM_SYSKEYDOWN:
 		case WM_SYSKEYUP:
 		    if(allocateCommonValue()){
-                TsfText::Init();
+                {
+        sirius_timing::Scope timing("TsfText.Init", 0, 1.0);
+        TsfText::Init();
+      }
                 IncrementDllRefCount();
             }
           break;
