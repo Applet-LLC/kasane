@@ -3,22 +3,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="Views/MainWindow.xaml">
     <Application.Resources>
-        <!--
-          ボタンとコンボボックスは、同じ余白・同じ最小の高さ・上下中央にそろえる（横に並べたとき、OK／キャンセルやコンボボックスと高さが
-          食い違わないようにする）。以前は、Margin を個別に書いたボタンだけが上下の余白を失い、縦に引き伸ばされて高さが違っていた。
-        -->
-        <Style TargetType="Button">
-            <Setter Property="Padding" Value="10,3" />
-            <Setter Property="Margin" Value="2" />
-            <Setter Property="MinHeight" Value="26" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
-        </Style>
-        <Style TargetType="ComboBox">
-            <Setter Property="Margin" Value="2" />
-            <Setter Property="MinHeight" Value="26" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
-        </Style>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- ライト／ダーク共通のスタイル。ダークのときは、Themes/Dark.xaml が AppTheme.Apply で、あとから足される。 -->
+                <ResourceDictionary Source="Themes/Base.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

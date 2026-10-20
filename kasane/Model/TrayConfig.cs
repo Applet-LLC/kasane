@@ -30,6 +30,17 @@ public sealed class TrayConfig
     [JsonIgnore]
     public ImeSourceMode ImeSourceMode => ImeSourceModes.Parse(ImeSource);
 
+    /// <summary>
+    /// 色のモード（<see cref="Model.ColorMode"/> の名前。Light / Dark。2026-10-21）。既定は Light。kasane（設定画面）の全画面に効く。
+    /// 無い・読めない値は既定。設定の「全般」タブで選ぶ。
+    /// </summary>
+    [JsonPropertyName("ColorMode")]
+    public string ColorModeName { get; set; } = nameof(ColorMode.Light);
+
+    /// <summary><see cref="ColorModeName"/> を解釈したもの（保存はしない）。</summary>
+    [JsonIgnore]
+    public ColorMode ColorModeValue => ColorModes.Parse(ColorModeName);
+
     /// <summary>トレイのアイコンの右下に、今のレイヤー番号を重ねる（基底のレイヤーだけのときは重ねない）。既定はON。</summary>
     public bool ShowLayerOnIcon { get; set; } = true;
 
@@ -108,4 +119,20 @@ public static class ImeSourceModes
 
     /// <summary>天狼のフック（TSF）を使う取得方法か。</summary>
     public static bool UsesTsf(this ImeSourceMode mode) => mode != ImeSourceMode.Imm32;
+}
+
+/// <summary>色のモード（tray.json の ColorMode）。</summary>
+public enum ColorMode
+{
+    /// <summary>ライト（既定。以前の見た目）。</summary>
+    Light,
+    /// <summary>ダーク。</summary>
+    Dark,
+}
+
+public static class ColorModes
+{
+    /// <summary>名前から。無い・知らない名前は既定（Light）。大文字小文字は区別しない。</summary>
+    public static ColorMode Parse(string? text) =>
+        Enum.TryParse<ColorMode>(text?.Trim(), ignoreCase: true, out var mode) && Enum.IsDefined(mode) ? mode : ColorMode.Light;
 }

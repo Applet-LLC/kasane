@@ -67,7 +67,7 @@ public sealed class EmergencyCheckWindow : Window
                 BorderBrush = Brushes.Gray,
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(4),
-                Background = Brushes.WhiteSmoke,
+                Background = AppTheme.Palette.CheckFaceOff,
                 Padding = new Thickness(10, 6, 10, 6),
                 Margin = new Thickness(0, 0, 8, 0),
                 Child = new TextBlock { Text = KeycodeTable.NameForScanCode(_keys[i]) ?? $"0x{_keys[i]:X4}", FontFamily = new FontFamily("Consolas") },
@@ -125,12 +125,12 @@ public sealed class EmergencyCheckWindow : Window
         {
             bool on = _down.Contains(_keys[i]);
             if (on) together++;
-            _faces[i].Background = on ? Brushes.LightGreen : Brushes.WhiteSmoke;
+            _faces[i].Background = on ? AppTheme.Palette.CheckFaceOn : AppTheme.Palette.CheckFaceOff;
         }
         _maxTogether = Math.Max(_maxTogether, together);
         if (together == _keys.Count) _succeeded = true;
 
-        _result.Foreground = _succeeded ? Brushes.DarkGreen : Brushes.Black;
+        _result.Foreground = _succeeded ? AppTheme.Palette.OkText : AppTheme.Palette.StrongText;
         _result.Text = _succeeded
             ? "OK: 全部のキーを同時に検出できました。キーを離してください。"
             : $"同時に検出できたキー: 最大 {_maxTogether} / {_keys.Count}。" +

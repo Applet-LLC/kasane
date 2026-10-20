@@ -35,6 +35,8 @@ public partial class App : System.Windows.Application
                 MessageBoxButton.OK, MessageBoxImage.Error);
             args.Handled = true;
         };
+        // 色のモード（ライト／ダーク）。最初の画面を作る前に適用する。
+        Kasane.Views.AppTheme.Initialize();
         base.OnStartup(e);
     }
 }

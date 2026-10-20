@@ -53,7 +53,7 @@ public sealed class NodokaImportWindow : Window
         {
             Text = "のどかの設定ファイル（.nodoka）を、kasane の設定に変換します。のどかの設定一覧から選ぶか、ファイルを選んでください。" +
                    "include しているファイルも読みます。変換できないものは、ファイル名と行番号つきで下に出ます。この画面では何も書き換えません。",
-            TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, Margin = new Thickness(0, 0, 0, 8),
+            TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 8),
         });
         top.Children.Add(new TextBlock { Text = "のどかの設定一覧:" });
         top.Children.Add(_profiles);

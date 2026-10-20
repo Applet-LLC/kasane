@@ -89,14 +89,14 @@ public sealed class KleImportWindow : Window
         var nameRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
         nameRow.Children.Add(new TextBlock { Text = "名前:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
         nameRow.Children.Add(_name);
-        nameRow.Children.Add(new TextBlock { Text = "（英数字とハイフン。レイアウトの一覧にこの名前で出ます）", Foreground = Brushes.DimGray, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) });
+        nameRow.Children.Add(new TextBlock { Text = "（英数字とハイフン。レイアウトの一覧にこの名前で出ます）", Foreground = AppTheme.Palette.SubText, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) });
 
         var help = new TextBlock
         {
             Text = "keyboard-layout-editor.com で作った配列の JSON（Raw data）を読み込みます。各キーの既定のキーコードは、ラベルと位置から推定します。" +
                    "黄色は推定、赤は未割り当て（選ばなくても保存できますが、キャリブレーションが要ります）です。キーコードは、一覧で書き換えるか、「一覧から選ぶ」で選べます。",
             TextWrapping = TextWrapping.Wrap,
-            Foreground = Brushes.DimGray,
+            Foreground = AppTheme.Palette.SubText,
             Margin = new Thickness(0, 0, 0, 6),
         };
 
@@ -203,9 +203,9 @@ public sealed class KleImportWindow : Window
 
     private static Brush StatusBrush(KleKeyStatus s) => s switch
     {
-        KleKeyStatus.Confirmed => new SolidColorBrush(Color.FromRgb(0xD5, 0xEE, 0xD5)),
-        KleKeyStatus.Inferred => new SolidColorBrush(Color.FromRgb(0xFF, 0xF1, 0xB8)),
-        _ => new SolidColorBrush(Color.FromRgb(0xF6, 0xC9, 0xC9)),
+        KleKeyStatus.Confirmed => AppTheme.Palette.KleConfirmed,
+        KleKeyStatus.Inferred => AppTheme.Palette.KleInferred,
+        _ => AppTheme.Palette.KleUnknown,
     };
 
     private void ColorRow(DataGridRow row)

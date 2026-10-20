@@ -50,7 +50,7 @@ public sealed class NicolaEditorWindow : Window
         {
             Text = "キーは KC_* で指定します（親指キーの例: KC_MHEN 無変換 / KC_HENK 変換 / KC_SPC）。単独打鍵の欄を空にすると、親指キーを単独で押しても何も送りません。" +
                    "有効・無効のときのキーは、判定が有効・無効になったときに1回押すキーです（IMEのオン・オフ等。空 = なし）。",
-            TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, Margin = new Thickness(0, 0, 0, 6),
+            TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 6),
         });
         header.Children.Add(Line(("出力の形式", _output), ("レイヤー", _layer)));
         header.Children.Add(Line(("", _enabled)));
@@ -67,7 +67,7 @@ public sealed class NicolaEditorWindow : Window
             Text = "選んだ文字キーを、単独で・親指左と同時に・親指右と同時に押したときに出す「かな」を1文字ずつ入れます" +
                    "（空 = 何も出さない）。濁音（が等）・小書き（ぁ等）・ー。、・，．゛゜ も使えます。" +
                    "左手側・右手側は、nicola.json の \"left\" / \"right\" のどちらに書くかです。",
-            TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, Margin = new Thickness(0, 0, 0, 6),
+            TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 6),
         });
         detail.Children.Add(Line(("文字キー", _key), ("", _hand)));
         detail.Children.Add(Line(("単独", _single), ("親指左", _kanaLeft), ("親指右", _kanaRight)));

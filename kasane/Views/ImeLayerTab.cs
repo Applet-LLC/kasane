@@ -16,7 +16,7 @@ internal sealed class ImeLayerTab : HelperTabBase
     private readonly RadioButton _modeOn = new() { Name = "ImeLayerModeOn", Content = "IME が ON のとき（Microsoft IME では、半角英数のモードは OFF と同じ扱いです）", GroupName = "ImeLayerMode", Margin = new Thickness(0, 2, 0, 2) };
     private readonly RadioButton _modeKana = new() { Name = "ImeLayerModeKana", Content = "かな入力のときだけ（IME が ON で、日本語の入力モード）", GroupName = "ImeLayerMode", Margin = new Thickness(0, 2, 0, 2) };
     private readonly Button _clear = Btn("ImeLayerClearButton", "この範囲の設定を消す", 150);
-    private readonly TextBlock _hint = new() { TextWrapping = TextWrapping.Wrap, Foreground = System.Windows.Media.Brushes.DimGray, Margin = new Thickness(0, 6, 0, 0) };
+    private readonly TextBlock _hint = new() { TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 6, 0, 0) };
     private bool _loading;
 
     public ImeLayerTab(HelperSettingsModel model, Window owner)

@@ -71,7 +71,7 @@ public abstract class IdListEditorWindow : Window
         buttons.Children.Add(cancel);
 
         var right = new StackPanel();
-        right.Children.Add(new TextBlock { Text = help, TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, Margin = new Thickness(0, 0, 0, 10) });
+        right.Children.Add(new TextBlock { Text = help, TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 10) });
         right.Children.Add(Detail);
         right.Children.Add(_validation);
 
@@ -133,7 +133,7 @@ public abstract class IdListEditorWindow : Window
             Detail.Children.Add(new TextBlock
             {
                 Text = "中身が空の番号は未使用です。名前だけ先に付けておけます（中身を入れるまで、キーボードには適用されません）。",
-                Foreground = Brushes.DimGray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6),
+                Foreground = AppTheme.Palette.SubText, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6),
             });
     }
 

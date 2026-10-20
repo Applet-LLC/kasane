@@ -53,10 +53,10 @@ public partial class CalibrationWindow : Window
     /// <summary>スロット番号 → 実測したスキャンコード。</summary>
     public Dictionary<int, ushort> Results { get; } = new();
 
-    private static readonly Brush CurrentBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0xE0, 0x66));
-    private static readonly Brush DoneBrush = new SolidColorBrush(Color.FromRgb(0xC8, 0xEE, 0xC8));
-    private static readonly Brush TargetBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
-    private static readonly Brush DownBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0x9F, 0x43));
+    private static Brush CurrentBrush => AppTheme.Palette.CalibCurrent;
+    private static Brush DoneBrush => AppTheme.Palette.CalibDone;
+    private static Brush TargetBrush => AppTheme.Palette.CalibTarget;
+    private static Brush DownBrush => AppTheme.Palette.CalibDown;
 
     /// <param name="canCalibrate">個別・全体のキャリブレーションを使えるか（ドライバに接続していて、管理者権限がある）。</param>
     public CalibrationWindow(KeyboardLayout layout, KeymapProject project, uint uniqId, bool canCalibrate)
@@ -168,7 +168,7 @@ public partial class CalibrationWindow : Window
         {
             case CalibrationMode.InputCheck:
                 TxtInstruction.Text = $"キーを押してみてください（確認済み {_model.CheckedCount} / {_layout.Slots.Count}）";
-                TxtNote.Foreground = Brushes.DimGray;
+                TxtNote.Foreground = AppTheme.Palette.SubText;
                 TxtNote.Text = _driverKeys
                     ? "押しているキーは橙色になり、一度押したキーには ✓ が付きます。✓ が付かないキーや、押したキーと違うキーが光るときは、" +
                       "キャリブレーションが必要です。この画面が前面にある間、押したキーはWindowsに送られません。" +
@@ -192,7 +192,7 @@ public partial class CalibrationWindow : Window
         }
         if (!check && _active)
         {
-            TxtNote.Foreground = Brushes.DimGray;
+            TxtNote.Foreground = AppTheme.Palette.SubText;
             TxtNote.Text = "このウィンドウが前面にある間、キーボードで押したキーはWindowsに送られません（記録だけされます）。操作はマウスで行ってください。";
         }
         Title = _mode switch

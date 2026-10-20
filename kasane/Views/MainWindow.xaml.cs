@@ -32,11 +32,12 @@ public partial class MainWindow : Window
     private bool _autoSaveBlocked;
     private bool _suppressEvents;
 
-    private static readonly Brush ChangedBrush = new SolidColorBrush(Color.FromRgb(0xCF, 0xE8, 0xFF));
-    private static readonly Brush ActionBrush = new SolidColorBrush(Color.FromRgb(0xD6, 0xF5, 0xD6));
-    private static readonly Brush TransparentKeyBrush = new SolidColorBrush(Color.FromRgb(0xFB, 0xFB, 0xFB));
-    private static readonly Brush MeasuredBorder = new SolidColorBrush(Color.FromRgb(0xF0, 0x8C, 0x00));
-    private static readonly Brush UnknownBorder = new SolidColorBrush(Color.FromRgb(0xD0, 0x20, 0x20));
+    // キーの色（色のモードで変わる。AppTheme.Palette）。
+    private static Brush ChangedBrush => AppTheme.Palette.KeyChanged;
+    private static Brush ActionBrush => AppTheme.Palette.KeyAction;
+    private static Brush TransparentKeyBrush => AppTheme.Palette.KeyTransparent;
+    private static Brush MeasuredBorder => AppTheme.Palette.KeyMeasuredBorder;
+    private static Brush UnknownBorder => AppTheme.Palette.KeyUnknownBorder;
 
     public MainWindow()
     {
@@ -46,6 +47,8 @@ public partial class MainWindow : Window
         LstLayers.ContextMenu = BuildLayerMenu();
         MacroDirectory.Provider = CurrentMacros; // 他の画面の「マクロ...」の選択肢
         MacroDirectory.TapDanceProvider = CurrentTapDances; // 同じく「タップダンス...」の選択肢
+        AppTheme.Changed += OnThemeChanged; // 色のモードを変えたら、キー図を描き直す
+        Closed += (_, _) => AppTheme.Changed -= OnThemeChanged;
 
         if (Content is FrameworkElement root) root.ContextMenu = BuildMainMenu();
         KbdCanvas.ContextMenuOpening += (_, e) => e.Handled = true;
@@ -412,6 +415,11 @@ public partial class MainWindow : Window
     // キーボード描画・キーの編集
     // ------------------------------------------------------------------
 
+    private void OnThemeChanged()
+    {
+        if (IsLoaded) RenderKeyboard();
+    }
+
     private void RenderKeyboard()
     {
         if (_project == null || _layout == null) { KbdCanvas.Render(null, _ => null!); return; }
@@ -427,7 +435,7 @@ public partial class MainWindow : Window
 
         Brush bg = KeyboardCanvas.DefaultKeyBrush;
         Brush? fg = null;
-        if (isTransparent && _layer > 0) { bg = TransparentKeyBrush; fg = Brushes.Silver; }
+        if (isTransparent && _layer > 0) { bg = TransparentKeyBrush; fg = AppTheme.Palette.KeyTransparentText; }
         else if (action.Type is not (ActionType.Key or ActionType.None or ActionType.Transparent)) bg = ActionBrush;
         else if (_layer > 0 || token != (slot.DefaultKeycode ?? "KC_TRNS")) bg = ChangedBrush;
 
