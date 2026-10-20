@@ -169,24 +169,12 @@ public sealed class ImeLinkHost : IDisposable
         _imeSource.Mode = mode;
 
         bool wantHook = mode.UsesTsf() && _enabled && !_siriusFailed;
-        int exp = ExperimentBits(); // 診断用（原因が分かったら外す）: 16 = DLL を読み込まない、64 = DLL だけ読み込む、32 = 入れるが TSF の取得元には繋がない
-        if (wantHook && _siriusHook == null && (exp & 16) != 0)
-        {
-            _siriusFailed = true;
-            TrayLog.Write($"Sirius: 実験（{exp}）: DLL を読み込みません");
-        }
-        else if (wantHook && _siriusHook == null && (exp & 64) != 0)
-        {
-            _siriusFailed = true;
-            System.Runtime.InteropServices.NativeLibrary.TryLoad(SiriusHook.DefaultPath, out _); // 読み込むだけ（SiriusSetupHook は呼ばない）
-            TrayLog.Write($"Sirius: 実験（{exp}）: DLL を読み込んだだけです");
-        }
-        else if (wantHook && _siriusHook == null)
+        if (wantHook && _siriusHook == null)
         {
             _siriusHook = SiriusHook.TryInstall(out string error);
             if (_siriusHook != null)
             {
-                if ((exp & 32) == 0) _tsfSource.Attach(_siriusHook);
+                _tsfSource.Attach(_siriusHook);
                 TrayLog.Write($"Sirius: フックを入れました（{mode}）{ExperimentNote()}");
             }
             else
@@ -199,16 +187,6 @@ public sealed class ImeLinkHost : IDisposable
         {
             ReleaseSiriusHook();
         }
-    }
-
-    private static int ExperimentBits()
-    {
-        try
-        {
-            string path = @"C:\Users\Public\sirius-exp.txt";
-            return File.Exists(path) && int.TryParse(File.ReadAllText(path).Trim(), out int v) ? v : 0;
-        }
-        catch (IOException) { return 0; }
     }
 
     // 診断用（Explorer の遅延の切り分け。原因が分かったら外す）: DLL が読んだ実験ファイルの値をログに残す。
