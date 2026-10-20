@@ -447,7 +447,10 @@ public partial class MainWindow : Window
         // 刻印と食い違うキーがある）。変更したキーだけ、割り当てたキーコードの短い名前を出す。
         bool unchanged = _layer == 0 && token == slot.DefaultKeycode;
         string main = unchanged && slot.MainLegend.Length > 0 ? slot.MainLegend : KeycodeCatalog.ShortName(token);
-        return new KeyVisual(main, bg, border, thickness, tip, fg);
+        // キー置換・コンボ・マクロ・タップダンスの印（右下）と、その説明。
+        var marks = KeyMarks.For(project, _layout!, _layer, slot);
+        if (marks.ToolTip.Length > 0) tip += "\n" + marks.ToolTip;
+        return new KeyVisual(main, bg, border, thickness, tip, fg, marks.Marks);
     }
 
     // キーの割り当て画面は、編集画面（マクロなど）と同じ非モーダルの別ウィンドウ。マクロの画面を開いたまま、一覧を見たり、
@@ -604,6 +607,7 @@ public partial class MainWindow : Window
         window.Applied += () =>
         {
             apply(window);
+            RenderKeyboard(); // コンボ・キー置換の印が変わる
             MarkDirty();
         };
         window.Closed += (_, _) =>
@@ -836,6 +840,8 @@ public partial class MainWindow : Window
     {
         _dirty = true;
         if (_project is { UniqId: not 0 }) _unapplied.Add(_project.UniqId);
+        UpdateDefinitionButtons();
+        UpdateDriverState();
         UpdateTitle();
     }
 
@@ -858,7 +864,42 @@ public partial class MainWindow : Window
         BtnApply.IsEnabled = CanWrite;
         // OFF（SET_LAYERMAP_ENABLED）は読み取り側のIOCTLなので、閲覧専用モードでも使える。
         BtnOff.IsEnabled = IsOnline && SelectedDevice!.Enabled;
+        UpdateDefinitionButtons();
+        UpdateDriverState();
         UpdateTitle();
+    }
+
+    // 「マクロ(2)...」のように、定義の数を出す（機能がOFFなら「(2・OFF)」）。キー図からは見えない設定に気づくため。
+    private void UpdateDefinitionButtons()
+    {
+        var p = _project;
+        BtnMacros.Content = KeyMarks.ButtonText("マクロ", p?.Macros.Count ?? 0, p == null || KeyMarks.FeatureOn(p, KbdLayerClient.FeatureMacro));
+        BtnCombos.Content = KeyMarks.ButtonText("コンボ", p?.Combos.Count ?? 0, p == null || KeyMarks.FeatureOn(p, KbdLayerClient.FeatureCombo));
+        BtnTapDances.Content = KeyMarks.ButtonText("タップダンス", p?.TapDances.Count ?? 0, p == null || KeyMarks.FeatureOn(p, KbdLayerClient.FeatureTapDance));
+        BtnKeyOverrides.Content = KeyMarks.ButtonText("キー置換", p?.KeyOverrides.Count ?? 0, p == null || KeyMarks.FeatureOn(p, KbdLayerClient.FeatureKeyOverride));
+    }
+
+    // ドライバの状態（今リマップが効いているか・画面の変更を適用したか）。
+    private void UpdateDriverState()
+    {
+        if (_client == null)
+        {
+            TxtDriverState.Text = "ドライバ: 接続できません（編集とエクスポートのみ）";
+            TxtDriverState.Foreground = Brushes.Firebrick;
+            return;
+        }
+        if (SelectedDevice is not { UniqId: not 0 } d)
+        {
+            TxtDriverState.Text = "ドライバ: このキーボードは接続していません（編集のみ）";
+            TxtDriverState.Foreground = Brushes.DimGray;
+            return;
+        }
+        string state = !d.HasLayerMap ? "設定なし（素通し）"
+            : d.Enabled ? "ON（リマップ中）"
+            : "OFF（素通し。設定はドライバに残っています）";
+        string applied = _unapplied.Contains(d.UniqId) ? "　／　画面の変更は、まだ適用していません" : "";
+        TxtDriverState.Text = $"ドライバ: {state}{applied}";
+        TxtDriverState.Foreground = d.Enabled ? Brushes.SeaGreen : _unapplied.Contains(d.UniqId) ? Brushes.DarkOrange : Brushes.DimGray;
     }
 
     private void SetStatus(string text) => TxtStatus.Text = text;
