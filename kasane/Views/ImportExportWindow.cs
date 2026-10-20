@@ -45,6 +45,8 @@ public sealed class ImportExportWindow : Window
     private readonly RadioButton _exFormatKasane = new() { Name = "ExportFormatKasane", Content = "kasane の設定ファイル（*.kasane.json。レイヤー・マクロ・コンボなどすべて）", GroupName = "ExFormat", IsChecked = true, Margin = new Thickness(0, 2, 0, 2) };
     private readonly RadioButton _exFormatKeymapTool = new() { Name = "ExportFormatKeymapTool", Content = "KeymapTool 用 JSON（keymap.json と profile.json。レイヤーと較正だけ。マクロ・コンボ等は含まれない）", GroupName = "ExFormat", Margin = new Thickness(0, 2, 0, 2) };
     private readonly TextBox _exReport = ReportBox("ExportReport");
+    private readonly Button _exOpen = new() { Name = "ExportOpenFolderButton", Content = "出力先をエクスプローラーで開く", Width = 190, IsEnabled = false, Margin = new Thickness(8, 10, 0, 0) };
+    private string? _lastExportPath; // 直前に書き出したファイル（または KeymapTool 用 JSON のフォルダ）
 
     // インポート
     private readonly TextBlock _imPath = new() { Name = "ImportPath", Text = "（ファイルを選んでください）", Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
@@ -201,7 +203,11 @@ public sealed class ImportExportWindow : Window
 
         var go = new Button { Name = "ExportDoButton", Content = "書き出す...", Width = 110, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 10, 0, 0) };
         go.Click += (_, _) => DoExport();
-        p.Children.Add(go);
+        _exOpen.Click += (_, _) => OpenInExplorer(_lastExportPath);
+        var goRow = new StackPanel { Orientation = Orientation.Horizontal };
+        goRow.Children.Add(go);
+        goRow.Children.Add(_exOpen);
+        p.Children.Add(goRow);
         p.Children.Add(_exReport);
         return p;
     }
@@ -213,6 +219,31 @@ public sealed class ImportExportWindow : Window
         _exFormatKasane.IsEnabled = _exFormatKeymapTool.IsEnabled = keyboard;
         bool kasane = !keyboard || _exFormatKasane.IsChecked == true;
         _exHelper.IsEnabled = _exMeasured.IsEnabled = kasane;
+    }
+
+    // 書き出したファイルを選んだ状態で、エクスプローラーを開く（フォルダなら、そのフォルダを開く）。
+    private void OpenInExplorer(string? path)
+    {
+        if (string.IsNullOrEmpty(path)) return;
+        try
+        {
+            var info = new System.Diagnostics.ProcessStartInfo("explorer.exe") { UseShellExecute = false };
+            if (File.Exists(path)) info.Arguments = $"/select,\"{path}\"";
+            else if (Directory.Exists(path)) info.Arguments = $"\"{path}\"";
+            else { ShowReport(_exReport, new PortableReport(), $"開けませんでした（見つかりません）: {path}"); return; }
+            System.Diagnostics.Process.Start(info);
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            ShowReport(_exReport, new PortableReport(), $"エクスプローラーを開けませんでした: {ex.Message}");
+        }
+    }
+
+    // 書き出しに成功した。「出力先を開く」を使えるようにする。
+    private void MarkExported(string path)
+    {
+        _lastExportPath = path;
+        _exOpen.IsEnabled = true;
     }
 
     private bool ExportAsKeymapTool => _exKeyboard.IsChecked == true && _exFormatKeymapTool.IsChecked == true;
@@ -230,6 +261,7 @@ public sealed class ImportExportWindow : Window
         try
         {
             var warnings = ProjectService.Export(_project, _layout, dlg.FolderName);
+            MarkExported(dlg.FolderName);
             ShowReport(_exReport, new PortableReport(),
                 $"書き出しました:\n{dlg.FolderName}\\keymap.json\n{dlg.FolderName}\\profile.json" +
                 (warnings.Count > 0 ? "\n\n注意:\n" + string.Join("\n", warnings) : ""));
@@ -286,6 +318,7 @@ public sealed class ImportExportWindow : Window
                 }
             }
             PortableIO.Write(dlg.FileName, file);
+            MarkExported(dlg.FileName);
             ShowReport(_exReport, report, $"書き出しました: {dlg.FileName}");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
