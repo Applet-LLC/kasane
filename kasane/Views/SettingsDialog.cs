@@ -388,8 +388,8 @@ public sealed class SettingsDialog : Window
     // （IMM32 で取れないアプリ・TSF だけのアプリの補い）。フックは全アプリに DLL を読み込ませるので、Imm32 を選ぶと入れない。
     private static readonly string[] ImeSourceLabels =
     {
-        "IMM32 のみ（フックを入れない）",
-        "IMM32 を先に、取れなければ TSF（既定）",
+        "IMM32 のみ（フックを入れない。既定）",
+        "IMM32 を先に、取れなければ TSF",
         "TSF を先に、取れなければ IMM32",
     };
 
@@ -398,8 +398,9 @@ public sealed class SettingsDialog : Window
         var panel = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
         _imeSourceBox = new ComboBox { Name = "ImeSourceBox", Width = 360, ItemsSource = ImeSourceLabels, SelectedIndex = (int)_trayConfig.ImeSourceMode };
         Row(panel, "IME の状態の取得方法", _imeSourceBox,
-            "IMM32 で IME の状態が取れないアプリ（TSF だけのアプリなど）では、TSF で補います。TSF は、全アプリに入る小さな DLL（sirius_hook）が読んだ値を使います。" +
-            "「IMM32 のみ」を選ぶと、その DLL を入れません。変更は、OKで保存され、数秒でトレイに反映されます。",
+            "既定の「IMM32 のみ」で、多くのアプリの IME の状態が取れます。IMM32 で取れないアプリ（TSF だけのアプリなど）を補いたいときだけ、TSF を選びます。" +
+            "TSF は、全アプリに入る小さな DLL（sirius_hook）が読んだ値を使います（実験的。Explorer を開くのが遅く感じられる場合があります）。「IMM32 のみ」では、その DLL を入れません。" +
+            "変更は、OKで保存され、数秒でトレイに反映されます。",
             labelWidth: 170);
         return panel;
     }

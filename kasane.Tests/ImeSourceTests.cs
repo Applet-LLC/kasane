@@ -9,14 +9,14 @@ namespace Kasane.Tests;
 public class ImeSourceModeTests
 {
     [Theory]
-    [InlineData(null, ImeSourceMode.ImmThenTsf)]
-    [InlineData("", ImeSourceMode.ImmThenTsf)]
+    [InlineData(null, ImeSourceMode.Imm32)]
+    [InlineData("", ImeSourceMode.Imm32)]
     [InlineData("Imm32", ImeSourceMode.Imm32)]
     [InlineData("ImmThenTsf", ImeSourceMode.ImmThenTsf)]
     [InlineData("TsfThenImm", ImeSourceMode.TsfThenImm)]
     [InlineData("  tsfthenimm ", ImeSourceMode.TsfThenImm)]
-    [InlineData("unknown", ImeSourceMode.ImmThenTsf)]
-    [InlineData("42", ImeSourceMode.ImmThenTsf)] // 数字は名前ではない（範囲外の値を作らない）
+    [InlineData("unknown", ImeSourceMode.Imm32)]
+    [InlineData("42", ImeSourceMode.Imm32)] // 数字は名前ではない（範囲外の値を作らない）
     public void Parse(string? text, ImeSourceMode expected) => Assert.Equal(expected, ImeSourceModes.Parse(text));
 
     [Fact]
@@ -28,11 +28,11 @@ public class ImeSourceModeTests
     }
 
     [Fact]
-    public void TrayConfig_DefaultIsImmThenTsf()
+    public void TrayConfig_DefaultIsImm32()
     {
         var config = new TrayConfig();
-        Assert.Equal("ImmThenTsf", config.ImeSource);
-        Assert.Equal(ImeSourceMode.ImmThenTsf, config.ImeSourceMode);
+        Assert.Equal("Imm32", config.ImeSource);
+        Assert.Equal(ImeSourceMode.Imm32, config.ImeSourceMode);
     }
 
     [Fact]
@@ -41,8 +41,8 @@ public class ImeSourceModeTests
         string path = Path.Combine(Path.GetTempPath(), "kasane-test-tray-" + Guid.NewGuid().ToString("N") + ".json");
         try
         {
-            new TrayConfig { ImeSource = "Imm32" }.Save(path);
-            Assert.Equal(ImeSourceMode.Imm32, TrayConfig.Load(path).ImeSourceMode);
+            new TrayConfig { ImeSource = "TsfThenImm" }.Save(path);
+            Assert.Equal(ImeSourceMode.TsfThenImm, TrayConfig.Load(path).ImeSourceMode);
             using var doc = JsonDocument.Parse(File.ReadAllText(path));
             Assert.False(doc.RootElement.TryGetProperty("ImeSourceMode", out _)); // 派生のプロパティは保存しない
         }
@@ -58,7 +58,7 @@ public class ImeSourceModeTests
             File.WriteAllText(path, "{ \"ImeLink\": true }");
             var config = TrayConfig.Load(path);
             Assert.True(config.ImeLink);
-            Assert.Equal(ImeSourceMode.ImmThenTsf, config.ImeSourceMode);
+            Assert.Equal(ImeSourceMode.Imm32, config.ImeSourceMode);
         }
         finally { File.Delete(path); }
     }

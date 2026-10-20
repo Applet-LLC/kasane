@@ -23,7 +23,7 @@ public sealed class ImeSourceSelector : IImeSource
     private readonly IImeSourceDiagnostics? _tsfDiagnostics;
     private readonly Action<string>? _log;
     private readonly Func<string>? _foreground;
-    private volatile int _mode = (int)Kasane.Model.ImeSourceMode.ImmThenTsf;
+    private volatile int _mode = (int)Kasane.Model.ImeSourceMode.Imm32;
 
     // 最後にログへ書いた内容（変わったときだけ書く）。IME 連動のスレッドだけが触る。
     private bool _logged;

@@ -19,11 +19,12 @@ public sealed class TrayConfig
     public bool ImeLink { get; set; }
 
     /// <summary>
-    /// IME の状態の取得方法（<see cref="Model.ImeSourceMode"/> の名前。Imm32 / ImmThenTsf / TsfThenImm）。既定は ImmThenTsf（IMM32 を先に試し、
-    /// 取れなかったときだけ TSF。TSF は、天狼（sirius）のフックの DLL が前面のアプリの中で読んだ値）。Imm32 を選ぶと、フックを入れない。
+    /// IME の状態の取得方法（<see cref="Model.ImeSourceMode"/> の名前。Imm32 / ImmThenTsf / TsfThenImm）。既定は Imm32（IMM32 のみ。天狼（sirius）のフックの DLL を入れない。
+    /// 2026-10-20: Explorer の遅れが解決できず、TSF が補える場面も見つからなかったので、既定を IMM32 のみにした）。ImmThenTsf は IMM32 を先に試し、
+    /// 取れなかったときだけ TSF（TSF は、フックの DLL が前面のアプリの中で読んだ値）。TsfThenImm はその逆。
     /// 無い・読めない値は既定。設定の「IME連動」タブで選ぶ。
     /// </summary>
-    public string ImeSource { get; set; } = nameof(ImeSourceMode.ImmThenTsf);
+    public string ImeSource { get; set; } = nameof(ImeSourceMode.Imm32);
 
     /// <summary><see cref="ImeSource"/> を解釈したもの（保存はしない）。</summary>
     [JsonIgnore]
@@ -91,9 +92,9 @@ public sealed class TrayConfig
 /// <summary>IME の状態の取得方法（tray.json の ImeSource）。</summary>
 public enum ImeSourceMode
 {
-    /// <summary>IMM32 だけ（天狼のフックは入れない）。</summary>
+    /// <summary>IMM32 だけ（天狼のフックは入れない。既定）。</summary>
     Imm32,
-    /// <summary>IMM32 を先に使い、取れなかったときだけ TSF（既定）。</summary>
+    /// <summary>IMM32 を先に使い、取れなかったときだけ TSF。</summary>
     ImmThenTsf,
     /// <summary>TSF を先に使い、取れなかったときは IMM32。</summary>
     TsfThenImm,
@@ -101,9 +102,9 @@ public enum ImeSourceMode
 
 public static class ImeSourceModes
 {
-    /// <summary>名前から。無い・知らない名前は既定（ImmThenTsf）。大文字小文字は区別しない。</summary>
+    /// <summary>名前から。無い・知らない名前は既定（Imm32）。大文字小文字は区別しない。</summary>
     public static ImeSourceMode Parse(string? text) =>
-        Enum.TryParse<ImeSourceMode>(text?.Trim(), ignoreCase: true, out var mode) && Enum.IsDefined(mode) ? mode : ImeSourceMode.ImmThenTsf;
+        Enum.TryParse<ImeSourceMode>(text?.Trim(), ignoreCase: true, out var mode) && Enum.IsDefined(mode) ? mode : ImeSourceMode.Imm32;
 
     /// <summary>天狼のフック（TSF）を使う取得方法か。</summary>
     public static bool UsesTsf(this ImeSourceMode mode) => mode != ImeSourceMode.Imm32;

@@ -45,7 +45,7 @@ public sealed class ImeLinkHost : IDisposable
     private readonly TsfSiriusImeSource _tsfSource;
     private readonly ImeSourceSelector _imeSource;
     private SiriusHook? _siriusHook;
-    private Kasane.Model.ImeSourceMode _imeSourceMode = Kasane.Model.ImeSourceMode.ImmThenTsf;
+    private Kasane.Model.ImeSourceMode _imeSourceMode = Kasane.Model.ImeSourceMode.Imm32;
     private bool _siriusFailed; // 入れられなかった（DLL が無いなど）。設定が変わるまで、数秒ごとに試し直さない
 
     public ImeLinkHost()
