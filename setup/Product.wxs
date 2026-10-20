@@ -259,6 +259,7 @@
       <ComponentRef Id="CMP_KasaneDirEnv" />
       <ComponentRef Id="CMP_TrayExe" />
       <ComponentRef Id="CMP_TrayNuaExe" />
+      <ComponentRef Id="CMP_SiriusHookDll" />
     </Feature>
 
     <Feature Id="F_LicenseSvc" Title="License Service" Level="1" Absent="disallow">
@@ -342,6 +343,19 @@
                        Name="kasane-tray"
                        Value="&quot;[TRAYDIR]kasane-tray.exe&quot;"
                        Type="string" />
+      </Component>
+    </DirectoryRef>
+
+    <!--
+      天狼（sirius）のフック用 DLL（IME の状態を TSF で読む。sirius\ フォルダ）。トレイが exe と同じフォルダから読み込み、全 GUI プロセスに注入する。
+      注入された DLL は各プロセスに居座る（自分を固定する）ので、更新・アンインストールのときに「使用中」になり、再起動が要ることがある。
+      設定で「IMM32 のみ」を選ぶと、フックを入れない（DLL は置いてあるだけ）。
+    -->
+    <DirectoryRef Id="TRAYDIR">
+      <Component Id="CMP_SiriusHookDll" Guid="{7FF5DCD7-2A33-4E55-93AD-B6B61CEEAE3C}">
+        <File Id="FIL_SiriusHookDll"
+              Source="$(var.StagingTray)\sirius_hook_for_nodoka_x64.dll"
+              KeyPath="yes" />
       </Component>
     </DirectoryRef>
 

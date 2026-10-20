@@ -55,21 +55,51 @@ public sealed class Win32ImeSource : IImeSource
     /// <summary>診断用（kasane-tray.exe --probe-ime）。どのウィンドウを見て、どう判断したかを返す。</summary>
     public ImeState ReadWithDetail(out string detail) => ReadCore(wantDetail: true, out detail);
 
-    private ImeState ReadCore(bool wantDetail, out string detail)
+    /// <summary>
+    /// IMEの状態を見る対象の前面のウィンドウを選ぶ。前面が無い・トレイ自身・シェルのウィンドウなら false（見ない）。
+    /// TSF から読む経路（<see cref="TsfSiriusImeSource"/>）も、同じ判断を使う（トレイのメニューを開いただけでNICOLAが切れるのを防ぐ）。
+    /// </summary>
+    internal bool TryGetTarget(bool wantDetail, out IntPtr foreground, out uint threadId, out string cls, out string process, out string detail)
     {
         detail = "";
-        IntPtr foreground = GetForegroundWindow();
-        if (foreground == IntPtr.Zero) { if (wantDetail) detail = "前面のウィンドウがありません"; return ImeState.Unknown; }
+        cls = "";
+        process = "";
+        threadId = 0;
+        foreground = GetForegroundWindow();
+        if (foreground == IntPtr.Zero) { if (wantDetail) detail = "前面のウィンドウがありません"; return false; }
 
-        uint threadId = GetWindowThreadProcessId(foreground, out uint pid);
-        if (pid == _ownPid) { if (wantDetail) detail = $"前面はトレイ自身（{ClassOf(foreground)}）なので見ません"; return ImeState.Unknown; }
-        string cls = ClassOf(foreground);
-        string process = ProcessNameCached(pid);
+        threadId = GetWindowThreadProcessId(foreground, out uint pid);
+        cls = ClassOf(foreground);
+        if (pid == _ownPid) { if (wantDetail) detail = $"前面はトレイ自身（{cls}）なので見ません"; return false; }
+        process = ProcessNameCached(pid);
         if (IsShellWindow(cls, process))
         {
             if (wantDetail) detail = $"前面はシェルのウィンドウ（{cls}、{process}）なので見ません";
-            return ImeState.Unknown;
+            return false;
         }
+        return true;
+    }
+
+    /// <summary>ウィンドウを持つプロセスの名前（ログ用。IME 連動のスレッドから呼ぶ）。ウィンドウが無ければ「なし」。</summary>
+    internal string ProcessLabelOfWindow(IntPtr hwnd)
+    {
+        if (hwnd == IntPtr.Zero || GetWindowThreadProcessId(hwnd, out uint pid) == 0) return "なし";
+        return ProcessNameCached(pid);
+    }
+
+    /// <summary>前面のアプリのプロセス名（ログ用。IME 連動のスレッドから呼ぶ。プロセス名は前に調べたものを使う）。</summary>
+    internal string ForegroundLabel()
+    {
+        IntPtr foreground = GetForegroundWindow();
+        if (foreground == IntPtr.Zero) return "";
+        GetWindowThreadProcessId(foreground, out uint pid);
+        return ProcessNameCached(pid);
+    }
+
+    private ImeState ReadCore(bool wantDetail, out string detail)
+    {
+        if (!TryGetTarget(wantDetail, out IntPtr foreground, out uint threadId, out string cls, out string process, out detail))
+            return ImeState.Unknown;
 
         IntPtr target = foreground;
         var info = new GUITHREADINFO { cbSize = (uint)Marshal.SizeOf<GUITHREADINFO>() };

@@ -9,7 +9,8 @@ kasane（かさね）には、次の第三者のソフトウェア・データ�
   3. Microsoft .NET（ランタイムとライブラリ）   MIT License
   4. 配列データ（キーボードの図）               Keyboard Layout Editor ほか
   5. WiX Toolset 3.14（インストーラー）         Microsoft Reciprocal License (MS-RL)
-  6. その他
+  6. 天狼（sirius）                             MIT License
+  7. その他
 
 --------------------------------------------------------------------------------
 1. nodoka4 （のどか）  — Eclipse Public License 2.0
@@ -146,7 +147,16 @@ MSI に入っている、WiX 由来の部品:
     WiX のコードではありません。）
 
 --------------------------------------------------------------------------------
-6. その他
+6. 天狼 (sirius)  — MIT License
+--------------------------------------------------------------------------------
+使っている場所: 他のアプリの IME の状態（ON/OFF・変換モード）を TSF で読むための、フック用の DLL
+  （sirius_hook_for_nodoka_x64.dll）。kasane-tray が使います。ソースは、のどか（nodoka）で使われている天狼（sirius）の
+  sirius_hook です（リポジトリの sirius フォルダ。全ファイルの冒頭に、次の著作権表示があります）。
+Copyright (C) 2008-2010, MATSUMOTO Reiji   License: MIT License
+ライセンス全文: third-party\sirius-MIT-LICENSE.txt   （http://www.sirius.spline.tv/wiki/WikiStart ）
+
+--------------------------------------------------------------------------------
+7. その他
 --------------------------------------------------------------------------------
   - Microsoft Visual C++ ランタイム: DriverManager.exe、DriverManager_arm64.exe、KeymapTool.exe には、ランタイムを静的に
     リンクしています（利用者の PC に、別のランタイムは要りません）。
