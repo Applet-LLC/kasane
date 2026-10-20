@@ -92,11 +92,11 @@ public static class PortableService
     }
 
     /// <summary>今の設定を、置き換える前に自動でバックアップする（実測値も含める）。書いたファイルの場所を返す。</summary>
-    public static string BackupAll(string? baseDirectory, PortableReport report)
+    public static string BackupAll(string? baseDirectory, PortableReport report, string prefix = "before-import")
     {
         var sub = new PortableReport();
         var file = ExportAll(baseDirectory, new ExportOptions { IncludeMeasured = true, IncludeHelper = true }, sub);
-        string path = Path.Combine(Base(baseDirectory), "backup", $"before-import-{DateTime.Now:yyyyMMdd-HHmmss}.kasane.json");
+        string path = Path.Combine(Base(baseDirectory), "backup", $"{prefix}-{DateTime.Now:yyyyMMdd-HHmmss}.kasane.json");
         PortableIO.Write(path, file);
         report.Info($"今の設定をバックアップしました: {path}");
         return path;
