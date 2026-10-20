@@ -46,8 +46,13 @@ public sealed class ImportExportWindow : Window
     private readonly RadioButton _exFormatKasane = new() { Name = "ExportFormatKasane", Content = "kasane の設定ファイル（*.kasane.json。レイヤー・マクロ・コンボなどすべて）", GroupName = "ExFormat", IsChecked = true, Margin = new Thickness(0, 2, 0, 2) };
     private readonly RadioButton _exFormatKeymapTool = new() { Name = "ExportFormatKeymapTool", Content = "KeymapTool 用 JSON（keymap.json と profile.json。レイヤーと較正だけ。マクロ・コンボ等は含まれない）", GroupName = "ExFormat", Margin = new Thickness(0, 2, 0, 2) };
     private readonly TextBox _exReport = ReportBox("ExportReport");
-    private readonly Button _exOpen = new() { Name = "ExportOpenFolderButton", Content = "出力先をエクスプローラーで開く", Width = 190, IsEnabled = false, Margin = new Thickness(8, 10, 0, 0) };
-    private string? _lastExportPath; // 直前に書き出したファイル（または KeymapTool 用 JSON のフォルダ）
+    private readonly Button _exOpen = new() { Name = "ExportOpenFolderButton", Content = "出力先をエクスプローラーで開く", Width = 190, Margin = new Thickness(8, 10, 0, 0) };
+    private readonly TextBlock _exDest = new()
+    {
+        Name = "ExportDestinationText", VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(10, 0, 0, 3),
+        Foreground = Brushes.DimGray, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 420,
+    };
+    private string? _lastExportPath; // 直前に書き出したファイル（または KeymapTool 用 JSON のフォルダ）。書き出す前は null（設定の保存先を出力先として見せる）
 
     // インポート
     private readonly TextBlock _imPath = new() { Name = "ImportPath", Text = "（ファイルを選んでください）", Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
@@ -239,10 +244,12 @@ public sealed class ImportExportWindow : Window
 
         var go = new Button { Name = "ExportDoButton", Content = "書き出す...", Width = 110, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 10, 0, 0) };
         go.Click += (_, _) => DoExport();
-        _exOpen.Click += (_, _) => OpenInExplorer(_lastExportPath);
+        _exOpen.Click += (_, _) => OpenInExplorer(_lastExportPath ?? DialogDefaults.DataFolder);
+        UpdateExportDestination();
         var goRow = new StackPanel { Orientation = Orientation.Horizontal };
         goRow.Children.Add(go);
         goRow.Children.Add(_exOpen);
+        goRow.Children.Add(_exDest);
         p.Children.Add(goRow);
         p.Children.Add(_exReport);
         return p;
@@ -275,11 +282,20 @@ public sealed class ImportExportWindow : Window
         }
     }
 
-    // 書き出しに成功した。「出力先を開く」を使えるようにする。
+    // 現在の出力先を、ボタンの右に出す。書き出したあとはそのファイル（フォルダ）、書き出す前は、書き出す画面が最初に開く設定の保存先。
+    // 書き出す前でも「開く」は使える（設定の保存先のフォルダが開く）。
+    private void UpdateExportDestination()
+    {
+        string path = _lastExportPath ?? DialogDefaults.DataFolder;
+        _exDest.Text = (_lastExportPath == null ? "出力先（まだ書き出していません。設定の保存先）: " : "出力先: ") + path;
+        _exDest.ToolTip = path;
+    }
+
+    // 書き出しに成功した。出力先の表示を、書き出したファイルにする。
     private void MarkExported(string path)
     {
         _lastExportPath = path;
-        _exOpen.IsEnabled = true;
+        UpdateExportDestination();
     }
 
     private bool ExportAsKeymapTool => _exKeyboard.IsChecked == true && _exFormatKeymapTool.IsChecked == true;
