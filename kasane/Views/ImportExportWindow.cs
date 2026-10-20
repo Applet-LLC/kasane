@@ -2,6 +2,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using Kasane.Interop;
 using Kasane.Layout;
 using Kasane.Model;
 using Kasane.Model.Portable;
@@ -19,7 +20,7 @@ namespace Kasane.Views;
 /// </summary>
 public sealed class ImportExportWindow : Window
 {
-    public enum StartTab { Export, Import }
+    public enum StartTab { Export, Import, Clear }
 
     private sealed record Target(uint? Id, string Text)
     {
@@ -45,6 +46,13 @@ public sealed class ImportExportWindow : Window
     private readonly RadioButton _exFormatKasane = new() { Name = "ExportFormatKasane", Content = "kasane の設定ファイル（*.kasane.json。レイヤー・マクロ・コンボなどすべて）", GroupName = "ExFormat", IsChecked = true, Margin = new Thickness(0, 2, 0, 2) };
     private readonly RadioButton _exFormatKeymapTool = new() { Name = "ExportFormatKeymapTool", Content = "KeymapTool 用 JSON（keymap.json と profile.json。レイヤーと較正だけ。マクロ・コンボ等は含まれない）", GroupName = "ExFormat", Margin = new Thickness(0, 2, 0, 2) };
     private readonly TextBox _exReport = ReportBox("ExportReport");
+    private readonly Button _exOpen = new() { Name = "ExportOpenFolderButton", Content = "出力先をエクスプローラーで開く", Width = 190, Margin = new Thickness(8, 10, 0, 0) };
+    private readonly TextBlock _exDest = new()
+    {
+        Name = "ExportDestinationText", VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(10, 0, 0, 3),
+        Foreground = Brushes.DimGray, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 420,
+    };
+    private string? _lastExportPath; // 直前に書き出したファイル（または KeymapTool 用 JSON のフォルダ）。書き出す前は null（設定の保存先を出力先として見せる）
 
     // インポート
     private readonly TextBlock _imPath = new() { Name = "ImportPath", Text = "（ファイルを選んでください）", Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
@@ -75,6 +83,37 @@ public sealed class ImportExportWindow : Window
     private PortableFile? _file;
     private readonly List<ComboBox> _mapCombos = new();
 
+    // クリア
+    private readonly KbdLayerClient? _client;
+    private readonly bool _canWriteDriver;
+    private readonly RadioButton _clThis = new() { Name = "ClearScopeThis", GroupName = "ClScope", IsChecked = true, Margin = new Thickness(0, 2, 0, 2) };
+    private readonly RadioButton _clAll = new() { Name = "ClearScopeAll", GroupName = "ClScope", Margin = new Thickness(0, 2, 0, 2) };
+    private readonly RadioButton _clPick = new() { Name = "ClearScopePick", Content = "選んだキーボード", GroupName = "ClScope", Margin = new Thickness(0, 2, 0, 2) };
+    private readonly StackPanel _clPickList = new() { Name = "ClearPickList", Margin = new Thickness(24, 0, 0, 6), IsEnabled = false };
+    private readonly Dictionary<uint, CheckBox> _clPickBoxes = new();
+    private readonly CheckBox _clLayers = Clear("ClearLayersCheck", "レイヤー（キー割り当て）");
+    private readonly CheckBox _clMacros = Clear("ClearMacrosCheck", "マクロ");
+    private readonly CheckBox _clCombos = Clear("ClearCombosCheck", "コンボ");
+    private readonly CheckBox _clTapDances = Clear("ClearTapDancesCheck", "タップダンス");
+    private readonly CheckBox _clKeyOverrides = Clear("ClearKeyOverridesCheck", "キー置換");
+    private readonly CheckBox _clTiming = Clear("ClearTimingCheck", "タイミング");
+    private readonly CheckBox _clFeatures = Clear("ClearFeaturesCheck", "機能のON/OFF（すべて有効に戻す）");
+    private readonly CheckBox _clNicola = Clear("ClearNicolaCheck", "NICOLA（親指シフト）");
+    private readonly CheckBox _clHelper = Clear("ClearHelperCheck", "ヘルパー設定（helper.json。「すべて」のときは、トレイの共通のヘルパー設定も）");
+    private readonly CheckBox _clMeasured = Clear("ClearMeasuredCheck", "実測したスキャンコード");
+    private readonly TextBox _clReport = ReportBox("ClearReport");
+
+    /// <summary>今開いているキーボードを消したあとの、保存先から読み直したプロジェクト（消さなかったら null）。</summary>
+    public KeymapProject? ClearedProject { get; private set; }
+
+    /// <summary>消したキーボードがある（一覧のON/OFFなどを更新する必要がある）。</summary>
+    public bool Cleared { get; private set; }
+
+    /// <summary>ドライバの保存内容も消した（管理者権限があり、ドライバに接続していた）。</summary>
+    public bool ClearedDriver { get; private set; }
+
+    private static CheckBox Clear(string name, string text) => new() { Name = name, Content = text, IsChecked = false, Margin = new Thickness(0, 1, 0, 1) };
+
     /// <summary>キーボード／レイヤーの読み込みの結果（プロジェクトの複製。読み込まなかったら null）。</summary>
     public KeymapProject? ResultProject { get; private set; }
 
@@ -85,8 +124,11 @@ public sealed class ImportExportWindow : Window
 
     public ImportExportWindow(KeymapProject project, KeyboardLayout layout, uint uniqId,
                               IReadOnlyList<PortableService.TargetDevice> devices, bool dirty, Func<bool>? saveProject,
-                              StartTab startTab, PortableScope startScope, int startLayer)
+                              StartTab startTab, PortableScope startScope, int startLayer,
+                              KbdLayerClient? client = null, bool canWriteDriver = false)
     {
+        _client = client;
+        _canWriteDriver = canWriteDriver && client != null && uniqId != 0;
         _project = project;
         _layout = layout;
         _uniqId = uniqId;
@@ -103,7 +145,8 @@ public sealed class ImportExportWindow : Window
 
         _tabs.Items.Add(new TabItem { Name = "TabExport", Header = "エクスポート", Content = BuildExport(startScope, startLayer) });
         _tabs.Items.Add(new TabItem { Name = "TabImport", Header = "インポート", Content = BuildImport() });
-        _tabs.SelectedIndex = startTab == StartTab.Import ? 1 : 0;
+        _tabs.Items.Add(new TabItem { Name = "TabClear", Header = "クリア", Content = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = BuildClear() } });
+        _tabs.SelectedIndex = startTab == StartTab.Import ? 1 : startTab == StartTab.Clear ? 2 : 0;
 
         var close = new Button { Name = "CloseButton", Content = "閉じる", IsCancel = true, IsDefault = false, Width = 90, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
         close.Click += (_, _) => Close();
@@ -201,7 +244,13 @@ public sealed class ImportExportWindow : Window
 
         var go = new Button { Name = "ExportDoButton", Content = "書き出す...", Width = 110, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 10, 0, 0) };
         go.Click += (_, _) => DoExport();
-        p.Children.Add(go);
+        _exOpen.Click += (_, _) => OpenInExplorer(_lastExportPath ?? DialogDefaults.DataFolder);
+        UpdateExportDestination();
+        var goRow = new StackPanel { Orientation = Orientation.Horizontal };
+        goRow.Children.Add(go);
+        goRow.Children.Add(_exOpen);
+        goRow.Children.Add(_exDest);
+        p.Children.Add(goRow);
         p.Children.Add(_exReport);
         return p;
     }
@@ -213,6 +262,40 @@ public sealed class ImportExportWindow : Window
         _exFormatKasane.IsEnabled = _exFormatKeymapTool.IsEnabled = keyboard;
         bool kasane = !keyboard || _exFormatKasane.IsChecked == true;
         _exHelper.IsEnabled = _exMeasured.IsEnabled = kasane;
+    }
+
+    // 書き出したファイルを選んだ状態で、エクスプローラーを開く（フォルダなら、そのフォルダを開く）。
+    private void OpenInExplorer(string? path)
+    {
+        if (string.IsNullOrEmpty(path)) return;
+        try
+        {
+            var info = new System.Diagnostics.ProcessStartInfo("explorer.exe") { UseShellExecute = false };
+            if (File.Exists(path)) info.Arguments = $"/select,\"{path}\"";
+            else if (Directory.Exists(path)) info.Arguments = $"\"{path}\"";
+            else { ShowReport(_exReport, new PortableReport(), $"開けませんでした（見つかりません）: {path}"); return; }
+            System.Diagnostics.Process.Start(info);
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            ShowReport(_exReport, new PortableReport(), $"エクスプローラーを開けませんでした: {ex.Message}");
+        }
+    }
+
+    // 現在の出力先を、ボタンの右に出す。書き出したあとはそのファイル（フォルダ）、書き出す前は、書き出す画面が最初に開く設定の保存先。
+    // 書き出す前でも「開く」は使える（設定の保存先のフォルダが開く）。
+    private void UpdateExportDestination()
+    {
+        string path = _lastExportPath ?? DialogDefaults.DataFolder;
+        _exDest.Text = (_lastExportPath == null ? "出力先（まだ書き出していません。設定の保存先）: " : "出力先: ") + path;
+        _exDest.ToolTip = path;
+    }
+
+    // 書き出しに成功した。出力先の表示を、書き出したファイルにする。
+    private void MarkExported(string path)
+    {
+        _lastExportPath = path;
+        UpdateExportDestination();
     }
 
     private bool ExportAsKeymapTool => _exKeyboard.IsChecked == true && _exFormatKeymapTool.IsChecked == true;
@@ -230,6 +313,7 @@ public sealed class ImportExportWindow : Window
         try
         {
             var warnings = ProjectService.Export(_project, _layout, dlg.FolderName);
+            MarkExported(dlg.FolderName);
             ShowReport(_exReport, new PortableReport(),
                 $"書き出しました:\n{dlg.FolderName}\\keymap.json\n{dlg.FolderName}\\profile.json" +
                 (warnings.Count > 0 ? "\n\n注意:\n" + string.Join("\n", warnings) : ""));
@@ -286,12 +370,160 @@ public sealed class ImportExportWindow : Window
                 }
             }
             PortableIO.Write(dlg.FileName, file);
+            MarkExported(dlg.FileName);
             ShowReport(_exReport, report, $"書き出しました: {dlg.FileName}");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             ShowReport(_exReport, report, $"書き出せませんでした: {ex.Message}");
         }
+    }
+
+    // ------------------------------------------------------------------
+    // クリア
+    // ------------------------------------------------------------------
+
+    private IEnumerable<CheckBox> ClearCategoryBoxes() =>
+        new[] { _clLayers, _clMacros, _clCombos, _clTapDances, _clKeyOverrides, _clTiming, _clFeatures, _clNicola, _clHelper, _clMeasured };
+
+    private UIElement BuildClear()
+    {
+        var p = new StackPanel { Margin = new Thickness(10) };
+        p.Children.Add(Help("選んだ項目だけを、初期状態に戻します。選ばなかった項目は残ります。実行の前に、今の設定を自動でバックアップします" +
+                            "（保存先の backup フォルダ。インポートで戻せます）。ドライバにだけ入っていて、画面に出ていない設定は、バックアップに入りません。"));
+
+        p.Children.Add(new TextBlock { Text = "対象のキーボード", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 4, 0, 2) });
+        _clThis.Content = _uniqId == 0 ? "このキーボード（接続していないため、画面の設定だけ）" : $"このキーボード（{_uniqId:X8}）";
+        _clAll.Content = $"接続中のすべてのキーボード（{_devices.Count}台）";
+        p.Children.Add(_clThis);
+        p.Children.Add(_clAll);
+        p.Children.Add(_clPick);
+        foreach (var d in _devices)
+        {
+            var box = new CheckBox { Name = $"ClearTarget_{d.UniqId:X8}", Content = d.DisplayName, Margin = new Thickness(0, 1, 0, 1), IsChecked = d.UniqId == _uniqId };
+            _clPickBoxes[d.UniqId] = box;
+            _clPickList.Children.Add(box);
+        }
+        if (_devices.Count == 0) _clPickList.Children.Add(new TextBlock { Text = "（接続中のキーボードがありません）", Foreground = Brushes.DimGray });
+        p.Children.Add(_clPickList);
+        _clPick.Checked += (_, _) => _clPickList.IsEnabled = true;
+        _clPick.Unchecked += (_, _) => _clPickList.IsEnabled = false;
+        _clAll.IsEnabled = _devices.Count > 0;
+        _clPick.IsEnabled = _devices.Count > 0;
+
+        p.Children.Add(new TextBlock { Text = "消す項目", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 10, 0, 2) });
+        var presets = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+        var all = new Button { Name = "ClearSelectAllButton", Content = "すべて選ぶ（全初期化）", Padding = new Thickness(8, 1, 8, 1), Margin = new Thickness(0, 0, 6, 0) };
+        all.Click += (_, _) => { foreach (var c in ClearCategoryBoxes()) c.IsChecked = true; };
+        var none = new Button { Name = "ClearSelectNoneButton", Content = "すべて外す", Padding = new Thickness(8, 1, 8, 1) };
+        none.Click += (_, _) => { foreach (var c in ClearCategoryBoxes()) c.IsChecked = false; };
+        presets.Children.Add(all);
+        presets.Children.Add(none);
+        p.Children.Add(presets);
+        foreach (var c in ClearCategoryBoxes()) p.Children.Add(c);
+
+        p.Children.Add(new TextBlock
+        {
+            Name = "ClearDriverNote",
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 10, 0, 0),
+            Foreground = _canWriteDriver ? Brushes.DarkRed : Brushes.DimGray,
+            Text = _canWriteDriver
+                ? "ドライバに保存された設定も、同時に消します（管理者権限があるため）。「同じ型番で共有」のキーボードは、同じ型番のものすべてに効きます。"
+                : "ドライバには書き込めない（接続していない、または閲覧専用）ため、画面の設定だけを消します。ドライバの設定は残ります（あとで管理者として「キーボードに適用」するか、このクリアをやり直してください）。",
+        });
+
+        var go = new Button { Name = "ClearDoButton", Content = "クリアする...", Width = 110, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 10, 0, 0) };
+        go.Click += (_, _) => DoClear();
+        p.Children.Add(go);
+        p.Children.Add(_clReport);
+        return p;
+    }
+
+    private ClearOptions BuildClearOptions() => new()
+    {
+        Layers = _clLayers.IsChecked == true,
+        Macros = _clMacros.IsChecked == true,
+        Combos = _clCombos.IsChecked == true,
+        TapDances = _clTapDances.IsChecked == true,
+        KeyOverrides = _clKeyOverrides.IsChecked == true,
+        Timing = _clTiming.IsChecked == true,
+        Features = _clFeatures.IsChecked == true,
+        Nicola = _clNicola.IsChecked == true,
+        Helper = _clHelper.IsChecked == true,
+        Measured = _clMeasured.IsChecked == true,
+    };
+
+    private List<uint> ClearTargets()
+    {
+        if (_clAll.IsChecked == true) return _devices.Select(d => d.UniqId).Distinct().ToList();
+        if (_clPick.IsChecked == true) return _clPickBoxes.Where(kv => kv.Value.IsChecked == true).Select(kv => kv.Key).ToList();
+        return new List<uint> { _uniqId };
+    }
+
+    private void DoClear()
+    {
+        var o = BuildClearOptions();
+        var targets = ClearTargets();
+        if (!o.Any) { ShowReport(_clReport, new PortableReport(), "消す項目を選んでください。"); return; }
+        if (targets.Count == 0) { ShowReport(_clReport, new PortableReport(), "対象のキーボードを選んでください。"); return; }
+
+        // 接続していないキーボード（UniqId 0）は、保存先に設定が無い。画面の設定だけを消す（このタブの「このキーボード」）。
+        if (targets.Contains(0) && targets.Count == 1)
+        {
+            var offline = ProjectService.Clone(_project);
+            try { ClearService.ResetProject(offline, _layout, o); }
+            catch (ArgumentNullException) { ShowReport(_clReport, new PortableReport(), "レイアウトが無いため、レイヤーを消せません。"); return; }
+            ClearedProject = offline;
+            Cleared = true;
+            ShowReport(_clReport, new PortableReport(), "画面の設定を初期状態にしました（まだ保存していません）。「閉じる」で編集画面に戻ります。");
+            return;
+        }
+        targets = targets.Where(t => t != 0).ToList();
+
+        string driverText = _canWriteDriver ? "ドライバの保存内容も消します" : "画面の設定だけを消します（ドライバの設定は残ります）";
+        string sharedWarning = SharedScopeWarning(targets);
+        var ask = MessageBox.Show(this,
+            $"{targets.Count}台のキーボードの、次の項目を初期状態に戻します。\n\n  " + string.Join("\n  ", o.Names()) +
+            $"\n\n{driverText}。今の設定は、実行の前に自動でバックアップします。\n画面で編集していて、まだ保存していない変更は失われます。" +
+            (sharedWarning.Length > 0 ? "\n\n" + sharedWarning : "") + "\n\n続けますか？",
+            Title, MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+        if (ask != MessageBoxResult.OK) return;
+
+        var report = new PortableReport();
+        var cleared = ClearService.Clear(targets, o, _canWriteDriver ? _client : null, includeTrayHelper: _clAll.IsChecked == true, null, report);
+        if (cleared.Count > 0) Cleared = true;
+        if (_canWriteDriver && cleared.Count > 0) ClearedDriver = true;
+        if (_uniqId != 0 && cleared.Contains(_uniqId))
+        {
+            try { ClearedProject = ProjectService.TryLoad(_uniqId); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+            {
+                report.Warn($"クリアしたあとの設定を読み直せませんでした（{ex.Message}）。編集画面を開き直してください");
+            }
+        }
+        ShowReport(_clReport, report,
+            report.HasErrors && cleared.Count == 0 ? "クリアできませんでした。"
+            : $"{cleared.Count}台をクリアしました。「閉じる」で編集画面に戻ります。");
+    }
+
+    // 保存先が「同じ型番」「すべて」のキーボードは、ドライバの設定を消すと、同じ型番（すべて）のキーボードにも効く。
+    private string SharedScopeWarning(IEnumerable<uint> targets)
+    {
+        if (!_canWriteDriver || _client == null) return "";
+        var shared = new List<string>();
+        foreach (uint t in targets)
+        {
+            try
+            {
+                var scope = _client.GetDeviceScope(t);
+                if (scope.Binding != KbdLayerClient.BindingInstance)
+                    shared.Add($"{t:X8}（{(scope.Binding == KbdLayerClient.BindingGlobal ? "すべてのキーボードで共有" : "同じ型番で共有")}）");
+            }
+            catch (KbdLayerException) { /* 保存先の範囲を読めなくても、クリアはできる */ }
+        }
+        return shared.Count == 0 ? ""
+            : "注意: 次のキーボードは、ドライバの設定を他のキーボードと共有しています。消すと、共有しているキーボードにも効きます:\n  " + string.Join("\n  ", shared);
     }
 
     // ------------------------------------------------------------------

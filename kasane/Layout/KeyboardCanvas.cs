@@ -12,7 +12,8 @@ public sealed record KeyVisual(
     Brush BorderBrush,
     double BorderThickness = 1,
     string? ToolTip = null,
-    Brush? MainForeground = null);
+    Brush? MainForeground = null,
+    string? Marks = null); // 右下の印（M マクロ・D タップダンス・C コンボ・R キー置換。KeyMarks）
 
 /// <summary>
 /// キー面の矩形（主矩形）。BorderはUI Automationの要素として公開されないので、Invoke（クリックと同じ）
@@ -173,6 +174,29 @@ public sealed class KeyboardCanvas : Canvas
             TextWrapping = TextWrapping.Wrap,
             TextAlignment = TextAlignment.Center,
         });
+        if (!string.IsNullOrEmpty(visual.Marks))
+        {
+            grid.Children.Add(new Border
+            {
+                Background = MarkBrush,
+                CornerRadius = new CornerRadius(2),
+                Padding = new Thickness(2, 0, 2, 0),
+                Margin = new Thickness(0, 0, 2, 2),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                IsHitTestVisible = false, // クリック・ツールチップは、キーの面が受ける
+                Child = new TextBlock
+                {
+                    Text = visual.Marks,
+                    FontFamily = KeyFont,
+                    FontSize = 8,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = Brushes.White,
+                },
+            });
+        }
         return grid;
     }
+
+    private static readonly Brush MarkBrush = new SolidColorBrush(Color.FromRgb(0xC2, 0x5E, 0x00));
 }
