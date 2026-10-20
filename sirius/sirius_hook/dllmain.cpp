@@ -49,36 +49,18 @@ static HRESULT WINAPI getThreadMgrDummy(ITfThreadMgr **p)
   return S_OK;
 }
 
-// 実験用（Explorer の遅延の切り分け。原因が分かったら外す）: C:\Users\Public\sirius-exp.txt の数値。128 = SimpleLoggerOpen をしない、256 = msctf.dll を読まない、512 = TLS と TSF の準備をしない
-static int ExpBits()
-{
-  int v = 0;
-  HANDLE f = CreateFileW(L"C:\\Users\\Public\\sirius-exp.txt", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
-  if (f != INVALID_HANDLE_VALUE) {
-    char b[16] = {0};
-    DWORD n = 0;
-    ReadFile(f, b, 15, &n, NULL);
-    CloseHandle(f);
-    v = atoi(b);
-  }
-  return v;
-}
-
 BOOL ProcessAttach(HINSTANCE hInstance)
 {
-  int exp = ExpBits();
-  if (!(exp & 512) && !TLS::Initialize())
+  if (!TLS::Initialize())
     return FALSE;
 
-  if (!(exp & 128)) SimpleLoggerOpen();
+  SimpleLoggerOpen();
   GetThreadMgr = getThreadMgrDummy;
-  if (!(exp & 256)) {
-    hMsctf = LoadLibrary(L"msctf.dll");
-    if (hMsctf) {
-      GetThreadMgr = (PTF_GETTHREADMGR)GetProcAddress(hMsctf, "TF_GetThreadMgr");
-    }
+  hMsctf = LoadLibrary(L"msctf.dll");
+  if (hMsctf) {
+    GetThreadMgr = (PTF_GETTHREADMGR)GetProcAddress(hMsctf, "TF_GetThreadMgr");
   }
-  if (!(exp & 512)) setupTsfValues();
+  setupTsfValues();
 
   // kasane: のどかへの通知（FindWindow("nodokaTasktray")・ChangeWindowMessageFilter）は削除。ホストは共有メモリを読む。
 
