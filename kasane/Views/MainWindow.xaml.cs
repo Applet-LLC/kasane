@@ -757,8 +757,19 @@ public partial class MainWindow : Window
         var devices = CmbDevice.Items.OfType<DeviceInfo>().Where(d => d.UniqId != 0)
             .Select(d => new Kasane.Model.Portable.PortableService.TargetDevice(d.UniqId, d.HardwareId, d.DisplayName)).ToList();
         uint uniq = _project.UniqId;
-        var dlg = new ImportExportWindow(_project, _layout, uniq, devices, _dirty, SaveProject, tab, scope, _layer) { Owner = this };
+        var dlg = new ImportExportWindow(_project, _layout, uniq, devices, _dirty, SaveProject, tab, scope, _layer, _client, !IsReadOnly) { Owner = this };
         dlg.ShowDialog();
+        if (dlg.ClearedProject != null)
+        {
+            // クリア: 今のキーボードの設定は、保存先（とドライバ）で初期状態に戻っている。画面を、その内容に入れ替える。
+            ProjectService.NormalizeShape(dlg.ClearedProject, _layout);
+            SetProject(dlg.ClearedProject, _layout, dirty: false);
+            if (!dlg.ClearedDriver && uniq != 0) _unapplied.Add(uniq); // ドライバの設定は残っている
+            RefreshDeviceStatusOnly();
+            SetStatus(dlg.ClearedDriver ? "クリアしました（ドライバの設定も消しました）。" : "クリアしました（画面の設定だけ。ドライバの設定は残っています）。");
+            return;
+        }
+        if (dlg.Cleared) RefreshDeviceStatusOnly();
         if (dlg.ResultProject != null)
         {
             ProjectService.NormalizeShape(dlg.ResultProject, _layout);
