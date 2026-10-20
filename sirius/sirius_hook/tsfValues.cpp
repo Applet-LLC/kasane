@@ -121,11 +121,13 @@ void setupTsfValues()
 
 void releaseTsfValues()
 {
+  if (!pValuesTable) return; // kasane: 準備していない・解放済み（スレッドの終了で、解放後の表を触らない）
   EnterCriticalSection(&cs);
   for (tsfValuesTable::iterator i = pValuesTable->begin(); i != pValuesTable->end(); i++) {
     delete i->first;
   }
   delete pValuesTable;
+  pValuesTable = NULL;
   LeaveCriticalSection(&cs);
   DeleteCriticalSection(&cs);
   TlsFree(dwTlsIndex);
@@ -171,6 +173,7 @@ bool setupThreadTsfValues(CcommonValues* pCv)
 void releaseThreadTsfValues()
 {
   sirius_timing::Scope timing("releaseThreadTsfValues", 0, 1.0);
+  if (!pValuesTable) return; // kasane: 準備していない・解放済み
   EnterCriticalSection(&cs);
   if (pValuesTable->find((tsfValues*)TlsGetValue(dwTlsIndex)) != pValuesTable->end()) {
     pValuesTable->erase((tsfValues*)TlsGetValue(dwTlsIndex));
