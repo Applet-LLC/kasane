@@ -48,9 +48,6 @@
             <Button x:Name="BtnRemoveLayer" Content="− 最後を削除" Click="BtnRemoveLayer_Click" />
         </StackPanel>
 
-        <!-- ドライバの状態（ON/OFF・適用済みか）。キー図だけでは、今リマップが効いているかが分からないため。 -->
-        <TextBlock x:Name="TxtDriverState" DockPanel.Dock="Top" Margin="10,0,8,4" AutomationProperties.AutomationId="DriverStateText" />
-
         <StatusBar DockPanel.Dock="Bottom">
             <TextBlock x:Name="TxtStatus" />
         </StatusBar>

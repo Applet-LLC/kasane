@@ -308,14 +308,14 @@ public partial class MainWindow : Window
         _suppressEvents = false;
 
         try { ChangeLayout(KeyboardLayout.Load(import.SavedPath), bundled: true); }
-        catch (Exception ex) { MessageBox.Show(this, $"読み込めませんでした: {ex.Message}", Title); }
+        catch (Exception ex) { MessageBox.Show(this, $"読み込めませんでした: {ex.Message}", DialogCaption); }
     }
 
     private void ChangeLayout(KeyboardLayout layout, bool bundled)
     {
         var r = MessageBox.Show(this,
             "レイアウトを変えると、キーの割り当て・実測値・コンボはリセットされます（マクロ・タップダンス・キー置換と、設定ダイアログの内容は残ります）。続けますか？",
-            Title, MessageBoxButton.OKCancel, MessageBoxImage.Question);
+            DialogCaption, MessageBoxButton.OKCancel, MessageBoxImage.Question);
         if (r != MessageBoxResult.OK)
         {
             _suppressEvents = true;
@@ -394,7 +394,7 @@ public partial class MainWindow : Window
     {
         if (_project == null || _project.Layers.Count <= 1) return;
         int last = _project.Layers.Count - 1;
-        if (MessageBox.Show(this, $"レイヤー{last}を削除しますか？", Title, MessageBoxButton.OKCancel) != MessageBoxResult.OK) return;
+        if (MessageBox.Show(this, $"レイヤー{last}を削除しますか？", DialogCaption, MessageBoxButton.OKCancel) != MessageBoxResult.OK) return;
         _project.Layers.RemoveAt(last);
         ProjectService.NormalizeLayerNames(_project); // 消したレイヤーの名前も捨てる
         _layer = Math.Min(_layer, last - 1);
@@ -706,7 +706,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, $"保存できませんでした: {ex.Message}", Title, MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(this, $"保存できませんでした: {ex.Message}", DialogCaption, MessageBoxButton.OK, MessageBoxImage.Error);
             return false;
         }
     }
@@ -852,11 +852,15 @@ public partial class MainWindow : Window
         _dirty = true;
         if (_project is { UniqId: not 0 }) _unapplied.Add(_project.UniqId);
         UpdateDefinitionButtons();
-        UpdateDriverState();
         UpdateTitle();
     }
 
-    private void UpdateTitle() => Title = Kasane.Model.AppInfo.DisplayName + (_dirty ? " *" : "");
+    // タイトルバーに、バージョンとドライバの状態を出す（キー図の上に行を足すと、画面が縦に溢れてキーボードが欠けるため）。
+    // 例: 「かさね 1.00 *  ドライバ: ON（リマップ中）」。未保存の変更があれば * が付く。
+    private void UpdateTitle() => Title = Kasane.Model.AppInfo.NameWithVersion + (_dirty ? " *" : "") + "  " + DriverStateText();
+
+    /// <summary>メッセージボックスの見出し（長いウィンドウのタイトルではなく、アプリ名だけ）。</summary>
+    private static string DialogCaption => Kasane.Model.AppInfo.DisplayName;
 
     // 画面の何もないところ（ボタンの列・余白）を右クリックしたときのメニュー。キーボードの図の上は、キーごとの右クリック（実測値を消す等）があるので出さない。
     // バージョン情報は、設定の一番右のタブ。
@@ -876,7 +880,6 @@ public partial class MainWindow : Window
         // OFF（SET_LAYERMAP_ENABLED）は読み取り側のIOCTLなので、閲覧専用モードでも使える。
         BtnOff.IsEnabled = IsOnline && SelectedDevice!.Enabled;
         UpdateDefinitionButtons();
-        UpdateDriverState();
         UpdateTitle();
     }
 
@@ -890,27 +893,16 @@ public partial class MainWindow : Window
         BtnKeyOverrides.Content = KeyMarks.ButtonText("キー置換", p?.KeyOverrides.Count ?? 0, p == null || KeyMarks.FeatureOn(p, KbdLayerClient.FeatureKeyOverride));
     }
 
-    // ドライバの状態（今リマップが効いているか・画面の変更を適用したか）。
-    private void UpdateDriverState()
+    // ドライバの状態（今リマップが効いているか・画面の変更を適用したか）。タイトルバーに出す。
+    private string DriverStateText()
     {
-        if (_client == null)
-        {
-            TxtDriverState.Text = "ドライバ: 接続できません（編集とエクスポートのみ）";
-            TxtDriverState.Foreground = Brushes.Firebrick;
-            return;
-        }
-        if (SelectedDevice is not { UniqId: not 0 } d)
-        {
-            TxtDriverState.Text = "ドライバ: このキーボードは接続していません（編集のみ）";
-            TxtDriverState.Foreground = Brushes.DimGray;
-            return;
-        }
+        if (_client == null) return "ドライバ: 接続できません（編集とエクスポートのみ）";
+        if (SelectedDevice is not { UniqId: not 0 } d) return "ドライバ: このキーボードは接続していません（編集のみ）";
         string state = !d.HasLayerMap ? "設定なし（素通し）"
             : d.Enabled ? "ON（リマップ中）"
-            : "OFF（素通し。設定はドライバに残っています）";
-        string applied = _unapplied.Contains(d.UniqId) ? "　／　画面の変更は、まだ適用していません" : "";
-        TxtDriverState.Text = $"ドライバ: {state}{applied}";
-        TxtDriverState.Foreground = d.Enabled ? Brushes.SeaGreen : _unapplied.Contains(d.UniqId) ? Brushes.DarkOrange : Brushes.DimGray;
+            : "OFF（素通し、設定はドライバに残っています）";
+        string applied = _unapplied.Contains(d.UniqId) ? "　画面の変更は未適用" : "";
+        return $"ドライバ: {state}{applied}";
     }
 
     private void SetStatus(string text) => TxtStatus.Text = text;
@@ -929,7 +921,7 @@ public partial class MainWindow : Window
                 "このキーボードの保存済みの設定は、読めない、またはレイアウトが見つからないため、使わずに開いています。\n" +
                 "保存すると、保存済みの設定がこの内容で置き換わります。保存しますか？\n\n" +
                 "はい: 保存する　／　いいえ: 保存しない（変更を捨てる）　／　キャンセル: 戻る",
-                Title, MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
+                DialogCaption, MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
             if (r == MessageBoxResult.Cancel) return false;
             if (r == MessageBoxResult.No) { _dirty = false; _unapplied.Remove(_project?.UniqId ?? 0); UpdateTitle(); return true; }
         }
@@ -941,7 +933,7 @@ public partial class MainWindow : Window
         // 編集画面が開いていれば、閉じると「適用」していない内容が捨てられることを確かめる。
         if ((_editors.Count > 0 || _keyAssign != null) &&
             MessageBox.Show(this, "編集画面が開いています。閉じると、「適用」していない編集内容は捨てられます。\n閉じますか？",
-                Title, MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK)
+                DialogCaption, MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK)
         {
             e.Cancel = true;
             return;
@@ -960,12 +952,12 @@ public partial class MainWindow : Window
                 return MessageBox.Show(this,
                     "設定は保存されましたが、キーボードに反映されていません。\n" +
                     "必要に応じて、管理者権限で kasane を起動し、「キーボードに適用（ON）」で反映してください。\n\n" +
-                    "このまま閉じますか？", Title, MessageBoxButton.OKCancel, MessageBoxImage.Information) == MessageBoxResult.OK;
+                    "このまま閉じますか？", DialogCaption, MessageBoxButton.OKCancel, MessageBoxImage.Information) == MessageBoxResult.OK;
             case UnappliedPrompt.AskApply:
                 var r = MessageBox.Show(this,
                     $"キーボードに反映していない設定が{targets.Count}台分あります。反映しますか？\n\n" +
                     "はい: 反映して閉じる　／　いいえ: 反映せずに閉じる（設定は保存済み）　／　キャンセル: 戻る",
-                    Title, MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+                    DialogCaption, MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
                 if (r == MessageBoxResult.Cancel) return false;
                 if (r == MessageBoxResult.No) return true;
                 foreach (var id in targets)
