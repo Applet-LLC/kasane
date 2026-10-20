@@ -6,7 +6,6 @@
 #include "stdafx.h"
 #include <stdio.h>
 #include <stdarg.h>
-#include <stdlib.h>
 #include <imm.h>
 #include <msctf.h>
 #include <sirius/commonValues.h>
@@ -29,7 +28,6 @@ HHOOK hGetMessageHook = NULL;
 HHOOK hSendMessageHook = NULL;
 HHOOK hSysGetMsgHook = NULL;
 bool m_isHooked = false;
-int g_expMode = 0; // 実験用（Explorer の遅延の切り分け）: 1=CALLWNDPROCRET を入れない 2=CALLWNDPROC を入れない 4=GETMESSAGE を入れない 8=フック手続きは何もしない
 #pragma data_seg()
 static HANDLE hMapping = NULL;
 static CcommonValues* pCv = NULL;
@@ -416,7 +414,7 @@ static void messageHookCore(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 }
 
 static LRESULT CALLBACK CallWndRetProc(int nCode, WPARAM wParam, LPARAM lParam) {
-  if(nCode < 0 || nCode != HC_ACTION || !m_isHooked || (g_expMode & 8))
+  if(nCode < 0 || nCode != HC_ACTION || !m_isHooked)
     return ::CallNextHookEx(hSendMessageHook, nCode, wParam, lParam);
   CWPRETSTRUCT* pmsg = (CWPRETSTRUCT*)lParam;
   if(allocateCommonValue(pmsg->message)){
@@ -431,7 +429,7 @@ static LRESULT CALLBACK CallWndRetProc(int nCode, WPARAM wParam, LPARAM lParam) 
 
 
 static LRESULT CALLBACK CallWndProc(int nCode, WPARAM wParam, LPARAM lParam) {
-  if(nCode < 0 || nCode != HC_ACTION || !m_isHooked || (g_expMode & 8))
+  if(nCode < 0 || nCode != HC_ACTION || !m_isHooked)
     return ::CallNextHookEx(hGetMessageHook, nCode, wParam, lParam);
   CWPSTRUCT* pmsg = (CWPSTRUCT*)lParam;
   switch (pmsg->message) {
@@ -451,7 +449,7 @@ static LRESULT CALLBACK CallWndProc(int nCode, WPARAM wParam, LPARAM lParam) {
 }
 
 static LRESULT CALLBACK SysGetMsgProc(int nCode, WPARAM wParam, LPARAM lParam) {
-  if (nCode == HC_ACTION && (wParam & PM_REMOVE) && m_isHooked && !(g_expMode & 8))
+  if (nCode == HC_ACTION && (wParam & PM_REMOVE) && m_isHooked)
   {
     MSG &msg = (*(MSG *)lParam);
 
@@ -518,31 +516,20 @@ CcommonValues* SiriusSetupHook(DWORD dwMessageId)
     pCv->m_wm_sirius_controll = dwMessageId;
     pCv->test = 123456;
   }
-  g_expMode = 0;
-  {
-    HANDLE f = CreateFileW(L"C:\\Users\\Public\\sirius-exp.txt", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
-    if (f != INVALID_HANDLE_VALUE) {
-      char b[16] = {0};
-      DWORD n = 0;
-      ReadFile(f, b, 15, &n, NULL);
-      CloseHandle(f);
-      g_expMode = atoi(b);
-    }
-  }
-  hSendMessageHook = (g_expMode & 1) ? NULL : SetWindowsHookEx(WH_CALLWNDPROCRET, (HOOKPROC)CallWndRetProc, siriusHookModule, 0);
-  if (!hSendMessageHook && !(g_expMode & 1)) {
+  hSendMessageHook = SetWindowsHookEx(WH_CALLWNDPROCRET, (HOOKPROC)CallWndRetProc, siriusHookModule, 0);
+  if (!hSendMessageHook) {
     LOG("SetWindowsHookEx() failed. Error=%d", GetLastError());
     SiriusReleaseHook();
     return NULL;
   }
-  hGetMessageHook = (g_expMode & 2) ? NULL : SetWindowsHookEx(WH_CALLWNDPROC, (HOOKPROC)CallWndProc, siriusHookModule, 0);
-  if (!hGetMessageHook && !(g_expMode & 2)) {
+  hGetMessageHook = SetWindowsHookEx(WH_CALLWNDPROC, (HOOKPROC)CallWndProc, siriusHookModule, 0);
+  if (!hGetMessageHook) {
     LOG("SetWindowsHookEx() failed. Error=%d", GetLastError());
     SiriusReleaseHook();
     return NULL;
   }
-  hSysGetMsgHook = (g_expMode & 4) ? NULL : SetWindowsHookEx(WH_GETMESSAGE, (HOOKPROC)SysGetMsgProc, siriusHookModule, 0);
-  if (!hSysGetMsgHook && !(g_expMode & 4)) {
+  hSysGetMsgHook = SetWindowsHookEx(WH_GETMESSAGE, (HOOKPROC)SysGetMsgProc, siriusHookModule, 0); 
+  if (!hSysGetMsgHook) {
     LOG("SetWindowsHookEx(WH_GETMESSAGE) failed. Error=%d", GetLastError());
     SiriusReleaseHook();
     return NULL;
