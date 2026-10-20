@@ -175,7 +175,7 @@ public sealed class ImeLinkHost : IDisposable
             if (_siriusHook != null)
             {
                 _tsfSource.Attach(_siriusHook);
-                TrayLog.Write($"Sirius: フックを入れました（{mode}）{ExperimentNote()}");
+                TrayLog.Write($"Sirius: フックを入れました（{mode}）");
             }
             else
             {
@@ -187,17 +187,6 @@ public sealed class ImeLinkHost : IDisposable
         {
             ReleaseSiriusHook();
         }
-    }
-
-    // 診断用（Explorer の遅延の切り分け。原因が分かったら外す）: DLL が読んだ実験ファイルの値をログに残す。
-    private static string ExperimentNote()
-    {
-        try
-        {
-            string path = @"C:\Users\Public\sirius-exp.txt";
-            return File.Exists(path) ? $" [実験ファイル sirius-exp.txt = {File.ReadAllText(path).Trim()}]" : "";
-        }
-        catch (IOException) { return ""; }
     }
 
     // 読むのをやめてから外す（読んでいる最中に共有メモリを外すと、アクセス違反になる）。
