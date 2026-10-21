@@ -21,10 +21,8 @@ internal sealed class ImeLayerTab : HelperTabBase
 
     public ImeLayerTab(HelperSettingsModel model, Window owner)
         : base(model, owner, "ImeLayer",
-            "IME の ON/OFF に合わせて、選んだレイヤーを自動で立てます(IME が OFF のときは下ろします)。NICOLA を使わなくても使えます。" +
-            "タスクトレイの kasane が動いているときだけ働きます。キーボード側の TG などのレイヤーとは OR で重なり、どれかが立てていれば有効です。" +
-            "「このキーボード」の設定が、「全キーボード共通」より先に使われます。変更は、OK を押すと保存されます。管理者権限は要りません。" +
-            "前面のウィンドウの IME の状態を取得できないとき(管理者として動いているウィンドウなど)は、直前の状態を保ちます。")
+            "IME の ON/OFF に合わせて、選んだレイヤーを自動で立てます(OFF のときは下ろします)。" +
+            "「このキーボード」の設定が「全キーボード共通」より先に使われ、変更は OK で保存されます。")
     {
         Stack.Children.Add(_enabled);
 
@@ -68,7 +66,7 @@ internal sealed class ImeLayerTab : HelperTabBase
         _clear.IsEnabled = editable && link != null;
         _hint.Text = link == null
             ? (Scope == HelperScope.Device ? "このキーボードには、設定がありません(共通の設定があれば、それに従います)。" : "共通の設定がありません。")
-            : (link.Enabled ? "" : "この範囲は、IME 連動をしません(キーボードごとの設定を「連動しない」にすると、共通の設定があっても、そのキーボードは連動しません)。");
+            : (link.Enabled ? "" : "この範囲では、IME 連動をしません。");
         _loading = false;
     }
 

@@ -17,9 +17,7 @@ internal sealed class AppRulesTab : HelperTabBase
     public AppRulesTab(HelperSettingsModel model, Window owner)
         : base(model, owner, "Rules",
             "前面のアプリに応じて、アプリ管理レイヤーを自動で立てるか、そのキーボードのリマップをOFF(素通し)にします。" +
-            "規則は上から順に見て、最初に一致したものを使います。キーボードごとの規則が、共通の規則より先です。" +
-            "どれにも一致しないときは「既定」の規則を使います(無ければ何もしません)。" +
-            "変更は、OK を押すと保存されます。管理者権限は要りません。トレイが数秒で読み直します。")
+            "規則は上から順に見て最初に一致したものを使い、キーボードごとの規則が共通の規則より先です。変更は OK で保存されます。")
     {
         _add = Btn("AddRuleButton", "追加...");
         _edit = Btn("EditRuleButton", "編集...");

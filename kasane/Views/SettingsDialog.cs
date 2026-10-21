@@ -119,14 +119,8 @@ public sealed class SettingsDialog : Window
         };
         panel.Children.Add(_remapOnlyWhileTray);
         panel.Children.Add(Help(
-            "ドライバが設定を保存しているので、Windows のログオン画面や、起動した直後(トレイが動く前)でも、リマップは続きます。" +
-            "ONにすると、次のように動きます。\n" +
-            "・トレイを終了したとき、サインアウトやシャットダウンをするとき、画面をロックしたとき(ユーザーの切り替えを含む)は、リマップをOFF(素通し)にします。\n" +
-            "・トレイが起動したときとロックを解除したときは、この設定でOFFにしたキーボードだけをONに戻します(緊急解除や「OFF」ボタンで止めたキーボードは、戻しません)。\n" +
-            "既定はONです。\n" +
-            "注意: トレイが異常終了したとき(クラッシュ・強制終了・電源断など)は、OFFにできません。次の起動のログオン画面では、リマップが効いたままです。" +
-            "インストーラーの更新や削除でトレイを止めるときも、OFFにしません。\n" +
-            "この設定は、この PC のこの利用者の設定で、キーボードごとの設定ではありません。OK で保存すると、トレイが数秒で読み直します。"));
+            "ONにすると、トレイの終了、サインアウト、シャットダウン、画面のロックでリマップがOFFになり、トレイの起動とロック解除でONに戻ります(既定はON)。" +
+            "トレイが異常終了するとリマップがONのままになることがあります。OK で保存すると、トレイが数秒で読み直します。"));
 
         _showLayerOnIcon = new CheckBox
         {
@@ -273,9 +267,7 @@ public sealed class SettingsDialog : Window
     {
         var panel = new StackPanel();
         panel.Children.Add(Help(
-            "使わない機能はOFFにできます。OFFにした機能のキーは何もせず、コンボの構成キーは通常のキーとして動きます。" +
-            "OFFにしても設定(マクロなどの定義)は消えません。レイヤーとキーの置き換え、MT/LT、修飾付きキーは常に使えます。\n" +
-            "ここでの変更は、「キーボードに適用」で反映されます。"));
+            "使わない機能はOFFにできます。OFFにしても設定は消えません。変更は、「キーボードに適用」で反映されます。"));
 
         string current = "";
         uint initial = KbdLayerClient.FeatureAll;
@@ -337,12 +329,12 @@ public sealed class SettingsDialog : Window
                 if (current.HasTapHoldOptions)
                     currentText += $" / 判定方式 {current.TapHoldMode} / Quick Tap {QuickTapText(current.QuickTapTermMs)} / TT {current.TappingToggle}回";
                 else
-                    currentText += "\n(このドライバは判定方式・Quick Tap・TTの回数に対応していないので、設定しても効きません)";
+                    currentText += "\n(このドライバは判定方式・Quick Tap・TTの回数に対応していません。設定しても効きません)";
             }
             catch (KbdLayerException) { /* 古いドライバ等。現在値の表示を省くだけ */ }
         }
-        panel.Children.Add(Help("単位はミリ秒です。0 にすると、ドライバの既定値(TapTerm 200 / ComboTerm 50 / TapDanceTerm 200)を使います。" +
-                                "ここでの変更は、「キーボードに適用」で反映されます。" + currentText));
+        panel.Children.Add(Help("単位はミリ秒で、0 にすると既定値(TapTerm 200 / ComboTerm 50 / TapDanceTerm 200)を使います。" +
+                                "変更は、「キーボードに適用」で反映されます。" + currentText));
 
         TextBox Field(string name, string label, string help, uint value)
         {
@@ -407,9 +399,9 @@ public sealed class SettingsDialog : Window
         var panel = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
         _imeSourceBox = new ComboBox { Name = "ImeSourceBox", Width = 360, ItemsSource = ImeSourceLabels, SelectedIndex = (int)_trayConfig.ImeSourceMode };
         Row(panel, "IME の状態の取得方法", _imeSourceBox,
-            "既定の「IMM32 のみ」で、多くのアプリの IME の状態を取得できます。IMM32 で取得できないアプリ(TSF だけのアプリなど)を補いたいときだけ、TSF を選びます。" +
+            "既定の「IMM32 のみ」で、多くのアプリに対応できます。TSF だけのアプリなどを補いたいときだけ、TSF を選びます。" +
             "TSF を選ぶと、DLL(sirius_hook)が読んだ値を使います。Explorer を開くのが遅く感じられることがあります。「IMM32 のみ」では、この DLL を使いません。" +
-            "変更は、OK で保存すると、数秒でトレイに反映されます。",
+            "OK で保存すると、数秒でトレイに反映されます。",
             labelWidth: 170);
         return panel;
     }
@@ -418,13 +410,7 @@ public sealed class SettingsDialog : Window
     {
         var panel = new StackPanel();
         panel.Children.Add(Help(
-            "NICOLA(親指シフト)は、指定したレイヤーが有効な間だけ働きます。「IME連動」を使うと、IMEがかなモードのときだけ、" +
-            "タスクトレイの kasane が自動でそのレイヤーを立てます(切り替えるキーは要りません)。使わない場合は、そのレイヤーに切り替えるキー" +
-            "(たとえば TG(1))をキーマップに置いてください。配列の表は「表を編集...」で変えられます。" +
-            "nicola.json(CLIの --set-nicola と同じ形式)の読み込みと書き出しもできます。\n" +
-            "NICOLAを使うと、Ctrl や Shift を押している間のために、親指キーを単独で打つキー(Enter・Spaceなど)が、" +
-            "NICOLAのレイヤーのキー割り当てに自動で足されます。\n" +
-            "キーボードへの反映は、「キーボードに適用」で行います。IME連動の設定は、OK で保存すると数秒でトレイに反映されます(このキーボードごとの設定か、このPCの利用者ごとの全キーボード共通の設定)。"));
+            "NICOLA(親指シフト)の配列と、使うレイヤーを設定します。キーボードへの反映は「キーボードに適用」で、IME連動は OK で保存すると数秒でトレイに反映されます。"));
 
         if (IsOnline)
         {
@@ -519,7 +505,7 @@ public sealed class SettingsDialog : Window
                 ShowStatus(_nicolaSummary, "適用すると、キーボードのNICOLAの設定を消します。", false);
                 break;
             default:
-                ShowStatus(_nicolaSummary, "適用しても、キーボードのNICOLAの設定は変わりません(CLIの --set-nicola で入れた設定もそのまま)。", false);
+                ShowStatus(_nicolaSummary, "適用しても、キーボードのNICOLAの設定は変わりません。", false);
                 break;
         }
     }
@@ -558,11 +544,9 @@ public sealed class SettingsDialog : Window
         var panel = new StackPanel();
         panel.Children.Add(Help(
             $"設定を誤って入力できなくなったときの緊急用の手段です。ここで決めた{KbdLayerClient.EmergencyMinKeys}〜{KbdLayerClient.EmergencyMaxKeys}個のキーを" +
-            $"同時に{KbdLayerClient.EmergencyHoldMs / 1000}秒押し続けると、接続中の全キーボードのレイヤーマップがOFFになります(マップ自体は消えません)。" +
-            "設定はドライバ全体で1つで、キーボードごとには持ちません。全部のキーが同じキーボードにある必要があります。\n" +
-            "キーは、レイヤーマップで置き換える前の物理キーで指定します。各欄の「押して入力」でキーを押して入れるか、「選ぶ...」で選びます。\n" +
-            "入力した組み合わせは、別のタブに移るときか OK を押したときに、ドライバへ反映されます。タブを移った時点で反映したものは、キャンセルしても戻りません。" +
-            "全部の欄を空にした場合は、変更しません。"));
+            $"同時に{KbdLayerClient.EmergencyHoldMs / 1000}秒押し続けると、接続中の全キーボードのレイヤーマップがOFFになります。" +
+            "全部のキーが同じキーボードにある必要があります。\n" +
+            "入力した組み合わせは、別のタブに移るか OK を押すと反映され、キャンセルしても戻りません。"));
 
         bool writable = IsOnline && _canWrite;
         var boxes = new TextBox[KbdLayerClient.EmergencyMaxKeys];
@@ -664,13 +648,13 @@ public sealed class SettingsDialog : Window
             dlg.ShowDialog();
             ShowStatus(status, dlg.Succeeded
                 ? "この組み合わせは同時に検出できました。"
-                : "全部のキーを同時に検出できませんでした(試していない場合も含む)。別の組み合わせを検討してください。", !dlg.Succeeded);
+                : "全部のキーを同時に検出できませんでした。別の組み合わせを試してください。", !dlg.Succeeded);
         };
         var clear = new Button { Name = "EmergencyClearButton", Content = "クリア", IsEnabled = writable, Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(8, 2, 8, 2) };
         clear.Click += (_, _) =>
         {
             Fill(Array.Empty<string>());
-            ShowStatus(status, "入力欄を空にしました。空のままタブを移ったり OK を押したりしても、緊急解除の組み合わせは変わりません。", false);
+            ShowStatus(status, "入力欄を空にしました。空のままでは、緊急解除の組み合わせは変わりません。", false);
         };
         var reset = new Button { Name = "EmergencyDefaultButton", Content = "既定(左右Ctrl＋左右Shift)にする", IsEnabled = writable, Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(8, 2, 8, 2) };
         reset.Click += (_, _) =>
@@ -706,23 +690,9 @@ public sealed class SettingsDialog : Window
 
         panel.Children.Add(new TextBlock { Text = "設定の共有範囲", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
         panel.Children.Add(Help(
-            "ドライバがこのキーボードの設定(レイヤーマップ・タイミング・マクロなど)を保存する単位です。\n" +
-            "・同じ型番で共有(既定): 同じ型番のキーボードは、差し込み口が変わっても同じ設定を使います。\n" +
-            "・この1台だけ: この差し込み口のこのキーボードだけの設定にします。切り替えると、今の設定をこの1台用にコピーします。\n" +
-            "・すべてのキーボードで共有: 型番も差し込み口も区別せず、1つの設定をすべてのキーボードで使います。後から接続したキーボードも、" +
-            "この設定にしていれば同じ設定になります。すでに共有の設定があれば、それを使います。" +
-            "配列の違うキーボード(JISとテンキーなど)を混ぜると、意図しない割り当てになることがあります。\n" +
-            "切り替えると、今の設定が切替先へコピーされ、切替先にすでにある設定は上書きされます。たとえば「すべて」や「この1台」から「同じ型番」へ戻すと、" +
-            "同じ型番で共有している設定が置き換わります。\n" +
-            "「変更する」を押すとすぐに反映します(OK・キャンセルとは関係しません)。共有している他の台には、その台を接続し直すまで反映されません。"));
-
-        panel.Children.Add(new TextBlock { Text = "共有範囲とポートの関係(トレイを含む)", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 4, 0, 4) });
-        panel.Children.Add(Help(
-            "・ポートを替えたとき: ドライバが保存する設定は、共有範囲が「同じ型番」か「すべて」なら引き継がれ、「この1台だけ」なら引き継がれません。" +
-            "設定画面で作った設定(project.json)とトレイの設定(ヘルパー動作・アプリ別レイヤー・一時停止の記憶)は、接続先(USBポートなど)ごとに別のキーボードとして扱います。" +
-            "そのため、同じキーボードを別のポートに挿すと引き継がれません(エクスポートとインポートで移せます)。\n" +
-            "・同じ型番を2台つないだとき: 接続先が違うので、設定画面とトレイでは別のキーボードとして扱います(ドライバの設定は、共有範囲が「同じ型番」なら共有されます)。\n" +
-            "・トレイの設定は、設定画面と同じく接続先ごとのキーボード単位です。ここで共有範囲を変えても、共有されません。"));
+            "ドライバがこのキーボードの設定(レイヤーマップ・タイミング・マクロなど)を保存する単位を選びます。\n" +
+            "切り替えると、今の設定が切替先へコピーされ、切替先にすでにある設定は上書きされます。「変更する」を押すとすぐに反映されます。\n" +
+            "設定画面とトレイの設定は、共有範囲にかかわらず、接続先(USBポートなど)ごとのキーボードとして扱われます。"));
 
         var model = new RadioButton { Name = "ScopeModel", Content = "同じ型番で共有", GroupName = "Scope", Margin = new Thickness(0, 3, 0, 3) };
         var instance = new RadioButton { Name = "ScopeInstance", Content = "この1台だけ", GroupName = "Scope", Margin = new Thickness(0, 3, 0, 3) };
@@ -790,9 +760,8 @@ public sealed class SettingsDialog : Window
         var models = devices.Where(d => d.UniqId != 0).Select(d => d.HardwareId).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         if (models.Count <= 1) return true;
         var r = MessageBox.Show(this,
-            $"接続中のキーボードに、型番の違うものが{models.Count}種類あります。\n\n" +
-            "「すべてのキーボードで共有」にすると、これらのキーボードで同じ設定を使います。キーマップは物理キーの位置(スキャンコード)で" +
-            "決まるので、配列の違うキーボード(JISとテンキーなど)では、意図しないキーに割り当てられることがあります。\n\n" +
+            $"型番の違うキーボードが{models.Count}種類接続されています。\n\n" +
+            "「すべてのキーボードで共有」にすると、配列の違うキーボード(JISとテンキーなど)では、意図しないキーに割り当てられることがあります。\n\n" +
             "共有にしてよいですか。",
             Title, MessageBoxButton.OKCancel, MessageBoxImage.Warning);
         return r == MessageBoxResult.OK;
@@ -811,10 +780,8 @@ public sealed class SettingsDialog : Window
     {
         var panel = new StackPanel();
         panel.Children.Add(Help(
-            "キーボードごとの設定(project.json・helper.json)、トレイの設定、ログを保存するフォルダです。\n" +
-            "環境変数 KASANE に絶対パスが設定されていればそのフォルダを使い、無ければ(または相対パスなど正しくない値のときは)" +
-            @"既定の %LOCALAPPDATA%\applet\kasane を使います。Windows 11 の管理者保護で、昇格した画面が別のユーザーとして動いても同じ場所を使うための設定です。" +
-            "値の変更は、インストーラーの「設定フォルダの指定」で行います。変更後にサインインし直すと、トレイを含むすべてのアプリに反映されます。"));
+            @"設定ファイルとログを保存するフォルダです。環境変数 KASANE に絶対パスがあればそのフォルダを、なければ %LOCALAPPDATA%\applet\kasane を使います。" +
+            "変更は、インストーラーの「設定フォルダの指定」で行います。"));
 
         string? raw = Environment.GetEnvironmentVariable(HelperConfig.DataDirEnvironmentVariable);
         string effective = HelperConfig.BaseDirectory;
@@ -860,8 +827,7 @@ public sealed class SettingsDialog : Window
     {
         panel.Children.Add(new TextBlock { Text = "インストール時の取り込みの退避", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 16, 0, 4) });
         panel.Children.Add(Help(
-            "インストール時に設定ファイルを取り込むと、ドライバの設定が置き換わり、前の設定が1世代だけ退避されます。ここで、取り込み前の設定に戻せます。" +
-            "戻すと今の設定が退避に回るので、もう一度押すと元に戻ります。反映されるのは、キーボードを接続し直したあと(またはPCの再起動後)です。" +
+            "インストール時に設定ファイルを取り込むと、前の設定が1世代だけ退避されます。ここで戻すと、キーボードを接続し直したあと(またはPCの再起動後)に反映され、もう一度押すと元に戻ります。" +
             (_canWrite ? "" : "\n閲覧専用モード(管理者として実行していない)のため、戻すことはできません。")));
 
         var store = PersistedSettings.OpenLocalMachine();
@@ -906,7 +872,7 @@ public sealed class SettingsDialog : Window
             restore.Click += (_, _) =>
             {
                 if (MessageBox.Show(this,
-                        $"{target} の設定と、取り込み前の退避を入れ替えます。\n反映には、キーボードの接続し直し(またはPCの再起動)が必要です。\n\nもう一度この操作をすると、元に戻せます。続けますか？",
+                        $"{target} の設定と、取り込み前の退避を入れ替えます。\n反映には、キーボードの接続し直し(またはPCの再起動)が必要です。続けますか？",
                         "取り込み前の設定に戻す", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) return;
                 try
                 {
@@ -939,14 +905,8 @@ public sealed class SettingsDialog : Window
     {
         var panel = new StackPanel();
         panel.Children.Add(Help(
-            "PS/2(ACPI)キーボードのレイアウトは、レジストリ " + I8042Key + " の値でしか指定できません。" +
-            "HIDキーボードでは、これらの値が残っていると、個別の指定が無効になります。\n" +
-            "有効にすると、キーボードを接続するたびに(起動時を含む)、次のように書き換えます。\n" +
-            "・プロファイルのある型番のキーボード: 下の値を書き込みます(空欄の値は削除します)。\n" +
-            "・プロファイルの無いキーボード: OverrideKeyboardType/Subtype/Identifier と LayerDriver JPN/KOR を削除します(OSの既定に戻します)。\n" +
-            "無効(既定)のときは何もしません。その間は、下のプロファイルの設定はできませんが、保存済みの内容は残り、有効にしたときに使われます。\n" +
-            "これはドライバ全体の設定です。「反映する」を押すとすぐに保存されます(OK・キャンセルとは関係しません)。" +
-            "書き換えが行われるのは、次にキーボードを接続したとき(再接続・再起動)からです。"));
+            "有効にすると、キーボードを接続するたびに、レジストリ " + I8042Key + " の値を書き換えます(プロファイルのない型番は、OSの既定へ戻します)。" +
+            "「反映する」を押すとすぐに保存され、書き換えは次にキーボードを接続したときからです。"));
 
         var enabled = new CheckBox { Name = "I8042Enabled", Content = "キーボードの接続時にi8042prtの値を書き換える／初期化する", Margin = new Thickness(0, 0, 0, 8) };
         var specify = new CheckBox { Name = "I8042ProfileEnabled", Content = "現在選択しているキーボードに対する指定(接続時に下の値を書き込む)", Margin = new Thickness(0, 0, 0, 4) };

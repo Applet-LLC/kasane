@@ -18,9 +18,7 @@ internal sealed class HelperActionsTab : HelperTabBase
     public HelperActionsTab(HelperSettingsModel model, Window owner)
         : base(model, owner, "Helper",
             "キーを押して、プログラムの起動、文字列の入力、マウス操作、レイヤーの操作などを実行します。" +
-            "「動作」は、キー割り当て画面で HLP(Id) を割り当てたキーで実行されます。" +
-            "「トリガー」は、F13〜F24 などのキーを、トレイが監視して実行します。" +
-            "変更は、OK を押すと保存されます。管理者権限は要りません。トレイが数秒で読み直します。")
+            "「動作」は HLP(Id) を割り当てたキー、「トリガー」は F13〜F24 などのキーで実行され、変更は OK で保存されます。")
     {
         _addAction = Btn("AddActionButton", "追加...");
         _editAction = Btn("EditActionButton", "編集...");

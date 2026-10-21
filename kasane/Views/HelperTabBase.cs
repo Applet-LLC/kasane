@@ -72,7 +72,7 @@ internal abstract class HelperTabBase
     {
         if (!Model.HasDevice) _scopeInfo.Text = "キーボードが決まっていないため、全キーボード共通の設定だけ編集できます。";
         else if (Scope == HelperScope.Device && Model.DeviceLoadError != null)
-            _scopeInfo.Text = $"このキーボードの helper.json を読めませんでした({Model.DeviceLoadError})。壊れたファイルを上書きしないよう、" +
+            _scopeInfo.Text = $"このキーボードの helper.json を読めませんでした({Model.DeviceLoadError})。" +
                               $"この分は編集できません。ファイルを直すか削除してから、開き直してください。\n{Model.DevicePath}";
         else _scopeInfo.Text = "";
     }
