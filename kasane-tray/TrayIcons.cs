@@ -10,13 +10,15 @@ public static class TrayIcons
 {
     [DllImport("user32.dll")] private static extern bool DestroyIcon(IntPtr hIcon);
 
-    public static Icon Load()
+    public static Icon Load() => Load(SystemInformation.SmallIconSize);
+
+    /// <summary>複数サイズを含むicoから、指定のサイズ（高DPIなら大きいもの）に近い画像が選ばれる。</summary>
+    public static Icon Load(Size size)
     {
         var asm = Assembly.GetExecutingAssembly();
         string name = asm.GetManifestResourceNames().First(n => n.EndsWith("app.ico", StringComparison.OrdinalIgnoreCase));
         using var stream = asm.GetManifestResourceStream(name)!;
-        // 複数サイズを含むicoから、トレイのサイズ（高DPIなら大きいもの）に近い画像が選ばれる。
-        return new Icon(stream, SystemInformation.SmallIconSize);
+        return new Icon(stream, size);
     }
 
     /// <summary>灰色にしたアイコン。<paramref name="pauseMarks"/> なら右下に「一時停止」の縦棒2本を描く。</summary>

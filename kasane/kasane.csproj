@@ -24,6 +24,7 @@
   <ItemGroup>
     <!-- Window.Icon のパック参照解決用。アイコンはライセンス管理GUIと共通。 -->
     <Resource Include="..\kasane-license\Resources\app.ico" Link="Resources\app.ico" />
+    <Resource Include="..\kasane-license\Resources\about.png" Link="Resources\about.png" />
     <!-- KLEレイアウト（凡例インデックス4に既定キーコードを埋め込んだもの）。exeの隣の
          Layouts\ に配置され、実行時にそこから読み込む（ユーザーが独自のKLEを追加できるように
          埋め込みリソースにはしない）。 -->

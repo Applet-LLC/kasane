@@ -214,6 +214,7 @@ public sealed class SettingsDialog : Window
     private UIElement BuildAboutTab()
     {
         var panel = new StackPanel { Margin = new Thickness(8, 8, 0, 0) };
+        // アイコンの絵は、右上に置く（文字の列とは重ねない外側の Grid で）。
         panel.Children.Add(new TextBlock { Name = "AboutName", Text = AppInfo.DisplayName, FontSize = 26, FontWeight = FontWeights.Bold });
         panel.Children.Add(new TextBlock { Name = "AboutVersion", Text = Loc.T($"バージョン {AppInfo.VersionText}", $"Version {AppInfo.VersionText}"), FontSize = 15, Margin = new Thickness(0, 6, 0, 0) });
         panel.Children.Add(new TextBlock { Name = "AboutBuildTime", Text = Loc.T($"ビルド日時 {AppInfo.BuildTimeText}", $"Build time {AppInfo.BuildTimeText}"), Margin = new Thickness(0, 4, 0, 0) });
@@ -232,7 +233,17 @@ public sealed class SettingsDialog : Window
         };
         panel.Children.Add(new TextBlock(link) { Name = "AboutWebsite", Margin = new Thickness(0, 14, 0, 0) });
         panel.Children.Add(new TextBlock { Name = "AboutCopyright", Text = AppInfo.Copyright, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 4, 0, 0) });
-        return panel;
+
+        var logo = new Image
+        {
+            Name = "AboutLogo", Source = new System.Windows.Media.Imaging.BitmapImage(new Uri("pack://application:,,,/Resources/about.png")),
+            Width = 72, Height = 72, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 8, 8, 0),
+        };
+        System.Windows.Media.RenderOptions.SetBitmapScalingMode(logo, System.Windows.Media.BitmapScalingMode.HighQuality);
+        var grid = new Grid();
+        grid.Children.Add(panel);
+        grid.Children.Add(logo);
+        return grid;
     }
 
     private bool IsOnline => _uniqId != 0;

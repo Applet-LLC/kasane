@@ -65,16 +65,27 @@ internal sealed class AboutForm : Form
         var ok = new Button { Name = "AboutOk", Text = "OK", Size = new Size(80, 32), Anchor = AnchorStyles.Bottom | AnchorStyles.Right, Margin = new Padding(16, 0, 0, 0) };
         ok.Click += (_, _) => Close(); // Show() で開く（非モーダル）ので、DialogResult では閉じない
 
+        // アイコンの絵は、右上に置く。
+        using var logoIcon = TrayIcons.Load(new Size(128, 128));
+        var logo = new PictureBox
+        {
+            Name = "AboutLogo", Image = logoIcon.ToBitmap(), SizeMode = PictureBoxSizeMode.Zoom, Size = new Size(72, 72),
+            Anchor = AnchorStyles.Top | AnchorStyles.Right, Margin = new Padding(16, 0, 0, 12),
+        };
+
         var layout = new TableLayoutPanel
         {
-            Name = "AboutLayout", ColumnCount = 2, RowCount = 1, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Name = "AboutLayout", ColumnCount = 2, RowCount = 2, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
             Padding = new Padding(24, 18, 24, 22),
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.Controls.Add(content, 0, 0);
-        layout.Controls.Add(ok, 1, 0);
+        layout.SetRowSpan(content, 2);
+        layout.Controls.Add(logo, 1, 0);
+        layout.Controls.Add(ok, 1, 1);
 
         AutoSize = true;
         AutoSizeMode = AutoSizeMode.GrowAndShrink;
