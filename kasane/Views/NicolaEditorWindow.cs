@@ -20,7 +20,7 @@ public sealed class NicolaEditorWindow : Window
     private readonly TextBlock _validation = new() { Name = "ValidationText", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) };
 
     private readonly ComboBox _output = new() { Name = "OutputBox", Width = 260, ItemsSource = OutputLabels };
-    private readonly CheckBox _enabled = new() { Name = "EnabledCheck", Content = "判定する（OFFにすると、設定はキーボードに置いたまま親指シフトをしない）", VerticalAlignment = VerticalAlignment.Center };
+    private readonly CheckBox _enabled = new() { Name = "EnabledCheck", Content = "判定する（OFFにすると、設定はキーボードに残したまま、親指シフトをしません）", VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBox _layer = Box("LayerBox", 60);
     private readonly TextBox _thumbLeft = Box("ThumbLeftBox", 110), _thumbRight = Box("ThumbRightBox", 110);
     private readonly TextBox _thumbLeftTap = Box("ThumbLeftTapBox", 110), _thumbRightTap = Box("ThumbRightTapBox", 110);

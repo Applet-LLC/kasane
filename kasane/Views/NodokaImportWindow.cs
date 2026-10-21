@@ -121,7 +121,7 @@ public sealed class NodokaImportWindow : Window
     {
         _profiles.Items.Clear();
         var list = NodokaRegistry.ListProfiles();
-        _profiles.Items.Add(new Profile(null, list.Count == 0 ? "(のどかの設定が見つかりません。ファイルを選んでください)" : "(選んでください)"));
+        _profiles.Items.Add(new Profile(null, list.Count == 0 ? "（のどかの設定が見つかりません。ファイルを選んでください）" : "（選んでください）"));
         foreach (var p in list) _profiles.Items.Add(new Profile(p, (p.IsActive ? "★ " : "") + $"{p.Name}  {p.Path}"));
         int active = list.FindIndex(p => p.IsActive);
         _profiles.SelectedIndex = active >= 0 ? active + 1 : 0;
@@ -198,7 +198,7 @@ public sealed class NodokaImportWindow : Window
             string where = l.Src != null ? $"{Path.GetFileName(l.Src.File)}:{l.Src.Line}: " : "";
             _list.Items.Add($"{mark} {where}{l.Text}");
         }
-        if (_list.Items.Count == 0) _list.Items.Add("(該当する項目はありません)");
+        if (_list.Items.Count == 0) _list.Items.Add("（該当する項目はありません）");
     }
 
     private void Accept()

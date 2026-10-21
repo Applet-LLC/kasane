@@ -197,9 +197,9 @@ public partial class CalibrationWindow : Window
         }
         Title = _mode switch
         {
-            CalibrationMode.InputCheck => "キャリブレーション — 入力確認",
-            CalibrationMode.SingleKey => "キャリブレーション — 個別キー",
-            _ => $"キャリブレーション — 全体（{_layout.Slots.Count}キー）",
+            CalibrationMode.InputCheck => "キャリブレーション：入力確認",
+            CalibrationMode.SingleKey => "キャリブレーション：個別キー",
+            _ => $"キャリブレーション：全体（{_layout.Slots.Count}キー）",
         };
     }
 
@@ -256,7 +256,7 @@ public partial class CalibrationWindow : Window
         }
         else if (isDown)
         {
-            TxtLast.Text = $"0x{scan:X4} は、この配列のどのキーにも対応しません。キャリブレーションで実測するか、配列にないキーです。";
+            TxtLast.Text = $"0x{scan:X4} は、この配列のどのキーにも対応しません。配列にないキーか、キャリブレーションでの実測が必要なキーです。";
         }
     }
 

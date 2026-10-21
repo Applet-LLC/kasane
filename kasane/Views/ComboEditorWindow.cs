@@ -18,7 +18,7 @@ public sealed class ComboEditorWindow : IdListEditorWindow
         : base("コンボ", KbdLayerClient.MaxComboCount,
             "コンボは、2つのキーをほぼ同時（タイミング設定の ComboTerm 以内）に押すと、代わりに別のキーを送ります。\n" +
             "出力は、キー(KC_*)、LCTL(KC_Z) のような修飾付きキー（押している間）、MACRO(n)（成立したときに1回実行）のいずれかです。" +
-            "制約: メンバーは2キーだけ、同じキーを2つ以上のコンボに使うことはできません。" +
+            "制約: メンバーは2キーだけで、同じキーを2つ以上のコンボには使えません。" +
             "コンボは物理キーに対して働くので、どのレイヤーでも有効です。")
     {
         _project = project;

@@ -26,7 +26,7 @@ internal sealed class NicolaLinkPanel : HelperTabBase
     /// <param name="changed">値が変わったとき（NICOLA の説明の注意を見直すため）。</param>
     public NicolaLinkPanel(HelperSettingsModel model, Window owner, Func<bool> getGlobal, Action<bool> setGlobal, Action changed)
         : base(model, owner, "NicolaLink",
-            "NICOLA の IME 連動（IME がかなモードのときだけ、NICOLA のレイヤーを自動で立てる）を、使うかどうかを決めます。" +
+            "NICOLA の IME 連動（IME がかなモードのときだけ、NICOLA のレイヤーを自動で立てる）を使うかどうかを決めます。" +
             "「このキーボード」の設定が、「全キーボード共通」より先に使われます。変更は、OK を押すと保存されます（管理者権限は要りません）。" +
             "タスクトレイの kasane が動いているときだけ働きます。")
     {

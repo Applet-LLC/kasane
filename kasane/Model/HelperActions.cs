@@ -102,7 +102,7 @@ public static class SequenceCompiler
             if (step.MoveX != null || step.MoveY != null)
             {
                 if (step.Absolute && (step.MoveX == null || step.MoveY == null))
-                    errors.Add(at + "Absolute のときは MoveX と MoveY の両方が要ります");
+                    errors.Add(at + "Absolute のときは MoveX と MoveY の両方が必要です");
                 else ops.Add(new InputOp(InputKind.MouseMove, step.MoveX ?? 0, step.MoveY ?? 0, Flag: step.Absolute));
             }
             if (step.Wheel is int wheel && wheel != 0) ops.Add(new InputOp(InputKind.Wheel, wheel));

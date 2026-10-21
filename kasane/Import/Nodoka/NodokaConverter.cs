@@ -302,7 +302,7 @@ internal sealed class TargetBuilder
             if (MacroStepCount(tokens) <= KbdLayerClient.MaxMacroSteps)
             {
                 var p = new Plan { Kind = PlanKind.Macro, Keys = tokens };
-                p.Notes.Add("複数のキーの列は、最後のキーを押している間だけ押し続ける、という動きにはなりません（押した時に全部を順に打ちます）");
+                p.Notes.Add("複数のキーの列は、最後のキーを押している間だけ押し続ける、という動きにはなりません（押したときに、全部のキーを順に打ちます）");
                 return p;
             }
         }

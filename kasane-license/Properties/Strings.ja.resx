@@ -65,7 +65,7 @@
     <value>ライセンスを再確認</value>
   </data>
   <data name="Btn_Refresh_ToolTip" xml:space="preserve">
-    <value>ネットワークが後から有効になった場合など、保存済みの情報でGumroadへ再確認します</value>
+    <value>ネットワークに後から接続できた場合などに、保存済みの情報でGumroadに再確認します</value>
   </data>
   <data name="Label_LicenseKey" xml:space="preserve">
     <value>ライセンスキー</value>
@@ -132,7 +132,7 @@
     <value>保存されたライセンスキーがありません。ライセンスキーを入力してアクティベートしてください。</value>
   </data>
   <data name="Diag_Unreachable" xml:space="preserve">
-    <value>到達できません（インターネット接続を確認してください）</value>
+    <value>接続できません（インターネット接続を確認してください）</value>
   </data>
   <data name="Msg_GumroadUnreachable" xml:space="preserve">
     <value>Gumroad に接続できませんでした。ネットワーク接続を確認してもう一度お試しください。</value>
@@ -153,22 +153,22 @@
     <value>不明なエラー</value>
   </data>
   <data name="Err_ValidationFailed" xml:space="preserve">
-    <value>ライセンスキーが無効です。Gumroad で購入を確認してください。</value>
+    <value>ライセンスキーが無効です。Gumroad の購入内容を確認してください。</value>
   </data>
   <data name="Err_MissingKey" xml:space="preserve">
     <value>ライセンスキーが入力されていません。</value>
   </data>
   <data name="Err_NetworkError" xml:space="preserve">
-    <value>インターネットに接続できません。ネットワーク環境を確認してください。</value>
+    <value>インターネットに接続できません。ネットワークの接続を確認してください。</value>
   </data>
   <data name="Err_Timeout" xml:space="preserve">
-    <value>Gumroad への接続がタイムアウトしました。しばらくしてから再試行してください。</value>
+    <value>Gumroad への接続がタイムアウトしました。しばらくしてからもう一度お試しください。</value>
   </data>
   <data name="Err_ServerError" xml:space="preserve">
-    <value>Gumroad 側で予期しないエラーが発生しました。しばらくしてから再試行してください。</value>
+    <value>Gumroad 側で予期しないエラーが発生しました。しばらくしてからもう一度お試しください。</value>
   </data>
   <data name="Err_ParseError" xml:space="preserve">
-    <value>Gumroad からの応答を処理できませんでした。しばらくしてから再試行してください。</value>
+    <value>Gumroad からの応答を処理できませんでした。しばらくしてからもう一度お試しください。</value>
   </data>
   <data name="Err_Generic" xml:space="preserve">
     <value>アクティベートに失敗しました: {0}</value>
@@ -181,10 +181,10 @@
     <value>サービス未起動</value>
   </data>
   <data name="Status_Active" xml:space="preserve">
-    <value>有効（残りトークン有効期限 {0} 日）</value>
+    <value>有効（トークンの有効期限まで {0} 日）</value>
   </data>
   <data name="Status_NextRenewal" xml:space="preserve">
-    <value>次回自動更新: {0}（サブスクが有効な限り自動延長されます）</value>
+    <value>次回自動更新: {0}（サブスクリプションが有効な間は自動で延長されます）</value>
   </data>
   <data name="Status_User" xml:space="preserve">
     <value>ユーザー: {0}</value>
@@ -196,7 +196,7 @@
     <value>ライセンス状態を確認できません</value>
   </data>
   <data name="Status_CannotVerifyHint" xml:space="preserve">
-    <value>過去にアクティベート済みの場合には、「ライセンスを再確認」をお試しください。</value>
+    <value>以前にアクティベート済みの場合は、「ライセンスを再確認」をお試しください。</value>
   </data>
   <data name="Status_NotActivated" xml:space="preserve">
     <value>未アクティベート</value>

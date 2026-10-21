@@ -164,7 +164,7 @@ public sealed class TrayContext : ApplicationContext
             foreach (var item in kb.Items)
             {
                 var entry = new ToolStripMenuItem($"レイヤー {item.Layer}") { Name = $"TrayLayer_{kb.UniqId:X8}_{item.Layer}", Checked = item.Checked, CheckOnClick = false, Enabled = item.Enabled };
-                if (!item.Enabled) entry.ToolTipText = "キーボードのレイヤー切り替え、IME連動、アプリ別レイヤーが立てているので、ここからは切れません。";
+                if (!item.Enabled) entry.ToolTipText = "キーボードのレイヤー切り替え、IME連動、アプリ別レイヤーのいずれかで有効になっているので、ここからは切れません。";
                 uint uniq = kb.UniqId;
                 int layer = item.Layer;
                 entry.Click += (_, _) =>

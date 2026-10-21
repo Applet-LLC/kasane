@@ -27,7 +27,7 @@ public static class KeycodeField
             Margin = new Thickness(6, 0, 0, 0),
             Padding = new Thickness(8, 1, 8, 1),
             Focusable = false, // キー操作でボタンが反応して、取り込んだキーが重ならないように
-            ToolTip = "このボタンを押したあと、入力したいキーを押します（Esc で取消）。Win キーや Alt+Tab は取れないので「選ぶ...」を使ってください。",
+            ToolTip = "このボタンを押したあと、入力したいキーを押します（Esc で取消）。Win キーや Alt+Tab は入力できないので「選ぶ...」を使ってください。",
         };
         KeycodeCapture? session = null;
         // 末尾に足していく欄（マクロ）は、取り込みを続けて、何個でも続けて入れられる（Esc かボタンをもう一度押すと終わる）。

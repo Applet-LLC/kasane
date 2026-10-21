@@ -62,7 +62,7 @@ public static class StepInsertBar
             Content = "キーを押して挿入",
             Padding = new Thickness(8, 1, 8, 1),
             Focusable = false, // キー操作でボタンが反応して、取り込んだキーが重ならないように
-            ToolTip = "このボタンを押したあと、入れたいキーを押します（Esc で取消）。Win キーや Alt+Tab は取れないので「選ぶ...」を使ってください。",
+            ToolTip = "このボタンを押したあと、入れたいキーを押します（Esc で取消）。Win キーや Alt+Tab は入力できないので「選ぶ...」を使ってください。",
         };
         KeycodeCapture? session = null;
         session = new KeycodeCapture(

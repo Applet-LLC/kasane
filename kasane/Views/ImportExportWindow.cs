@@ -44,7 +44,7 @@ public sealed class ImportExportWindow : Window
     private readonly CheckBox _exHelper = new() { Name = "ExportHelperCheck", Content = "ヘルパー設定（動作・トリガー・アプリ別レイヤー）を含める", IsChecked = true, Margin = new Thickness(0, 8, 0, 0) };
     private readonly CheckBox _exMeasured = new() { Name = "ExportMeasuredCheck", Content = "実測したスキャンコードを含める（同じキーボードへのバックアップ用）", Margin = new Thickness(0, 2, 0, 0) };
     private readonly RadioButton _exFormatKasane = new() { Name = "ExportFormatKasane", Content = "kasane の設定ファイル（*.kasane.json。レイヤー・マクロ・コンボなどすべて）", GroupName = "ExFormat", IsChecked = true, Margin = new Thickness(0, 2, 0, 2) };
-    private readonly RadioButton _exFormatKeymapTool = new() { Name = "ExportFormatKeymapTool", Content = "KeymapTool 用 JSON（keymap.json と profile.json。レイヤーと較正だけ。マクロ・コンボ等は含まれない）", GroupName = "ExFormat", Margin = new Thickness(0, 2, 0, 2) };
+    private readonly RadioButton _exFormatKeymapTool = new() { Name = "ExportFormatKeymapTool", Content = "KeymapTool 用 JSON（keymap.json と profile.json。レイヤーと較正だけを書き出し、マクロやコンボなどは含みません）", GroupName = "ExFormat", Margin = new Thickness(0, 2, 0, 2) };
     private readonly TextBox _exReport = ReportBox("ExportReport");
     private readonly Button _exOpen = new() { Name = "ExportOpenFolderButton", Content = "出力先をエクスプローラーで開く", Width = 190, Margin = new Thickness(8, 10, 0, 0) };
     private readonly TextBlock _exDest = new()
@@ -180,7 +180,7 @@ public sealed class ImportExportWindow : Window
         if (!_dirty || _saveProject == null) return true;
         var r = MessageBox.Show(this,
             $"このキーボードに、保存していない変更があります。\n\n{action}は保存先の設定を対象にします。先に保存しますか？\n" +
-            "（「いいえ」で保存せずに続けると、保存していない変更は反映されません／失われます）",
+            "（「いいえ」で保存せずに続けると、保存していない変更は反映されず、失われます）",
             Title, MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
         if (r == MessageBoxResult.Cancel) return false;
         if (r == MessageBoxResult.Yes)
@@ -499,7 +499,7 @@ public sealed class ImportExportWindow : Window
             try { ClearedProject = ProjectService.TryLoad(_uniqId); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
             {
-                report.Warn($"クリアしたあとの設定を読み直せませんでした（{ex.Message}）。編集画面を開き直してください");
+                report.Warn($"クリアしたあとの設定を読み直せませんでした（{ex.Message}）。編集画面を開き直してください。");
             }
         }
         ShowReport(_clReport, report,
@@ -613,7 +613,7 @@ public sealed class ImportExportWindow : Window
         var dlg = new NodokaImportWindow { Owner = this };
         if (dlg.ShowDialog() != true || dlg.Result == null) return;
         _imReport.Text = "";
-        ShowLoaded(dlg.Result, "(のどか) " + dlg.SourceLabel);
+        ShowLoaded(dlg.Result, "（のどか）" + dlg.SourceLabel);
         // のどかの設定は、今の設定に足す（「置き換え」だと、のどかに無い項目も消える）のを既定にする。
         _imAppend.IsChecked = true;
     }
@@ -636,7 +636,7 @@ public sealed class ImportExportWindow : Window
             if (kb.KeyOverrides is { Count: > 0 }) parts.Add($"キー置換{kb.KeyOverrides.Count}");
             if (kb.Nicola != null) parts.Add("NICOLA");
             if (kb.Helper != null) parts.Add("ヘルパー設定");
-            lines.Add($"  {kb.UniqId ?? "(UniqIdなし)"} {kb.LayoutName}: {string.Join("、", parts)}");
+            lines.Add($"  {kb.UniqId ?? "（UniqIdなし）"} {kb.LayoutName}: {string.Join("、", parts)}");
         }
         if (file.Tray != null) lines.Add("  トレイの設定（共通）");
         _imSummary.Text = string.Join("\n", lines);
@@ -645,7 +645,7 @@ public sealed class ImportExportWindow : Window
         for (int i = 0; i < file.Keyboards.Count; i++)
         {
             var kb = file.Keyboards[i];
-            _imSource.Items.Add($"{kb.UniqId ?? "(UniqIdなし)"}  {kb.LayoutName}");
+            _imSource.Items.Add($"{kb.UniqId ?? "（UniqIdなし）"}  {kb.LayoutName}");
         }
         _imSource.SelectedIndex = 0;
 
@@ -688,15 +688,15 @@ public sealed class ImportExportWindow : Window
             TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 6),
         });
 
-        var targets = new List<Target> { new(null, "(読み込まない)") };
+        var targets = new List<Target> { new(null, "（読み込まない）") };
         foreach (var d in _devices) if (d.UniqId != 0) targets.Add(new Target(d.UniqId, d.DisplayName)); // DisplayName は UniqId から始まる
         foreach (var s in PortableService.LoadAll(null, new PortableReport()))
-            if (targets.All(t => t.Id != s.UniqId)) targets.Add(new Target(s.UniqId, $"{s.UniqId:X8}  (保存済みの設定)"));
+            if (targets.All(t => t.Id != s.UniqId)) targets.Add(new Target(s.UniqId, $"{s.UniqId:X8}  （保存済みの設定）"));
         // ファイルの UniqId が候補に無くても、そのまま新規に作れるようにする。
         foreach (var kb in file.Keyboards)
-            if (kb.UniqIdValue is uint u && targets.All(t => t.Id != u)) targets.Add(new Target(u, $"{u:X8}  (新規に作る)"));
+            if (kb.UniqIdValue is uint u && targets.All(t => t.Id != u)) targets.Add(new Target(u, $"{u:X8}  （新規に作る）"));
 
-        if (_uniqId != 0 && targets.All(t => t.Id != _uniqId)) targets.Add(new Target(_uniqId, $"{_uniqId:X8}  (今のキーボード)"));
+        if (_uniqId != 0 && targets.All(t => t.Id != _uniqId)) targets.Add(new Target(_uniqId, $"{_uniqId:X8}  （今のキーボード）"));
         var auto = PortableService.AutoMap(file, _devices.Where(d => d.UniqId != 0).ToList());
         for (int i = 0; i < file.Keyboards.Count; i++)
         {
@@ -707,7 +707,7 @@ public sealed class ImportExportWindow : Window
             combo.SelectedItem = targets.First(t => t.Id == defaultTarget);
             _mapCombos.Add(combo);
             var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-            row.Children.Add(new TextBlock { Text = $"{kb.UniqId ?? "(共通)"}  {kb.LayoutName} →", Width = 230, VerticalAlignment = VerticalAlignment.Center });
+            row.Children.Add(new TextBlock { Text = $"{kb.UniqId ?? "（共通）"}  {kb.LayoutName} →", Width = 230, VerticalAlignment = VerticalAlignment.Center });
             row.Children.Add(combo);
             _imMapPanel.Children.Add(row);
         }
@@ -833,7 +833,7 @@ public sealed class ImportExportWindow : Window
         }
         if (!ConfirmSavedForAll("全体一括の読み込み")) return;
         var ask = MessageBox.Show(this,
-            "選んだキーボードの保存先の設定を、ファイルの内容で" + (o.Mode == ImportMode.Replace ? "置き換え" : "更新") + "ます。\n" +
+            "選んだキーボードの保存先の設定を、ファイルの内容で" + (o.Mode == ImportMode.Replace ? "置き換えます" : "追加します") + "。\n" +
             "読み込む前に、今の設定を自動でバックアップします。続けますか？",
             Title, MessageBoxButton.OKCancel, MessageBoxImage.Question);
         if (ask != MessageBoxResult.OK) return;
@@ -843,6 +843,6 @@ public sealed class ImportExportWindow : Window
         if (_uniqId != 0 && changed.Contains(_uniqId)) CurrentChangedOnDisk = true;
         ShowReport(_imReport, report,
             report.HasErrors && changed.Count == 0 ? "読み込めませんでした。"
-            : $"{changed.Count}台に読み込みました。「適用」はしていません（各キーボードを開いて「キーボードに適用」してください）。");
+            : $"{changed.Count}台に読み込みました。ドライバへの適用はまだです（各キーボードを開いて「キーボードに適用」してください）。");
     }
 }

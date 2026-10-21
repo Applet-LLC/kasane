@@ -559,7 +559,7 @@ public sealed class SettingsDialog : Window
     {
         var panel = new StackPanel();
         panel.Children.Add(Help(
-            $"設定を誤って入力できなくなったときの逃げ道です。ここで決めた{KbdLayerClient.EmergencyMinKeys}〜{KbdLayerClient.EmergencyMaxKeys}個のキーを" +
+            $"設定を誤って入力できなくなったときの緊急用の手段です。ここで決めた{KbdLayerClient.EmergencyMinKeys}〜{KbdLayerClient.EmergencyMaxKeys}個のキーを" +
             $"同時に{KbdLayerClient.EmergencyHoldMs / 1000}秒押し続けると、接続中の全キーボードのレイヤーマップがOFFになります（マップ自体は消えません）。" +
             "ドライバ全体で1つの設定です（キーボードごとではありません）。全部のキーが同じキーボードにある必要があります。\n" +
             "キーは物理キー（レイヤーマップで置き換える前）で指定します。各欄の「押して入力」でキーを押して入れるか、「選ぶ...」で選びます。\n" +
