@@ -35,6 +35,7 @@ internal sealed class HelperActionsTab : HelperTabBase
         Stack.Children.Add(new TextBlock { Text = "トリガー(F13 などのキー。キーフックで受ける)", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 0) });
         Stack.Children.Add(_triggers);
         Stack.Children.Add(Buttons(_addTrigger, _editTrigger, _copyTrigger, _deleteTrigger));
+        Stack.Children.Add(new TextBlock { Text = "HLP (Helper): キーに割り当てると、そのキーを押したときに「動作」を実行します。", TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 16, 0, 0) });
 
         _addAction.Click += (_, _) => AddAction();
         _editAction.Click += (_, _) => EditAction();

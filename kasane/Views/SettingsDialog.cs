@@ -361,6 +361,15 @@ public sealed class SettingsDialog : Window
         Row(panel, "Quick Tap", quickRow, "短押しの直後に押し続けるとリピートします(0 = TapTerm と同じ)");
 
         _tt = Field("TappingToggleBox", "TT の回数", "TT(n): この回数続けてタップすると、ON/OFFが固定されます(0 = 既定の5)", _project.TappingToggle);
+        panel.Children.Add(new TextBlock
+        {
+            Text = "MT (Mod-Tap): 短く押すと通常のキー、長押しすると修飾キーになります。\n" +
+                   "LT (Layer-Tap): 短く押すと通常のキー、長押しするとレイヤーを切り替えます。\n" +
+                   "TT (Tap Toggle): 押している間はレイヤーが有効になり、続けてタップするとON/OFFが固定されます。",
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = AppTheme.Palette.SubText,
+            Margin = new Thickness(0, 16, 0, 0),
+        });
         return panel;
     }
 
