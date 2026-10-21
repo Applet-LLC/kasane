@@ -52,13 +52,13 @@ public static class PortableService
             try { project = ProjectService.TryLoad(uniq, baseDirectory); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
             {
-                report.Warn($"{name}: project.json を読めないため、飛ばします（{ex.Message}）");
+                report.Warn(Loc.T($"{name}: project.json を読めないため、飛ばします({ex.Message})", $"{name}: skipped because project.json could not be read ({ex.Message})"));
                 continue;
             }
             if (project == null) continue;
             project.UniqId = uniq;
             HelperConfig.TryLoad(HelperConfig.DevicePath(uniq, baseDirectory), out var helper, out string? helperError);
-            if (helperError != null) report.Warn($"{name}: helper.json を読めないため、ヘルパー設定は含めません（{helperError}）");
+            if (helperError != null) report.Warn(Loc.T($"{name}: helper.json を読めないため、ヘルパー設定は含めません({helperError})", $"{name}: helper actions are not included because helper.json could not be read ({helperError})"));
             list.Add(new StoredKeyboard(uniq, project, FindLayout(project.LayoutName, project.LayoutPath), helper));
         }
         return list;
@@ -72,7 +72,7 @@ public static class PortableService
         {
             if (kb.Layout == null)
             {
-                report.Warn($"{kb.UniqId:X8}: レイアウト「{kb.Project.LayoutName}」が見つからないため、書き出せませんでした");
+                report.Warn(Loc.T($"{kb.UniqId:X8}: レイアウト「{kb.Project.LayoutName}」が見つからないため、書き出せませんでした", $"{kb.UniqId:X8}: could not export because layout \"{kb.Project.LayoutName}\" was not found"));
                 continue;
             }
             ProjectService.NormalizeShape(kb.Project, kb.Layout);
@@ -87,7 +87,7 @@ public static class PortableService
             Helper = options.IncludeHelper && tray.Helper != null && PortableExporter.HasContent(tray.Helper)
                 ? PortableExporter.CloneHelper(tray.Helper) : null,
         };
-        report.Info($"キーボード{file.Keyboards.Count}台を書き出しました");
+        report.Info(Loc.T($"キーボード{file.Keyboards.Count}台を書き出しました", $"Exported {file.Keyboards.Count} keyboard(s)"));
         return file;
     }
 
@@ -98,7 +98,7 @@ public static class PortableService
         var file = ExportAll(baseDirectory, new ExportOptions { IncludeMeasured = true, IncludeHelper = true }, sub);
         string path = Path.Combine(Base(baseDirectory), "backup", $"{prefix}-{DateTime.Now:yyyyMMdd-HHmmss}.kasane.json");
         PortableIO.Write(path, file);
-        report.Info($"今の設定をバックアップしました: {path}");
+        report.Info(Loc.T($"今の設定をバックアップしました: {path}", $"Backed up the current settings: {path}"));
         return path;
     }
 
@@ -137,7 +137,7 @@ public static class PortableService
         try { BackupAll(baseDirectory, report); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            report.Error($"今の設定をバックアップできなかったため、読み込みを中止しました: {ex.Message}");
+            report.Error(Loc.T($"今の設定をバックアップできなかったため、読み込みを中止しました: {ex.Message}", $"Import canceled because the current settings could not be backed up: {ex.Message}"));
             return changed;
         }
 
@@ -152,19 +152,19 @@ public static class PortableService
             try { project = ProjectService.TryLoad(uniq, baseDirectory); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
             {
-                report.Error($"{tag}: project.json を読めないため、飛ばしました（{ex.Message}）");
+                report.Error(Loc.T($"{tag}: project.json を読めないため、飛ばしました({ex.Message})", $"{tag}: skipped because project.json could not be read ({ex.Message})"));
                 continue;
             }
             KeyboardLayout? layout = project != null ? FindLayout(project.LayoutName, project.LayoutPath) : null;
             if (project == null)
             {
                 layout = resolveLayout(src.LayoutName);
-                if (layout == null) { report.Error($"{tag}: レイアウト「{src.LayoutName}」が見つからないため、飛ばしました"); continue; }
+                if (layout == null) { report.Error(Loc.T($"{tag}: レイアウト「{src.LayoutName}」が見つからないため、飛ばしました", $"{tag}: skipped because layout \"{src.LayoutName}\" was not found")); continue; }
                 project = ProjectService.CreateDefault(uniq, src.HardwareId, layout, bundled: true);
             }
             else if (layout == null)
             {
-                report.Error($"{tag}: レイアウト「{project.LayoutName}」が見つからないため、飛ばしました");
+                report.Error(Loc.T($"{tag}: レイアウト「{project.LayoutName}」が見つからないため、飛ばしました", $"{tag}: skipped because layout \"{project.LayoutName}\" was not found"));
                 continue;
             }
             project.UniqId = uniq;
@@ -172,7 +172,7 @@ public static class PortableService
             bool helperReadable = HelperConfig.TryLoad(HelperConfig.DevicePath(uniq, baseDirectory), out var helper, out string? helperError);
             if (!helperReadable)
             {
-                report.Warn($"{tag}: helper.json を読めないため、ヘルパー設定は読み込みません（{helperError}）");
+                report.Warn(Loc.T($"{tag}: helper.json を読めないため、ヘルパー設定は読み込みません({helperError})", $"{tag}: helper actions are not imported because helper.json could not be read ({helperError})"));
                 helper = null;
             }
             var oo = Clone(o);
@@ -188,7 +188,7 @@ public static class PortableService
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                report.Error($"{tag}: 保存できませんでした（{ex.Message}）");
+                report.Error(Loc.T($"{tag}: 保存できませんでした({ex.Message})", $"{tag}: could not save ({ex.Message})"));
             }
         }
 
@@ -206,11 +206,11 @@ public static class PortableService
                     tray.Helper = HelperMerge.Merge(tray.Helper, null, file.Tray.Helper, ImportMode.Append, out _, report);
                 }
                 tray.Save(TrayPath(baseDirectory));
-                report.Info("トレイの設定（共通）を読み込みました");
+                report.Info(Loc.T("トレイの設定(共通)を読み込みました", "Imported the shared tray settings"));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                report.Error($"トレイの設定を保存できませんでした（{ex.Message}）");
+                report.Error(Loc.T($"トレイの設定を保存できませんでした({ex.Message})", $"Could not save the tray settings ({ex.Message})"));
             }
         }
         return changed;

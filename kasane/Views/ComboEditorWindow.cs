@@ -15,11 +15,15 @@ public sealed class ComboEditorWindow : IdListEditorWindow
     public List<ComboDef> Result { get; private set; } = new();
 
     public ComboEditorWindow(KeymapProject project, KeyboardLayout layout)
-        : base("コンボ", KbdLayerClient.MaxComboCount,
-            "コンボは、2つのキーをほぼ同時（タイミング設定の ComboTerm 以内）に押すと、代わりに別のキーを送ります。\n" +
-            "出力は、キー(KC_*)、LCTL(KC_Z) のような修飾付きキー（押している間）、MACRO(n)（成立したときに1回実行）のいずれかです。" +
-            "制約: メンバーは2キーだけ、同じキーを2つ以上のコンボに使うことはできません。" +
-            "コンボは物理キーに対して働くので、どのレイヤーでも有効です。")
+        : base(Loc.T("コンボ", "Combo"), KbdLayerClient.MaxComboCount,
+            Loc.T(("コンボは、2つのキーをほぼ同時(タイミング設定の ComboTerm 以内)に押すと、代わりに別のキーを送ります。\n" +
+                   "出力は、キー(KC_*)、LCTL(KC_Z) のような修飾付きキー(押している間)、MACRO(n)(成立したときに1回実行)のいずれかです。" +
+                   "制約: メンバーは2キーだけで、同じキーを2つ以上のコンボには使えません。" +
+                   "コンボは物理キーに対して働くので、どのレイヤーでも有効です。"),
+                  ("A combo sends a different key when two keys are pressed at almost the same time (within ComboTerm in the timing settings).\n" +
+                   "The output is one of: a key (KC_*), a key with modifiers such as LCTL(KC_Z) (held while the combo is pressed), or MACRO(n) (runs once when the combo fires). " +
+                   "Limits: a combo has exactly two member keys, and a key can't be used in more than one combo. " +
+                   "Combos work on physical keys, so they apply on every layer.")))
     {
         _project = project;
         _layout = layout;
@@ -36,7 +40,7 @@ public sealed class ComboEditorWindow : IdListEditorWindow
 
     protected override void ShowDetail(int id)
     {
-        var items = new List<string> { "（未使用）" };
+        var items = new List<string> { Loc.T("(未使用)", "(unused)") };
         items.AddRange(_layout.Slots.Select(s => s.Description));
         var m1 = new ComboBox { Name = "Member1Combo", Width = 300, ItemsSource = items, IsEditable = false };
         var m2 = new ComboBox { Name = "Member2Combo", Width = 300, ItemsSource = items, IsEditable = false };
@@ -57,14 +61,14 @@ public sealed class ComboEditorWindow : IdListEditorWindow
         m2.SelectionChanged += (_, _) => Changed();
         output.TextChanged += (_, _) => Changed();
 
-        Detail.Children.Add(Row("キー1", m1));
-        Detail.Children.Add(Row("キー2", m2));
-        Detail.Children.Add(Row("送るキー", KeycodeField.Wrap(output, acceptsMacro: true)));
+        Detail.Children.Add(Row(Loc.T("キー1", "Key 1"), m1));
+        Detail.Children.Add(Row(Loc.T("キー2", "Key 2"), m2));
+        Detail.Children.Add(Row(Loc.T("送るキー", "Output key"), KeycodeField.Wrap(output, acceptsMacro: true)));
     }
 
     private void Check(ComboDef c, List<string> errors)
     {
-        if (c.Slot1 < 0 || c.Slot2 < 0) { errors.Add($"コンボ{c.Id}: キーを2つ選んでください"); return; }
+        if (c.Slot1 < 0 || c.Slot2 < 0) { errors.Add(Loc.T($"コンボ{c.Id}: キーを2つ選んでください", $"Combo {c.Id}: select two keys")); return; }
         ProjectService.ComboToEntry(_project, _layout, c, errors);
     }
 
@@ -79,7 +83,7 @@ public sealed class ComboEditorWindow : IdListEditorWindow
             {
                 if (slot < 0) continue;
                 if (used.TryGetValue(slot, out var other))
-                    errors.Add($"「{SlotName(slot)}」がコンボ{other}とコンボ{c.Id}の両方に使われています（1つのキーは1つのコンボにしか使えません）");
+                    errors.Add(Loc.T($"「{SlotName(slot)}」がコンボ{other}とコンボ{c.Id}の両方に使われています(1つのキーは1つのコンボにしか使えません)", $"\"{SlotName(slot)}\" is used in both combo {other} and combo {c.Id} (a key can be used in only one combo)"));
                 else used[slot] = c.Id;
             }
         }

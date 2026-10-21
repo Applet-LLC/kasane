@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using Loc = Kasane.Model.Loc;
 
 namespace Kasane.Views;
 
@@ -22,7 +23,7 @@ public sealed class TextPromptWindow : Window
         _box = new TextBox { Name = boxName, Text = initial, Margin = new Thickness(0, 4, 0, 10) };
         var ok = new Button { Name = "OkButton", Content = "OK", IsDefault = true, Width = 80, Margin = new Thickness(0, 0, 8, 0) };
         ok.Click += (_, _) => { Value = _box.Text; DialogResult = true; };
-        var cancel = new Button { Name = "CancelButton", Content = "キャンセル", IsCancel = true, Width = 80 };
+        var cancel = new Button { Name = "CancelButton", Content = Loc.T("キャンセル", "Cancel"), IsCancel = true, Width = 80 };
 
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         buttons.Children.Add(ok);

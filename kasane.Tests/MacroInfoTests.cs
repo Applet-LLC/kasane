@@ -19,7 +19,7 @@ public class MacroInfoTests
 
     [Fact]
     public void EmptyContent_IsShownAsUnused() =>
-        Assert.Equal(" 12: 後で作る — （未使用）", new MacroInfo(12, "後で作る", "").ToString());
+        Assert.Equal(" 12: 後で作る — (未使用)", new MacroInfo(12, "後で作る", "").ToString());
 
     [Theory]
     [InlineData(0, "MACRO(0)")]

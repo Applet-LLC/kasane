@@ -27,10 +27,10 @@ internal abstract class HelperTabBase
 
         Stack.Children.Add(new TextBlock { Text = help, TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 10) });
 
-        _deviceRadio = new RadioButton { Name = idPrefix + "ScopeDevice", Content = "このキーボード", GroupName = idPrefix + "Scope", Margin = new Thickness(0, 0, 16, 0) };
-        _globalRadio = new RadioButton { Name = idPrefix + "ScopeGlobal", Content = "全キーボード共通", GroupName = idPrefix + "Scope" };
+        _deviceRadio = new RadioButton { Name = idPrefix + "ScopeDevice", Content = Loc.T("このキーボード", "This keyboard"), GroupName = idPrefix + "Scope", Margin = new Thickness(0, 0, 16, 0) };
+        _globalRadio = new RadioButton { Name = idPrefix + "ScopeGlobal", Content = Loc.T("全キーボード共通", "All keyboards (shared)"), GroupName = idPrefix + "Scope" };
         var scopeBar = new StackPanel { Orientation = Orientation.Horizontal };
-        scopeBar.Children.Add(new TextBlock { Text = "対象:", Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
+        scopeBar.Children.Add(new TextBlock { Text = Loc.T("対象:", "Target:"), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
         scopeBar.Children.Add(_deviceRadio);
         scopeBar.Children.Add(_globalRadio);
         Stack.Children.Add(scopeBar);
@@ -70,10 +70,12 @@ internal abstract class HelperTabBase
 
     private void UpdateScopeInfo()
     {
-        if (!Model.HasDevice) _scopeInfo.Text = "キーボードが決まっていないため、全キーボード共通の設定だけ編集できます。";
+        if (!Model.HasDevice) _scopeInfo.Text = Loc.T("キーボードが決まっていないため、全キーボード共通の設定だけ編集できます。", "No keyboard is selected, so only the shared settings for all keyboards can be edited.");
         else if (Scope == HelperScope.Device && Model.DeviceLoadError != null)
-            _scopeInfo.Text = $"このキーボードの helper.json を読めませんでした（{Model.DeviceLoadError}）。壊れたファイルを上書きしないよう、" +
-                              $"この分は編集できません。ファイルを直すか削除してから、開き直してください。\n{Model.DevicePath}";
+            _scopeInfo.Text = Loc.T(($"このキーボードの helper.json を読めませんでした({Model.DeviceLoadError})。" +
+                                     $"この分は編集できません。ファイルを直すか削除してから、開き直してください。\n{Model.DevicePath}"),
+                                    ($"Could not read helper.json for this keyboard ({Model.DeviceLoadError}). " +
+                                     $"This part cannot be edited. Fix or delete the file, then reopen.\n{Model.DevicePath}"));
         else _scopeInfo.Text = "";
     }
 
@@ -91,5 +93,5 @@ internal abstract class HelperTabBase
     }
 
     protected bool Confirm(string message) =>
-        MessageBox.Show(Owner, message, "確認", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
+        MessageBox.Show(Owner, message, Loc.T("確認", "Confirm"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
 }

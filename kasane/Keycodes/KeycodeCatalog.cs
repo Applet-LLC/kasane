@@ -1,3 +1,5 @@
+using Kasane.Model;
+
 namespace Kasane.Keycodes;
 
 /// <summary>キー割り当てダイアログに並べるキーコードの分類と、キートップ表示用の短い名前。</summary>
@@ -5,29 +7,34 @@ public static class KeycodeCatalog
 {
     public sealed record Category(string Name, string[] Keycodes);
 
-    public static readonly Category[] Categories =
+    private static Category[]? _categories;
+
+    /// <summary>分類の一覧。名前は表示言語に合わせる（最初に使うときに作る。表示言語は起動時に決まる）。</summary>
+    public static Category[] Categories => _categories ??= BuildCategories();
+
+    private static Category[] BuildCategories() => new Category[]
     {
-        new("基本", new[] { "KC_TRNS", "KC_NO" }),
-        new("英字", Enumerable.Range('A', 26).Select(c => $"KC_{(char)c}").ToArray()),
-        new("数字", new[] { "KC_1", "KC_2", "KC_3", "KC_4", "KC_5", "KC_6", "KC_7", "KC_8", "KC_9", "KC_0" }),
-        new("記号・編集", new[]
+        new(Loc.T("基本", "Basic"), new[] { "KC_TRNS", "KC_NO" }),
+        new(Loc.T("英字", "Letters"), Enumerable.Range('A', 26).Select(c => $"KC_{(char)c}").ToArray()),
+        new(Loc.T("数字", "Numbers"), new[] { "KC_1", "KC_2", "KC_3", "KC_4", "KC_5", "KC_6", "KC_7", "KC_8", "KC_9", "KC_0" }),
+        new(Loc.T("記号・編集", "Symbols / Editing"), new[]
         {
             "KC_ESC", "KC_TAB", "KC_ENTER", "KC_BSPACE", "KC_SPACE", "KC_CAPSLOCK",
             "KC_GRAVE", "KC_MINUS", "KC_EQUAL", "KC_LBRACKET", "KC_RBRACKET", "KC_BSLASH",
             "KC_SCOLON", "KC_QUOTE", "KC_COMMA", "KC_DOT", "KC_SLASH", "KC_NONUS_BSLASH",
         }),
         // F13–F24 は物理キーが無くても出力できる（2026-10-08）。
-        new("ファンクション", Enumerable.Range(1, 24).Select(i => $"KC_F{i}").ToArray()),
-        new("修飾キー", new[]
+        new(Loc.T("ファンクション", "Function"), Enumerable.Range(1, 24).Select(i => $"KC_F{i}").ToArray()),
+        new(Loc.T("修飾キー", "Modifiers"), new[]
         {
             "KC_LCTRL", "KC_LSHIFT", "KC_LALT", "KC_LGUI", "KC_RCTRL", "KC_RSHIFT", "KC_RALT", "KC_RGUI", "KC_APP",
         }),
-        new("ナビゲーション", new[]
+        new(Loc.T("ナビゲーション", "Navigation"), new[]
         {
             "KC_PSCREEN", "KC_SCROLLLOCK", "KC_PAUSE", "KC_INSERT", "KC_HOME", "KC_PGUP",
             "KC_DELETE", "KC_END", "KC_PGDOWN", "KC_UP", "KC_DOWN", "KC_LEFT", "KC_RIGHT",
         }),
-        new("テンキー", new[]
+        new(Loc.T("テンキー", "Numpad"), new[]
         {
             "KC_NUMLOCK", "KC_KP_SLASH", "KC_KP_ASTERISK", "KC_KP_MINUS", "KC_KP_PLUS", "KC_KP_ENTER",
             "KC_KP_1", "KC_KP_2", "KC_KP_3", "KC_KP_4", "KC_KP_5", "KC_KP_6", "KC_KP_7", "KC_KP_8", "KC_KP_9",
@@ -37,7 +44,7 @@ public static class KeycodeCatalog
         new("NLS", new[] { "KC_ZKHK", "KC_RO", "KC_KANA", "KC_JYEN", "KC_HENK", "KC_MHEN" }),
         // ブラウザー・アプリ起動・電源のキーも、ここに並べる（2026-10-08。カテゴリの数を変えないため。
         // 表に名前の無いキーは、キーコード欄に SC_XXXX と書けば出力できる）。
-        new("メディア・システム", new[]
+        new(Loc.T("メディア・システム", "Media / System"), new[]
         {
             "KC_MUTE", "KC_VOLD", "KC_VOLU", "KC_MPLY", "KC_MSTP", "KC_MNXT", "KC_MPRV", "KC_CALC",
             "KC_WSCH", "KC_WHOM", "KC_WBAK", "KC_WFWD", "KC_WSTP", "KC_WREF", "KC_WFAV",
@@ -71,6 +78,15 @@ public static class KeycodeCatalog
         ["KC_PWR"] = "⚠Pwr",
     };
 
+    // 英語表示のときの、日本語キーボード固有のキーの短い名前（キートップ用）。
+    private static readonly Dictionary<string, string> EnglishShortNames = new(StringComparer.Ordinal)
+    {
+        ["KC_ZKHK"] = "Han/Zen", ["KC_RO"] = "Ro", ["KC_KANA"] = "Kana", ["KC_HENK"] = "Henkan", ["KC_MHEN"] = "Muhen",
+    };
+
+    private static string Localized(string canonicalToken, string japanese) =>
+        !Loc.IsJapanese && EnglishShortNames.TryGetValue(canonicalToken, out var en) ? en : japanese;
+
     // 電源キー（KC_PWR / KC_SLEP / KC_WAKE）のスキャンコード。押すとPCがシャットダウン・スリープしうる。
     private static readonly ushort[] PowerScanCodes = { 0xE05E, 0xE05F, 0xE063 };
 
@@ -86,7 +102,7 @@ public static class KeycodeCatalog
     /// <summary>キートップに表示する短い名前。別名は正式名に寄せてから引く。</summary>
     public static string ShortName(string token)
     {
-        if (ShortNames.TryGetValue(token, out var s)) return s;
+        if (ShortNames.TryGetValue(token, out var s)) return Localized(token, s);
         // 修飾付きキーは「^C」「⇧1」「^⇧T」のように、修飾キーの記号 + キー名で表す。
         // LMは「LM1^」のように、レイヤー番号 + 修飾キーの記号。
         if (KeycodeTable.TryResolve(token, out var modded))
@@ -109,7 +125,7 @@ public static class KeycodeCatalog
         if (KeycodeTable.TryResolve(token, out var action) && action.Type == ActionType.Key)
         {
             var canonical = KeycodeTable.NameForScanCode(action.Param2);
-            if (canonical != null && ShortNames.TryGetValue(canonical, out s)) return s;
+            if (canonical != null && ShortNames.TryGetValue(canonical, out s)) return Localized(canonical, s);
             token = canonical ?? token;
         }
         if (token.StartsWith("KC_KP_")) return "P" + token[6..];

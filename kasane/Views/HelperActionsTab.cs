@@ -17,26 +17,27 @@ internal sealed class HelperActionsTab : HelperTabBase
 
     public HelperActionsTab(HelperSettingsModel model, Window owner)
         : base(model, owner, "Helper",
-            "キーで、プログラムの起動・文字列の入力・マウス操作・レイヤーの操作などを動かします。" +
-            "「動作」は、キー割り当て画面で HLP(Id) を割り当てたキーで動きます。" +
-            "「トリガー」は、F13〜F24 などのキーを、トレイが見張って動かします。" +
-            "変更は、OK を押すと保存されます（管理者権限は要りません）。トレイが数秒で読み直します。")
+            Loc.T("キーを押して、プログラムの起動、文字列の入力、マウス操作、レイヤーの操作などを実行します。" +
+                "「動作」は HLP(Id) を割り当てたキー、「トリガー」は F13〜F24 などのキーで実行され、変更は OK で保存されます。",
+                "Press a key to launch a program, type text, control the mouse, switch layers, and more. " +
+                "Actions run from keys assigned HLP(Id); triggers run from keys such as F13 to F24. Changes are saved with OK."))
     {
-        _addAction = Btn("AddActionButton", "追加...");
-        _editAction = Btn("EditActionButton", "編集...");
-        _copyAction = Btn("CopyActionButton", "複製");
-        _deleteAction = Btn("DeleteActionButton", "削除");
-        _addTrigger = Btn("AddTriggerButton", "追加...");
-        _editTrigger = Btn("EditTriggerButton", "編集...");
-        _copyTrigger = Btn("CopyTriggerButton", "複製");
-        _deleteTrigger = Btn("DeleteTriggerButton", "削除");
+        _addAction = Btn("AddActionButton", Loc.T("追加...", "Add..."));
+        _editAction = Btn("EditActionButton", Loc.T("編集...", "Edit..."));
+        _copyAction = Btn("CopyActionButton", Loc.T("複製", "Duplicate"));
+        _deleteAction = Btn("DeleteActionButton", Loc.T("削除", "Delete"));
+        _addTrigger = Btn("AddTriggerButton", Loc.T("追加...", "Add..."));
+        _editTrigger = Btn("EditTriggerButton", Loc.T("編集...", "Edit..."));
+        _copyTrigger = Btn("CopyTriggerButton", Loc.T("複製", "Duplicate"));
+        _deleteTrigger = Btn("DeleteTriggerButton", Loc.T("削除", "Delete"));
 
-        Stack.Children.Add(new TextBlock { Text = "動作（HLP(Id) のキーから呼ぶ）", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 0) });
+        Stack.Children.Add(new TextBlock { Text = Loc.T("動作(HLP(Id) のキーから呼ぶ)", "Actions (called from HLP(Id) keys)"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 0) });
         Stack.Children.Add(_actions);
         Stack.Children.Add(Buttons(_addAction, _editAction, _copyAction, _deleteAction));
-        Stack.Children.Add(new TextBlock { Text = "トリガー（F13 などのキー。キーフックで受ける）", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 0) });
+        Stack.Children.Add(new TextBlock { Text = Loc.T("トリガー(F13 などのキー。キーフックで受ける)", "Triggers (keys such as F13, received by a key hook)"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 0) });
         Stack.Children.Add(_triggers);
         Stack.Children.Add(Buttons(_addTrigger, _editTrigger, _copyTrigger, _deleteTrigger));
+        Stack.Children.Add(new TextBlock { Text = Loc.T("HLP (Helper): キーに割り当てると、そのキーを押したときに「動作」を実行します。", "HLP (Helper): when assigned to a key, pressing that key runs the action."), TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 16, 0, 0) });
 
         _addAction.Click += (_, _) => AddAction();
         _editAction.Click += (_, _) => EditAction();
@@ -80,8 +81,8 @@ internal sealed class HelperActionsTab : HelperTabBase
     private void AddAction()
     {
         int id = Model.NextFreeActionId();
-        if (id < 0) { MessageBox.Show(Owner, "使える Id がありません。", "動作の追加"); return; }
-        var dlg = new HelperActionEditorWindow("動作の追加", HelperEditMode.Action, id, null, null, null,
+        if (id < 0) { MessageBox.Show(Owner, Loc.T("使える Id がありません。", "No Id is available."), Loc.T("動作の追加", "Add Action")); return; }
+        var dlg = new HelperActionEditorWindow(Loc.T("動作の追加", "Add Action"), HelperEditMode.Action, id, null, null, null,
             new HelperActionBody { Type = HelperActionBody.Launch }, otherId => IdInUse(otherId, -1)) { Owner = Owner };
         if (dlg.ShowDialog() != true) return;
         Config.Actions.Add(new HelperAction { Id = dlg.ResultId, Name = dlg.ResultName, Action = dlg.ResultBody });
@@ -93,7 +94,7 @@ internal sealed class HelperActionsTab : HelperTabBase
         int i = _actions.SelectedIndex;
         if (!Editable || i < 0 || i >= Config.Actions.Count) return;
         var a = Config.Actions[i];
-        var dlg = new HelperActionEditorWindow("動作の編集", HelperEditMode.Action, a.Id, a.Name, null, null,
+        var dlg = new HelperActionEditorWindow(Loc.T("動作の編集", "Edit Action"), HelperEditMode.Action, a.Id, a.Name, null, null,
             HelperSummary.CloneAction(a).Action, otherId => IdInUse(otherId, i)) { Owner = Owner };
         if (dlg.ShowDialog() != true) return;
         a.Id = dlg.ResultId;
@@ -107,10 +108,10 @@ internal sealed class HelperActionsTab : HelperTabBase
         int i = _actions.SelectedIndex;
         if (!Editable || i < 0 || i >= Config.Actions.Count) return;
         int id = Model.NextFreeActionId();
-        if (id < 0) { MessageBox.Show(Owner, "使える Id がありません。", "動作の複製"); return; }
+        if (id < 0) { MessageBox.Show(Owner, Loc.T("使える Id がありません。", "No Id is available."), Loc.T("動作の複製", "Duplicate Action")); return; }
         var copy = HelperSummary.CloneAction(Config.Actions[i]);
         copy.Id = id;
-        copy.Name = string.IsNullOrWhiteSpace(copy.Name) ? null : copy.Name + "（複製）";
+        copy.Name = string.IsNullOrWhiteSpace(copy.Name) ? null : copy.Name + "(複製)";
         Config.Actions.Insert(i + 1, copy);
         Refresh(i + 1, _triggers.SelectedIndex);
     }
@@ -119,7 +120,8 @@ internal sealed class HelperActionsTab : HelperTabBase
     {
         int i = _actions.SelectedIndex;
         if (!Editable || i < 0 || i >= Config.Actions.Count) return;
-        if (!Confirm($"HLP({Config.Actions[i].Id}) の動作を削除しますか？\nこの Id をキーに割り当てている場合、そのキーは何もしなくなります。")) return;
+        if (!Confirm(Loc.T($"HLP({Config.Actions[i].Id}) の動作を削除しますか？\nこの Id をキーに割り当てている場合、そのキーは何もしなくなります。",
+            $"Delete the action HLP({Config.Actions[i].Id})?\nIf this Id is assigned to a key, that key will do nothing."))) return;
         Config.Actions.RemoveAt(i);
         Refresh(Math.Min(i, Config.Actions.Count - 1), _triggers.SelectedIndex);
     }
@@ -131,7 +133,7 @@ internal sealed class HelperActionsTab : HelperTabBase
 
     private void AddTrigger()
     {
-        var dlg = new HelperActionEditorWindow("トリガーの追加", HelperEditMode.Trigger, 0, null, "KC_F13", null,
+        var dlg = new HelperActionEditorWindow(Loc.T("トリガーの追加", "Add Trigger"), HelperEditMode.Trigger, 0, null, "KC_F13", null,
             new HelperActionBody { Type = HelperActionBody.Launch }) { Owner = Owner };
         if (dlg.ShowDialog() != true) return;
         Config.Triggers.Add(new HelperTrigger { Key = dlg.ResultKey, Mods = dlg.ResultMods, Action = dlg.ResultBody });
@@ -143,7 +145,7 @@ internal sealed class HelperActionsTab : HelperTabBase
         int i = _triggers.SelectedIndex;
         if (!Editable || i < 0 || i >= Config.Triggers.Count) return;
         var t = Config.Triggers[i];
-        var dlg = new HelperActionEditorWindow("トリガーの編集", HelperEditMode.Trigger, 0, null, t.Key, t.Mods,
+        var dlg = new HelperActionEditorWindow(Loc.T("トリガーの編集", "Edit Trigger"), HelperEditMode.Trigger, 0, null, t.Key, t.Mods,
             HelperSummary.CloneTrigger(t).Action) { Owner = Owner };
         if (dlg.ShowDialog() != true) return;
         t.Key = dlg.ResultKey;
@@ -164,7 +166,7 @@ internal sealed class HelperActionsTab : HelperTabBase
     {
         int i = _triggers.SelectedIndex;
         if (!Editable || i < 0 || i >= Config.Triggers.Count) return;
-        if (!Confirm("このトリガーを削除しますか？")) return;
+        if (!Confirm(Loc.T("このトリガーを削除しますか？", "Delete this trigger?"))) return;
         Config.Triggers.RemoveAt(i);
         Refresh(_actions.SelectedIndex, Math.Min(i, Config.Triggers.Count - 1));
     }

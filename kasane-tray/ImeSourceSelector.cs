@@ -96,7 +96,7 @@ public sealed class ImeSourceSelector : IImeSource
         _lastForeground = foreground;
         _lastReason = reason;
         string text = $"IME: {source} {Describe(state)}" + (foreground.Length > 0 ? $" [{foreground}]" : "");
-        if (reason != 0) text += $" （{_tsfDiagnostics!.DescribeLast()}）";
+        if (reason != 0) text += $" ({_tsfDiagnostics!.DescribeLast()})";
         _log!(text);
     }
 
@@ -106,10 +106,10 @@ public sealed class ImeSourceSelector : IImeSource
     /// <summary>ログ用の文字列。「ON ローマ字入力」「ON カナ入力」「OFF」「取得できず」など。</summary>
     public static string Describe(ImeState state)
     {
-        if (!state.Known) return "取得できず";
+        if (!state.Known) return Kasane.Model.Loc.T("取得できず", "unavailable");
         if (!state.Open) return "OFF";
-        string method = (state.ConversionMode & CModeRoman) != 0 ? "ローマ字入力" : "カナ入力";
-        string mode = (state.ConversionMode & ImeConversion.Native) != 0 ? "日本語" : "半角英数";
-        return $"ON {method}（{mode}、変換モード 0x{state.ConversionMode:X}）";
+        string method = (state.ConversionMode & CModeRoman) != 0 ? Kasane.Model.Loc.T("ローマ字入力", "romaji input") : Kasane.Model.Loc.T("カナ入力", "kana input");
+        string mode = (state.ConversionMode & ImeConversion.Native) != 0 ? Kasane.Model.Loc.T("日本語", "Japanese") : Kasane.Model.Loc.T("半角英数", "half-width alphanumeric");
+        return Kasane.Model.Loc.T($"ON {method}({mode}、変換モード 0x{state.ConversionMode:X})", $"ON {method} ({mode}, conversion mode 0x{state.ConversionMode:X})");
     }
 }

@@ -1,4 +1,5 @@
 using Kasane.Interop;
+using Loc = Kasane.Model.Loc;
 
 namespace Kasane.Tray;
 
@@ -26,7 +27,7 @@ public static class LayerDisplay
         }
         if (best == 0) return null;
         char badge = best < 10 ? (char)('0' + best) : (char)('A' + best - 10);
-        return new LayerBadge(best, badge, $"レイヤー {best}" + (nicola ? "（NICOLA）" : ""));
+        return new LayerBadge(best, badge, Loc.T($"レイヤー {best}" + (nicola ? "(NICOLA)" : ""), $"Layer {best}" + (nicola ? " (NICOLA)" : "")));
     }
 
     /// <summary>立っているビットのうち最も上位のレイヤー番号（0〜15）。何も立っていなければ 0。</summary>
@@ -39,7 +40,7 @@ public static class LayerDisplay
     /// <summary>ツールチップに追記して、127文字に収める（先頭の <c>kasane</c> は残す）。</summary>
     public static string AppendToTooltip(string tooltip, LayerBadge? badge)
     {
-        string text = badge == null ? tooltip : tooltip + "・" + badge.Text;
+        string text = badge == null ? tooltip : tooltip + Loc.T("・", " - ") + badge.Text;
         return text.Length <= TooltipMax ? text : text[..TooltipMax];
     }
 }

@@ -48,8 +48,8 @@ public sealed class KeyStreamSession : IDisposable
         try
         {
             client = KbdLayerClient.TryOpen(out var error);
-            if (client == null) { Report(KeyStreamState.Failed, $"ドライバに接続できません（{error}）"); return; }
-            if (client.IsReadOnly) { Report(KeyStreamState.AccessDenied, "管理者権限が無いため、ドライバから直接キーを受け取れません"); return; }
+            if (client == null) { Report(KeyStreamState.Failed, Kasane.Model.Loc.T($"ドライバに接続できません({error})", $"Can't connect to the driver ({error})")); return; }
+            if (client.IsReadOnly) { Report(KeyStreamState.AccessDenied, Kasane.Model.Loc.T("管理者権限が無いため、ドライバから直接キーを受け取れません", "Keys can't be received directly from the driver without administrator rights")); return; }
 
             uint lastSeq = KbdLayerClient.KeySeqLatest;
             while (!_stop)
@@ -70,15 +70,15 @@ public sealed class KeyStreamSession : IDisposable
         }
         catch (KbdLayerException ex) when (ex.Win32Error == KbdLayerClient.ErrorAccessDenied)
         {
-            Report(KeyStreamState.AccessDenied, "管理者権限が無いため、ドライバから直接キーを受け取れません");
+            Report(KeyStreamState.AccessDenied, Kasane.Model.Loc.T("管理者権限が無いため、ドライバから直接キーを受け取れません", "Keys can't be received directly from the driver without administrator rights"));
         }
         catch (KbdLayerException ex) when (ex.Win32Error == KbdLayerClient.ErrorInvalidFunction)
         {
-            Report(KeyStreamState.Unsupported, "このドライバはキーイベントの通知に対応していません（kbdlayer.sys を更新してください）");
+            Report(KeyStreamState.Unsupported, Kasane.Model.Loc.T("このドライバはキーイベントの通知に対応していません(kbdlayer.sys を更新してください)", "This driver does not support key event notifications (update kbdlayer.sys)"));
         }
         catch (KbdLayerException ex) when (ex.Win32Error == KbdLayerClient.ErrorNoSystemResources)
         {
-            Report(KeyStreamState.Failed, "同時にキーを監視できる数の上限に達しています（KeymapTool --watch-keys などを閉じてください）");
+            Report(KeyStreamState.Failed, Kasane.Model.Loc.T("同時にキーを監視できる数の上限に達しています(KeymapTool --watch-keys などを閉じてください)", "The limit on simultaneous key watchers has been reached (close KeymapTool --watch-keys or similar)"));
         }
         catch (Exception ex)
         {

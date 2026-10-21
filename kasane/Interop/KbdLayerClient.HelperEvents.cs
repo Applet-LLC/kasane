@@ -28,13 +28,13 @@ public sealed partial class KbdLayerClient
     public HelperEventBatch WaitHelperEvent(uint lastSeq)
     {
         var input = Build(w => { w.Write(lastSeq); w.Write(0u); });
-        var data = Ioctl("ヘルパーイベントの待機", IOCTL_WAIT_HELPER_EVENT, input, HelperOutputHeaderSize + HelperEventSize * HelperEventsPerCall);
+        var data = Ioctl(Kasane.Model.Loc.T("ヘルパーイベントの待機", "waiting for helper events"), IOCTL_WAIT_HELPER_EVENT, input, HelperOutputHeaderSize + HelperEventSize * HelperEventsPerCall);
         return ParseHelperEvents(data);
     }
 
     public static HelperEventBatch ParseHelperEvents(byte[] data)
     {
-        if (data.Length < HelperOutputHeaderSize) throw new InvalidDataException("ヘルパーイベントの応答が短すぎます");
+        if (data.Length < HelperOutputHeaderSize) throw new InvalidDataException(Kasane.Model.Loc.T("ヘルパーイベントの応答が短すぎます", "The helper event response is too short"));
         using var r = new BinaryReader(new MemoryStream(data));
         uint seq = r.ReadUInt32();
         uint count = r.ReadUInt32();

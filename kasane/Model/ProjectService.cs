@@ -172,7 +172,7 @@ public static class ProjectService
     public static string? TargetNameNote(KeymapProject project, KeyAction action)
     {
         if (ActionType.ReferencesLayer(action.Type))
-            return LayerName(project, action.Param1) is { } ln ? $"レイヤー{action.Param1}「{ln}」" : null;
+            return LayerName(project, action.Param1) is { } ln ? Loc.T($"レイヤー{action.Param1}「{ln}」", $"Layer {action.Param1} \"{ln}\"") : null;
         string? name = action.Type switch
         {
             ActionType.Macro => project.MacroNames is { } m && m.TryGetValue(action.Param1, out var mn) ? mn : null,
@@ -180,12 +180,15 @@ public static class ProjectService
             _ => null,
         };
         if (string.IsNullOrWhiteSpace(name)) return null;
-        return (action.Type == ActionType.Macro ? "マクロ" : "タップダンス") + $"{action.Param1}「{name}」";
+        return Loc.T((action.Type == ActionType.Macro ? "マクロ" : "タップダンス") + $"{action.Param1}「{name}」",
+                     (action.Type == ActionType.Macro ? "Macro" : "Tap dance") + $" {action.Param1} \"{name}\"");
     }
 
     /// <summary>画面に出す、レイヤーの呼び名。名前があれば「レイヤー3「仕事」」、無ければ「レイヤー3」。</summary>
     public static string LayerLabel(KeymapProject project, int layer) =>
-        LayerName(project, layer) is { } n ? $"レイヤー{layer}「{n}」" : $"レイヤー{layer}";
+        LayerName(project, layer) is { } n
+            ? Loc.T($"レイヤー{layer}「{n}」", $"Layer {layer} \"{n}\"")
+            : Loc.T($"レイヤー{layer}", $"Layer {layer}");
 
     public static ushort? EffectiveScanCode(KeymapProject project, KeySlot slot) =>
         project.MeasuredScanCodes.TryGetValue(slot.Index, out var sc) ? sc : slot.DefaultScanCode;
@@ -221,12 +224,12 @@ public static class ProjectService
             var sc = EffectiveScanCode(project, slot);
             if (sc == null)
             {
-                warnings.Add($"{slot.Description}: スキャンコードが不明なため適用されません（キャリブレーションで実測してください）");
+                warnings.Add(Loc.T($"{slot.Description}: スキャンコードが不明なため適用されません(キャリブレーションで実測してください)", $"{slot.Description}: Not applied because its scan code is unknown (measure it with Calibration)"));
                 continue;
             }
             if (seen.TryGetValue(sc.Value, out var other))
             {
-                errors.Add($"{slot.Description} と {other.Description} が同じスキャンコード 0x{sc:X4} です（キャリブレーションをやり直してください）");
+                errors.Add(Loc.T($"{slot.Description} と {other.Description} が同じスキャンコード 0x{sc:X4} です(キャリブレーションをやり直してください)", $"{slot.Description} and {other.Description} have the same scan code 0x{sc:X4} (redo Calibration)"));
                 continue;
             }
             seen[sc.Value] = slot;
@@ -286,16 +289,16 @@ public static class ProjectService
                 string token = project.Layers[L][slot.Index];
                 if (!KeycodeTable.TryResolve(token, out var a, out var err))
                 {
-                    errors.Add($"レイヤー{L} {slot.Description}: {err}");
+                    errors.Add(Loc.T($"レイヤー{L} {slot.Description}: {err}", $"Layer {L} {slot.Description}: {err}"));
                     continue;
                 }
                 bool layerRef = ActionType.ReferencesLayer(a.Type);
                 if (layerRef && a.Param1 >= project.Layers.Count)
-                    errors.Add($"レイヤー{L} {slot.Description}: {token} のレイヤー{a.Param1}がありません（レイヤーを追加してください）");
+                    errors.Add(Loc.T($"レイヤー{L} {slot.Description}: {token} のレイヤー{a.Param1}がありません(レイヤーを追加してください)", $"Layer {L} {slot.Description}: {token} refers to layer {a.Param1}, which does not exist (add the layer)"));
                 else if (a.Type == ActionType.Macro && !macroIds.Contains(a.Param1))
-                    warnings.Add($"{token} の中身が未設定です（押しても何も起きません）");
+                    warnings.Add(Loc.T($"{token} の中身が未設定です(押しても何も起きません)", $"{token} has nothing set (pressing it does nothing)"));
                 else if (a.Type == ActionType.TapDance && !tapDanceIds.Contains(a.Param1))
-                    warnings.Add($"{token} の中身が未設定です（押しても何も起きません）");
+                    warnings.Add(Loc.T($"{token} の中身が未設定です(押しても何も起きません)", $"{token} has nothing set (pressing it does nothing)"));
             }
         }
         // タップダンス（タップ側・長押し）とコンボの出力から参照しているマクロ。
@@ -304,13 +307,13 @@ public static class ProjectService
             foreach (var token in new[] { td.SingleTap, td.SingleHold, td.DoubleTap, td.TripleTap })
             {
                 if (KeycodeTable.TryResolve(token, out var a) && a.Type == ActionType.Macro && !macroIds.Contains(a.Param1))
-                    warnings.Add($"タップダンス{td.Id}: {token} の中身が未設定です（そこでは何も起きません）");
+                    warnings.Add(Loc.T($"タップダンス{td.Id}: {token} の中身が未設定です(そこでは何も起きません)", $"Tap dance {td.Id}: {token} has nothing set (nothing happens there)"));
             }
         }
         foreach (var combo in project.Combos)
         {
             if (KeycodeTable.TryResolve(combo.Output, out var a) && a.Type == ActionType.Macro && !macroIds.Contains(a.Param1))
-                warnings.Add($"コンボ{combo.Id}: {combo.Output} の中身が未設定です（成立しても何も起きません）");
+                warnings.Add(Loc.T($"コンボ{combo.Id}: {combo.Output} の中身が未設定です(成立しても何も起きません)", $"Combo {combo.Id}: {combo.Output} has nothing set (nothing happens when the combo fires)"));
         }
     }
 
@@ -321,7 +324,7 @@ public static class ProjectService
         {
             if (!KeycodeTable.TryResolve(token, out var a) || (a.Type != ActionType.Key && a.Type != ActionType.ModdedKey))
             {
-                errors.Add($"マクロ{macro.Id}: 「{token}」はキー(KC_*)または修飾付きキー(LCTL(KC_C)等)ではありません");
+                errors.Add(Loc.T($"マクロ{macro.Id}: 「{token}」はキー(KC_*)または修飾付きキー(LCTL(KC_C)等)ではありません", $"Macro {macro.Id}: \"{token}\" is not a key (KC_*) or a key with modifiers (such as LCTL(KC_C))"));
                 continue;
             }
             // LCTL(KC_C) は「Ctrl押す, C押す, C離す, Ctrl離す」に展開する（修飾キーは逆順で離す）。
@@ -334,8 +337,11 @@ public static class ProjectService
                 if ((mods & (1 << bit)) != 0) steps.Add(new MacroStep(KeycodeTable.ModifierScanCodes[bit], true));
         }
         if (steps.Count > KbdLayerClient.MaxMacroSteps)
-            errors.Add($"マクロ{macro.Id}: 長すぎます（{steps.Count}ステップ。上限は{KbdLayerClient.MaxMacroSteps}で、" +
-                       "キー1つが2、修飾キー1つにつき2を使います）");
+            errors.Add(Loc.T(
+                ($"マクロ{macro.Id}: 長すぎます({steps.Count}ステップ。上限は{KbdLayerClient.MaxMacroSteps}で、" +
+                 "キー1つが2、修飾キー1つにつき2を使います)"),
+                ($"Macro {macro.Id}: too long ({steps.Count} steps; the limit is {KbdLayerClient.MaxMacroSteps}. " +
+                 "Each key uses 2, and each modifier key uses 2)")));
         return steps;
     }
 
@@ -383,17 +389,17 @@ public static class ProjectService
     {
         if (combo.Slot1 < 0 || combo.Slot1 >= layout.Slots.Count || combo.Slot2 < 0 || combo.Slot2 >= layout.Slots.Count)
         {
-            errors.Add($"コンボ{combo.Id}: メンバーのキーがレイアウトにありません");
+            errors.Add(Loc.T($"コンボ{combo.Id}: メンバーのキーがレイアウトにありません", $"Combo {combo.Id}: a member key is not in the layout"));
             return null;
         }
         var s1 = EffectiveScanCode(project, layout.Slots[combo.Slot1]);
         var s2 = EffectiveScanCode(project, layout.Slots[combo.Slot2]);
-        if (s1 == null || s2 == null) { errors.Add($"コンボ{combo.Id}: メンバーのスキャンコードが不明です"); return null; }
-        if (s1 == s2) { errors.Add($"コンボ{combo.Id}: メンバーの2キーは別のキーにしてください"); return null; }
+        if (s1 == null || s2 == null) { errors.Add(Loc.T($"コンボ{combo.Id}: メンバーのスキャンコードが不明です", $"Combo {combo.Id}: a member's scan code is unknown")); return null; }
+        if (s1 == s2) { errors.Add(Loc.T($"コンボ{combo.Id}: メンバーの2キーは別のキーにしてください", $"Combo {combo.Id}: the 2 member keys must be different keys")); return null; }
         if (!KeycodeTable.TryResolve(combo.Output, out var output) ||
             output.Type is not (ActionType.Key or ActionType.ModdedKey or ActionType.Macro))
         {
-            errors.Add($"コンボ{combo.Id}: 出力「{combo.Output}」はキー(KC_*)、修飾付きキー(LCTL(KC_Z)等)、MACRO(n)のいずれかにしてください");
+            errors.Add(Loc.T($"コンボ{combo.Id}: 出力「{combo.Output}」はキー(KC_*)、修飾付きキー(LCTL(KC_Z)等)、MACRO(n)のいずれかにしてください", $"Combo {combo.Id}: the output \"{combo.Output}\" must be a key (KC_*), a key with modifiers (such as LCTL(KC_Z)), or MACRO(n)"));
             return null;
         }
         return new ComboEntry(s1.Value, s2.Value, output);
@@ -414,23 +420,26 @@ public static class ProjectService
             if (!KeycodeTable.TryResolve(token, out var a) ||
                 a.Type is not (ActionType.Key or ActionType.ModdedKey or ActionType.Macro))
             {
-                errors.Add($"タップダンス{td.Id}: {what}「{token}」はキー(KC_*)、修飾付きキー(LCTL(KC_C)等)、MACRO(n)、空欄（動作なし）のいずれかにしてください");
+                errors.Add(Loc.T($"タップダンス{td.Id}: {what}「{token}」はキー(KC_*)、修飾付きキー(LCTL(KC_C)等)、MACRO(n)、空欄(動作なし)のいずれかにしてください", $"Tap dance {td.Id}: {what} \"{token}\" must be a key (KC_*), a key with modifiers (such as LCTL(KC_C)), MACRO(n), or empty (no action)"));
                 return KeyAction.None;
             }
             return a;
         }
         int before = errors.Count;
-        var single = Tap(td.SingleTap, "1回タップ");
-        var dbl = Tap(td.DoubleTap, "2回タップ");
-        var triple = Tap(td.TripleTap, "3回タップ");
+        var single = Tap(td.SingleTap, Loc.T("1回タップ", "Single tap"));
+        var dbl = Tap(td.DoubleTap, Loc.T("2回タップ", "Double tap"));
+        var triple = Tap(td.TripleTap, Loc.T("3回タップ", "Triple tap"));
         KeyAction hold = KeyAction.None; // 長押しの動作なし
         if (!IsNoAction(td.SingleHold) &&
             (!KeycodeTable.TryResolve(td.SingleHold, out hold) ||
              hold.Type is not (ActionType.Key or ActionType.ModTap or ActionType.LayerTap
                  or ActionType.ModdedKey or ActionType.LayerMod or ActionType.Macro)))
         {
-            errors.Add($"タップダンス{td.Id}: ホールド「{td.SingleHold}」はKC_*、MT(mod,kc)、LT(layer,kc)、修飾付きキー(LCTL(KC_Z)等)、" +
-                       "LM(layer,mod)、MACRO(n)、空欄（動作なし）のいずれかにしてください");
+            errors.Add(Loc.T(
+                ($"タップダンス{td.Id}: ホールド「{td.SingleHold}」はKC_*、MT(mod,kc)、LT(layer,kc)、修飾付きキー(LCTL(KC_Z)等)、" +
+                 "LM(layer,mod)、MACRO(n)、空欄(動作なし)のいずれかにしてください"),
+                ($"Tap dance {td.Id}: the hold \"{td.SingleHold}\" must be KC_*, MT(mod,kc), LT(layer,kc), a key with modifiers (such as LCTL(KC_Z)), " +
+                 "LM(layer,mod), MACRO(n), or empty (no action)")));
         }
         return errors.Count == before ? new TapDanceEntry(single, hold, dbl, triple) : null;
     }
@@ -466,14 +475,14 @@ public static class ProjectService
             nicolaBlob = NicolaService.BuildBlob(project.Nicola, warnings, errors);
             // IME連動（トレイ）が、IMEがかなモードのときにそのレイヤーを立てる。使わない場合は、そのレイヤーに切り替えるキーが要る。
             if (project.Nicola.Layer >= project.Layers.Count && !NicolaImeLinkFor(project.UniqId))
-                warnings.Add($"NICOLAのレイヤー{project.Nicola.Layer}はキーマップにありません（IME連動を使わない場合は、そのレイヤーに切り替えるキー（TG({project.Nicola.Layer})等）が無いと、親指シフトは働きません）");
+                warnings.Add(Loc.T($"NICOLAのレイヤー{project.Nicola.Layer}はキーマップにありません(IME連動を使わない場合は、そのレイヤーに切り替えるキー(TG({project.Nicola.Layer})等)が無いと、親指シフトは働きません)", $"NICOLA layer {project.Nicola.Layer} is not in the keymap (if you don't use IME link, thumb shift won't work without a key that switches to that layer, such as TG({project.Nicola.Layer}))"));
         }
         if (project.EnabledFeatures is uint f && (f & ~KbdLayerClient.FeatureAll) != 0)
-            errors.Add($"機能のON/OFFの値 0x{f:X} に未知のビットがあります");
+            errors.Add(Loc.T($"機能のON/OFFの値 0x{f:X} に未知のビットがあります", $"The feature ON/OFF value 0x{f:X} contains an unknown bit"));
 
         if (errors.Count > 0) throw new InvalidOperationException(string.Join("\n", errors));
 
-        if (blob == null) warnings.Add("割り当てのあるキーが無いため、レイヤーマップは消去されOFFのままです");
+        if (blob == null) warnings.Add(Loc.T("割り当てのあるキーが無いため、レイヤーマップは消去されOFFのままです", "No keys have assignments, so the layer map is cleared and stays OFF"));
         return new DriverSettings(blob, project.TapTermMs, project.ComboTermMs, project.TapDanceTermMs,
                                   project.TapHoldMode, project.QuickTapTermMs, project.TappingToggle,
                                   macroSteps, combos, tapDances, keyOverrides, project.EnabledFeatures,
@@ -569,7 +578,7 @@ public static class ProjectService
         {
             if (!bySc.TryGetValue(e.SourceScanCode, out var slot))
             {
-                warnings.Add($"スキャンコード 0x{e.SourceScanCode:X4} のキーはレイアウト上に見つからないため読み込めませんでした");
+                warnings.Add(Loc.T($"スキャンコード 0x{e.SourceScanCode:X4} のキーはレイアウト上に見つからないため読み込めませんでした", $"The key with scan code 0x{e.SourceScanCode:X4} was not found in the layout, so it could not be loaded"));
                 continue;
             }
             for (int L = 0; L < layerCount; L++) project.Layers[L][slot.Index] = KeycodeTable.ToToken(e.Actions[L]);
@@ -601,7 +610,7 @@ public static class ProjectService
             if (bySc.TryGetValue(combo.ScanCode1, out var s1) && bySc.TryGetValue(combo.ScanCode2, out var s2))
                 project.Combos.Add(new ComboDef { Id = c, Slot1 = s1.Index, Slot2 = s2.Index, Output = KeycodeTable.ToToken(combo.Output) });
             else
-                warnings.Add($"コンボ{c}のメンバーのキーがレイアウト上に見つからないため読み込めませんでした");
+                warnings.Add(Loc.T($"コンボ{c}のメンバーのキーがレイアウト上に見つからないため読み込めませんでした", $"A member key of combo {c} was not found in the layout, so it could not be loaded"));
         }
         for (int t = 0; t < KbdLayerClient.MaxTapDanceCount; t++)
         {
@@ -650,13 +659,13 @@ public static class ProjectService
     {
         int before = errors.Count;
         if (!KeycodeTable.TryParseModMask(ko.Mods.Trim(), out var mods))
-            errors.Add($"キー置換{ko.Id}: 修飾キー「{ko.Mods}」は MOD_LSFT や MOD_LCTL|MOD_LSFT のように書いてください");
+            errors.Add(Loc.T($"キー置換{ko.Id}: 修飾キー「{ko.Mods}」は MOD_LSFT や MOD_LCTL|MOD_LSFT のように書いてください", $"Key override {ko.Id}: write the modifier \"{ko.Mods}\" like MOD_LSFT or MOD_LCTL|MOD_LSFT"));
         if (!KeycodeTable.TryResolve(ko.Key.Trim(), out var key) || key.Type != ActionType.Key || key.Param2 == 0)
-            errors.Add($"キー置換{ko.Id}: キー「{ko.Key}」は単純なキー(KC_*)にしてください");
+            errors.Add(Loc.T($"キー置換{ko.Id}: キー「{ko.Key}」は単純なキー(KC_*)にしてください", $"Key override {ko.Id}: the key \"{ko.Key}\" must be a simple key (KC_*)"));
         if (!KeycodeTable.TryResolve(ko.Replacement.Trim(), out var replacement) ||
             replacement.Type is not (ActionType.Key or ActionType.ModdedKey or ActionType.Macro) ||
             (replacement.Type != ActionType.Macro && replacement.Param2 == 0))
-            errors.Add($"キー置換{ko.Id}: 置き換え先「{ko.Replacement}」はキー(KC_*)、修飾付きキー(LCTL(KC_Z)等)、マクロ(MACRO(n))にしてください");
+            errors.Add(Loc.T($"キー置換{ko.Id}: 置き換え先「{ko.Replacement}」はキー(KC_*)、修飾付きキー(LCTL(KC_Z)等)、マクロ(MACRO(n))にしてください", $"Key override {ko.Id}: the replacement \"{ko.Replacement}\" must be a key (KC_*), a key with modifiers (such as LCTL(KC_Z)), or a macro (MACRO(n))"));
         // オートリピートの印は、置き換え先がマクロのときだけ有効（ドライバも、マクロ以外では受け付けない）。
         byte flags = ko.RepeatMacro && replacement.Type == ActionType.Macro ? KeyOverrideEntry.FlagRepeat : (byte)0;
         return errors.Count == before ? new KeyOverrideEntry(mods, key.Param2, replacement, flags) : null;
@@ -672,7 +681,7 @@ public static class ProjectService
         var errors = new List<string>();
         var mapped = ResolveMappedSlots(project, layout, warnings, errors);
         if (errors.Count > 0) throw new InvalidOperationException(string.Join("\n", errors));
-        if (mapped.Count == 0) throw new InvalidOperationException("割り当てのあるキーがありません");
+        if (mapped.Count == 0) throw new InvalidOperationException(Loc.T("割り当てのあるキーがありません", "There are no keys with assignments"));
 
         string keymapPath = Path.Combine(folder, "keymap.json");
         string profilePath = Path.Combine(folder, "profile.json");
@@ -706,7 +715,7 @@ public static class ProjectService
         File.WriteAllText(profilePath, sb.ToString(), new UTF8Encoding(false));
 
         if (project.Macros.Count + project.Combos.Count + project.TapDances.Count + project.KeyOverrides.Count > 0)
-            warnings.Add("マクロ・コンボ・タップダンス・キー置換はkeymap.jsonに含まれません（CLIでは --set-macro / --set-combo / --set-tapdance / --set-key-override で別途登録します）");
+            warnings.Add(Loc.T("マクロ・コンボ・タップダンス・キー置換はkeymap.jsonに含まれません(CLIでは --set-macro / --set-combo / --set-tapdance / --set-key-override で別途登録します)", "Macros, combos, tap dances, and key overrides are not included in keymap.json (with the CLI, register them separately using --set-macro / --set-combo / --set-tapdance / --set-key-override)"));
         return warnings;
     }
 }

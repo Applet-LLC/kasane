@@ -19,7 +19,9 @@ internal static class LocalizationHelper
     {
         string? saved = ReadSavedLanguage();
         string osDetected = DetectFromOs();
-        string language = saved ?? osDetected;
+        // kasane の設定の「全般」タブで言語を選んでいれば、それを優先する（自動のときは、従来どおり）。
+        var chosen = Kasane.Model.UiLanguageStore.Read();
+        string language = chosen == Kasane.Model.UiLanguage.Auto ? (saved ?? osDetected) : (chosen == Kasane.Model.UiLanguage.Japanese ? "ja" : "en");
         ClientDebugLog.Log($"LocalizationHelper.Initialize: saved='{saved}' osDetected='{osDetected}' -> using '{language}'");
         Apply(language);
     }

@@ -79,8 +79,8 @@ public sealed class HelperSettingsModel
     public IReadOnlyList<string> Validate()
     {
         var errors = new List<string>();
-        if (DeviceWritable) ValidateConfig(Device, "このキーボード", errors);
-        ValidateConfig(Global, "共通", errors);
+        if (DeviceWritable) ValidateConfig(Device, Loc.T("このキーボード", "this keyboard"), errors);
+        ValidateConfig(Global, Loc.T("共通", "shared"), errors);
         return errors;
     }
 
@@ -129,37 +129,37 @@ public sealed class HelperSettingsModel
         var ids = new HashSet<int>();
         foreach (var a in c.Actions)
         {
-            string owner = $"{label}の動作 {a.Id}" + (string.IsNullOrWhiteSpace(a.Name) ? "" : $"（{a.Name}）");
-            if (a.Id < 0 || a.Id > MaxActionId) errors.Add($"{owner}: Id は 0〜{MaxActionId} です");
-            else if (!ids.Add(a.Id)) errors.Add($"{owner}: Id が重複しています");
+            string owner = Loc.T($"{label}の動作 {a.Id}", $"Action {a.Id} ({label})") + (string.IsNullOrWhiteSpace(a.Name) ? "" : $"({a.Name})");
+            if (a.Id < 0 || a.Id > MaxActionId) errors.Add(Loc.T($"{owner}: Id は 0〜{MaxActionId} です", $"{owner}: Id must be between 0 and {MaxActionId}"));
+            else if (!ids.Add(a.Id)) errors.Add(Loc.T($"{owner}: Id が重複しています", $"{owner}: duplicate Id"));
             ValidateBody(a.Action, owner, errors);
         }
 
         var triggers = new HashSet<(ushort, byte)>();
         foreach (var t in c.Triggers)
         {
-            string owner = $"{label}のトリガー {t.Key}" + (string.IsNullOrWhiteSpace(t.Mods) ? "" : $" + {t.Mods}");
+            string owner = Loc.T($"{label}のトリガー {t.Key}", $"Trigger {t.Key} ({label})") + (string.IsNullOrWhiteSpace(t.Mods) ? "" : $" + {t.Mods}");
             bool keyOk = Keycodes.KeycodeTable.TryResolveBaseKey(t.Key ?? "", out ushort sc) && sc != 0;
             bool modsOk = TriggerTable.TryParseMods(t.Mods, out byte mods);
-            if (!keyOk) errors.Add($"{owner}: キー '{t.Key}' を解決できません（KC_F13 や SC_E06A のような書き方）");
-            if (!modsOk) errors.Add($"{owner}: 修飾キー '{t.Mods}' を解決できません（MOD_LCTL|MOD_LSFT や ctrl|shift のような書き方）");
-            if (keyOk && modsOk && !triggers.Add((sc, mods))) errors.Add($"{owner}: 同じキーと修飾キーのトリガーが重複しています");
+            if (!keyOk) errors.Add(Loc.T($"{owner}: キー '{t.Key}' を解決できません(KC_F13 や SC_E06A のような書き方)", $"{owner}: can't resolve key '{t.Key}' (write it like KC_F13 or SC_E06A)"));
+            if (!modsOk) errors.Add(Loc.T($"{owner}: 修飾キー '{t.Mods}' を解決できません(MOD_LCTL|MOD_LSFT や ctrl|shift のような書き方)", $"{owner}: can't resolve modifier '{t.Mods}' (write it like MOD_LCTL|MOD_LSFT or ctrl|shift)"));
+            if (keyOk && modsOk && !triggers.Add((sc, mods))) errors.Add(Loc.T($"{owner}: 同じキーと修飾キーのトリガーが重複しています", $"{owner}: another trigger has the same key and modifiers"));
             ValidateBody(t.Action, owner, errors);
         }
 
         if (c.ImeLayers is { } ime)
         {
-            if (ime.Layers.Any(l => l is < 0 or >= 16)) errors.Add($"{label}のIME連動: レイヤーは 0〜15 です");
-            if (ime.Enabled && ime.Layers.Count == 0) errors.Add($"{label}のIME連動: 立てるレイヤーを1つ以上選んでください");
+            if (ime.Layers.Any(l => l is < 0 or >= 16)) errors.Add(Loc.T($"{label}のIME連動: レイヤーは 0〜15 です", $"IME link ({label}): layers must be between 0 and 15"));
+            if (ime.Enabled && ime.Layers.Count == 0) errors.Add(Loc.T($"{label}のIME連動: 立てるレイヤーを1つ以上選んでください", $"IME link ({label}): choose at least one layer to turn on"));
             if (!string.Equals(ime.Mode, ImeLayerLink.ModeOn, StringComparison.OrdinalIgnoreCase) && !ime.KanaOnly)
-                errors.Add($"{label}のIME連動: Mode '{ime.Mode}' は On / Kana のどちらかです");
+                errors.Add(Loc.T($"{label}のIME連動: Mode '{ime.Mode}' は On / Kana のどちらかです", $"IME link ({label}): Mode '{ime.Mode}' must be On or Kana"));
         }
 
         int n = 0;
         foreach (var r in c.AppLayerRules)
         {
             n++;
-            errors.AddRange(ValidateRule(r, $"{label}の規則 {n}" + (string.IsNullOrWhiteSpace(r.Name) ? "" : $"（{r.Name}）")));
+            errors.AddRange(ValidateRule(r, Loc.T($"{label}の規則 {n}", $"Rule {n} ({label})") + (string.IsNullOrWhiteSpace(r.Name) ? "" : $"({r.Name})")));
         }
     }
 
@@ -170,35 +170,35 @@ public sealed class HelperSettingsModel
         {
             case HelperActionBody.Launch:
             case HelperActionBody.Open:
-                if (string.IsNullOrWhiteSpace(body.Path)) errors.Add($"{owner}: {body.Type} の Path が空です");
+                if (string.IsNullOrWhiteSpace(body.Path)) errors.Add(Loc.T($"{owner}: {body.Type} の Path が空です", $"{owner}: Path of {body.Type} is empty"));
                 break;
 
             case HelperActionBody.Sequence:
                 if ((body.Steps?.Count ?? 0) == 0 && (body.ReleaseSteps?.Count ?? 0) == 0)
-                    errors.Add($"{owner}: Sequence に手順がありません");
+                    errors.Add(Loc.T($"{owner}: Sequence に手順がありません", $"{owner}: Sequence has no steps"));
                 foreach (var e in SequenceCompiler.Compile(body.Steps).Errors) errors.Add($"{owner}: {e}");
-                foreach (var e in SequenceCompiler.Compile(body.ReleaseSteps).Errors) errors.Add($"{owner}（離したとき）: {e}");
+                foreach (var e in SequenceCompiler.Compile(body.ReleaseSteps).Errors) errors.Add(Loc.T($"{owner}(離したとき): {e}", $"{owner} (on release): {e}"));
                 break;
 
             case HelperActionBody.TextInput:
-                if (string.IsNullOrEmpty(body.Text)) errors.Add($"{owner}: Text の文字列が空です");
+                if (string.IsNullOrEmpty(body.Text)) errors.Add(Loc.T($"{owner}: Text の文字列が空です", $"{owner}: Text is empty"));
                 else if (body.Text.Length > HelperActionBody.MaxTextLength)
-                    errors.Add($"{owner}: Text の文字列が長すぎます（{HelperActionBody.MaxTextLength} 文字まで）");
+                    errors.Add(Loc.T($"{owner}: Text の文字列が長すぎます({HelperActionBody.MaxTextLength} 文字まで)", $"{owner}: Text is too long (up to {HelperActionBody.MaxTextLength} characters)"));
                 break;
 
             case HelperActionBody.AppLayer:
-                if ((body.Layers?.Count ?? 0) == 0) errors.Add($"{owner}: AppLayer のレイヤーが空です");
-                else if (body.Layers!.Any(l => l is < 0 or >= 16)) errors.Add($"{owner}: レイヤーは 0〜15 です");
+                if ((body.Layers?.Count ?? 0) == 0) errors.Add(Loc.T($"{owner}: AppLayer のレイヤーが空です", $"{owner}: AppLayer has no layers"));
+                else if (body.Layers!.Any(l => l is < 0 or >= 16)) errors.Add(Loc.T($"{owner}: レイヤーは 0〜15 です", $"{owner}: layers must be between 0 and 15"));
                 if (!string.IsNullOrWhiteSpace(body.LayerOp) &&
                     !new[] { "on", "off", "toggle", "hold" }.Contains(body.LayerOp.Trim().ToLowerInvariant()))
-                    errors.Add($"{owner}: LayerOp '{body.LayerOp}' は On / Off / Toggle / Hold のどれかです");
+                    errors.Add(Loc.T($"{owner}: LayerOp '{body.LayerOp}' は On / Off / Toggle / Hold のどれかです", $"{owner}: LayerOp '{body.LayerOp}' must be On, Off, Toggle or Hold"));
                 break;
 
             case HelperActionBody.PauseToggle:
                 break;
 
             default:
-                errors.Add($"{owner}: 種類 '{body.Type}' は未対応です（Launch / Open / Sequence / Text / AppLayer / PauseToggle）");
+                errors.Add(Loc.T($"{owner}: 種類 '{body.Type}' は未対応です(Launch / Open / Sequence / Text / AppLayer / PauseToggle)", $"{owner}: type '{body.Type}' is not supported (Launch / Open / Sequence / Text / AppLayer / PauseToggle)"));
                 break;
         }
     }
@@ -209,11 +209,11 @@ public sealed class HelperSettingsModel
         var errors = new List<string>();
         if (!rule.Default)
         {
-            if (rule.Match.IsEmpty) errors.Add($"{owner}: 照合条件がありません（Default にするか、条件を1つ以上書きます）");
+            if (rule.Match.IsEmpty) errors.Add(Loc.T($"{owner}: 照合条件がありません(Default にするか、条件を1つ以上書きます)", $"{owner}: no match conditions (make it Default or add at least one condition)"));
             string? bad = rule.Match.InvalidRegexField;
-            if (bad != null) errors.Add($"{owner}: {bad} の正規表現が正しくありません");
+            if (bad != null) errors.Add(Loc.T($"{owner}: {bad} の正規表現が正しくありません", $"{owner}: invalid regular expression in {bad}"));
         }
-        if (rule.Layers.Any(l => l is < 0 or >= 16)) errors.Add($"{owner}: レイヤーは 0〜15 です");
+        if (rule.Layers.Any(l => l is < 0 or >= 16)) errors.Add(Loc.T($"{owner}: レイヤーは 0〜15 です", $"{owner}: layers must be between 0 and 15"));
         return errors;
     }
 }
@@ -223,14 +223,14 @@ public static class HelperSummary
 {
     public static string Body(HelperActionBody b) => b.Type switch
     {
-        HelperActionBody.Launch => "起動: " + (b.Path ?? "") + (string.IsNullOrWhiteSpace(b.Args) ? "" : " " + b.Args),
-        HelperActionBody.Open => "開く: " + (b.Path ?? ""),
-        HelperActionBody.Sequence => $"操作 {b.Steps?.Count ?? 0} 手順" + ((b.ReleaseSteps?.Count ?? 0) > 0 ? $" + 離したとき {b.ReleaseSteps!.Count} 手順" : ""),
-        HelperActionBody.TextInput => "文字列: " + ShortText(b.Text),
-        HelperActionBody.AppLayer => $"レイヤー {string.Join(",", b.Layers ?? new List<int>())} を {(string.IsNullOrWhiteSpace(b.LayerOp) ? "On" : b.LayerOp)}",
-        HelperActionBody.PauseToggle => "一時停止・再開",
-        _ => $"（不明な種類 '{b.Type}'）",
-    } + (b.Repeat ? "（繰り返す）" : "");
+        HelperActionBody.Launch => Loc.T("起動: ", "Launch: ") + (b.Path ?? "") + (string.IsNullOrWhiteSpace(b.Args) ? "" : " " + b.Args),
+        HelperActionBody.Open => Loc.T("開く: ", "Open: ") + (b.Path ?? ""),
+        HelperActionBody.Sequence => Loc.T($"操作 {b.Steps?.Count ?? 0} 手順", $"Sequence: {b.Steps?.Count ?? 0} steps") + ((b.ReleaseSteps?.Count ?? 0) > 0 ? Loc.T($" + 離したとき {b.ReleaseSteps!.Count} 手順", $" + on release {b.ReleaseSteps!.Count} steps") : ""),
+        HelperActionBody.TextInput => Loc.T("文字列: ", "Text: ") + ShortText(b.Text),
+        HelperActionBody.AppLayer => Loc.T($"レイヤー {string.Join(",", b.Layers ?? new List<int>())} を {(string.IsNullOrWhiteSpace(b.LayerOp) ? "On" : b.LayerOp)}", $"Layer {string.Join(",", b.Layers ?? new List<int>())}: {(string.IsNullOrWhiteSpace(b.LayerOp) ? "On" : b.LayerOp)}"),
+        HelperActionBody.PauseToggle => Loc.T("一時停止・再開", "Pause / resume"),
+        _ => Loc.T($"(不明な種類 '{b.Type}')", $"(unknown type '{b.Type}')"),
+    } + (b.Repeat ? Loc.T("(繰り返す)", " (repeat)") : "");
 
     // 一覧に出す文字列（長ければ省略。改行は ↵）。
     private static string ShortText(string? text)
@@ -259,7 +259,7 @@ public static class HelperSummary
     public static string Rule(AppLayerRule r)
     {
         var cond = new List<string>();
-        if (r.Default) cond.Add("（既定）");
+        if (r.Default) cond.Add(Loc.T("(既定)", "(default)"));
         else
         {
             var m = r.Match;
@@ -267,16 +267,16 @@ public static class HelperSummary
             if (!string.IsNullOrEmpty(m.PathRegex)) cond.Add("path~" + m.PathRegex);
             if (!string.IsNullOrEmpty(m.TitleRegex)) cond.Add("title~" + m.TitleRegex);
             if (!string.IsNullOrEmpty(m.Class)) cond.Add("class=" + m.Class);
-            if (!string.IsNullOrEmpty(m.NodokaClass)) cond.Add("のどかclass~" + m.NodokaClass);
-            if (!string.IsNullOrEmpty(m.NodokaTitle)) cond.Add("のどかtitle~" + m.NodokaTitle);
-            if (cond.Count == 0) cond.Add("（条件なし）");
+            if (!string.IsNullOrEmpty(m.NodokaClass)) cond.Add(Loc.T("のどかclass~", "Nodoka class~") + m.NodokaClass);
+            if (!string.IsNullOrEmpty(m.NodokaTitle)) cond.Add(Loc.T("のどかtitle~", "Nodoka title~") + m.NodokaTitle);
+            if (cond.Count == 0) cond.Add(Loc.T("(条件なし)", "(no conditions)"));
         }
         var act = new List<string>();
-        if (r.Layers.Count > 0) act.Add("レイヤー " + string.Join(",", r.Layers));
-        if (r.MapOff) act.Add("リマップOFF");
-        if (act.Count == 0) act.Add("何もしない");
+        if (r.Layers.Count > 0) act.Add(Loc.T("レイヤー ", "Layer ") + string.Join(",", r.Layers));
+        if (r.MapOff) act.Add(Loc.T("リマップOFF", "Remap OFF"));
+        if (act.Count == 0) act.Add(Loc.T("何もしない", "Do nothing"));
         string name = string.IsNullOrWhiteSpace(r.Name) ? "" : r.Name + "  ";
-        return $"{(r.Enabled ? "[有効]" : "[無効]")} {name}{string.Join(" かつ ", cond)} → {string.Join("、", act)}";
+        return $"{(r.Enabled ? Loc.T("[有効]", "[On]") : Loc.T("[無効]", "[Off]"))} {name}{string.Join(Loc.T(" かつ ", " and "), cond)} → {string.Join(Loc.T("、", ", "), act)}";
     }
 
     public static HelperAction CloneAction(HelperAction a) =>

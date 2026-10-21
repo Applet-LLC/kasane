@@ -60,49 +60,49 @@ public static class SequenceCompiler
         foreach (var step in steps ?? Enumerable.Empty<HelperStep>())
         {
             index++;
-            if (ops.Count > MaxOps) { errors.Add($"手順が多すぎます（{MaxOps} 件まで）"); break; }
-            string at = $"手順{index}: ";
+            if (ops.Count > MaxOps) { errors.Add(Loc.T($"手順が多すぎます({MaxOps} 件まで)", $"Too many steps (up to {MaxOps})")); break; }
+            string at = Loc.T($"手順{index}: ", $"Step {index}: ");
 
             if (!string.IsNullOrEmpty(step.Key))
             {
                 if (TryResolveKey(step.Key, out byte mods, out ushort sc)) Tap(ops, mods, sc);
-                else errors.Add(at + $"Key '{step.Key}' を解決できません");
+                else errors.Add(at + Loc.T($"Key '{step.Key}' を解決できません", $"Cannot resolve Key '{step.Key}'"));
             }
             if (!string.IsNullOrEmpty(step.Down))
             {
                 if (TryResolveKey(step.Down, out byte mods, out ushort sc)) Press(ops, mods, sc);
-                else errors.Add(at + $"Down '{step.Down}' を解決できません");
+                else errors.Add(at + Loc.T($"Down '{step.Down}' を解決できません", $"Cannot resolve Down '{step.Down}'"));
             }
             if (!string.IsNullOrEmpty(step.Up))
             {
                 if (TryResolveKey(step.Up, out byte mods, out ushort sc)) Release(ops, mods, sc);
-                else errors.Add(at + $"Up '{step.Up}' を解決できません");
+                else errors.Add(at + Loc.T($"Up '{step.Up}' を解決できません", $"Cannot resolve Up '{step.Up}'"));
             }
             if (!string.IsNullOrEmpty(step.Text)) AddText(ops, step.Text);
             if (step.DelayMs is int delay)
             {
                 int d = Math.Clamp(delay, 0, MaxDelayMs);
-                if (d != delay) errors.Add(at + $"DelayMs {delay} は 0〜{MaxDelayMs} に丸めました");
+                if (d != delay) errors.Add(at + Loc.T($"DelayMs {delay} は 0〜{MaxDelayMs} に丸めました", $"DelayMs {delay} was clamped to 0-{MaxDelayMs}"));
                 totalDelay += d;
-                if (totalDelay > MaxTotalDelayMs) { errors.Add($"待ち時間の合計が長すぎます（{MaxTotalDelayMs}ms まで）"); break; }
+                if (totalDelay > MaxTotalDelayMs) { errors.Add(Loc.T($"待ち時間の合計が長すぎます({MaxTotalDelayMs}ms まで)", $"The total delay is too long (up to {MaxTotalDelayMs} ms)")); break; }
                 if (d > 0) ops.Add(new InputOp(InputKind.Delay, d));
             }
             if (!string.IsNullOrEmpty(step.Mouse))
             {
-                if (!HelperMouseButtons.TryParse(step.Mouse, out int button)) errors.Add(at + $"Mouse '{step.Mouse}' を解決できません");
+                if (!HelperMouseButtons.TryParse(step.Mouse, out int button)) errors.Add(at + Loc.T($"Mouse '{step.Mouse}' を解決できません", $"Cannot resolve Mouse '{step.Mouse}'"));
                 else
                 {
                     string action = (step.MouseAction ?? "Click").Trim().ToLowerInvariant();
                     if (action == "click") { ops.Add(new InputOp(InputKind.MouseButton, button)); ops.Add(new InputOp(InputKind.MouseButton, button, Up: true)); }
                     else if (action == "down") ops.Add(new InputOp(InputKind.MouseButton, button));
                     else if (action == "up") ops.Add(new InputOp(InputKind.MouseButton, button, Up: true));
-                    else errors.Add(at + $"MouseAction '{step.MouseAction}' を解決できません（Click / Down / Up）");
+                    else errors.Add(at + Loc.T($"MouseAction '{step.MouseAction}' を解決できません(Click / Down / Up)", $"Cannot resolve MouseAction '{step.MouseAction}' (Click / Down / Up)"));
                 }
             }
             if (step.MoveX != null || step.MoveY != null)
             {
                 if (step.Absolute && (step.MoveX == null || step.MoveY == null))
-                    errors.Add(at + "Absolute のときは MoveX と MoveY の両方が要ります");
+                    errors.Add(at + Loc.T("Absolute のときは MoveX と MoveY の両方が必要です", "Absolute requires both MoveX and MoveY"));
                 else ops.Add(new InputOp(InputKind.MouseMove, step.MoveX ?? 0, step.MoveY ?? 0, Flag: step.Absolute));
             }
             if (step.Wheel is int wheel && wheel != 0) ops.Add(new InputOp(InputKind.Wheel, wheel));
@@ -226,12 +226,12 @@ public sealed class TriggerTable
             {
                 if (!KeycodeTable.TryResolveBaseKey(t.Key ?? "", out ushort sc) || sc == 0)
                 {
-                    errors.Add($"{owner}: トリガーのキー '{t.Key}' を解決できません");
+                    errors.Add(Loc.T($"{owner}: トリガーのキー '{t.Key}' を解決できません", $"{owner}: Cannot resolve trigger key '{t.Key}'"));
                     continue;
                 }
                 if (!TryParseMods(t.Mods, out byte mods))
                 {
-                    errors.Add($"{owner}: トリガー {t.Key} の Mods '{t.Mods}' を解決できません");
+                    errors.Add(Loc.T($"{owner}: トリガー {t.Key} の Mods '{t.Mods}' を解決できません", $"{owner}: Cannot resolve Mods '{t.Mods}' of trigger {t.Key}"));
                     continue;
                 }
                 if (!map.TryGetValue((sc, mods), out var list)) map[(sc, mods)] = list = new List<Entry>();
@@ -241,7 +241,7 @@ public sealed class TriggerTable
 
         foreach (var kv in config.PerDevice.OrderBy(kv => kv.Key))
             Add(kv.Value, (int)(kv.Key >> 16), kv.Key.ToString("X8"));
-        if (config.Global != null) Add(config.Global, -1, "共通");
+        if (config.Global != null) Add(config.Global, -1, Loc.T("共通", "Global"));
         return new TriggerTable(map, errors);
     }
 
@@ -367,7 +367,7 @@ public sealed class ActionExecutor
             case HelperActionBody.Launch:
             case HelperActionBody.Open:
                 if (r.IsBreak) return;
-                if (string.IsNullOrWhiteSpace(body.Path)) { _env.Log($"{body.Type}: Path が空です"); return; }
+                if (string.IsNullOrWhiteSpace(body.Path)) { _env.Log(Loc.T($"{body.Type}: Path が空です", $"{body.Type}: Path is empty")); return; }
                 _env.Shell(Environment.ExpandEnvironmentVariables(body.Path),
                            body.Type == HelperActionBody.Launch ? Expand(body.Args) : null, Expand(body.WorkDir));
                 break;
@@ -392,7 +392,7 @@ public sealed class ActionExecutor
                 var layers = (body.Layers ?? new List<int>()).Where(l => l is >= 0 and < 16).Distinct().ToList();
                 if (layers.Count == 0)
                 {
-                    if (!r.IsBreak) _env.Log("AppLayer: Layers が空です");
+                    if (!r.IsBreak) _env.Log(Loc.T("AppLayer: Layers が空です", "AppLayer: Layers is empty"));
                     return;
                 }
                 if (op == LayerOp.Hold)
@@ -412,7 +412,7 @@ public sealed class ActionExecutor
                 break;
 
             default:
-                if (!r.IsBreak) _env.Log($"未対応の動作の種類: '{body.Type}'");
+                if (!r.IsBreak) _env.Log(Loc.T($"未対応の動作の種類: '{body.Type}'", $"Unsupported action type: '{body.Type}'"));
                 break;
         }
     }

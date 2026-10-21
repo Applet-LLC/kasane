@@ -31,10 +31,12 @@ public partial class App : System.Windows.Application
 
         DispatcherUnhandledException += (_, args) =>
         {
-            MessageBox.Show(args.Exception.ToString(), $"{Kasane.Model.AppInfo.DisplayName} - エラー",
+            MessageBox.Show(args.Exception.ToString(), Kasane.Model.Loc.T($"{Kasane.Model.AppInfo.DisplayName} - エラー", $"{Kasane.Model.AppInfo.DisplayName} - Error"),
                 MessageBoxButton.OK, MessageBoxImage.Error);
             args.Handled = true;
         };
+        // 表示言語（日本語／英語）。最初の画面を作る前に決める。
+        Kasane.Model.Loc.Initialize();
         // 色のモード（ライト／ダーク）。最初の画面を作る前に適用する。
         Kasane.Views.AppTheme.Initialize(Kasane.Model.ColorModeStore.Read());
         base.OnStartup(e);

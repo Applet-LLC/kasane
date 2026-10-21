@@ -30,7 +30,7 @@ internal sealed class AboutForm : Form
     private AboutForm()
     {
         Name = "AboutForm";
-        Text = $"{AppInfo.DisplayName} のバージョン情報";
+        Text = Loc.T($"{AppInfo.DisplayName} のバージョン情報", $"About {AppInfo.DisplayName}");
         AutoScaleMode = AutoScaleMode.Dpi;
         Font = SystemFonts.MessageBoxFont ?? Font;
         FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -48,8 +48,8 @@ internal sealed class AboutForm : Form
             AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = Padding.Empty,
         };
         content.Controls.Add(new Label { Name = "AboutName", Text = AppInfo.DisplayName, Font = new Font(Font.FontFamily, 18f, FontStyle.Bold), AutoSize = true, Margin = new Padding(0, 0, 0, 6) });
-        content.Controls.Add(new Label { Name = "AboutVersion", Text = $"バージョン {AppInfo.VersionText}", AutoSize = true, Margin = new Padding(2, 0, 0, 4) });
-        content.Controls.Add(new Label { Name = "AboutBuildTime", Text = $"ビルド日時 {AppInfo.BuildTimeText}", AutoSize = true, Margin = new Padding(2, 0, 0, 4) });
+        content.Controls.Add(new Label { Name = "AboutVersion", Text = Loc.T($"バージョン {AppInfo.VersionText}", $"Version {AppInfo.VersionText}"), AutoSize = true, Margin = new Padding(2, 0, 0, 4) });
+        content.Controls.Add(new Label { Name = "AboutBuildTime", Text = Loc.T($"ビルド日時 {AppInfo.BuildTimeText}", $"Build time {AppInfo.BuildTimeText}"), AutoSize = true, Margin = new Padding(2, 0, 0, 4) });
         // 実行しているファイルの、インストール先を含むフルパス（長くても折り返して、選んでコピーできる）。
         content.Controls.Add(new TextBox
         {

@@ -4,19 +4,19 @@
         xmlns:layout="clr-namespace:Kasane.Layout"
         Title="キャリブレーション" Width="1200" Height="660"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
-        Activated="Window_Activated" Deactivated="Window_Deactivated" Closed="Window_Closed">
+        Initialized="Window_Initialized" Activated="Window_Activated" Deactivated="Window_Deactivated" Closed="Window_Closed">
     <DockPanel Margin="10">
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
-            <TextBlock Text="モード:" VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="SemiBold" />
+            <TextBlock x:Name="TxtModeLabel" Text="モード:" VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="SemiBold" />
             <RadioButton x:Name="ModeInputCheck" GroupName="CalibrationMode" Content="入力確認" IsChecked="True"
                          VerticalAlignment="Center" Margin="0,0,18,0" Checked="Mode_Checked"
-                         ToolTip="キーを押すと、画面のキーの色が変わります。キャリブレーションが必要かを確かめます（管理者権限は要りません）。" />
+                         ToolTip="キーを押すと、画面のキーの色が変わります。キャリブレーションが必要かを確かめます(管理者権限は要りません)。" />
             <RadioButton x:Name="ModeSingleKey" GroupName="CalibrationMode" Content="個別キーのキャリブレーション"
                          VerticalAlignment="Center" Margin="0,0,18,0" Checked="Mode_Checked"
-                         ToolTip="画面のキーをクリックして、そのキーだけを実測します（管理者権限が要ります）。" />
+                         ToolTip="画面のキーをクリックして、そのキーだけを実測します(管理者権限が要ります)。" />
             <RadioButton x:Name="ModeAllKeys" GroupName="CalibrationMode" Content="全体のキャリブレーション"
                          VerticalAlignment="Center" Checked="Mode_Checked"
-                         ToolTip="黄色のキーを順に押して、全部のキーを実測します（管理者権限が要ります）。" />
+                         ToolTip="黄色のキーを順に押して、全部のキーを実測します(管理者権限が要ります)。" />
         </StackPanel>
         <TextBlock x:Name="TxtInstruction" DockPanel.Dock="Top" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" />
         <TextBlock x:Name="TxtNote" DockPanel.Dock="Top" Margin="0,4,0,0" Foreground="{DynamicResource Theme.TextDim}" TextWrapping="Wrap"
@@ -28,7 +28,7 @@
             <Button x:Name="BtnBack" Content="1つ戻る" Click="BtnBack_Click" />
             <Button x:Name="BtnSkip" Content="このキーを飛ばす" Click="BtnSkip_Click" />
             <Button x:Name="BtnFinish" Content="実測値を保存して閉じる" FontWeight="Bold" Click="BtnFinish_Click" />
-            <Button x:Name="BtnCancel" Content="閉じる（実測値は保存しない）" Click="BtnCancel_Click" />
+            <Button x:Name="BtnCancel" Content="閉じる(実測値は保存しない)" Click="BtnCancel_Click" />
         </StackPanel>
 
         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">

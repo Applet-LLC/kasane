@@ -64,7 +64,7 @@ public static class HeadlessCommands
         log.Write($"{PrepareDataDir} {dir} {importFile}");
         if (string.IsNullOrWhiteSpace(dir) || !Path.IsPathFullyQualified(dir) || dir.StartsWith(@"\\"))
         {
-            log.Write("エラー: ドライブ文字から始まるフルパスを指定してください");
+            log.Write(Loc.T("エラー: ドライブ文字から始まるフルパスを指定してください", "Error: specify a full path that starts with a drive letter"));
             return 1;
         }
 
@@ -75,7 +75,7 @@ public static class HeadlessCommands
             {
                 Directory.CreateDirectory(full);
                 GrantUsersModify(full);
-                log.Write($"フォルダを作り、Users に変更権限を付けました: {full}");
+                log.Write(Loc.T($"フォルダを作り、Users に変更権限を付けました: {full}", $"Created the folder and granted Users modify permission: {full}"));
             }
             if (!string.IsNullOrWhiteSpace(importFile))
             {
@@ -83,15 +83,15 @@ public static class HeadlessCommands
                 if (File.Exists(src))
                 {
                     File.Copy(src, Path.Combine(full, PendingImport.FileName), overwrite: true);
-                    log.Write($"取り込みファイルを置きました: {Path.Combine(full, PendingImport.FileName)}");
+                    log.Write(Loc.T($"取り込みファイルを置きました: {Path.Combine(full, PendingImport.FileName)}", $"Placed the import file: {Path.Combine(full, PendingImport.FileName)}"));
                 }
-                else log.Write($"エラー: 取り込みファイルがありません: {src}");
+                else log.Write(Loc.T($"エラー: 取り込みファイルがありません: {src}", $"Error: import file not found: {src}"));
             }
             return 0;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
-            log.Write($"エラー: {ex.Message}");
+            log.Write(Loc.T($"エラー: {ex.Message}", $"Error: {ex.Message}"));
             return 2;
         }
     }
@@ -118,12 +118,12 @@ public static class HeadlessCommands
             var result = PendingImport.RunWithDriver(null, report);
             if (!result.FileFound) return 0;
             foreach (var l in report.Lines)
-                log.Write((l.Level switch { ReportLevel.Error => "エラー: ", ReportLevel.Warning => "注意: ", _ => "" }) + l.Text);
+                log.Write((l.Level switch { ReportLevel.Error => Loc.T("エラー: ", "Error: "), ReportLevel.Warning => Loc.T("注意: ", "Note: "), _ => "" }) + l.Text);
             return report.HasErrors ? 2 : 0;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            log.Write($"エラー: {ex.Message}");
+            log.Write(Loc.T($"エラー: {ex.Message}", $"Error: {ex.Message}"));
             return 2;
         }
     }
@@ -131,19 +131,19 @@ public static class HeadlessCommands
     public static int RunInstallImport(string? path, PersistedSettings store, ILog log)
     {
         log.Write($"{InstallImport} {path}");
-        if (string.IsNullOrWhiteSpace(path)) { log.Write("エラー: 設定ファイルが指定されていません"); return 1; }
-        if (!File.Exists(path)) { log.Write($"エラー: ファイルがありません: {path}"); return 1; }
+        if (string.IsNullOrWhiteSpace(path)) { log.Write(Loc.T("エラー: 設定ファイルが指定されていません", "Error: no settings file was specified")); return 1; }
+        if (!File.Exists(path)) { log.Write(Loc.T($"エラー: ファイルがありません: {path}", $"Error: file not found: {path}")); return 1; }
         if (!PortableIO.TryRead(path, out var file, out string? error))
         {
-            log.Write($"エラー: {error}");
+            log.Write(Loc.T($"エラー: {error}", $"Error: {error}"));
             return 1;
         }
 
         var report = new PortableReport();
         var result = DriverImport.Apply(file!, store, report);
         foreach (var l in report.Lines)
-            log.Write((l.Level switch { ReportLevel.Error => "エラー: ", ReportLevel.Warning => "注意: ", _ => "" }) + l.Text);
-        log.Write($"結果: 書き込み {result.Written}（退避 {result.BackedUp}）、飛ばした {result.Skipped}");
+            log.Write((l.Level switch { ReportLevel.Error => Loc.T("エラー: ", "Error: "), ReportLevel.Warning => Loc.T("注意: ", "Note: "), _ => "" }) + l.Text);
+        log.Write(Loc.T($"結果: 書き込み {result.Written}(退避 {result.BackedUp})、飛ばした {result.Skipped}", $"Result: written {result.Written} (backed up {result.BackedUp}), skipped {result.Skipped}"));
         return result.Skipped > 0 || report.HasErrors ? 2 : 0;
     }
 
@@ -153,19 +153,19 @@ public static class HeadlessCommands
         var names = string.IsNullOrEmpty(target) || target.Equals("--all", StringComparison.OrdinalIgnoreCase)
             ? store.ListBackups()
             : new List<string> { target };
-        if (names.Count == 0) { log.Write("復元できる退避がありません"); return 1; }
+        if (names.Count == 0) { log.Write(Loc.T("復元できる退避がありません", "There are no backups to restore")); return 1; }
 
         int failed = 0;
         foreach (var n in names)
         {
             try
             {
-                if (store.Restore(n)) log.Write($"{n}: 退避と入れ替えました（キーボードの接続し直しか再起動で反映されます）");
-                else { log.Write($"エラー: {n}: 退避がありません"); failed++; }
+                if (store.Restore(n)) log.Write(Loc.T($"{n}: 退避と入れ替えました(キーボードの接続し直しか再起動で反映されます)", $"{n}: swapped with the backup (takes effect after reconnecting the keyboard or restarting)"));
+                else { log.Write(Loc.T($"エラー: {n}: 退避がありません", $"Error: {n}: no backup")); failed++; }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
             {
-                log.Write($"エラー: {n}: {ex.Message}");
+                log.Write(Loc.T($"エラー: {n}: {ex.Message}", $"Error: {n}: {ex.Message}"));
                 failed++;
             }
         }

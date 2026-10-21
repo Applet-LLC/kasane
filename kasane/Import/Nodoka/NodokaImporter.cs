@@ -136,7 +136,7 @@ public static class NodokaImporter
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             var failed = new NodokaConversion { File = new Kasane.Model.Portable.PortableFile() };
-            failed.Lines.Add(new ConvLine(ConvLevel.Error, null, $"{path} を読めません: {ex.Message}"));
+            failed.Lines.Add(new ConvLine(ConvLevel.Error, null, Kasane.Model.Loc.T($"{path} を読めません: {ex.Message}", $"Cannot read {path}: {ex.Message}")));
             return failed;
         }
         return ImportText(path, text, symbols, files ?? new NodokaDiskFiles(path));

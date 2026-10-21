@@ -1,4 +1,5 @@
 using Kasane.Interop;
+using Loc = Kasane.Model.Loc;
 
 namespace Kasane.Tray;
 
@@ -28,7 +29,7 @@ public static class LayerMenuModel
                 bool byMenu = menuHeld != null && menuHeld.Contains((id, layer)) && (s.AppLayerMask >> layer & 1) != 0;
                 return new LayerMenuItem(layer, effective, Enabled: !effective || byMenu);
             }).ToList();
-            result.Add(new LayerMenuKeyboard(id, $"キーボード {id:X8}", items));
+            result.Add(new LayerMenuKeyboard(id, Loc.T($"キーボード {id:X8}", $"Keyboard {id:X8}"), items));
         }
         return result;
     }

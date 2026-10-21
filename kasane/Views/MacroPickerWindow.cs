@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using Kasane.Model;
 
 namespace Kasane.Views;
 
@@ -17,8 +18,9 @@ public sealed class MacroPickerWindow : Window
     {
         bool tapDance = kind == "TAPDANCE";
         string noun = tapDance ? "タップダンス" : "マクロ";
+        string nounEn = tapDance ? "tap dance" : "macro";
         Name = "MacroPickerWindow";
-        Title = $"{noun}を選ぶ";
+        Title = Loc.T($"{noun}を選ぶ", $"Choose a {nounEn}");
         SizeToContent = SizeToContent.WidthAndHeight;
         ResizeMode = ResizeMode.NoResize;
         ShowInTaskbar = false;
@@ -30,7 +32,7 @@ public sealed class MacroPickerWindow : Window
 
         var ok = new Button { Name = "MacroPickOk", Content = "OK", IsDefault = true, Width = 90, IsEnabled = items.Count > 0 };
         ok.Click += (_, _) => Choose();
-        var cancel = new Button { Name = "MacroPickCancel", Content = "キャンセル", IsCancel = true, Width = 90, Margin = new Thickness(6, 0, 0, 0) };
+        var cancel = new Button { Name = "MacroPickCancel", Content = Loc.T("キャンセル", "Cancel"), IsCancel = true, Width = 90, Margin = new Thickness(6, 0, 0, 0) };
         _list.MouseDoubleClick += (_, e) =>
         {
             if (_list.SelectedItem != null && ((FrameworkElement)e.OriginalSource).DataContext is MacroInfo) Choose();
@@ -44,8 +46,8 @@ public sealed class MacroPickerWindow : Window
         panel.Children.Add(new TextBlock
         {
             Text = items.Count > 0
-                ? $"使う{noun}を選んでください（ダブルクリックでも選べます）。"
-                : $"{noun}がありません。画面下の「{noun}...」で作ってください。",
+                ? Loc.T($"使う{noun}を選んでください(ダブルクリックでも選べます)。", $"Choose the {nounEn} to use (you can also double-click).")
+                : Loc.T($"{noun}がありません。画面下の「{noun}...」で作ってください。", $"There are no {nounEn}s. Create one with \"{(tapDance ? "Tap dances" : "Macros")}...\" at the bottom of the main window."),
             Margin = new Thickness(0, 0, 0, 8),
         });
         panel.Children.Add(_list);

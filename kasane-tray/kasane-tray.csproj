@@ -34,6 +34,7 @@
     <Compile Include="..\kasane\Keycodes\KeycodeTable.cs" Link="Shared\KeycodeTable.cs" />
     <Compile Include="..\kasane\Model\TrayConfig.cs" Link="Shared\TrayConfig.cs" />
     <Compile Include="..\kasane\Model\ColorMode.cs" Link="Shared\ColorMode.cs" />
+    <Compile Include="..\kasane\Model\UiLanguage.cs" Link="Shared\UiLanguage.cs" />
     <Compile Include="..\kasane\Model\AppInfo.cs" Link="Shared\AppInfo.cs" />
     <Compile Include="..\kasane\Model\HelperConfig.cs" Link="Shared\HelperConfig.cs" />
     <Compile Include="..\kasane\Model\HelperActions.cs" Link="Shared\HelperActions.cs" />

@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using Kasane.Interop;
+using Kasane.Model;
 
 namespace Kasane.Views;
 
@@ -22,7 +23,7 @@ public sealed class IdentifyWindow : Window
     public IdentifyWindow(List<DeviceInfo> devices)
     {
         _devices = devices;
-        Title = "キーボードを特定";
+        Title = Loc.T("キーボードを特定", "Identify Keyboard");
         Width = 460;
         Height = 180;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -31,12 +32,12 @@ public sealed class IdentifyWindow : Window
 
         _message = new TextBlock
         {
-            Text = $"設定したいキーボードで、どれかキーを1つ押してください（{TimeoutMs / 1000}秒以内）。\n押したキーはWindowsには送られません。",
+            Text = Loc.T($"設定したいキーボードで、どれかキーを1つ押してください({TimeoutMs / 1000}秒以内)。\n押したキーはWindowsには送られません。", $"On the keyboard you want to configure, press any one key (within {TimeoutMs / 1000} seconds).\nThe key you press is not sent to Windows."),
             TextWrapping = TextWrapping.Wrap,
             FontSize = 14,
             Margin = new Thickness(16),
         };
-        var cancel = new Button { Content = "キャンセル", IsCancel = true, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(16, 0, 16, 12) };
+        var cancel = new Button { Content = Loc.T("キャンセル", "Cancel"), IsCancel = true, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(16, 0, 16, 12) };
         var panel = new DockPanel();
         DockPanel.SetDock(cancel, Dock.Bottom);
         panel.Children.Add(cancel);
@@ -72,6 +73,6 @@ public sealed class IdentifyWindow : Window
             }
         }
         _hook.Uninstall();
-        _message.Text = "キー入力を検出できませんでした。ドライバが認識していないキーボードか、ライセンスが有効でない可能性があります。";
+        _message.Text = Loc.T("キー入力を検出できませんでした。ドライバが認識していないキーボードか、ライセンスが有効でない可能性があります。", "No key press was detected. The driver may not recognize this keyboard, or the license may not be valid.");
     }
 }

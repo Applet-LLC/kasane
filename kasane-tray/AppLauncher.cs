@@ -47,7 +47,7 @@ public static class AppLauncher
     /// <param name="onStarted">新しく起動したときだけ呼ぶ（準備中の表示を出すため）。受け取った側が Process を破棄する。</param>
     public static string? OpenOrActivate(string? exePath, string displayName, Action<Process>? onStarted = null)
     {
-        if (exePath == null) return $"{displayName}が見つかりません（インストールし直してください）。";
+        if (exePath == null) return Kasane.Model.Loc.T($"{displayName}が見つかりません(インストールし直してください)。", $"{displayName} was not found (please reinstall).");
 
         string processName = Path.GetFileNameWithoutExtension(exePath);
         foreach (var p in Process.GetProcessesByName(processName))
@@ -78,7 +78,7 @@ public static class AppLauncher
         }
         catch (Win32Exception ex)
         {
-            return $"{displayName}を起動できませんでした: {ex.Message}";
+            return Kasane.Model.Loc.T($"{displayName}を起動できませんでした: {ex.Message}", $"Could not start {displayName}: {ex.Message}");
         }
     }
 }

@@ -91,7 +91,7 @@ public sealed class HelperConfig
         {
             if (!File.Exists(path)) return true;
             config = FromJson(File.ReadAllText(path));
-            if (config == null) { error = "中身が空です"; return false; }
+            if (config == null) { error = Loc.T("中身が空です", "The file is empty"); return false; }
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
@@ -447,7 +447,7 @@ public sealed class HelperConfigSet
                     if (name.Length != 8 || !uint.TryParse(name, System.Globalization.NumberStyles.AllowHexSpecifier, null, out var id))
                         continue;
                     string path = Path.Combine(sub, HelperConfig.FileName);
-                    if (!HelperConfig.TryLoad(path, out var cfg, out var error)) log?.Invoke($"{path}: 読めないため無視します（{error}）");
+                    if (!HelperConfig.TryLoad(path, out var cfg, out var error)) log?.Invoke(Loc.T($"{path}: 読めないため無視します({error})", $"{path}: ignored because it could not be read ({error})"));
                     if (cfg != null) perDevice[id] = cfg;
                 }
             }

@@ -26,6 +26,15 @@ internal static class Program
             return;
         }
 
+        // 表示言語の変更による再起動: 元のトレイが終わるのを待つ（単一起動のミューテックスを取り合わないため）。
+        int waitIndex = Array.IndexOf(args, "--wait-pid");
+        if (waitIndex >= 0 && waitIndex + 1 < args.Length && int.TryParse(args[waitIndex + 1], out int waitPid))
+        {
+            try { using var old = System.Diagnostics.Process.GetProcessById(waitPid); old.WaitForExit(15_000); }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
+        }
+        Kasane.Model.Loc.Initialize();
+
         // 1つのログインセッションに、トレイは1つだけ（2つ目を起動しても、何もせずに終わる）。
         using var mutex = new Mutex(initiallyOwned: true, @"Local\kasane-tray", out bool createdNew);
         if (!createdNew) return;

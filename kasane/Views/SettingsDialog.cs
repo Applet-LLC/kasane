@@ -17,18 +17,18 @@ namespace Kasane.Views;
 /// </summary>
 public sealed class SettingsDialog : Window
 {
-    private static readonly string[] ModeLabels =
+    private static string[] ModeLabels => new[]
     {
-        "別のキーを押したらすぐ長押し扱い（既定）",
-        "別のキーを押して離したら長押し扱い（Permissive Hold）",
-        "時間内に離せば短押し扱い（時間切れで長押し）",
+        Loc.T("別のキーを押したらすぐ長押し扱い(既定)", "Hold as soon as another key is pressed (default)"),
+        Loc.T("別のキーを押して離したら長押し扱い(Permissive Hold)", "Hold when another key is pressed and released (Permissive Hold)"),
+        Loc.T("時間内に離せば短押し扱い(時間切れで長押し)", "Tap if released in time (hold on timeout)"),
     };
 
-    private static readonly string[] NicolaModeLabels =
+    private static string[] NicolaModeLabels => new[]
     {
-        "GUIでは管理しない（ドライバの設定をそのまま使う）",
-        "この設定を使う（適用で反映）",
-        "使わない（適用時にドライバの設定を消す）",
+        Loc.T("GUIでは管理しない(ドライバの設定をそのまま使う)", "Not managed by the GUI (keep the driver's setting)"),
+        Loc.T("この設定を使う(適用で反映)", "Use this setting (applied on Apply)"),
+        Loc.T("使わない(適用時にドライバの設定を消す)", "Don't use (clears the driver's setting on Apply)"),
     };
 
     private readonly KeymapProject _project;
@@ -52,6 +52,9 @@ public sealed class SettingsDialog : Window
     private bool _globalNicolaLink; // 全キーボード共通の、NICOLAのIME連動（tray.json の ImeLink。OK のとき保存）
     private CheckBox _showLayerOnIcon = null!;
     private ComboBox _imeSourceBox = null!; // IME の状態の取得方法（tray.json の ImeSource）
+    private ComboBox _languageBox = null!;  // 表示言語（tray.json の UiLanguage）。変更は再起動後に効く。
+    /// <summary>表示言語を変えて保存した。呼び出し側が、再起動を案内する。</summary>
+    public bool LanguageChanged { get; private set; }
     private ComboBox _colorModeBox = null!;  // 色のモード（tray.json の ColorMode）。OK で保存して、すぐ全画面に効かせる
     private readonly TrayConfig _trayConfig = TrayConfig.Load();
     private TextBlock _nicolaSummary = null!;
@@ -68,31 +71,31 @@ public sealed class SettingsDialog : Window
         _globalNicolaLink = _trayConfig.ImeLink;
         _helper = new HelperSettingsModel(project.UniqId != 0 ? project.UniqId : _uniqId, _trayConfig);
 
-        Title = "設定";
+        Title = Loc.T("設定", "Settings");
         Width = 760;
         Height = 600;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         ShowInTaskbar = false;
 
-        AddTab("TabGeneral", "全般", BuildGeneralTab());
-        AddTab("TabFeatures", "機能", BuildFeaturesTab());
-        AddTab("TabTiming", "タイミング", BuildTimingTab());
-        AddTab("TabImeLayer", "IME連動", BuildImeTab()); // 以前の「NICOLA」タブの内容も、ここにある（2026-10-19）
-        AddTab("TabHelper", "ヘルパー動作", new HelperActionsTab(_helper, this).Root);
-        AddTab("TabAppRules", "アプリ別レイヤー", new AppRulesTab(_helper, this).Root);
-        AddTab("TabEmergency", "緊急解除", BuildEmergencyTab());
-        AddTab("TabScope", "共有範囲", BuildScopeTab());
-        AddTab("TabDataDir", "保存先", BuildDataDirTab());
+        AddTab("TabGeneral", Loc.T("全般", "General"), BuildGeneralTab());
+        AddTab("TabFeatures", Loc.T("機能", "Features"), BuildFeaturesTab());
+        AddTab("TabTiming", Loc.T("タイミング", "Timing"), BuildTimingTab());
+        AddTab("TabImeLayer", Loc.T("IME連動", "IME link"), BuildImeTab()); // 以前の「NICOLA」タブの内容も、ここにある（2026-10-19）
+        AddTab("TabHelper", Loc.T("ヘルパー動作", "Helper actions"), new HelperActionsTab(_helper, this).Root);
+        AddTab("TabAppRules", Loc.T("アプリ別レイヤー", "Per-app layers"), new AppRulesTab(_helper, this).Root);
+        AddTab("TabEmergency", Loc.T("緊急解除", "Emergency release"), BuildEmergencyTab());
+        AddTab("TabScope", Loc.T("共有範囲", "Sharing scope"), BuildScopeTab());
+        AddTab("TabDataDir", Loc.T("保存先", "Data folder"), BuildDataDirTab());
         AddTab("TabI8042", "i8042prt", BuildI8042Tab());
-        AddTab("TabDesktop", "デスクトップ", BuildDesktopTab());
-        AddTab(AboutTab, "バージョン情報", BuildAboutTab());
+        AddTab("TabDesktop", Loc.T("デスクトップ", "Desktop"), BuildDesktopTab());
+        AddTab(AboutTab, Loc.T("バージョン情報", "About"), BuildAboutTab());
         _tabs.SelectionChanged += OnTabChanged;
 
         var ok = new Button { Name = "OkButton", Content = "OK", IsDefault = true, Width = 90 };
         ok.Click += (_, _) => { if (Commit()) DialogResult = true; };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
         buttons.Children.Add(ok);
-        buttons.Children.Add(new Button { Name = "CancelButton", Content = "キャンセル", IsCancel = true, Width = 90 });
+        buttons.Children.Add(new Button { Name = "CancelButton", Content = Loc.T("キャンセル", "Cancel"), IsCancel = true, Width = 90 });
 
         var root = new DockPanel { Margin = new Thickness(10) };
         DockPanel.SetDock(buttons, Dock.Bottom);
@@ -109,49 +112,53 @@ public sealed class SettingsDialog : Window
     private UIElement BuildGeneralTab()
     {
         var panel = new StackPanel();
-        panel.Children.Add(new TextBlock { Text = "トレイ（タスクトレイの kasane）", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
+        panel.Children.Add(new TextBlock { Text = Loc.T("トレイ(タスクトレイの kasane)", "Tray (kasane in the system tray)"), FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
         _remapOnlyWhileTray = new CheckBox
         {
             Name = "GeneralRemapOnlyWhileTrayCheck",
-            Content = "トレイが動いている間だけ、キーのリマップを有効にする",
+            Content = Loc.T("トレイが動いている間だけ、キーのリマップを有効にする", "Enable key remapping only while the tray is running"),
             IsChecked = _trayConfig.RemapOnlyWhileTrayRuns,
             Margin = new Thickness(0, 0, 0, 6),
         };
         panel.Children.Add(_remapOnlyWhileTray);
         panel.Children.Add(Help(
-            "ドライバは、設定を保存しているので、Windows のログオン画面や起動した直後（トレイが動く前）でもリマップを続けます。" +
-            "ONにすると、次のようにします。\n" +
-            "・トレイを終了したとき、サインアウト・シャットダウンするとき、画面をロックしたとき（ユーザーの切り替えを含む）は、リマップをOFF（素通し）にします。\n" +
-            "・トレイが起動したとき、ロックを解除したときは、このモードでOFFにしたキーボードだけを、ONに戻します（緊急解除や「OFF」ボタンで止めたキーボードは戻しません）。\n" +
-            "既定はONです。\n" +
-            "制約: トレイが異常終了したとき（クラッシュ・強制終了・電源断など）は、OFFにできず、次の起動のログオン画面ではリマップが効いたままです。" +
-            "インストーラーによる更新・削除でトレイを止めるときも、OFFにしません。\n" +
-            "この設定は、この PC のこの利用者の設定です（キーボードごとの設定ではありません）。OK で保存し、トレイが数秒で読み直します。"));
+            Loc.T(("ONにすると、トレイの終了、サインアウト、シャットダウン、画面のロックでリマップがOFFになり、トレイの起動とロック解除でONに戻ります(既定はON)。" +
+                   "トレイが異常終了するとリマップがONのままになることがあります。OK で保存すると、トレイが数秒で読み直します。"),
+                  ("When on, remapping turns off when the tray exits, when you sign out or shut down, and when the screen locks. It turns back on when the tray starts or the screen unlocks (default: on). " +
+                   "If the tray exits abnormally, remapping may stay on. After you save with OK, the tray reloads the setting within a few seconds."))));
 
         _showLayerOnIcon = new CheckBox
         {
             Name = "ShowLayerOnIconCheck",
-            Content = "トレイのアイコンに、今のレイヤー番号を重ねる（基底のレイヤーだけのときは重ねない）",
+            Content = Loc.T("トレイのアイコンに、今のレイヤー番号を重ねる(基底のレイヤーだけのときは重ねない)", "Overlay the current layer number on the tray icon (not when only the base layer is active)"),
             IsChecked = _trayConfig.ShowLayerOnIcon,
             Margin = new Thickness(0, 12, 0, 8),
         };
         panel.Children.Add(_showLayerOnIcon);
 
         // 色のモード（ライト／ダーク）。既定はライト。OK で、開いている画面と、これから開く画面すべてに効く。
-        panel.Children.Add(new TextBlock { Text = "画面の色", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 12, 0, 4) });
+        panel.Children.Add(new TextBlock { Text = Loc.T("画面の色", "Colors"), FontWeight = FontWeights.Bold, Margin = new Thickness(0, 12, 0, 4) });
         _colorModeBox = new ComboBox { Name = "ColorModeBox", Width = 160, ItemsSource = ColorModeLabels, SelectedIndex = (int)_trayConfig.ColorModeValue };
-        Row(panel, "色のモード", _colorModeBox,
-            "ライトは、これまでの見た目です（既定）。ダークは、背景を暗くします（Windows の設定のモードには、合わせていません）。" +
-            "OK で保存すると、すぐに全部の画面に効きます。Windows が出す確認の画面（メッセージ・ファイルを選ぶ画面）は、色が変わりません。トレイとライセンス管理にも効きます（次に開いたときから）。",
+        Row(panel, Loc.T("色のモード", "Color mode"), _colorModeBox,
+            Loc.T("各ダイアログの色のモードを、ライト(既定)あるいはダークに設定できます。", "Set the color mode of every dialog to Light (default) or Dark."),
+            labelWidth: 120);
+
+        panel.Children.Add(new TextBlock { Text = Loc.T("表示言語", "Display language"), FontWeight = FontWeights.Bold, Margin = new Thickness(0, 12, 0, 4) });
+        _languageBox = new ComboBox { Name = "LanguageBox", Width = 200, ItemsSource = LanguageLabels, SelectedIndex = (int)_trayConfig.UiLanguageValue };
+        Row(panel, Loc.T("言語", "Language"), _languageBox,
+            Loc.T("kasane とトレイの表示言語を、自動認識(Windows の表示言語に合わせる)、日本語、英語から選びます。変更は、kasane とトレイの再起動後に効きます。",
+                  "Choose the display language of kasane and the tray: Auto (follows the Windows display language), Japanese, or English. The change takes effect after kasane and the tray restart."),
             labelWidth: 120);
         return panel;
     }
 
-    private static readonly string[] ColorModeLabels = { "ライト（既定）", "ダーク" };
+    private static string[] LanguageLabels => new[] { Loc.T("自動認識(既定)", "Auto (default)"), "日本語", "English" };
 
-    private static readonly string[] DesktopViewLabels =
+    private static string[] ColorModeLabels => new[] { Loc.T("ライト(既定)", "Light (default)"), Loc.T("ダーク", "Dark") };
+
+    private static string[] DesktopViewLabels => new[]
     {
-        "通常表示", "詳細表示", "小さなアイコン表示", "リスト表示", "タイル表示",
+        Loc.T("通常表示", "Icons"), Loc.T("詳細表示", "Details"), Loc.T("小さなアイコン表示", "Small icons"), Loc.T("リスト表示", "List"), Loc.T("タイル表示", "Tiles"),
     };
 
     private RadioButton _desktopKeep = null!;
@@ -161,13 +168,14 @@ public sealed class SettingsDialog : Window
     private UIElement BuildDesktopTab()
     {
         var panel = new StackPanel();
-        panel.Children.Add(new TextBlock { Text = "デスクトップのアイコンの表示方法", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
+        panel.Children.Add(new TextBlock { Text = Loc.T("デスクトップのアイコンの表示方法", "Desktop icon view"), FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
         panel.Children.Add(Help(
-            "トレイ（タスクトレイの kasane）が起動したときと、ここを変えたときに、デスクトップのアイコンの表示方法をここで選んだものにします（のどかの def option DesktopListView と同じ番号）。" +
-            "「変えない」のときは何もしません。OK で保存すると、数秒で反映されます（トレイが動いていれば。起動時にも反映します）。キーのリマップとは関係ありません。\n" +
-            "OSやデスクトップの状態によっては、選んだ表示方法にならないことがあります。"));
+            Loc.T(("デスクトップのアイコンの表示方法を変更します。ここでの変更時と、kasane-trayの起動時に反映されます。\n" +
+                   "OSやデスクトップの状態によっては、選んだ表示方法にならないことがあります。"),
+                  ("Changes how desktop icons are displayed. It is applied when you change it here and when kasane-tray starts.\n" +
+                   "Depending on the OS and the state of the desktop, the selected view may not be used."))));
 
-        _desktopKeep = new RadioButton { Name = "DesktopViewKeep", Content = "変えない（既定）", GroupName = "DesktopView", Margin = new Thickness(0, 2, 0, 2) };
+        _desktopKeep = new RadioButton { Name = "DesktopViewKeep", Content = Loc.T("変えない(既定)", "Don't change (default)"), GroupName = "DesktopView", Margin = new Thickness(0, 2, 0, 2) };
         panel.Children.Add(_desktopKeep);
         for (int i = 0; i < _desktopViewRadios.Length; i++)
         {
@@ -207,8 +215,8 @@ public sealed class SettingsDialog : Window
     {
         var panel = new StackPanel { Margin = new Thickness(8, 8, 0, 0) };
         panel.Children.Add(new TextBlock { Name = "AboutName", Text = AppInfo.DisplayName, FontSize = 26, FontWeight = FontWeights.Bold });
-        panel.Children.Add(new TextBlock { Name = "AboutVersion", Text = $"バージョン {AppInfo.VersionText}", FontSize = 15, Margin = new Thickness(0, 6, 0, 0) });
-        panel.Children.Add(new TextBlock { Name = "AboutBuildTime", Text = $"ビルド日時 {AppInfo.BuildTimeText}", Margin = new Thickness(0, 4, 0, 0) });
+        panel.Children.Add(new TextBlock { Name = "AboutVersion", Text = Loc.T($"バージョン {AppInfo.VersionText}", $"Version {AppInfo.VersionText}"), FontSize = 15, Margin = new Thickness(0, 6, 0, 0) });
+        panel.Children.Add(new TextBlock { Name = "AboutBuildTime", Text = Loc.T($"ビルド日時 {AppInfo.BuildTimeText}", $"Build time {AppInfo.BuildTimeText}"), Margin = new Thickness(0, 4, 0, 0) });
         // 実行しているファイルの、インストール先を含むフルパス（長くても折り返して、選んでコピーできる）。
         panel.Children.Add(new TextBox
         {
@@ -275,9 +283,7 @@ public sealed class SettingsDialog : Window
     {
         var panel = new StackPanel();
         panel.Children.Add(Help(
-            "使わない機能はOFFにできます。OFFにした機能のキーは何もせず、コンボの構成キーは通常のキーとして動きます。" +
-            "OFFにしても設定（マクロ等の定義）は消えません。レイヤーとキーの置き換え、MT/LT、修飾付きキーは常に使えます。\n" +
-            "ここでの変更は「キーボードに適用」で反映します。"));
+            Loc.T("使わない機能はOFFにできます。OFFにしても設定は消えません。変更は、「キーボードに適用」で反映されます。", "You can turn off features you don't use. Turning a feature off doesn't delete its settings. Changes take effect with \"Apply to keyboard\".")));
 
         string current = "";
         uint initial = KbdLayerClient.FeatureAll;
@@ -287,19 +293,21 @@ public sealed class SettingsDialog : Window
             {
                 uint f = _client!.GetFeatures(_uniqId);
                 initial = f;
-                current = $"キーボードの現在の値: マクロ {OnOff(f, KbdLayerClient.FeatureMacro)} / コンボ {OnOff(f, KbdLayerClient.FeatureCombo)} / " +
-                          $"タップダンス {OnOff(f, KbdLayerClient.FeatureTapDance)} / キー置換 {OnOff(f, KbdLayerClient.FeatureKeyOverride)}";
+                current = Loc.T(($"キーボードの現在の値: マクロ {OnOff(f, KbdLayerClient.FeatureMacro)} / コンボ {OnOff(f, KbdLayerClient.FeatureCombo)} / " +
+                          $"タップダンス {OnOff(f, KbdLayerClient.FeatureTapDance)} / キー置換 {OnOff(f, KbdLayerClient.FeatureKeyOverride)}"),
+                          ($"Current values on the keyboard: Macro {OnOff(f, KbdLayerClient.FeatureMacro)} / Combo {OnOff(f, KbdLayerClient.FeatureCombo)} / " +
+                          $"Tap dance {OnOff(f, KbdLayerClient.FeatureTapDance)} / Key override {OnOff(f, KbdLayerClient.FeatureKeyOverride)}"));
             }
-            catch (KbdLayerException) { current = "（このドライバは機能のON/OFFに対応していません）"; }
+            catch (KbdLayerException) { current = Loc.T("(このドライバは機能のON/OFFに対応していません)", "(This driver doesn't support turning features on or off)"); }
         }
         _initialFeatures = _project.EnabledFeatures ?? initial;
 
         var defs = new (string Name, string Label, uint Bit)[]
         {
-            ("FeatureMacro", "マクロ（MACRO(n)）", KbdLayerClient.FeatureMacro),
-            ("FeatureCombo", "コンボ", KbdLayerClient.FeatureCombo),
-            ("FeatureTapDance", "タップダンス（TAPDANCE(n)）", KbdLayerClient.FeatureTapDance),
-            ("FeatureKeyOverride", "キー置換", KbdLayerClient.FeatureKeyOverride),
+            ("FeatureMacro", Loc.T("マクロ(MACRO(n))", "Macro (MACRO(n))"), KbdLayerClient.FeatureMacro),
+            ("FeatureCombo", Loc.T("コンボ", "Combo"), KbdLayerClient.FeatureCombo),
+            ("FeatureTapDance", Loc.T("タップダンス(TAPDANCE(n))", "Tap dance (TAPDANCE(n))"), KbdLayerClient.FeatureTapDance),
+            ("FeatureKeyOverride", Loc.T("キー置換", "Key override"), KbdLayerClient.FeatureKeyOverride),
         };
         for (int i = 0; i < defs.Length; i++)
         {
@@ -335,16 +343,18 @@ public sealed class SettingsDialog : Window
             try
             {
                 var current = _client!.GetConfig(_uniqId);
-                currentText = $"\nキーボードの現在の値: TapTerm {current.TapTermMs} / ComboTerm {current.ComboTermMs} / TapDanceTerm {current.TapDanceTermMs}";
+                currentText = Loc.T($"\nキーボードの現在の値: TapTerm {current.TapTermMs} / ComboTerm {current.ComboTermMs} / TapDanceTerm {current.TapDanceTermMs}", $"\nCurrent values on the keyboard: TapTerm {current.TapTermMs} / ComboTerm {current.ComboTermMs} / TapDanceTerm {current.TapDanceTermMs}");
                 if (current.HasTapHoldOptions)
-                    currentText += $" / 判定方式 {current.TapHoldMode} / Quick Tap {QuickTapText(current.QuickTapTermMs)} / TT {current.TappingToggle}回";
+                    currentText += Loc.T($" / 判定方式 {current.TapHoldMode} / Quick Tap {QuickTapText(current.QuickTapTermMs)} / TT {current.TappingToggle}回", $" / Tap-hold mode {current.TapHoldMode} / Quick Tap {QuickTapText(current.QuickTapTermMs)} / TT {current.TappingToggle} taps");
                 else
-                    currentText += "\n（このドライバは判定方式・Quick Tap・TTの回数に対応していません。設定しても効きません）";
+                    currentText += Loc.T("\n(このドライバは判定方式・Quick Tap・TTの回数に対応していません。設定しても効きません)", "\n(This driver doesn't support the tap-hold mode, Quick Tap, or the TT count. These settings have no effect)");
             }
             catch (KbdLayerException) { /* 古いドライバ等。現在値の表示を省くだけ */ }
         }
-        panel.Children.Add(Help("単位はミリ秒です。0 はドライバの既定値（TapTerm 200 / ComboTerm 50 / TapDanceTerm 200）を使います。" +
-                                "ここでの変更は「キーボードに適用」で反映します。" + currentText));
+        panel.Children.Add(Help(Loc.T(("単位はミリ秒で、0 にすると既定値(TapTerm 200 / ComboTerm 50 / TapDanceTerm 200)を使います。" +
+                                "変更は、「キーボードに適用」で反映されます。"),
+                                ("The unit is milliseconds. 0 uses the default (TapTerm 200 / ComboTerm 50 / TapDanceTerm 200). " +
+                                "Changes take effect with \"Apply to keyboard\".")) + currentText));
 
         TextBox Field(string name, string label, string help, uint value)
         {
@@ -352,30 +362,42 @@ public sealed class SettingsDialog : Window
             Row(panel, label, box, help);
             return box;
         }
-        _tap = Field("TapTermBox", "TapTerm", "MT/LT: これより長く押すと長押し扱い", _project.TapTermMs);
-        _combo = Field("ComboTermBox", "ComboTerm", "コンボ: 2キーの押下の間隔の上限", _project.ComboTermMs);
-        _tapDance = Field("TapDanceTermBox", "TapDanceTerm", "タップダンス: タップ間隔・長押しの判定", _project.TapDanceTermMs);
+        _tap = Field("TapTermBox", "TapTerm", Loc.T("MT/LT: これより長く押すと長押し扱い", "MT/LT: pressing longer than this counts as a hold"), _project.TapTermMs);
+        _combo = Field("ComboTermBox", "ComboTerm", Loc.T("コンボ: 2つのキーを押す間隔の上限", "Combo: maximum interval between the two key presses"), _project.ComboTermMs);
+        _tapDance = Field("TapDanceTermBox", "TapDanceTerm", Loc.T("タップダンス: タップ間隔・長押しの判定", "Tap dance: tap interval and hold detection"), _project.TapDanceTermMs);
 
         _mode = new ComboBox { Name = "TapHoldModeBox", Width = 330, ItemsSource = ModeLabels };
         _mode.SelectedIndex = _project.TapHoldMode < ModeLabels.Length ? (int)_project.TapHoldMode : 0;
-        Row(panel, "判定方式", _mode, "MT/LT（タップダンスは常に既定の方式）");
+        Row(panel, Loc.T("判定方式", "Tap-hold mode"), _mode, Loc.T("MT/LT に使います(タップダンスは常に既定の方式)", "Used for MT/LT (tap dance always uses the default mode)"));
 
         bool quickOff = _project.QuickTapTermMs == KbdLayerClient.QuickTapTermDisabled;
         _quick = new TextBox { Name = "QuickTapTermBox", Text = quickOff ? "0" : _project.QuickTapTermMs.ToString(), Width = 80, IsEnabled = !quickOff };
-        _quickEnabled = new CheckBox { Name = "QuickTapEnabled", Content = "使う", IsChecked = !quickOff, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        _quickEnabled = new CheckBox { Name = "QuickTapEnabled", Content = Loc.T("使う", "Enable"), IsChecked = !quickOff, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
         _quickEnabled.Checked += (_, _) => _quick.IsEnabled = true;
         _quickEnabled.Unchecked += (_, _) => _quick.IsEnabled = false;
         var quickRow = new StackPanel { Orientation = Orientation.Horizontal };
         quickRow.Children.Add(_quick);
         quickRow.Children.Add(_quickEnabled);
-        Row(panel, "Quick Tap", quickRow, "短押しの直後に押し続けるとリピート（0 = TapTermと同じ）");
+        Row(panel, "Quick Tap", quickRow, Loc.T("短押しの直後に押し続けるとリピートします(0 = TapTerm と同じ)", "Pressing and holding right after a tap repeats the key (0 = same as TapTerm)"));
 
-        _tt = Field("TappingToggleBox", "TT の回数", "TT(n): この回数続けてタップするとON/OFFを固定（0 = 既定の5）", _project.TappingToggle);
+        _tt = Field("TappingToggleBox", Loc.T("TT の回数", "TT count"), Loc.T("TT(n): この回数続けてタップすると、ON/OFFが固定されます(0 = 既定の5)", "TT(n): tapping this many times in a row locks the layer on or off (0 = default 5)"), _project.TappingToggle);
+        panel.Children.Add(new TextBlock
+        {
+            Text = Loc.T(("MT (Mod-Tap): 短く押すと通常のキー、長押しすると修飾キーになります。\n" +
+                   "LT (Layer-Tap): 短く押すと通常のキー、長押しするとレイヤーを切り替えます。\n" +
+                   "TT (Tap Toggle): 押している間はレイヤーが有効になり、続けてタップするとON/OFFが固定されます。"),
+                  ("MT (Mod-Tap): Tap for the normal key, hold for a modifier key.\n" +
+                   "LT (Layer-Tap): Tap for the normal key, hold to switch layers.\n" +
+                   "TT (Tap Toggle): The layer is active while the key is held; tap repeatedly to lock it on or off.")),
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = AppTheme.Palette.SubText,
+            Margin = new Thickness(0, 16, 0, 0),
+        });
         return panel;
     }
 
     private static string QuickTapText(uint ms) =>
-        ms == KbdLayerClient.QuickTapTermDisabled ? "使わない" : ms == 0 ? "TapTermと同じ" : $"{ms}ms";
+        ms == KbdLayerClient.QuickTapTermDisabled ? Loc.T("使わない", "Off") : ms == 0 ? Loc.T("TapTermと同じ", "Same as TapTerm") : $"{ms}ms";
 
     // ------------------------------------------------------------------
     // NICOLA
@@ -386,32 +408,35 @@ public sealed class SettingsDialog : Window
     private UIElement BuildImeTab()
     {
         var root = new StackPanel();
-        root.Children.Add(new TextBlock { Text = "IME の ON/OFF とレイヤーの連動", FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 6) });
+        root.Children.Add(new TextBlock { Text = Loc.T("IME の ON/OFF とレイヤーの連動", "IME on/off and layer link"), FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 6) });
         root.Children.Add(new ImeLayerTab(_helper, this).Root);
         root.Children.Add(BuildImeSourceRow());
         root.Children.Add(new Separator { Margin = new Thickness(0, 14, 0, 10) });
-        root.Children.Add(new TextBlock { Text = "NICOLA（親指シフト）", FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 6) });
+        root.Children.Add(new TextBlock { Text = Loc.T("NICOLA(親指シフト)", "NICOLA (thumb shift)"), FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 6) });
         root.Children.Add(BuildNicolaTab());
         return root;
     }
 
     // IME の状態の取得方法。IMM32 は、アプリの IME ウィンドウへの問い合わせ。TSF は、天狼（sirius）のフックの DLL が各アプリの中で読んだ値
     // （IMM32 で取れないアプリ・TSF だけのアプリの補い）。フックは全アプリに DLL を読み込ませるので、Imm32 を選ぶと入れない。
-    private static readonly string[] ImeSourceLabels =
+    private static string[] ImeSourceLabels => new[]
     {
-        "IMM32 のみ（フックを入れない。既定）",
-        "IMM32 を先に、取れなければ TSF",
-        "TSF を先に、取れなければ IMM32",
+        Loc.T("IMM32 のみ(フックを入れない。既定)", "IMM32 only (no hook; default)"),
+        Loc.T("IMM32 を先に、取れなければ TSF", "IMM32 first, then TSF if that fails"),
+        Loc.T("TSF を先に、取れなければ IMM32", "TSF first, then IMM32 if that fails"),
     };
 
     private UIElement BuildImeSourceRow()
     {
         var panel = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
         _imeSourceBox = new ComboBox { Name = "ImeSourceBox", Width = 360, ItemsSource = ImeSourceLabels, SelectedIndex = (int)_trayConfig.ImeSourceMode };
-        Row(panel, "IME の状態の取得方法", _imeSourceBox,
-            "既定の「IMM32 のみ」で、多くのアプリの IME の状態が取れます。IMM32 で取れないアプリ（TSF だけのアプリなど）を補いたいときだけ、TSF を選びます。" +
-            "TSF は、全アプリに入る小さな DLL（sirius_hook）が読んだ値を使います（実験的。Explorer を開くのが遅く感じられる場合があります）。「IMM32 のみ」では、その DLL を入れません。" +
-            "変更は、OKで保存され、数秒でトレイに反映されます。",
+        Row(panel, Loc.T("IME の状態の取得方法", "How to get the IME state"), _imeSourceBox,
+            Loc.T(("既定の「IMM32 のみ」で、多くのアプリに対応できます。TSF だけのアプリなどを補いたいときだけ、TSF を選びます。" +
+                   "TSF を選ぶと、DLL(sirius_hook)が読んだ値を使います。Explorer を開くのが遅く感じられることがあります。「IMM32 のみ」では、この DLL を使いません。" +
+                   "OK で保存すると、数秒でトレイに反映されます。"),
+                  ("The default, \"IMM32 only\", works with most apps. Choose TSF only to cover apps that support TSF alone. " +
+                   "With TSF, the values read by a DLL (sirius_hook) are used, and opening Explorer may feel slower. \"IMM32 only\" doesn't use this DLL. " +
+                   "After you save with OK, the tray picks up the change within a few seconds.")),
             labelWidth: 170);
         return panel;
     }
@@ -420,20 +445,14 @@ public sealed class SettingsDialog : Window
     {
         var panel = new StackPanel();
         panel.Children.Add(Help(
-            "NICOLA（親指シフト）は、指定したレイヤーがアクティブな間だけ働きます。「IME連動」を使うと、IMEがかなモードのときだけ、" +
-            "タスクトレイの kasane が自動でそのレイヤーを立てます（切り替えるキーは要りません）。使わない場合は、そのレイヤーに" +
-            "切り替えるキー、例えば TG(1) をキーマップに置いてください。配列の表は「表を編集...」で変えられます。" +
-            "nicola.json（CLIの --set-nicola と同じ形式）の読み込み・書き出しもできます。\n" +
-            "NICOLAを使うと、親指キーの単独打鍵のキー（Enter・Spaceなど）が、Ctrl・Shiftなどを押している間のために、" +
-            "NICOLAのレイヤーのキー割り当てとして自動で足されます。\n" +
-            "キーボードへの反映は「キーボードに適用」で行います。IME連動の設定は、OKで保存され（このキーボードごと、または全キーボード共通。このPCの利用者ごと）、数秒でトレイに反映されます。"));
+            Loc.T("NICOLA(親指シフト)の配列と、使うレイヤーを設定します。キーボードへの反映は「キーボードに適用」で、IME連動は OK で保存すると数秒でトレイに反映されます。", "Set the NICOLA (thumb shift) layout and the layer to use. Apply it to the keyboard with \"Apply to keyboard\"; the IME link reaches the tray within a few seconds after you save with OK.")));
 
         if (IsOnline)
         {
             string driverText;
             try { driverText = NicolaService.DescribeBlob(_client!.GetNicola(_uniqId)); }
             catch (KbdLayerException ex) { driverText = ex.Message; }
-            panel.Children.Add(new TextBlock { Name = "NicolaDriverStatus", Text = "キーボードの現在の設定: " + driverText, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) });
+            panel.Children.Add(new TextBlock { Name = "NicolaDriverStatus", Text = Loc.T("キーボードの現在の設定: ", "Current setting on the keyboard: ") + driverText, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) });
         }
 
         // IME連動（NICOLA）は、このキーボードごとか、全キーボード共通かを選べる（キーボードごとの設定が先）。
@@ -456,7 +475,7 @@ public sealed class SettingsDialog : Window
             buttons.Children.Add(b);
             return b;
         }
-        Btn("NicolaEditButton", "表を編集...", (_, _) =>
+        Btn("NicolaEditButton", Loc.T("表を編集...", "Edit table..."), (_, _) =>
         {
             var dlg = new NicolaEditorWindow(_nicola ?? NicolaService.CreateStandard()) { Owner = this };
             if (dlg.ShowDialog() != true) return;
@@ -464,9 +483,9 @@ public sealed class SettingsDialog : Window
             _nicolaMode.SelectedIndex = 1;
             RefreshNicola();
         });
-        Btn("NicolaLoadButton", "nicola.json を読み込む...", (_, _) =>
+        Btn("NicolaLoadButton", Loc.T("nicola.json を読み込む...", "Load nicola.json..."), (_, _) =>
         {
-            var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "NICOLA (*.json)|*.json", Title = "nicola.json を開く", InitialDirectory = DialogDefaults.DataFolder, ClientGuid = DialogDefaults.Nicola };
+            var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "NICOLA (*.json)|*.json", Title = Loc.T("nicola.json を開く", "Open nicola.json"), InitialDirectory = DialogDefaults.DataFolder, ClientGuid = DialogDefaults.Nicola };
             if (dlg.ShowDialog(this) != true) return;
             try
             {
@@ -474,17 +493,17 @@ public sealed class SettingsDialog : Window
                 _nicolaMode.SelectedIndex = 1;
                 RefreshNicola();
             }
-            catch (Exception ex) { ShowStatus(_nicolaSummary, $"読み込めませんでした: {ex.Message}", true); }
+            catch (Exception ex) { ShowStatus(_nicolaSummary, Loc.T($"読み込めませんでした: {ex.Message}", $"Couldn't load: {ex.Message}"), true); }
         });
-        Btn("NicolaSaveButton", "nicola.json に書き出す...", (_, _) =>
+        Btn("NicolaSaveButton", Loc.T("nicola.json に書き出す...", "Export to nicola.json..."), (_, _) =>
         {
-            if (_nicola == null) { ShowStatus(_nicolaSummary, "書き出す設定がありません（「表を編集...」か「規格書の配列にする」で作ってください）。", true); return; }
-            var dlg = new Microsoft.Win32.SaveFileDialog { Filter = "NICOLA (*.json)|*.json", FileName = "nicola.json", Title = "nicola.json に書き出す", InitialDirectory = DialogDefaults.DataFolder, ClientGuid = DialogDefaults.Nicola };
+            if (_nicola == null) { ShowStatus(_nicolaSummary, Loc.T("書き出す設定がありません。「表を編集...」か「規格書の配列にする」で作ってください。", "There is no setting to export. Create one with \"Edit table...\" or \"Use standard layout\"."), true); return; }
+            var dlg = new Microsoft.Win32.SaveFileDialog { Filter = "NICOLA (*.json)|*.json", FileName = "nicola.json", Title = Loc.T("nicola.json に書き出す", "Export to nicola.json"), InitialDirectory = DialogDefaults.DataFolder, ClientGuid = DialogDefaults.Nicola };
             if (dlg.ShowDialog(this) != true) return;
             try { NicolaService.Save(_nicola, dlg.FileName); RefreshNicola(); }
-            catch (Exception ex) { ShowStatus(_nicolaSummary, $"書き出せませんでした: {ex.Message}", true); }
+            catch (Exception ex) { ShowStatus(_nicolaSummary, Loc.T($"書き出せませんでした: {ex.Message}", $"Couldn't export: {ex.Message}"), true); }
         });
-        Btn("NicolaStandardButton", "規格書の配列にする", (_, _) =>
+        Btn("NicolaStandardButton", Loc.T("規格書の配列にする", "Use standard layout"), (_, _) =>
         {
             _nicola = NicolaService.CreateStandard();
             _nicolaMode.SelectedIndex = 1;
@@ -509,19 +528,22 @@ public sealed class SettingsDialog : Window
                 var warnings = new List<string>();
                 var errors = new List<string>();
                 NicolaService.BuildBlob(_nicola, warnings, errors);
-                string text = $"{(_nicola.Output == "jis-kana" ? "JISかな入力" : "ローマ字入力")}、レイヤー{_nicola.Layer}、" +
+                string text = Loc.T(($"{(_nicola.Output == "jis-kana" ? "JISかな入力" : "ローマ字入力")}、レイヤー{_nicola.Layer}、" +
                               $"文字キー{_nicola.Keys.Count}個、親指 {_nicola.ThumbLeft} / {_nicola.ThumbRight}" +
-                              (_nicola.Enabled ? "" : "（判定しない設定）");
+                              (_nicola.Enabled ? "" : "(判定しない設定)")),
+                              ($"{(_nicola.Output == "jis-kana" ? "JIS kana input" : "Romaji input")}, layer {_nicola.Layer}, " +
+                              $"{_nicola.Keys.Count} character keys, thumbs {_nicola.ThumbLeft} / {_nicola.ThumbRight}" +
+                              (_nicola.Enabled ? "" : " (detection off)")));
                 if (_nicola.Layer >= _project.Layers.Count && _imeLink.IsChecked != true)
-                    warnings.Add($"レイヤー{_nicola.Layer}はキーマップにありません（IME連動を使わない場合は、そのレイヤーに切り替えるキー（TG({_nicola.Layer})等）を置いてください）");
+                    warnings.Add(Loc.T($"レイヤー{_nicola.Layer}はキーマップにありません。IME連動を使わない場合は、そのレイヤーに切り替えるキー(TG({_nicola.Layer}) など)を置いてください。", $"Layer {_nicola.Layer} is not in the keymap. If you don't use the IME link, place a key that switches to that layer (such as TG({_nicola.Layer}))."));
                 if (errors.Count > 0) ShowStatus(_nicolaSummary, text + "\n" + string.Join("\n", errors), true);
-                else ShowStatus(_nicolaSummary, text + (warnings.Count > 0 ? "\n注意: " + string.Join("\n", warnings) : ""), false);
+                else ShowStatus(_nicolaSummary, text + (warnings.Count > 0 ? Loc.T("\n注意: ", "\nNote: ") + string.Join("\n", warnings) : ""), false);
                 break;
             case 2:
-                ShowStatus(_nicolaSummary, "適用すると、キーボードのNICOLAの設定を消します。", false);
+                ShowStatus(_nicolaSummary, Loc.T("適用すると、キーボードのNICOLAの設定を消します。", "Applying clears the keyboard's NICOLA setting."), false);
                 break;
             default:
-                ShowStatus(_nicolaSummary, "適用しても、キーボードのNICOLAの設定は変わりません（CLIの --set-nicola で入れた設定もそのまま）。", false);
+                ShowStatus(_nicolaSummary, Loc.T("適用しても、キーボードのNICOLAの設定は変わりません。", "Applying leaves the keyboard's NICOLA setting unchanged."), false);
                 break;
         }
     }
@@ -559,12 +581,14 @@ public sealed class SettingsDialog : Window
     {
         var panel = new StackPanel();
         panel.Children.Add(Help(
-            $"設定を誤って入力できなくなったときの逃げ道です。ここで決めた{KbdLayerClient.EmergencyMinKeys}〜{KbdLayerClient.EmergencyMaxKeys}個のキーを" +
-            $"同時に{KbdLayerClient.EmergencyHoldMs / 1000}秒押し続けると、接続中の全キーボードのレイヤーマップがOFFになります（マップ自体は消えません）。" +
-            "ドライバ全体で1つの設定です（キーボードごとではありません）。全部のキーが同じキーボードにある必要があります。\n" +
-            "キーは物理キー（レイヤーマップで置き換える前）で指定します。各欄の「押して入力」でキーを押して入れるか、「選ぶ...」で選びます。\n" +
-            "入力した組み合わせは、別のタブに移るとき、または OK を押したときに、ドライバへ反映します（キャンセルしても、タブを移った時点で反映したものは戻りません）。" +
-            "全部の欄を空にした場合は、変更しません。"));
+            Loc.T(($"設定を誤って入力できなくなったときの緊急用の手段です。ここで決めた{KbdLayerClient.EmergencyMinKeys}〜{KbdLayerClient.EmergencyMaxKeys}個のキーを" +
+                   $"同時に{KbdLayerClient.EmergencyHoldMs / 1000}秒押し続けると、接続中の全キーボードのレイヤーマップがOFFになります。" +
+                   "全部のキーが同じキーボードにある必要があります。\n" +
+                   "入力した組み合わせは、別のタブに移るか OK を押すと反映され、キャンセルしても戻りません。"),
+                  ($"This is an emergency measure for when a wrong setting leaves you unable to type. Hold the {KbdLayerClient.EmergencyMinKeys} to {KbdLayerClient.EmergencyMaxKeys} keys you set here " +
+                   $"together for {KbdLayerClient.EmergencyHoldMs / 1000} seconds to turn off the layer map on all connected keyboards. " +
+                   "All the keys must be on the same keyboard.\n" +
+                   "The combination you enter takes effect when you switch to another tab or press OK, and canceling does not undo it."))));
 
         bool writable = IsOnline && _canWrite;
         var boxes = new TextBox[KbdLayerClient.EmergencyMaxKeys];
@@ -574,11 +598,11 @@ public sealed class SettingsDialog : Window
         {
             boxes[i] = new TextBox { Name = $"EmergencyKey{i + 1}", Width = 100, FontFamily = new FontFamily("Consolas") };
             var line = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
-            line.Children.Add(new TextBlock { Text = $"キー{i + 1}", Width = 44, VerticalAlignment = VerticalAlignment.Center });
+            line.Children.Add(new TextBlock { Text = Loc.T($"キー{i + 1}", $"Key {i + 1}"), Width = 44, VerticalAlignment = VerticalAlignment.Center });
             line.Children.Add(KeycodeField.Wrap(boxes[i], allowMods: false));
             grid.Children.Add(line);
         }
-        Row(panel, "組み合わせ", grid, null, 90);
+        Row(panel, Loc.T("組み合わせ", "Combination"), grid, null, 90);
 
         var status = Status("EmergencyStatus");
         void Fill(IReadOnlyList<string> names)
@@ -594,14 +618,14 @@ public sealed class SettingsDialog : Window
                 var keys = _client!.GetEmergencyRelease();
                 applied = keys.ToList();
                 Fill(keys.Select(KeycodeTable.KeyToken).ToList());
-                ShowStatus(status, "ドライバの現在の組み合わせを表示しています。", false);
+                ShowStatus(status, Loc.T("ドライバの現在の組み合わせを表示しています。", "Showing the driver's current combination."), false);
             }
             catch (KbdLayerException ex) { ShowStatus(status, ex.Message, true); }
         }
         else
         {
             Fill(DefaultEmergencyKeys);
-            ShowStatus(status, "ドライバに接続していないため、変更できません（表示は既定の組み合わせです）。", true);
+            ShowStatus(status, Loc.T("ドライバに接続していないため、変更できません(表示は既定の組み合わせです)。", "Not connected to the driver, so changes aren't possible (showing the default combination)."), true);
         }
 
         // 入力をスキャンコードにする。空の欄は飛ばす（全部空なら空のリスト）。個数の下限は見ない。
@@ -615,12 +639,12 @@ public sealed class SettingsDialog : Window
                 if (t.Length == 0) continue;
                 if (!KeycodeTable.TryResolve(t, out var a) || a.Type != ActionType.Key || a.Param2 == 0)
                 {
-                    error = $"「{t}」は単純なキー(KC_*)にしてください。";
+                    error = Loc.T($"「{t}」は単純なキー(KC_*)にしてください。", $"\"{t}\" must be a plain key (KC_*).");
                     return false;
                 }
                 if (scanCodes.Contains(a.Param2))
                 {
-                    error = $"「{t}」が2回指定されています。";
+                    error = Loc.T($"「{t}」が2回指定されています。", $"\"{t}\" is specified twice.");
                     return false;
                 }
                 scanCodes.Add(a.Param2);
@@ -633,13 +657,13 @@ public sealed class SettingsDialog : Window
             if (!writable) return null;
             if (!TryCollect(out var keys, out var error)) return error;
             if (keys.Count == 0) return null; // 空 = 変更しない
-            if (keys.Count < KbdLayerClient.EmergencyMinKeys) return $"キーは{KbdLayerClient.EmergencyMinKeys}個以上指定してください。";
+            if (keys.Count < KbdLayerClient.EmergencyMinKeys) return Loc.T($"キーは{KbdLayerClient.EmergencyMinKeys}個以上指定してください。", $"Specify at least {KbdLayerClient.EmergencyMinKeys} keys.");
             if (applied != null && applied.SequenceEqual(keys)) return null;
             try
             {
                 _client!.SetEmergencyRelease(keys);
                 applied = keys;
-                ShowStatus(status, $"緊急解除の組み合わせを {string.Join(" + ", boxes.Select(b => b.Text.Trim()).Where(s => s.Length > 0))} にしました。", false);
+                ShowStatus(status, Loc.T($"緊急解除の組み合わせを {string.Join(" + ", boxes.Select(b => b.Text.Trim()).Where(s => s.Length > 0))} にしました。", $"Emergency release combination set to {string.Join(" + ", boxes.Select(b => b.Text.Trim()).Where(s => s.Length > 0))}."), false);
                 return null;
             }
             catch (KbdLayerException ex) { return ex.Message; }
@@ -652,33 +676,33 @@ public sealed class SettingsDialog : Window
         };
 
         var buttons = new WrapPanel();
-        var check = new Button { Name = "EmergencyCheckButton", Content = "同時押しを試す...", Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(8, 2, 8, 2) };
+        var check = new Button { Name = "EmergencyCheckButton", Content = Loc.T("同時押しを試す...", "Test simultaneous press..."), Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(8, 2, 8, 2) };
         check.Click += (_, _) =>
         {
             if (!TryCollect(out var keys, out var error)) { ShowStatus(status, error!, true); return; }
             if (keys.Count < KbdLayerClient.EmergencyMinKeys)
             {
-                ShowStatus(status, $"キーは{KbdLayerClient.EmergencyMinKeys}個以上指定してください。", true);
+                ShowStatus(status, Loc.T($"キーは{KbdLayerClient.EmergencyMinKeys}個以上指定してください。", $"Specify at least {KbdLayerClient.EmergencyMinKeys} keys."), true);
                 return;
             }
             // 管理者で、ドライバに接続しているときは、選んでいるキーボードの入力を、ドライバから直接受ける。
             var dlg = new EmergencyCheckWindow(keys, IsOnline && _canWrite ? _uniqId : 0) { Owner = this };
             dlg.ShowDialog();
             ShowStatus(status, dlg.Succeeded
-                ? "この組み合わせは同時に検出できました。"
-                : "全部のキーを同時に検出できませんでした（試していない場合も含む）。別の組み合わせを検討してください。", !dlg.Succeeded);
+                ? Loc.T("この組み合わせは同時に検出できました。", "This combination was detected simultaneously.")
+                : Loc.T("全部のキーを同時に検出できませんでした。別の組み合わせを試してください。", "Not all keys were detected at once. Try a different combination."), !dlg.Succeeded);
         };
-        var clear = new Button { Name = "EmergencyClearButton", Content = "クリア", IsEnabled = writable, Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(8, 2, 8, 2) };
+        var clear = new Button { Name = "EmergencyClearButton", Content = Loc.T("クリア", "Clear"), IsEnabled = writable, Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(8, 2, 8, 2) };
         clear.Click += (_, _) =>
         {
             Fill(Array.Empty<string>());
-            ShowStatus(status, "入力欄を空にしました。空のままタブを移る・OK を押しても、緊急解除の組み合わせは変わりません。", false);
+            ShowStatus(status, Loc.T("入力欄を空にしました。空のままでは、緊急解除の組み合わせは変わりません。", "Cleared the fields. If left empty, the emergency release combination stays unchanged."), false);
         };
-        var reset = new Button { Name = "EmergencyDefaultButton", Content = "既定（左右Ctrl＋左右Shift）にする", IsEnabled = writable, Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(8, 2, 8, 2) };
+        var reset = new Button { Name = "EmergencyDefaultButton", Content = Loc.T("既定(左右Ctrl＋左右Shift)にする", "Reset to default (both Ctrl + both Shift)"), IsEnabled = writable, Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(8, 2, 8, 2) };
         reset.Click += (_, _) =>
         {
             Fill(DefaultEmergencyKeys);
-            ShowStatus(status, "既定の組み合わせを入れました。タブを移る・OK を押すと反映します。", false);
+            ShowStatus(status, Loc.T("既定の組み合わせを入れました。タブを移るか OK を押すと反映されます。", "Default combination entered. It takes effect when you switch tabs or press OK."), false);
         };
         buttons.Children.Add(check);
         buttons.Children.Add(clear);
@@ -687,13 +711,13 @@ public sealed class SettingsDialog : Window
         // 管理者で、ドライバに接続していないと、「同時押しを試す」は低レベルキーフックで見る。その制限は、画面を開く前に、このタブで分かるようにする。
         if (!writable)
         {
-            var limit = Help("「同時押しを試す」は、低レベルキーフックで確認しているため、選択しているキーボードレイアウトに依存して、正常に取れないキーが存在します。その場合には、管理者権限モードでやり直してください。");
+            var limit = Help(Loc.T("「同時押しを試す」は、管理者権限モードで実施してください。", "Run \"Test simultaneous press\" in administrator mode."));
             limit.Name = "EmergencyHookLimitNote";
             limit.Foreground = Brushes.Firebrick;
             panel.Children.Add(limit);
         }
         if (IsOnline && !_canWrite)
-            panel.Children.Add(Help("閲覧専用モード（管理者として実行していない）のため、変更はできません。"));
+            panel.Children.Add(Help(Loc.T("閲覧専用モード(管理者として実行していない)のため、変更はできません。", "Read-only mode (not running as administrator), so changes aren't possible.")));
         panel.Children.Add(status);
         return panel;
     }
@@ -706,29 +730,18 @@ public sealed class SettingsDialog : Window
     {
         var panel = new StackPanel();
 
-        panel.Children.Add(new TextBlock { Text = "設定の共有範囲", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
+        panel.Children.Add(new TextBlock { Text = Loc.T("設定の共有範囲", "Settings sharing scope"), FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
         panel.Children.Add(Help(
-            "ドライバがこのキーボードの設定（レイヤーマップ・タイミング・マクロ等）を保存する単位です。\n" +
-            "・同じ型番で共有（既定）: 同じ型番のキーボードは、差し込み口が変わっても同じ設定を使います。\n" +
-            "・この1台だけ: この差し込み口のこのキーボードだけの設定にします。切り替えると、今の設定をこの1台用にコピーします。\n" +
-            "・すべてのキーボードで共有: 型番も差し込み口も区別せず、1つの設定をすべてのキーボードで使います（後から接続したキーボードも、" +
-            "この設定にしていれば同じ設定になります）。すでに共有の設定があれば、それを使います。" +
-            "配列の違うキーボード（JISとテンキーなど）を混ぜると、意図しない割り当てになることがあります。\n" +
-            "切り替えるときは、今の設定が切替先へコピーされ、切替先にすでにある設定は上書きされます（たとえば「すべて」や「この1台」から「同じ型番」へ戻すと、" +
-            "同じ型番で共有している設定が置き換わります）。\n" +
-            "「変更する」を押すとすぐに反映します（OK・キャンセルとは関係しません）。共有している他の台へは、その台を接続し直すまで反映されません。"));
+            Loc.T(("ドライバがこのキーボードの設定(レイヤーマップ・タイミング・マクロなど)を保存する単位を選びます。\n" +
+                   "切り替えると、今の設定が切替先へコピーされ、切替先にすでにある設定は上書きされます。「変更する」を押すとすぐに反映されます。\n" +
+                   "設定画面とトレイの設定は、共有範囲にかかわらず、接続先(USBポートなど)ごとのキーボードとして扱われます。"),
+                  ("Choose the unit in which the driver stores this keyboard's settings (layer map, timing, macros, and so on).\n" +
+                   "When you switch, the current settings are copied to the new scope, and any settings already there are overwritten. Pressing \"Change\" applies it immediately.\n" +
+                   "The settings screen and the tray settings treat each keyboard by where it is connected (such as the USB port), regardless of the sharing scope."))));
 
-        panel.Children.Add(new TextBlock { Text = "共有範囲とポートの関係（トレイを含む）", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 4, 0, 4) });
-        panel.Children.Add(Help(
-            "・ポートを替えたとき: ドライバが保存する設定は、共有範囲が「同じ型番」「すべて」なら引き継がれ、「この1台だけ」なら引き継がれません。" +
-            "設定画面で作った設定（project.json）とトレイの設定（ヘルパー動作・アプリ別レイヤー・一時停止の記憶）は、接続先（USBポートなど）ごとに別のキーボードとして扱うため、" +
-            "同じキーボードを別のポートに挿すと引き継がれません（エクスポート／インポートで移せます）。\n" +
-            "・同じ型番を2台つないだとき: 接続先が違うので、設定画面とトレイでは別のキーボードとして扱います（ドライバの設定は、共有範囲が「同じ型番」なら共有されます）。\n" +
-            "・トレイの設定は、設定画面と同じく接続先ごとのキーボード単位で、ここでの共有範囲を変えても共有されません。"));
-
-        var model = new RadioButton { Name = "ScopeModel", Content = "同じ型番で共有", GroupName = "Scope", Margin = new Thickness(0, 3, 0, 3) };
-        var instance = new RadioButton { Name = "ScopeInstance", Content = "この1台だけ", GroupName = "Scope", Margin = new Thickness(0, 3, 0, 3) };
-        var global = new RadioButton { Name = "ScopeGlobal", Content = "すべてのキーボードで共有", GroupName = "Scope", Margin = new Thickness(0, 3, 0, 3) };
+        var model = new RadioButton { Name = "ScopeModel", Content = Loc.T("同じ型番で共有", "Share across the same model"), GroupName = "Scope", Margin = new Thickness(0, 3, 0, 3) };
+        var instance = new RadioButton { Name = "ScopeInstance", Content = Loc.T("この1台だけ", "This keyboard only"), GroupName = "Scope", Margin = new Thickness(0, 3, 0, 3) };
+        var global = new RadioButton { Name = "ScopeGlobal", Content = Loc.T("すべてのキーボードで共有", "Share across all keyboards"), GroupName = "Scope", Margin = new Thickness(0, 3, 0, 3) };
         panel.Children.Add(model);
         panel.Children.Add(instance);
         panel.Children.Add(global);
@@ -741,14 +754,14 @@ public sealed class SettingsDialog : Window
             global.IsChecked = s.Binding == KbdLayerClient.BindingGlobal;
             string name = s.Binding switch
             {
-                KbdLayerClient.BindingInstance => "この1台だけ",
-                KbdLayerClient.BindingGlobal => "すべてのキーボードで共有",
-                _ => "同じ型番で共有",
+                KbdLayerClient.BindingInstance => Loc.T("この1台だけ", "This keyboard only"),
+                KbdLayerClient.BindingGlobal => Loc.T("すべてのキーボードで共有", "Share across all keyboards"),
+                _ => Loc.T("同じ型番で共有", "Share across the same model"),
             };
-            ShowStatus(status, $"現在: {name}（InstanceKey {s.InstanceKey:X8} / ModelKey {s.ModelKey:X8}）", false);
+            ShowStatus(status, Loc.T($"現在: {name}(InstanceKey {s.InstanceKey:X8} / ModelKey {s.ModelKey:X8})", $"Current: {name} (InstanceKey {s.InstanceKey:X8} / ModelKey {s.ModelKey:X8})"), false);
         }
 
-        var apply = new Button { Name = "ScopeApplyButton", Content = "変更する", IsEnabled = IsOnline && _canWrite, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6, 0, 0), Padding = new Thickness(8, 2, 8, 2) };
+        var apply = new Button { Name = "ScopeApplyButton", Content = Loc.T("変更する", "Change"), IsEnabled = IsOnline && _canWrite, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6, 0, 0), Padding = new Thickness(8, 2, 8, 2) };
         apply.Click += (_, _) =>
         {
             uint binding = global.IsChecked == true ? KbdLayerClient.BindingGlobal
@@ -768,12 +781,12 @@ public sealed class SettingsDialog : Window
                 ShowStatus(status, ex.Message, true);
                 apply.IsEnabled = false;
             }
-            if (!_canWrite) panel.Children.Add(Help("閲覧専用モード（管理者として実行していない）のため、変更はできません。"));
+            if (!_canWrite) panel.Children.Add(Help(Loc.T("閲覧専用モード(管理者として実行していない)のため、変更はできません。", "Read-only mode (not running as administrator), so changes aren't possible.")));
         }
         else
         {
             model.IsEnabled = instance.IsEnabled = global.IsEnabled = false;
-            ShowStatus(status, "ドライバに接続していないため、表示・変更できません。", true);
+            ShowStatus(status, Loc.T("ドライバに接続していないため、表示・変更できません。", "Not connected to the driver, so it can't be shown or changed."), true);
         }
         panel.Children.Add(status);
         return panel;
@@ -792,10 +805,12 @@ public sealed class SettingsDialog : Window
         var models = devices.Where(d => d.UniqId != 0).Select(d => d.HardwareId).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         if (models.Count <= 1) return true;
         var r = MessageBox.Show(this,
-            $"接続中のキーボードに、型番の違うものが{models.Count}種類あります。\n\n" +
-            "「すべてのキーボードで共有」にすると、これらのキーボードで同じ設定を使います。キーマップは物理キーの位置（スキャンコード）で" +
-            "決まるので、配列の違うキーボード（JISとテンキーなど）では、意図しないキーに割り当てられることがあります。\n\n" +
-            "共有にしてよいですか。",
+            Loc.T(($"型番の違うキーボードが{models.Count}種類接続されています。\n\n" +
+                   "「すべてのキーボードで共有」にすると、配列の違うキーボード(JISとテンキーなど)では、意図しないキーに割り当てられることがあります。\n\n" +
+                   "共有にしてよいですか。"),
+                  ($"{models.Count} different keyboard models are connected.\n\n" +
+                   "If you choose \"Share across all keyboards\", keyboards with different layouts (such as JIS and a numeric keypad) may get assignments to unintended keys.\n\n" +
+                   "Share anyway?")),
             Title, MessageBoxButton.OKCancel, MessageBoxImage.Warning);
         return r == MessageBoxResult.OK;
     }
@@ -813,27 +828,27 @@ public sealed class SettingsDialog : Window
     {
         var panel = new StackPanel();
         panel.Children.Add(Help(
-            "キーボードごとの設定（project.json・helper.json）・トレイの設定・ログを保存するフォルダです。\n" +
-            "環境変数 KASANE に絶対パスが設定されていればそのフォルダを使い、無ければ（または相対パスなど正しくない値のときは）" +
-            @"既定の %LOCALAPPDATA%\applet\kasane を使います。Windows 11 の管理者保護で、昇格した画面が別のユーザーとして動いても同じ場所を使うための設定です。" +
-            "値の変更はインストーラーの「設定フォルダの指定」で行います（変更後は、サインインし直すと、トレイを含むすべてのアプリに反映されます）。"));
+            Loc.T((@"設定ファイルとログを保存するフォルダです。環境変数 KASANE に絶対パスがあればそのフォルダを、なければ %LOCALAPPDATA%\applet\kasane を使います。" +
+                   "変更は、インストーラーの「設定フォルダの指定」で行います。"),
+                  (@"The folder where settings files and logs are saved. If the KASANE environment variable holds an absolute path, that folder is used; otherwise %LOCALAPPDATA%\applet\kasane is used. " +
+                   "Change it on the installer's \"Settings Folder\" page."))));
 
         string? raw = Environment.GetEnvironmentVariable(HelperConfig.DataDirEnvironmentVariable);
         string effective = HelperConfig.BaseDirectory;
         bool isDefault = HelperConfig.ResolveBaseDirectory(null) == effective;
 
         string variable = string.IsNullOrWhiteSpace(raw)
-            ? "未設定"
-            : isDefault ? $"{raw}（絶対パスではないため無視して、既定の場所を使います）" : raw;
+            ? Loc.T("未設定", "Not set")
+            : isDefault ? Loc.T($"{raw}(絶対パスではないため無視して、既定の場所を使います)", $"{raw} (ignored because it is not an absolute path; the default location is used)") : raw;
 
         var variableBox = new TextBox { Name = "DataDirVariable", Text = variable, IsReadOnly = true, Margin = new Thickness(0, 0, 0, 4) };
         var effectiveBox = new TextBox { Name = "DataDirEffective", Text = effective, IsReadOnly = true, Margin = new Thickness(0, 0, 0, 4) };
-        panel.Children.Add(new TextBlock { Text = "環境変数 KASANE の値:" });
+        panel.Children.Add(new TextBlock { Text = Loc.T("環境変数 KASANE の値:", "Value of the KASANE environment variable:") });
         panel.Children.Add(variableBox);
-        panel.Children.Add(new TextBlock { Text = "いま使っている保存先:" });
+        panel.Children.Add(new TextBlock { Text = Loc.T("いま使っている保存先:", "Folder in use:") });
         panel.Children.Add(effectiveBox);
 
-        var open = new Button { Name = "DataDirOpenButton", Content = "フォルダを開く", HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6, 0, 0), Padding = new Thickness(8, 2, 8, 2) };
+        var open = new Button { Name = "DataDirOpenButton", Content = Loc.T("フォルダを開く", "Open folder"), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6, 0, 0), Padding = new Thickness(8, 2, 8, 2) };
         var status = Status("DataDirStatus");
         open.Click += (_, _) =>
         {
@@ -844,7 +859,7 @@ public sealed class SettingsDialog : Window
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
             {
-                ShowStatus(status, $"開けませんでした: {ex.Message}", true);
+                ShowStatus(status, Loc.T($"開けませんでした: {ex.Message}", $"Couldn't open: {ex.Message}"), true);
             }
         };
         panel.Children.Add(open);
@@ -860,23 +875,24 @@ public sealed class SettingsDialog : Window
     /// </summary>
     private void AddImportBackupSection(StackPanel panel)
     {
-        panel.Children.Add(new TextBlock { Text = "インストール時の取り込みの退避", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 16, 0, 4) });
+        panel.Children.Add(new TextBlock { Text = Loc.T("インストール時の取り込みの退避", "Backup from install-time import"), FontWeight = FontWeights.Bold, Margin = new Thickness(0, 16, 0, 4) });
         panel.Children.Add(Help(
-            "インストール時に設定ファイルを取り込むと、ドライバの設定は置き換わり、前の設定が1世代だけ退避されます。ここで、取り込み前の設定に戻せます" +
-            "（戻すと、今の設定が退避に回るので、もう一度押すと元に戻ります）。反映は、キーボードを接続し直したあと（またはPCの再起動後）です。" +
-            (_canWrite ? "" : "\n閲覧専用モード（管理者として実行していない）のため、戻すことはできません。")));
+            Loc.T(("インストール時に設定ファイルを取り込むと、前の設定が1世代だけ退避されます。ここで戻すと、キーボードを接続し直したあと(またはPCの再起動後)に反映され、もう一度押すと元に戻ります。" +
+                   (_canWrite ? "" : "\n閲覧専用モード(管理者として実行していない)のため、戻すことはできません。")),
+                  ("When a settings file is imported during installation, the previous settings are backed up (one generation only). If you restore here, the change takes effect after you reconnect the keyboard (or restart the PC); press it again to undo." +
+                   (_canWrite ? "" : "\nRead-only mode (not running as administrator), so restoring isn't possible.")))));
 
         var store = PersistedSettings.OpenLocalMachine();
         List<string> backups;
         try { backups = store.ListBackups(); }
         catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
         {
-            panel.Children.Add(Help($"退避を調べられませんでした: {ex.Message}"));
+            panel.Children.Add(Help(Loc.T($"退避を調べられませんでした: {ex.Message}", $"Couldn't check the backups: {ex.Message}")));
             return;
         }
         if (backups.Count == 0)
         {
-            panel.Children.Add(new TextBlock { Name = "ImportBackupNone", Text = "退避はありません。", Foreground = AppTheme.Palette.SubText });
+            panel.Children.Add(new TextBlock { Name = "ImportBackupNone", Text = Loc.T("退避はありません。", "No backups."), Foreground = AppTheme.Palette.SubText });
             return;
         }
 
@@ -895,11 +911,11 @@ public sealed class SettingsDialog : Window
         var status = Status("ImportBackupStatus");
         foreach (var name in backups)
         {
-            string label = models.TryGetValue(name, out var hw) ? $"{name}（接続中: {hw}）" : name;
+            string label = models.TryGetValue(name, out var hw) ? Loc.T($"{name}(接続中: {hw})", $"{name} (connected: {hw})") : name;
             var restore = new Button
             {
                 Name = $"RestoreBackup_{name}",
-                Content = "取り込み前の設定に戻す",
+                Content = Loc.T("取り込み前の設定に戻す", "Restore pre-import settings"),
                 IsEnabled = _canWrite,
                 Margin = new Thickness(8, 0, 0, 0),
                 Padding = new Thickness(8, 2, 8, 2),
@@ -908,17 +924,17 @@ public sealed class SettingsDialog : Window
             restore.Click += (_, _) =>
             {
                 if (MessageBox.Show(this,
-                        $"{target} の設定と、取り込み前の退避を入れ替えます。\n反映には、キーボードの接続し直し（またはPCの再起動）が必要です。\n\nもう一度この操作をすると、元に戻せます。続けますか？",
-                        "取り込み前の設定に戻す", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+                        Loc.T($"{target} の設定と、取り込み前の退避を入れ替えます。\n反映には、キーボードの接続し直し(またはPCの再起動)が必要です。続けますか？", $"This swaps the settings of {target} with the backup from before the import.\nReconnect the keyboard (or restart the PC) for it to take effect. Continue?"),
+                        Loc.T("取り込み前の設定に戻す", "Restore pre-import settings"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) return;
                 try
                 {
                     ShowStatus(status, store.Restore(target)
-                        ? $"{target} を入れ替えました。キーボードを接続し直すと反映されます。"
-                        : $"{target} の退避が見つかりません。", false);
+                        ? Loc.T($"{target} を入れ替えました。キーボードを接続し直すと反映されます。", $"Swapped {target}. It takes effect when you reconnect the keyboard.")
+                        : Loc.T($"{target} の退避が見つかりません。", $"No backup found for {target}."), false);
                 }
                 catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
                 {
-                    ShowStatus(status, $"入れ替えられませんでした: {ex.Message}", true);
+                    ShowStatus(status, Loc.T($"入れ替えられませんでした: {ex.Message}", $"Couldn't swap: {ex.Message}"), true);
                 }
             };
             var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
@@ -929,10 +945,10 @@ public sealed class SettingsDialog : Window
         panel.Children.Add(status);
     }
 
-    private static readonly (string Name, string Type, string Subtype, string Identifier, string Jpn, string Kor)[] I8042Presets =
+    private static (string Name, string Type, string Subtype, string Identifier, string Jpn, string Kor)[] I8042Presets => new[]
     {
-        ("（手入力）", "", "", "", "", ""),
-        ("日本語（JIS）", "7", "2", "PCAT_106KEY", "kbd106.dll", ""),
+        (Loc.T("(手入力)", "(Manual)"), "", "", "", "", ""),
+        (Loc.T("日本語(JIS)", "Japanese (JIS)"), "7", "2", "PCAT_106KEY", "kbd106.dll", ""),
     };
 
     private const string I8042Key = @"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\i8042prt\Parameters";
@@ -941,23 +957,20 @@ public sealed class SettingsDialog : Window
     {
         var panel = new StackPanel();
         panel.Children.Add(Help(
-            "PS/2(ACPI)キーボードのレイアウトは、レジストリ " + I8042Key + " の値でしか指定できません。" +
-            "また、HIDキーボードでは、これらの値が残っていると個別の指定が無効になります。\n" +
-            "有効にすると、キーボードを接続するたびに（起動時を含む）次のように書き換えます。\n" +
-            "・プロファイルのある型番のキーボード: 下の値を書き込みます（空欄の値は削除します）。\n" +
-            "・プロファイルの無いキーボード: OverrideKeyboardType/Subtype/Identifier と LayerDriver JPN/KOR を削除します（OSの既定に戻します）。\n" +
-            "無効（既定）のときは何もしません。その間は、下のプロファイルの設定はできません（保存済みの内容は残り、有効にしたときに使われます）。ドライバ全体の設定です。「反映する」を押すとすぐに保存しますが（OK・キャンセルとは関係しません）、" +
-            "書き換えは次にキーボードを接続したとき（再接続・再起動）から行われます。"));
+            Loc.T(("有効にすると、キーボードを接続するたびに、レジストリ " + I8042Key + " の値を書き換えます(プロファイルのない型番は、OSの既定へ戻します)。" +
+                   "「反映する」を押すとすぐに保存され、書き換えは次にキーボードを接続したときからです。"),
+                  ("When enabled, the values under the registry key " + I8042Key + " are rewritten each time a keyboard is connected (models without a profile are reset to the OS default). " +
+                   "Pressing \"Apply\" saves immediately; rewriting starts the next time a keyboard is connected."))));
 
-        var enabled = new CheckBox { Name = "I8042Enabled", Content = "キーボードの接続時にi8042prtの値を書き換える／初期化する", Margin = new Thickness(0, 0, 0, 8) };
-        var specify = new CheckBox { Name = "I8042ProfileEnabled", Content = "現在選択しているキーボードに対する指定（接続時に下の値を書き込む）", Margin = new Thickness(0, 0, 0, 4) };
+        var enabled = new CheckBox { Name = "I8042Enabled", Content = Loc.T("キーボードの接続時にi8042prtの値を書き換える／初期化する", "Rewrite or reset i8042prt values when a keyboard is connected"), Margin = new Thickness(0, 0, 0, 8) };
+        var specify = new CheckBox { Name = "I8042ProfileEnabled", Content = Loc.T("現在選択しているキーボードに対する指定(接続時に下の値を書き込む)", "Settings for the currently selected keyboard (write the values below on connection)"), Margin = new Thickness(0, 0, 0, 4) };
         panel.Children.Add(enabled);
         panel.Children.Add(specify);
 
         var preset = new ComboBox { Name = "I8042Preset", Width = 200 };
         foreach (var p in I8042Presets) preset.Items.Add(p.Name);
         preset.SelectedIndex = 0;
-        Row(panel, "国・配列プリセット", preset, null, 150);
+        Row(panel, Loc.T("国・配列プリセット", "Region/layout preset"), preset, null, 150);
 
         TextBox Box(string name, double width) => new() { Name = name, Width = width, FontFamily = new FontFamily("Consolas") };
         var type = Box("I8042Type", 80);
@@ -965,10 +978,10 @@ public sealed class SettingsDialog : Window
         var identifier = Box("I8042Identifier", 200);
         var jpn = Box("I8042LayerJpn", 200);
         var kor = Box("I8042LayerKor", 200);
-        Row(panel, "タイプ", type, "OverrideKeyboardType（0〜65535）", 150);
-        Row(panel, "サブタイプ", subtype, "OverrideKeyboardSubtype（0〜65535）", 150);
+        Row(panel, Loc.T("タイプ", "Type"), type, Loc.T("OverrideKeyboardType(0〜65535)", "OverrideKeyboardType (0-65535)"), 150);
+        Row(panel, Loc.T("サブタイプ", "Subtype"), subtype, Loc.T("OverrideKeyboardSubtype(0〜65535)", "OverrideKeyboardSubtype (0-65535)"), 150);
         Row(panel, "OverrideKeyboardIdentifier", identifier, null, 150);
-        Row(panel, "LayerDriver JPN", jpn, "レイアウトDLL名（例: kbd106.dll）", 150);
+        Row(panel, "LayerDriver JPN", jpn, Loc.T("レイアウトDLL名(例: kbd106.dll)", "Layout DLL name (e.g. kbd106.dll)"), 150);
         Row(panel, "LayerDriver KOR", kor, null, 150);
 
         // 操作できる範囲: 全体のスイッチ（enabled）がオフのあいだは、下のチェックと値の欄は使われないので無効にする
@@ -995,7 +1008,7 @@ public sealed class SettingsDialog : Window
 
         var others = new TextBlock { Name = "I8042Others", Foreground = AppTheme.Palette.SubText, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) };
         var status = Status("I8042Status");
-        var apply = new Button { Name = "I8042ApplyButton", Content = "反映する", IsEnabled = IsOnline && _canWrite, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0), Padding = new Thickness(8, 2, 8, 2) };
+        var apply = new Button { Name = "I8042ApplyButton", Content = Loc.T("反映する", "Apply"), IsEnabled = IsOnline && _canWrite, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0), Padding = new Thickness(8, 2, 8, 2) };
         panel.Children.Add(others);
         panel.Children.Add(apply);
 
@@ -1011,7 +1024,7 @@ public sealed class SettingsDialog : Window
             jpn.Text = mine?.LayerJpn ?? "";
             kor.Text = mine?.LayerKor ?? "";
             var rest = current.Profiles.Where(p => p.ModelKey != modelKey).Select(p => p.ModelKey.ToString("X8")).ToList();
-            others.Text = rest.Count == 0 ? "ほかに登録された型番はありません。" : $"ほかに登録された型番（{rest.Count}件）: {string.Join(", ", rest)}（これらは変更しません）";
+            others.Text = rest.Count == 0 ? Loc.T("ほかに登録された型番はありません。", "No other models are registered.") : Loc.T($"ほかに登録された型番({rest.Count}件): {string.Join(", ", rest)}(これらは変更しません)", $"Other registered models ({rest.Count}): {string.Join(", ", rest)} (these are not changed)");
             SyncControls();
         }
 
@@ -1023,8 +1036,8 @@ public sealed class SettingsDialog : Window
                 current = _client.GetI8042Config();
                 Show();
                 ShowStatus(status, modelKey == 0
-                    ? "このキーボードの型番（ModelKey）を取得できないため、プロファイルは指定できません。"
-                    : $"このキーボードの型番（ModelKey {modelKey:X8}）のプロファイルを表示しています。", modelKey == 0);
+                    ? Loc.T("このキーボードの型番(ModelKey)を取得できないため、プロファイルは指定できません。", "The keyboard's model (ModelKey) could not be obtained, so a profile can't be specified.")
+                    : Loc.T($"このキーボードの型番(ModelKey {modelKey:X8})のプロファイルを表示しています。", $"Showing the profile for this keyboard's model (ModelKey {modelKey:X8})."), modelKey == 0);
             }
             catch (KbdLayerException ex)
             {
@@ -1033,13 +1046,13 @@ public sealed class SettingsDialog : Window
                 apply.IsEnabled = false;
                 SyncControls();
             }
-            if (!_canWrite) panel.Children.Add(Help("閲覧専用モード（管理者として実行していない）のため、変更はできません。"));
+            if (!_canWrite) panel.Children.Add(Help(Loc.T("閲覧専用モード(管理者として実行していない)のため、変更はできません。", "Read-only mode (not running as administrator), so changes aren't possible.")));
         }
         else
         {
             apply.IsEnabled = false;
             SyncControls();
-            ShowStatus(status, "ドライバに接続していないため、表示・変更できません。", true);
+            ShowStatus(status, Loc.T("ドライバに接続していないため、表示・変更できません。", "Not connected to the driver, so it can't be shown or changed."), true);
         }
 
         apply.Click += (_, _) =>
@@ -1050,7 +1063,7 @@ public sealed class SettingsDialog : Window
             {
                 if (!TryParseU16(type.Text, out var t) || !TryParseU16(subtype.Text, out var s))
                 {
-                    ShowStatus(status, "タイプ・サブタイプは0〜65535の整数、または空欄にしてください。", true);
+                    ShowStatus(status, Loc.T("タイプ・サブタイプは0〜65535の整数、または空欄にしてください。", "Type and subtype must be integers from 0 to 65535, or left blank."), true);
                     return;
                 }
                 string?[] strs = { identifier.Text.Trim(), jpn.Text.Trim(), kor.Text.Trim() };
@@ -1059,14 +1072,14 @@ public sealed class SettingsDialog : Window
                     if (v!.Length >= KbdLayerClient.I8042StrChars || v.IndexOfAny(new[] { '\\', '/', ':', '*', '?', '"', '<', '>', '|' }) >= 0
                         || v.Contains("..") || v.Any(ch => ch < 0x21 || ch > 0x7E))
                     {
-                        ShowStatus(status, $"「{v}」は使えません。{KbdLayerClient.I8042StrChars - 1}文字以内の半角英数字・記号（\\ / : * ? \" < > | と .. は不可）にしてください。", true);
+                        ShowStatus(status, Loc.T($"「{v}」は使えません。{KbdLayerClient.I8042StrChars - 1}文字以内の半角英数字・記号(\\ / : * ? \" < > | と .. は不可)にしてください。", $"\"{v}\" can't be used. Use up to {KbdLayerClient.I8042StrChars - 1} ASCII letters, digits, or symbols (\\ / : * ? \" < > | and .. are not allowed)."), true);
                         return;
                     }
                 }
                 mine = new I8042Profile(modelKey, t, s, NullIfEmpty(strs[0]), NullIfEmpty(strs[1]), NullIfEmpty(strs[2]));
                 if (mine.Type == null && mine.Subtype == null && mine.Identifier == null && mine.LayerJpn == null && mine.LayerKor == null)
                 {
-                    ShowStatus(status, "値がすべて空欄です。指定しない場合は、チェックを外してください。", true);
+                    ShowStatus(status, Loc.T("値がすべて空欄です。指定しない場合は、チェックを外してください。", "All values are blank. To specify nothing, clear the check box."), true);
                     return;
                 }
             }
@@ -1075,7 +1088,7 @@ public sealed class SettingsDialog : Window
             if (mine != null) profiles.Add(mine);
             if (profiles.Count > KbdLayerClient.I8042MaxProfiles)
             {
-                ShowStatus(status, $"プロファイルは{KbdLayerClient.I8042MaxProfiles}個までです。", true);
+                ShowStatus(status, Loc.T($"プロファイルは{KbdLayerClient.I8042MaxProfiles}個までです。", $"Up to {KbdLayerClient.I8042MaxProfiles} profiles are allowed."), true);
                 return;
             }
             try
@@ -1084,8 +1097,8 @@ public sealed class SettingsDialog : Window
                 current = _client.GetI8042Config();
                 Show();
                 ShowStatus(status, enabled.IsChecked == true
-                    ? "保存しました。次にキーボードを接続したとき（再接続・再起動）から書き換えます。"
-                    : "保存しました（無効のため、何も書き換えません）。", false);
+                    ? Loc.T("保存しました。次にキーボードを接続したとき(再接続・再起動)から書き換えます。", "Saved. The values will be rewritten from the next time a keyboard is connected (reconnect or restart).")
+                    : Loc.T("保存しました(無効のため、何も書き換えません)。", "Saved (disabled, so nothing is rewritten)."), false);
             }
             catch (KbdLayerException ex) { ShowStatus(status, ex.Message, true); }
         };
@@ -1111,6 +1124,9 @@ public sealed class SettingsDialog : Window
     // OK
     // ------------------------------------------------------------------
 
+    // ヘルパー設定の検証エラーのうち、アプリ別レイヤーの規則のもの（HelperSettingsModel が「…の規則 n」と書く）。
+    private static bool IsAppRuleError(string error) => error.Contains("の規則") || error.Contains(" rule ");
+
     private bool Commit()
     {
         void Fail(string tab, string message)
@@ -1129,18 +1145,18 @@ public sealed class SettingsDialog : Window
         if (!uint.TryParse(_tap.Text, out var t) || !uint.TryParse(_combo.Text, out var c) || !uint.TryParse(_tapDance.Text, out var d)
             || t > 10000 || c > 10000 || d > 10000)
         {
-            Fail("TabTiming", "TapTerm・ComboTerm・TapDanceTerm は0〜10000の整数で入力してください。");
+            Fail("TabTiming", Loc.T("TapTerm・ComboTerm・TapDanceTerm は0〜10000の整数で入力してください。", "Enter an integer from 0 to 10000 for TapTerm, ComboTerm, and TapDanceTerm."));
             return false;
         }
         uint q = KbdLayerClient.QuickTapTermDisabled;
         if (_quickEnabled.IsChecked == true && (!uint.TryParse(_quick.Text, out q) || q > 10000))
         {
-            Fail("TabTiming", "Quick Tap は0〜10000の整数で入力してください。");
+            Fail("TabTiming", Loc.T("Quick Tap は0〜10000の整数で入力してください。", "Enter an integer from 0 to 10000 for Quick Tap."));
             return false;
         }
         if (!uint.TryParse(_tt.Text, out var n) || n > KbdLayerClient.MaxTappingToggle)
         {
-            Fail("TabTiming", $"TT の回数は0〜{KbdLayerClient.MaxTappingToggle}の整数で入力してください。");
+            Fail("TabTiming", Loc.T($"TT の回数は0〜{KbdLayerClient.MaxTappingToggle}の整数で入力してください。", $"Enter an integer from 0 to {KbdLayerClient.MaxTappingToggle} for the TT count."));
             return false;
         }
         if (_nicolaMode.SelectedIndex == 1 && _nicola != null)
@@ -1157,7 +1173,7 @@ public sealed class SettingsDialog : Window
         var helperErrors = _helper.Validate();
         if (helperErrors.Count > 0)
         {
-            Fail(helperErrors.Any(e => e.Contains("の規則")) && !helperErrors.Any(e => !e.Contains("の規則")) ? "TabAppRules" : "TabHelper",
+            Fail(helperErrors.Any(IsAppRuleError) && !helperErrors.Any(e => !IsAppRuleError(e)) ? "TabAppRules" : "TabHelper",
                  string.Join("\n", helperErrors));
             return false;
         }
@@ -1179,7 +1195,7 @@ public sealed class SettingsDialog : Window
         // ヘルパー動作・アプリ別レイヤーも、プロジェクトではなく利用者の設定（トレイが数秒ごとに読む）。変えた分だけ直接保存する。
         if (!_helper.TrySave(out var helperError))
         {
-            Fail("TabHelper", $"ヘルパー設定を保存できませんでした: {helperError}");
+            Fail("TabHelper", Loc.T($"ヘルパー設定を保存できませんでした: {helperError}", $"Couldn't save the helper settings: {helperError}"));
             return false;
         }
 
@@ -1191,7 +1207,9 @@ public sealed class SettingsDialog : Window
         string imeSource = ((ImeSourceMode)Math.Max(0, _imeSourceBox.SelectedIndex)).ToString();
         string colorMode = ((ColorMode)Math.Max(0, _colorModeBox.SelectedIndex)).ToString();
         bool colorChanged = colorMode != _trayConfig.ColorModeName;
-        if (colorChanged || imeSource != _trayConfig.ImeSource || imeLink != _trayConfig.ImeLink || showLayer != _trayConfig.ShowLayerOnIcon || remapOnlyWhileTray != _trayConfig.RemapOnlyWhileTrayRuns
+        string language = ((UiLanguage)Math.Max(0, _languageBox.SelectedIndex)).ToString();
+        bool languageChanged = language != _trayConfig.UiLanguageName;
+        if (languageChanged || colorChanged || imeSource != _trayConfig.ImeSource || imeLink != _trayConfig.ImeLink || showLayer != _trayConfig.ShowLayerOnIcon || remapOnlyWhileTray != _trayConfig.RemapOnlyWhileTrayRuns
             || desktopView != _trayConfig.DesktopViewMode)
         {
             try
@@ -1199,6 +1217,7 @@ public sealed class SettingsDialog : Window
                 _trayConfig.DesktopViewMode = desktopView;
                 _trayConfig.ImeSource = imeSource;
                 _trayConfig.ColorModeName = colorMode;
+                _trayConfig.UiLanguageName = language;
                 _trayConfig.ImeLink = imeLink;
                 _trayConfig.ShowLayerOnIcon = showLayer;
                 _trayConfig.RemapOnlyWhileTrayRuns = remapOnlyWhileTray;
@@ -1206,10 +1225,11 @@ public sealed class SettingsDialog : Window
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                Fail("TabImeLayer", $"トレイの設定を保存できませんでした: {ex.Message}");
+                Fail("TabImeLayer", Loc.T($"トレイの設定を保存できませんでした: {ex.Message}", $"Couldn't save the tray settings: {ex.Message}"));
                 return false;
             }
             if (colorChanged) AppTheme.Apply(_trayConfig.ColorModeValue); // 保存できたら、すぐ全画面に効かせる
+            if (languageChanged) LanguageChanged = true;
         }
         return true;
     }

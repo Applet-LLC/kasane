@@ -1,4 +1,5 @@
 using Kasane.Interop;
+using Loc = Kasane.Model.Loc;
 
 namespace Kasane.Tray;
 
@@ -12,7 +13,7 @@ public sealed class KbdLayerAppLayerDriver : ILayerStateDriver
     private KbdLayerClient? _held;
 
     internal static KbdLayerClient Open() =>
-        KbdLayerClient.TryOpen(out var error) ?? throw new InvalidOperationException(error ?? "ドライバに接続できません");
+        KbdLayerClient.TryOpen(out var error) ?? throw new InvalidOperationException(error ?? Loc.T("ドライバに接続できません", "Cannot connect to the driver"));
 
     public bool IsOn(uint uniqId, int layer) =>
         Run(c => (c.GetLayerState(uniqId).AppLayerMask & (1u << layer)) != 0);

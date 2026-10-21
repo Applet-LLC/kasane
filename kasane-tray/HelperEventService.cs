@@ -68,7 +68,7 @@ public sealed class HelperEventService : IDisposable
                 {
                     var batch = client.WaitHelperEvent(lastSeq);
                     lastSeq = batch.Seq;
-                    if (batch.Dropped > 0) TrayLog.Write($"HelperEvents: {batch.Dropped} 件が押し出されました");
+                    if (batch.Dropped > 0) TrayLog.Write(Loc.T($"HelperEvents: {batch.Dropped} 件が押し出されました", $"HelperEvents: {batch.Dropped} events were dropped"));
                     foreach (var e in batch.Events)
                     {
                         if (!e.IsBreak && HelperEventTiming.IsStale(Environment.TickCount64, e.TimeMs)) continue;
@@ -80,7 +80,7 @@ public sealed class HelperEventService : IDisposable
             catch (KbdLayerException ex) when (ex.Win32Error == KbdLayerClient.ErrorInvalidFunction)
             {
                 _unsupported = true;
-                TrayLog.Write("HelperEvents: このドライバは WAIT_HELPER_EVENT に対応していません（HLP は使えません）");
+                TrayLog.Write(Loc.T("HelperEvents: このドライバは WAIT_HELPER_EVENT に対応していません(HLP は使えません)", "HelperEvents: this driver does not support WAIT_HELPER_EVENT (HLP is unavailable)"));
             }
             catch (KbdLayerException ex) when (ex.Win32Error == ErrorOperationAborted)
             {

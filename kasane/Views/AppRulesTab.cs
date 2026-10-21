@@ -11,23 +11,24 @@ namespace Kasane.Views;
 /// </summary>
 internal sealed class AppRulesTab : HelperTabBase
 {
-    private readonly ListBox _rules = ListBoxOf("RulesList", 300);
+    private readonly ListBox _rules = ListBoxOf("RulesList", 230);
     private readonly Button _add, _edit, _copy, _delete, _up, _down, _toggle;
 
     public AppRulesTab(HelperSettingsModel model, Window owner)
         : base(model, owner, "Rules",
-            "前面のアプリに応じて、アプリ管理レイヤーを自動で立てる、またはそのキーボードのリマップをOFF（素通し）にします。" +
-            "規則は上から順に見て、最初に一致したものを使います（キーボードごとの規則が、共通の規則より先です）。" +
-            "どれにも一致しないときは「既定」の規則を使います（無ければ何もしません）。" +
-            "変更は、OK を押すと保存されます（管理者権限は要りません）。トレイが数秒で読み直します。")
+            Loc.T(
+                "前面のアプリに応じて、アプリ管理レイヤーを自動で立てるか、そのキーボードのリマップをOFF(素通し)にします。" +
+                "規則は上から順に見て最初に一致したものを使い、キーボードごとの規則が共通の規則より先です。変更は OK で保存されます。",
+                "Depending on the foreground app, this automatically turns on app-managed layers or turns remapping OFF (pass-through) for that keyboard. " +
+                "Rules are checked from the top and the first match is used; per-keyboard rules come before shared rules. Changes are saved with OK."))
     {
-        _add = Btn("AddRuleButton", "追加...");
-        _edit = Btn("EditRuleButton", "編集...");
-        _copy = Btn("CopyRuleButton", "複製");
-        _delete = Btn("DeleteRuleButton", "削除");
-        _up = Btn("UpRuleButton", "上へ", 60);
-        _down = Btn("DownRuleButton", "下へ", 60);
-        _toggle = Btn("ToggleRuleButton", "有効/無効", 90);
+        _add = Btn("AddRuleButton", Loc.T("追加...", "Add..."));
+        _edit = Btn("EditRuleButton", Loc.T("編集...", "Edit..."));
+        _copy = Btn("CopyRuleButton", Loc.T("複製", "Duplicate"));
+        _delete = Btn("DeleteRuleButton", Loc.T("削除", "Delete"));
+        _up = Btn("UpRuleButton", Loc.T("上へ", "Up"), 60);
+        _down = Btn("DownRuleButton", Loc.T("下へ", "Down"), 60);
+        _toggle = Btn("ToggleRuleButton", Loc.T("有効/無効", "Enable/Disable"), 90);
 
         Stack.Children.Add(_rules);
         Stack.Children.Add(Buttons(_add, _edit, _copy, _delete, _up, _down, _toggle));
@@ -92,7 +93,7 @@ internal sealed class AppRulesTab : HelperTabBase
     {
         if (!Selected(out int i)) return;
         var copy = HelperSummary.CloneRule(Config.AppLayerRules[i]);
-        copy.Name = string.IsNullOrWhiteSpace(copy.Name) ? null : copy.Name + "（複製）";
+        copy.Name = string.IsNullOrWhiteSpace(copy.Name) ? null : copy.Name + "(複製)";
         Config.AppLayerRules.Insert(i + 1, copy);
         Refresh(i + 1);
     }
@@ -100,7 +101,7 @@ internal sealed class AppRulesTab : HelperTabBase
     private void Delete()
     {
         if (!Selected(out int i)) return;
-        if (!Confirm("この規則を削除しますか？")) return;
+        if (!Confirm(Loc.T("この規則を削除しますか？", "Delete this rule?"))) return;
         Config.AppLayerRules.RemoveAt(i);
         Refresh(Math.Min(i, Config.AppLayerRules.Count - 1));
     }

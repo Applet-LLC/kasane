@@ -132,9 +132,9 @@ public class FallbackImeSourceTests
     {
         Assert.Equal("取得できず", ImeSourceSelector.Describe(ImeState.Unknown));
         Assert.Equal("OFF", ImeSourceSelector.Describe(Off));
-        Assert.StartsWith("ON ローマ字入力（日本語、", ImeSourceSelector.Describe(new ImeState(true, true, 0x19))); // NATIVE|FULLSHAPE|ROMAN
-        Assert.StartsWith("ON カナ入力（日本語、", ImeSourceSelector.Describe(new ImeState(true, true, 0x09)));
-        Assert.StartsWith("ON ローマ字入力（半角英数、", ImeSourceSelector.Describe(new ImeState(true, true, 0x10)));
+        Assert.StartsWith("ON ローマ字入力(日本語、", ImeSourceSelector.Describe(new ImeState(true, true, 0x19))); // NATIVE|FULLSHAPE|ROMAN
+        Assert.StartsWith("ON カナ入力(日本語、", ImeSourceSelector.Describe(new ImeState(true, true, 0x09)));
+        Assert.StartsWith("ON ローマ字入力(半角英数、", ImeSourceSelector.Describe(new ImeState(true, true, 0x10)));
         Assert.Contains("0x19", ImeSourceSelector.Describe(new ImeState(true, true, 0x19)));
     }
 
@@ -288,7 +288,7 @@ public class SiriusTests
         var tsf = new DiagFake(reasonCode: 5, text: "TSF: テスト理由");
         var selector = new ImeSourceSelector(new StubSource(ImeState.Unknown), tsf, lines.Add) { Mode = ImeSourceMode.ImmThenTsf };
         selector.Read();
-        Assert.Equal("IME: - 取得できず （TSF: テスト理由）", lines[0]);
+        Assert.Equal("IME: - 取得できず (TSF: テスト理由)", lines[0]);
 
         tsf.ReasonCode = 6; // 理由が変わった → 書く
         tsf.Text = "TSF: 別の理由";

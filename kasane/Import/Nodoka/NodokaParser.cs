@@ -121,7 +121,7 @@ public sealed class NodokaParser
                 }
                 catch (Exception ex) when (ex is FormatException or OverflowException or ArgumentException or InvalidOperationException)
                 {
-                    _p.Diag(DiagLevel.Error, Here, "読めませんでした: " + ex.Message); // 数値の範囲など。ほかの行の変換は続ける
+                    _p.Diag(DiagLevel.Error, Here, Kasane.Model.Loc.T("読めませんでした: ", "Couldn't read: ") + ex.Message); // 数値の範囲など。ほかの行の変換は続ける
                 }
             }
             if (_canRead.Count > 0) _p.Diag(DiagLevel.Error, new SourceRef(_file, _line), "unbalanced `if'.  you forget `endif', didn't you?");
@@ -361,7 +361,7 @@ public sealed class NodokaParser
             }
             else
             {
-                _p.Diag(DiagLevel.Warning, Here, $"def option UnitID = K{keyNum} {string.Join(" ", rest.Select(r => r.Text))}: ExtraInfo の形ではないため、キーボードを特定できません（ベンダーID・製品IDの形は対応しません）");
+                _p.Diag(DiagLevel.Warning, Here, Kasane.Model.Loc.T($"def option UnitID = K{keyNum} {string.Join(" ", rest.Select(r => r.Text))}: ExtraInfo の形ではないため、キーボードを特定できません(ベンダーID・製品IDの形は対応しません)", $"def option UnitID = K{keyNum} {string.Join(" ", rest.Select(r => r.Text))}: not in the ExtraInfo form, so the keyboard can't be identified (the vendor ID / product ID form is not supported)"));
             }
         }
 

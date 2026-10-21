@@ -848,5 +848,5 @@ public class HelperTextActionTests
 
     [Fact]
     public void LongTextIsShortenedInTheSummary() =>
-        Assert.EndsWith("…", HelperSummary.Body(TextBody(new string('x', 100))).Replace("（繰り返す）", ""));
+        Assert.EndsWith("…", HelperSummary.Body(TextBody(new string('x', 100))).Replace("(繰り返す)", ""));
 }

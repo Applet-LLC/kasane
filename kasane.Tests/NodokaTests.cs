@@ -164,7 +164,7 @@ endif
         Assert.Equal(Tok(0x20), Layer(c, 0)["SC_002E"]);
         var approx = Assert.Single(c.Lines, l => l.Level == ConvLevel.Approximated);
         Assert.Contains("修飾キーを押していないとき", approx.Text);
-        Assert.Contains("（1件", approx.Text); // *A は含まれない
+        Assert.Contains("(1件", approx.Text); // *A は含まれない
     }
 
     [Fact]

@@ -36,7 +36,7 @@ public static class NodokaConverter
         {
             lines.Add(d.Level switch
             {
-                DiagLevel.Error => new ConvLine(ConvLevel.Skipped, d.Src, "読めない行: " + d.Text),
+                DiagLevel.Error => new ConvLine(ConvLevel.Skipped, d.Src, Loc.T("読めない行: " + d.Text, "Unreadable line: " + d.Text)),
                 DiagLevel.Warning => new ConvLine(ConvLevel.Info, d.Src, d.Text),
                 _ => new ConvLine(ConvLevel.Info, d.Src, d.Text),
             });
@@ -58,7 +58,7 @@ public static class NodokaConverter
             if (unit == null)
             {
                 lines.Add(new ConvLine(ConvLevel.Skipped, null,
-                    $"K{n}- の条件がありますが、def option UnitID = K{n} ExtraInfo … が無いため、そのキーボードの設定は変換しません"));
+                    Loc.T($"K{n}- の条件がありますが、def option UnitID = K{n} ExtraInfo … が無いため、そのキーボードの設定は変換しません", $"Rules with the K{n}- condition exist, but there is no def option UnitID = K{n} ExtraInfo …, so settings for that keyboard are not converted")));
                 continue;
             }
             var builder = new TargetBuilder(setting, n, primary: false, lines);
@@ -162,8 +162,8 @@ internal sealed class TargetBuilder
     {
         foreach (var (category, refs) in _approx)
         {
-            string where = string.Join(", ", refs.Take(6).Select(r => r.ToString())) + (refs.Count > 6 ? $" ほか{refs.Count - 6}件" : "");
-            _out.Add(new ConvLine(ConvLevel.Approximated, refs[0], $"{Prefix}{category}（{refs.Count}件: {where}）"));
+            string where = string.Join(", ", refs.Take(6).Select(r => r.ToString())) + (refs.Count > 6 ? Loc.T($" ほか{refs.Count - 6}件", $" and {refs.Count - 6} more") : "");
+            _out.Add(new ConvLine(ConvLevel.Approximated, refs[0], Loc.T($"{Prefix}{category}({refs.Count}件: {where})", $"{Prefix}{category} ({refs.Count}: {where})")));
         }
     }
 
@@ -198,29 +198,29 @@ internal sealed class TargetBuilder
             if (type >= ModType.Keyboard0 && type <= ModType.Keyboard7)
             {
                 int n = type - ModType.Keyboard0;
-                if (n == 0) unsupported ??= "K0-（キーボードを特定できないとき）";
-                else if (device != null && device != n) unsupported ??= "複数のキーボード（K1- K2- …）の同時指定";
+                if (n == 0) unsupported ??= Loc.T("K0-(キーボードを特定できないとき)", "K0- (when the keyboard cannot be identified)");
+                else if (device != null && device != n) unsupported ??= Loc.T("複数のキーボード(K1- K2- …)の同時指定", "Specifying multiple keyboards (K1- K2- …) at once");
                 else device = n;
             }
             else if ((type >= ModType.Mod0 && type <= ModType.Mod9) || (type >= ModType.Lock0 && type <= ModType.LockF))
             {
                 string name = type <= ModType.Mod9 ? $"M{type - ModType.Mod0}" : $"L{type - ModType.Lock0:X}";
-                if (context != null && context != name) unsupported ??= $"{context}- と {name}- の同時指定";
+                if (context != null && context != name) unsupported ??= Loc.T($"{context}- と {name}- の同時指定", $"Specifying {context}- and {name}- at once");
                 else context = name;
             }
             else
             {
                 unsupported ??= type switch
                 {
-                    ModType.Up or ModType.Down => "U-/D-（キーを離したとき・押したときだけ）",
-                    ModType.Repeat => "R-（キーリピートのとき）",
-                    ModType.ImeLock => "IL-（IME オン）",
-                    ModType.ImeComp => "IC-（IME 変換中）",
-                    ModType.NumLock or ModType.CapsLock or ModType.ScrollLock or ModType.KanaLock => "NL-/CL-/SL-/KL-（ロックキーの状態）",
-                    ModType.Maximized or ModType.Minimized or ModType.MdiMaximized or ModType.MdiMinimized => "MAX-/MIN-/MMAX-/MMIN-（ウィンドウの状態）",
-                    ModType.DP => "DP-（2回押し）",
-                    ModType.ImeCandi or ModType.Harf or ModType.Katakana or ModType.Native => "IW-/IH-/IK-/IJ-（IME の状態）",
-                    _ => "T-/TS-/TL-/TR- など（タッチパッド）",
+                    ModType.Up or ModType.Down => Loc.T("U-/D-(キーを離したとき・押したときだけ)", "U-/D- (only when the key is released / pressed)"),
+                    ModType.Repeat => Loc.T("R-(キーリピートのとき)", "R- (during key repeat)"),
+                    ModType.ImeLock => Loc.T("IL-(IME オン)", "IL- (IME on)"),
+                    ModType.ImeComp => Loc.T("IC-(IME 変換中)", "IC- (IME composing)"),
+                    ModType.NumLock or ModType.CapsLock or ModType.ScrollLock or ModType.KanaLock => Loc.T("NL-/CL-/SL-/KL-(ロックキーの状態)", "NL-/CL-/SL-/KL- (lock key state)"),
+                    ModType.Maximized or ModType.Minimized or ModType.MdiMaximized or ModType.MdiMinimized => Loc.T("MAX-/MIN-/MMAX-/MMIN-(ウィンドウの状態)", "MAX-/MIN-/MMAX-/MMIN- (window state)"),
+                    ModType.DP => Loc.T("DP-(2回押し)", "DP- (double press)"),
+                    ModType.ImeCandi or ModType.Harf or ModType.Katakana or ModType.Native => Loc.T("IW-/IH-/IK-/IJ-(IME の状態)", "IW-/IH-/IK-/IJ- (IME state)"),
+                    _ => Loc.T("T-/TS-/TL-/TR- など(タッチパッド)", "T-/TS-/TL-/TR- etc. (touchpad)"),
                 };
             }
         }
@@ -237,11 +237,11 @@ internal sealed class TargetBuilder
     {
         error = null;
         var key = _s.FindKey(name);
-        if (key == null) { error = $"キー「{name}」が定義されていません"; return null; }
+        if (key == null) { error = Loc.T($"キー「{name}」が定義されていません", $"Key \"{name}\" is not defined"); return null; }
         if (key.Enc16 is ushort sc) return sc;
         error = key.ScanCodes.Any(c => (c.Flags & 2) != 0)
-            ? $"キー「{name}」はマウス・ゲームパッドなどの疑似キーのため、キーボードのキーとして扱えません"
-            : $"キー「{name}」はスキャンコードを1つだけ持つキーではないため、扱えません";
+            ? Loc.T($"キー「{name}」はマウス・ゲームパッドなどの疑似キーのため、キーボードのキーとして扱えません", $"Key \"{name}\" is a pseudo key such as a mouse or gamepad key, so it cannot be treated as a keyboard key")
+            : Loc.T($"キー「{name}」はスキャンコードを1つだけ持つキーではないため、扱えません", $"Key \"{name}\" does not have exactly one scan code, so it cannot be handled");
         return null;
     }
 
@@ -293,7 +293,7 @@ internal sealed class TargetBuilder
             foreach (var k in items.Cast<SeqKey>())
             {
                 if (k.Mod.RequiresPressed(ModType.Up) || k.Mod.RequiresPressed(ModType.Down))
-                    return Plan.Unsupported("U-/D-（キーを離す・押すだけ）の指定");
+                    return Plan.Unsupported(Loc.T("U-/D-(キーを離す・押すだけ)の指定", "Specifying U-/D- (only releasing / pressing the key)"));
                 ushort? sc = PhysicalKey(k.KeyName, out string? err);
                 if (sc == null) return Plan.Unsupported(err!);
                 tokens.Add(WithMods(MaskOf(k.Mod), KeycodeTable.KeyToken(sc.Value)));
@@ -302,7 +302,7 @@ internal sealed class TargetBuilder
             if (MacroStepCount(tokens) <= KbdLayerClient.MaxMacroSteps)
             {
                 var p = new Plan { Kind = PlanKind.Macro, Keys = tokens };
-                p.Notes.Add("複数のキーの列は、最後のキーを押している間だけ押し続ける、という動きにはなりません（押した時に全部を順に打ちます）");
+                p.Notes.Add(Loc.T("複数のキーの列は、最後のキーを押している間だけ押し続ける、という動きにはなりません(押したときに、全部のキーを順に打ちます)", "A sequence of multiple keys does not behave as \"hold only while the last key is held\" (all keys are typed in order when pressed)"));
                 return p;
             }
         }
@@ -328,23 +328,23 @@ internal sealed class TargetBuilder
         if (name.Equals("Prefix", StringComparison.OrdinalIgnoreCase))
         {
             string? km = args.Count > 0 && args[0].Count == 1 ? args[0][0].Text : null;
-            if (km == null) return Plan.Unsupported("&Prefix の引数が読めません");
+            if (km == null) return Plan.Unsupported(Loc.T("&Prefix の引数が読めません", "Cannot read the argument of &Prefix"));
             var target = _s.FindKeymap(km);
-            if (target == null) return Plan.Unsupported($"&Prefix のキーマップ「{km}」がありません");
-            int? layer = Alloc("km:" + target.Name, $"キーマップ {target.Name}");
-            if (layer == null) return Plan.Unsupported("レイヤーが足りません（16枚まで）");
+            if (target == null) return Plan.Unsupported(Loc.T($"&Prefix のキーマップ「{km}」がありません", $"The keymap \"{km}\" for &Prefix does not exist"));
+            int? layer = Alloc("km:" + target.Name, Loc.T($"キーマップ {target.Name}", $"keymap {target.Name}"));
+            if (layer == null) return Plan.Unsupported(Loc.T("レイヤーが足りません(16枚まで)", "Not enough layers (up to 16)"));
             var p = new Plan { Kind = PlanKind.LayerOp, Token = $"OSL({layer})" };
-            p.Notes.Add("&Prefix は、次の1キーだけを別のキーマップで解釈します（OSL に置き換えました）");
+            p.Notes.Add(Loc.T("&Prefix は、次の1キーだけを別のキーマップで解釈します(OSL に置き換えました)", "&Prefix interprets only the next key in a different keymap (replaced with OSL)"));
             return p;
         }
         if (name.Equals("Toggle", StringComparison.OrdinalIgnoreCase))
         {
             string? lockName = args.Count > 0 && args[0].Count == 1 ? args[0][0].Text.ToLowerInvariant() : null;
             if (lockName == null || !lockName.StartsWith("lock") || lockName.Length != 5 || !Uri.IsHexDigit(lockName[4]))
-                return Plan.Unsupported("&Toggle のロック名が読めません");
+                return Plan.Unsupported(Loc.T("&Toggle のロック名が読めません", "Cannot read the lock name of &Toggle"));
             string mode = args.Count > 1 && args[1].Count == 1 ? args[1][0].Text.ToLowerInvariant() : "toggle";
-            int? layer = Alloc("L" + char.ToUpperInvariant(lockName[4]), $"ロック {lockName}");
-            if (layer == null) return Plan.Unsupported("レイヤーが足りません（16枚まで）");
+            int? layer = Alloc("L" + char.ToUpperInvariant(lockName[4]), Loc.T($"ロック {lockName}", $"lock {lockName}"));
+            if (layer == null) return Plan.Unsupported(Loc.T("レイヤーが足りません(16枚まで)", "Not enough layers (up to 16)"));
             if (mode == "toggle") return new Plan { Kind = PlanKind.LayerOp, Token = $"TG({layer})" };
             if (mode is "on" or "off")
             {
@@ -354,7 +354,7 @@ internal sealed class TargetBuilder
                 };
                 return new Plan { Kind = PlanKind.Helper, Body = body };
             }
-            return Plan.Unsupported($"&Toggle の指定「{mode}」が読めません");
+            return Plan.Unsupported(Loc.T($"&Toggle の指定「{mode}」が読めません", $"Cannot read the specification \"{mode}\" of &Toggle"));
         }
         if (name.Equals("EditNextModifier", StringComparison.OrdinalIgnoreCase))
         {
@@ -366,9 +366,9 @@ internal sealed class TargetBuilder
                 else if (p is "S-") mask |= 0x02;
                 else if (p is "A-" or "M-") mask |= 0x04;
                 else if (p is "W-") mask |= 0x08;
-                else return Plan.Unsupported($"&EditNextModifier の修飾子「{t.Text}」は対応しません");
+                else return Plan.Unsupported(Loc.T($"&EditNextModifier の修飾子「{t.Text}」は対応しません", $"The modifier \"{t.Text}\" of &EditNextModifier is not supported"));
             }
-            if (mask == 0) return Plan.Unsupported("&EditNextModifier の修飾子がありません");
+            if (mask == 0) return Plan.Unsupported(Loc.T("&EditNextModifier の修飾子がありません", "&EditNextModifier has no modifier"));
             return new Plan { Kind = PlanKind.LayerOp, Token = $"OSM({KeycodeTable.ModMaskToNames(mask)})" };
         }
         return null;
@@ -397,25 +397,25 @@ internal sealed class TargetBuilder
             {
                 case "wait":
                 {
-                    if (!TryInt(args, 0, out int ms)) return Plan.Unsupported("&Wait の時間が読めません");
+                    if (!TryInt(args, 0, out int ms)) return Plan.Unsupported(Loc.T("&Wait の時間が読めません", "Cannot read the time of &Wait"));
                     steps.Add(new HelperStep { DelayMs = Math.Clamp(ms, 0, 10000) });
                     break;
                 }
                 case "sendtext":
                 {
-                    if (!TryText(args, 0, out string text)) return Plan.Unsupported("&SendText の文字列が読めません（$ で始まる組み込みの値は対応しません）");
+                    if (!TryText(args, 0, out string text)) return Plan.Unsupported(Loc.T("&SendText の文字列が読めません($ で始まる組み込みの値は対応しません)", "Cannot read the string of &SendText (built-in values starting with $ are not supported)"));
                     steps.Add(new HelperStep { Text = text });
                     break;
                 }
                 case "mousemove":
                 {
-                    if (!TryInt(args, 0, out int dx) || !TryInt(args, 1, out int dy)) return Plan.Unsupported("&MouseMove の引数が読めません");
+                    if (!TryInt(args, 0, out int dx) || !TryInt(args, 1, out int dy)) return Plan.Unsupported(Loc.T("&MouseMove の引数が読めません", "Cannot read the arguments of &MouseMove"));
                     steps.Add(new HelperStep { MoveX = dx, MoveY = dy });
                     break;
                 }
                 case "mousewheel":
                 {
-                    if (!TryInt(args, 0, out int delta)) return Plan.Unsupported("&MouseWheel の引数が読めません");
+                    if (!TryInt(args, 0, out int delta)) return Plan.Unsupported(Loc.T("&MouseWheel の引数が読めません", "Cannot read the arguments of &MouseWheel"));
                     steps.Add(new HelperStep { Wheel = delta });
                     break;
                 }
@@ -429,9 +429,9 @@ internal sealed class TargetBuilder
                 case "shellexecute":
                 {
                     if (!TryText(args, 0, out string op) || !TryText(args, 1, out string file) || !TryText(args, 2, out string prm) || !TryText(args, 3, out string dir))
-                        return Plan.Unsupported("&ShellExecute の引数が読めません");
+                        return Plan.Unsupported(Loc.T("&ShellExecute の引数が読めません", "Cannot read the arguments of &ShellExecute"));
                     if (op.Length > 0 && !op.Equals("open", StringComparison.OrdinalIgnoreCase))
-                        notes.Add($"&ShellExecute の操作「{op}」は、通常の起動（open）になります");
+                        notes.Add(Loc.T($"&ShellExecute の操作「{op}」は、通常の起動(open)になります", $"The &ShellExecute operation \"{op}\" becomes a normal launch (open)"));
                     launch = new HelperActionBody
                     {
                         Type = HelperActionBody.Launch, Path = file,
@@ -441,15 +441,15 @@ internal sealed class TargetBuilder
                 }
                 default:
                     if (LayerFunction(f) != null || TransparentFuncs.Contains(f.Name) || f.Name.Equals("Ignore", StringComparison.OrdinalIgnoreCase))
-                        return Plan.Unsupported($"&{f.Name} を、ほかの動作と並べた列には変換できません");
-                    return Plan.Unsupported($"&{f.Name} は対応しません");
+                        return Plan.Unsupported(Loc.T($"&{f.Name} を、ほかの動作と並べた列には変換できません", $"&{f.Name} cannot be converted in a sequence together with other actions"));
+                    return Plan.Unsupported(Loc.T($"&{f.Name} は対応しません", $"&{f.Name} is not supported"));
             }
         }
 
         HelperActionBody body;
         if (launch != null)
         {
-            if (steps.Count > 0) return Plan.Unsupported("&ShellExecute を、キーなどと並べた列には変換できません");
+            if (steps.Count > 0) return Plan.Unsupported(Loc.T("&ShellExecute を、キーなどと並べた列には変換できません", "&ShellExecute cannot be converted in a sequence together with keys and so on"));
             body = launch;
         }
         else
@@ -457,8 +457,8 @@ internal sealed class TargetBuilder
             body = new HelperActionBody { Type = HelperActionBody.Sequence, Steps = steps };
         }
         var errors = new List<string>();
-        HelperSettingsModel.ValidateBody(body, "のどか", errors);
-        if (errors.Count > 0) return Plan.Unsupported("ヘルパー動作にできません: " + string.Join(" / ", errors));
+        HelperSettingsModel.ValidateBody(body, Loc.T("のどか", "Nodoka"), errors);
+        if (errors.Count > 0) return Plan.Unsupported(Loc.T("ヘルパー動作にできません: " + string.Join(" / ", errors), "Cannot be made into a helper action: " + string.Join(" / ", errors)));
         var plan = new Plan { Kind = PlanKind.Helper, Body = body };
         plan.Notes.AddRange(notes);
         return plan;
@@ -467,7 +467,7 @@ internal sealed class TargetBuilder
     private HelperStep? VkStep(List<List<Token>> args, out string? error)
     {
         error = null;
-        if (args.Count == 0 || args[0].Count == 0) { error = "&VK の引数が読めません"; return null; }
+        if (args.Count == 0 || args[0].Count == 0) { error = Loc.T("&VK の引数が読めません", "Cannot read the arguments of &VK"); return null; }
         string? name = null;
         long? number = null;
         bool up = false, down = false;
@@ -488,7 +488,7 @@ internal sealed class TargetBuilder
             else if (n >= 0x30 && n <= 0x39) target = NodokaVKeys.Find("_" + (char)n);
             else if (n >= 0x70 && n <= 0x87) target = NodokaVKeys.Find("F" + (n - 0x70 + 1));
         }
-        if (target == null) { error = $"&VK({name ?? number?.ToString()}) の仮想キーを、キーボードのキーに対応付けられません"; return null; }
+        if (target == null) { error = Loc.T($"&VK({name ?? number?.ToString()}) の仮想キーを、キーボードのキーに対応付けられません", $"Cannot map the virtual key of &VK({name ?? number?.ToString()}) to a keyboard key"); return null; }
         if (target.MouseButton != null)
             return new HelperStep { Mouse = target.MouseButton, MouseAction = up && !down ? "Up" : down && !up ? "Down" : "Click" };
         string key = KeycodeTable.KeyToken(target.ScanCode!.Value);
@@ -523,7 +523,7 @@ internal sealed class TargetBuilder
         if (_ctx.Count >= KbdLayerClient.MaxLayers)
         {
             if (_reportedOnce.Add("layers-full"))
-                Say(ConvLevel.Skipped, null, $"レイヤーが{KbdLayerClient.MaxLayers}枚を超えるため、{label} 以降は変換しません");
+                Say(ConvLevel.Skipped, null, Loc.T($"レイヤーが{KbdLayerClient.MaxLayers}枚を超えるため、{label} 以降は変換しません", $"Because there would be more than {KbdLayerClient.MaxLayers} layers, {label} and later are not converted"));
             return null;
         }
         int index = _ctx.Count;
@@ -565,7 +565,7 @@ internal sealed class TargetBuilder
             case PlanKind.Macro:
             {
                 string t = MacroToken(plan.Keys);
-                if (t.Length == 0) { Say(ConvLevel.Skipped, src, $"{label}: マクロが{KbdLayerClient.MaxMacroCount}個を超えるため変換しません"); return null; }
+                if (t.Length == 0) { Say(ConvLevel.Skipped, src, Loc.T($"{label}: マクロが{KbdLayerClient.MaxMacroCount}個を超えるため変換しません", $"{label}: not converted because there would be more than {KbdLayerClient.MaxMacroCount} macros")); return null; }
                 return t;
             }
             case PlanKind.Helper:
@@ -599,12 +599,12 @@ internal sealed class TargetBuilder
             foreach (var c in km.Combos) ConvertCombo(c);
             foreach (var t in km.TapHolds) ConvertTapHold(t);
             foreach (var t in km.TapDances) ConvertTapDance(t);
-            foreach (var e in km.Events) Say(ConvLevel.Skipped, e.Src, $"event {e.Event}: 対応しません");
+            foreach (var e in km.Events) Say(ConvLevel.Skipped, e.Src, Loc.T($"event {e.Event}: 対応しません", $"event {e.Event}: not supported"));
         }
         foreach (var km in _s.Keymaps)
             foreach (var m in km.ModAssigns)
             {
-                if (km.Kind != KeymapKind.Global) { Say(ConvLevel.Skipped, m.Src, $"キーマップ {km.Name} の mod 定義は対応しません"); continue; }
+                if (km.Kind != KeymapKind.Global) { Say(ConvLevel.Skipped, m.Src, Loc.T($"キーマップ {km.Name} の mod 定義は対応しません", $"mod definitions in keymap {km.Name} are not supported")); continue; }
                 ConvertModAssign(m);
             }
         foreach (var s in _s.Substitutes) ConvertSubstitute(s);
@@ -667,11 +667,11 @@ internal sealed class TargetBuilder
         if (!km.IsWindow && !referenced.Contains(km.Name))
         {
             if (km.Assignments.Count > 0)
-                Say(ConvLevel.Info, km.Src, $"キーマップ {km.Name} は、&Prefix などから呼ばれていないため変換しません（{km.Assignments.Count}件の割り当て）");
+                Say(ConvLevel.Info, km.Src, Loc.T($"キーマップ {km.Name} は、&Prefix などから呼ばれていないため変換しません({km.Assignments.Count}件の割り当て)", $"Keymap {km.Name} is not converted because it is not called from &Prefix or similar ({km.Assignments.Count} assignments)"));
             return null;
         }
         if (km.IsWindow && km.Assignments.Count == 0 && km.Default == null) { /* 割り当てが無くても、規則だけは作る */ }
-        return Alloc("km:" + km.Name, $"キーマップ {km.Name}");
+        return Alloc("km:" + km.Name, Loc.T($"キーマップ {km.Name}", $"keymap {km.Name}"));
     }
 
     /// <summary>親（: Parent）の割り当てを先に並べる。親が Global のものは、透過（レイヤー0 に落ちる）なので足さない。</summary>
@@ -684,10 +684,10 @@ internal sealed class TargetBuilder
 
     private void ReportUnsupportedRules(NodokaKeymap km)
     {
-        foreach (var c in km.Combos) Say(ConvLevel.Skipped, c.Src, $"キーマップ {km.Name} の combo は対応しません（Global のみ）");
-        foreach (var t in km.TapHolds) Say(ConvLevel.Skipped, t.Src, $"キーマップ {km.Name} の taphold は対応しません（Global のみ）");
-        foreach (var t in km.TapDances) Say(ConvLevel.Skipped, t.Src, $"キーマップ {km.Name} の tapdance は対応しません（Global のみ）");
-        foreach (var e in km.Events) Say(ConvLevel.Skipped, e.Src, $"event {e.Event}: 対応しません");
+        foreach (var c in km.Combos) Say(ConvLevel.Skipped, c.Src, Loc.T($"キーマップ {km.Name} の combo は対応しません(Global のみ)", $"combo in keymap {km.Name} is not supported (Global only)"));
+        foreach (var t in km.TapHolds) Say(ConvLevel.Skipped, t.Src, Loc.T($"キーマップ {km.Name} の taphold は対応しません(Global のみ)", $"taphold in keymap {km.Name} is not supported (Global only)"));
+        foreach (var t in km.TapDances) Say(ConvLevel.Skipped, t.Src, Loc.T($"キーマップ {km.Name} の tapdance は対応しません(Global のみ)", $"tapdance in keymap {km.Name} is not supported (Global only)"));
+        foreach (var e in km.Events) Say(ConvLevel.Skipped, e.Src, Loc.T($"event {e.Event}: 対応しません", $"event {e.Event}: not supported"));
     }
 
     private void ConvertAssignment(NodokaKeymap km, int baseLayer, Assignment a)
@@ -697,7 +697,7 @@ internal sealed class TargetBuilder
         string label = $"key {a.KeyName}";
         if (left.Unsupported != null)
         {
-            if (left.Device == null || AppliesToTarget(left)) Say(ConvLevel.Skipped, a.Src, $"{label}: {left.Unsupported} の条件は対応しません", deviceSpecific);
+            if (left.Device == null || AppliesToTarget(left)) Say(ConvLevel.Skipped, a.Src, Loc.T($"{label}: {left.Unsupported} の条件は対応しません", $"{label}: the {left.Unsupported} condition is not supported"), deviceSpecific);
             return;
         }
         if (!AppliesToTarget(left)) return;
@@ -710,22 +710,22 @@ internal sealed class TargetBuilder
         {
             if (km.Kind != KeymapKind.Global)
             {
-                Say(ConvLevel.Skipped, a.Src, $"{label}: キーマップ {km.Name} の中の {left.Context}- の条件は対応しません", deviceSpecific);
+                Say(ConvLevel.Skipped, a.Src, Loc.T($"{label}: キーマップ {km.Name} の中の {left.Context}- の条件は対応しません", $"{label}: the {left.Context}- condition inside keymap {km.Name} is not supported"), deviceSpecific);
                 return;
             }
-            int? l = Alloc(left.Context, $"{left.Context}- の割り当て");
+            int? l = Alloc(left.Context, Loc.T($"{left.Context}- の割り当て", $"assignments for {left.Context}-"));
             if (l == null) return;
             layer = l.Value;
         }
 
         var plan = MakePlan(a.Seq);
         if (plan.Kind == PlanKind.Unsupported) { Say(ConvLevel.Skipped, a.Src, $"{label}: {plan.Reason}", deviceSpecific); return; }
-        if (plan.Kind == PlanKind.Nop) { Say(ConvLevel.Info, a.Src, $"{label}: 何もしない列のため変換しません", deviceSpecific); return; }
+        if (plan.Kind == PlanKind.Nop) { Say(ConvLevel.Info, a.Src, Loc.T($"{label}: 何もしない列のため変換しません", $"{label}: not converted because it is an empty sequence"), deviceSpecific); return; }
 
         if (left.Mods != 0)
         {
             // 修飾キーを押しながらのキー: レイヤーには置けない。キー置換か、トリガー（キーフック）にする。
-            if (layer != 0) { Say(ConvLevel.Skipped, a.Src, $"{label}: レイヤー0以外での修飾キー付きの割り当ては対応しません", deviceSpecific); return; }
+            if (layer != 0) { Say(ConvLevel.Skipped, a.Src, Loc.T($"{label}: レイヤー0以外での修飾キー付きの割り当ては対応しません", $"{label}: assignments with modifier keys on layers other than layer 0 are not supported"), deviceSpecific); return; }
             _pending.Add((sc.Value, left.Mods, plan, a.Src));
             foreach (var n in plan.Notes) Approx(n, a.Src, deviceSpecific);
             return;
@@ -733,21 +733,21 @@ internal sealed class TargetBuilder
 
         string? token = TokenOf(plan, a.Src, label);
         if (token == null) return;
-        if (plan.Kind == PlanKind.Transparent && layer == 0) { Say(ConvLevel.Converted, a.Src, $"{label}: 何もしない（そのまま通す）", deviceSpecific); return; }
+        if (plan.Kind == PlanKind.Transparent && layer == 0) { Say(ConvLevel.Converted, a.Src, Loc.T($"{label}: 何もしない(そのまま通す)", $"{label}: does nothing (passes through)"), deviceSpecific); return; }
 
         _layers[layer][sc.Value] = token;
-        Say(ConvLevel.Converted, a.Src, $"{label} → レイヤー{layer} {PortableExporter.ScName(sc.Value)} = {token}", deviceSpecific);
+        Say(ConvLevel.Converted, a.Src, Loc.T($"{label} → レイヤー{layer} {PortableExporter.ScName(sc.Value)} = {token}", $"{label} → layer {layer} {PortableExporter.ScName(sc.Value)} = {token}"), deviceSpecific);
 
         if (!left.AnyMods && plan.Kind is PlanKind.Key or PlanKind.Macro or PlanKind.Helper or PlanKind.LayerOp && layer == 0)
-            Approx("修飾キーを押していないときだけ、というのどかの条件は、kasane では見分けません（修飾キーを押しても同じに置き換わります）", a.Src, deviceSpecific);
+            Approx(Loc.T("修飾キーを押していないときだけ、というのどかの条件は、kasane では見分けません(修飾キーを押しても同じに置き換わります)", "Nodoka's condition \"only when no modifier is pressed\" is not distinguished in kasane (the replacement also applies while a modifier is pressed)"), a.Src, deviceSpecific);
         foreach (var n in plan.Notes) Approx(n, a.Src, deviceSpecific);
     }
 
     private void ConvertSubstitute(Substitute sub)
     {
         var left = AnalyzeLeft(sub.Mod);
-        if (left.Unsupported != null) { Say(ConvLevel.Skipped, sub.Src, $"def subst {sub.KeyName}: {left.Unsupported} の条件は対応しません"); return; }
-        if (left.Context != null || left.Device != null) { Say(ConvLevel.Skipped, sub.Src, $"def subst {sub.KeyName}: 条件つきは対応しません"); return; }
+        if (left.Unsupported != null) { Say(ConvLevel.Skipped, sub.Src, Loc.T($"def subst {sub.KeyName}: {left.Unsupported} の条件は対応しません", $"def subst {sub.KeyName}: the {left.Unsupported} condition is not supported")); return; }
+        if (left.Context != null || left.Device != null) { Say(ConvLevel.Skipped, sub.Src, Loc.T($"def subst {sub.KeyName}: 条件つきは対応しません", $"def subst {sub.KeyName}: conditions are not supported")); return; }
         ushort? from = PhysicalKey(sub.KeyName, out string? e1);
         if (from == null) { Say(ConvLevel.Skipped, sub.Src, $"def subst {sub.KeyName}: {e1}"); return; }
         ushort? to = PhysicalKey(sub.To.KeyName, out string? e2);
@@ -755,7 +755,7 @@ internal sealed class TargetBuilder
         var plan = new Plan { Kind = PlanKind.Key, Token = WithMods(MaskOf(sub.To.Mod), KeycodeTable.KeyToken(to.Value)) };
         if (left.Mods != 0) { _pending.Add((from.Value, left.Mods, plan, sub.Src)); return; }
         _layers[0][from.Value] = plan.Token;
-        Say(ConvLevel.Converted, sub.Src, $"def subst {sub.KeyName} → レイヤー0 {PortableExporter.ScName(from.Value)} = {plan.Token}");
+        Say(ConvLevel.Converted, sub.Src, Loc.T($"def subst {sub.KeyName} → レイヤー0 {PortableExporter.ScName(from.Value)} = {plan.Token}", $"def subst {sub.KeyName} → layer 0 {PortableExporter.ScName(from.Value)} = {plan.Token}"));
     }
 
     // ------------------------------------------------------------------
@@ -771,7 +771,7 @@ internal sealed class TargetBuilder
             string outKey = Layer0Output(sc);
             if (!KeycodeTable.TryResolve(outKey, out var outAction) || outAction.Type != ActionType.Key)
             {
-                Say(ConvLevel.Skipped, src, $"{PortableExporter.ScName(sc)} に修飾キーを付けた割り当て: このキーのレイヤー0 の動作（{outKey}）が単純なキーではないため、変換しません");
+                Say(ConvLevel.Skipped, src, Loc.T($"{PortableExporter.ScName(sc)} に修飾キーを付けた割り当て: このキーのレイヤー0 の動作({outKey})が単純なキーではないため、変換しません", $"assignment with modifier keys on {PortableExporter.ScName(sc)}: not converted because the layer 0 action of this key ({outKey}) is not a simple key"));
                 continue;
             }
             string modNames = KeycodeTable.ModMaskToNames(mods);
@@ -781,18 +781,18 @@ internal sealed class TargetBuilder
                 {
                     if (!KeycodeTable.TryResolve(plan.Token, out var rep) || rep.Type is not (ActionType.Key or ActionType.ModdedKey))
                     {
-                        Say(ConvLevel.Skipped, src, $"{modNames}+{outKey}: キー置換にできない動作です");
+                        Say(ConvLevel.Skipped, src, Loc.T($"{modNames}+{outKey}: キー置換にできない動作です", $"{modNames}+{outKey}: this action cannot be made into a key override"));
                         break;
                     }
                     if (_overrides.Count >= KbdLayerClient.MaxKeyOverrideCount)
                     {
-                        Say(ConvLevel.Skipped, src, $"キー置換が{KbdLayerClient.MaxKeyOverrideCount}個を超えるため、{modNames}+{outKey} は変換しません");
+                        Say(ConvLevel.Skipped, src, Loc.T($"キー置換が{KbdLayerClient.MaxKeyOverrideCount}個を超えるため、{modNames}+{outKey} は変換しません", $"{modNames}+{outKey} is not converted because there would be more than {KbdLayerClient.MaxKeyOverrideCount} key overrides"));
                         break;
                     }
                     var existing = _overrides.FirstOrDefault(o => o.Mods == modNames && o.Key == outKey);
                     if (existing != null) existing.Replacement = plan.Token;
                     else _overrides.Add(new KeyOverrideDef { Id = _overrides.Count, Mods = modNames, Key = outKey, Replacement = plan.Token });
-                    Say(ConvLevel.Converted, src, $"{modNames}+{outKey} → キー置換 {plan.Token}");
+                    Say(ConvLevel.Converted, src, Loc.T($"{modNames}+{outKey} → キー置換 {plan.Token}", $"{modNames}+{outKey} → key override {plan.Token}"));
                     break;
                 }
                 case PlanKind.Helper:
@@ -800,12 +800,12 @@ internal sealed class TargetBuilder
                     // 押したキー（と修飾キー）を見張って動かす。
                     _helper.Triggers.RemoveAll(t => t.Key == outKey && t.Mods == modNames);
                     _helper.Triggers.Add(new HelperTrigger { Key = outKey, Mods = modNames, Action = plan.Body! });
-                    Say(ConvLevel.Converted, src, $"{modNames}+{outKey} → ヘルパーのトリガー");
-                    Approx("修飾キーを押しながらの動作を、ヘルパーのトリガー（キーフック）にしました。押したキーはアプリに届かなくなります。トレイが動いている必要があります", src);
+                    Say(ConvLevel.Converted, src, Loc.T($"{modNames}+{outKey} → ヘルパーのトリガー", $"{modNames}+{outKey} → helper trigger"));
+                    Approx(Loc.T("修飾キーを押しながらの動作を、ヘルパーのトリガー(キーフック)にしました。押したキーはアプリに届かなくなります。トレイが動いている必要があります", "The action with a modifier key held was made into a helper trigger (key hook). The pressed key no longer reaches the app. The tray must be running"), src);
                     break;
                 }
                 default:
-                    Say(ConvLevel.Skipped, src, $"{modNames}+{outKey}: 修飾キーを押しながらの「{DescribeKind(plan.Kind)}」は変換できません");
+                    Say(ConvLevel.Skipped, src, Loc.T($"{modNames}+{outKey}: 修飾キーを押しながらの「{DescribeKind(plan.Kind)}」は変換できません", $"{modNames}+{outKey}: \"{DescribeKind(plan.Kind)}\" with a modifier key held cannot be converted"));
                     break;
             }
         }
@@ -813,10 +813,10 @@ internal sealed class TargetBuilder
 
     private static string DescribeKind(PlanKind k) => k switch
     {
-        PlanKind.Macro => "複数のキーの列",
-        PlanKind.LayerOp => "レイヤーの操作",
-        PlanKind.Transparent => "そのまま通す",
-        PlanKind.None => "何もしない",
+        PlanKind.Macro => Loc.T("複数のキーの列", "a sequence of multiple keys"),
+        PlanKind.LayerOp => Loc.T("レイヤーの操作", "a layer operation"),
+        PlanKind.Transparent => Loc.T("そのまま通す", "pass through"),
+        PlanKind.None => Loc.T("何もしない", "do nothing"),
         _ => k.ToString(),
     };
 
@@ -832,9 +832,9 @@ internal sealed class TargetBuilder
 
     private void ConvertModAssign(ModAssign m)
     {
-        if (m.KeyName == null) { Say(ConvLevel.Skipped, m.Src, "mod !修飾キー名 の形（すべてのキーの扱いを変える指定）は対応しません"); return; }
+        if (m.KeyName == null) { Say(ConvLevel.Skipped, m.Src, Loc.T("mod !修飾キー名 の形(すべてのキーの扱いを変える指定)は対応しません", "The form \"mod !modifier-name\" (a setting that changes the handling of all keys) is not supported")); return; }
         string label = $"mod {m.Target} {(m.Op == AssignOp.Sub ? "-=" : m.Op == AssignOp.Add ? "+=" : "=")} {m.KeyName}";
-        if (m.Op == AssignOp.Sub) { Say(ConvLevel.Skipped, m.Src, $"{label}: 修飾キーから外す指定は対応しません"); return; }
+        if (m.Op == AssignOp.Sub) { Say(ConvLevel.Skipped, m.Src, Loc.T($"{label}: 修飾キーから外す指定は対応しません", $"{label}: removing a key from a modifier is not supported")); return; }
         ushort? sc = PhysicalKey(m.KeyName, out string? err);
         if (sc == null) { Say(ConvLevel.Skipped, m.Src, $"{label}: {err}"); return; }
 
@@ -843,43 +843,43 @@ internal sealed class TargetBuilder
 
         if (m.Target >= ModType.Mod0 && m.Target <= ModType.Mod9)
         {
-            int? layer = Alloc($"M{m.Target - ModType.Mod0}", $"M{m.Target - ModType.Mod0}- の割り当て");
+            int? layer = Alloc($"M{m.Target - ModType.Mod0}", Loc.T($"M{m.Target - ModType.Mod0}- の割り当て", $"assignments for M{m.Target - ModType.Mod0}-"));
             if (layer == null) return;
             string token = $"MO({layer})";
             if (oneShot && KeycodeTable.TryResolve(own, out var a) && a.Type == ActionType.Key)
                 token = $"LT({layer},{own})";
             else if (oneShot)
-                Approx("一回だけ有効になる修飾キー（!!）で、キー自体の動作がキーでないものは、押している間だけ有効なレイヤーキー（MO）にしました", m.Src);
+                Approx(Loc.T("一回だけ有効になる修飾キー(!!)で、キー自体の動作がキーでないものは、押している間だけ有効なレイヤーキー(MO)にしました", "A one-shot modifier (!!) whose own action is not a key was made into a layer key (MO) that is active only while held"), m.Src);
             if (m.Mode == AssignMode.Normal)
-                Approx("「!」の付かない M0〜M9 の修飾キーは、のどかではキー自体の動作も残りますが、kasane ではレイヤーキー（MO）として働きます", m.Src);
+                Approx(Loc.T("「!」の付かない M0〜M9 の修飾キーは、のどかではキー自体の動作も残りますが、kasane ではレイヤーキー(MO)として働きます", "For M0 to M9 modifiers without \"!\", Nodoka also keeps the key's own action, but in kasane they work as layer keys (MO)"), m.Src);
             _layers[0][sc.Value] = token;
-            Say(ConvLevel.Converted, m.Src, $"{label} → レイヤー0 {PortableExporter.ScName(sc.Value)} = {token}");
+            Say(ConvLevel.Converted, m.Src, Loc.T($"{label} → レイヤー0 {PortableExporter.ScName(sc.Value)} = {token}", $"{label} → layer 0 {PortableExporter.ScName(sc.Value)} = {token}"));
             return;
         }
 
         var mk = ModKeys.FirstOrDefault(x => x.Type == m.Target);
-        if (mk.Mod == null) { Say(ConvLevel.Skipped, m.Src, $"{label}: 対応しない修飾キーです"); return; }
+        if (mk.Mod == null) { Say(ConvLevel.Skipped, m.Src, Loc.T($"{label}: 対応しない修飾キーです", $"{label}: this modifier key is not supported")); return; }
         if (sc == mk.Left || sc == mk.Right) return; // もともとその修飾キー
 
         string modKey = KeycodeTable.KeyToken(mk.Left);
         if (!oneShot)
         {
             _layers[0][sc.Value] = modKey;
-            Say(ConvLevel.Converted, m.Src, $"{label} → レイヤー0 {PortableExporter.ScName(sc.Value)} = {modKey}");
+            Say(ConvLevel.Converted, m.Src, Loc.T($"{label} → レイヤー0 {PortableExporter.ScName(sc.Value)} = {modKey}", $"{label} → layer 0 {PortableExporter.ScName(sc.Value)} = {modKey}"));
             return;
         }
         if (KeycodeTable.TryResolve(own, out var tap) && tap.Type == ActionType.Key)
         {
             string token = $"MT({mk.Mod},{own})";
             _layers[0][sc.Value] = token;
-            Say(ConvLevel.Converted, m.Src, $"{label} → レイヤー0 {PortableExporter.ScName(sc.Value)} = {token}");
-            Approx("一回だけ有効になる修飾キー（!!）は、タップならそのキー、押し続けると修飾キー（MT）にしました", m.Src);
+            Say(ConvLevel.Converted, m.Src, Loc.T($"{label} → レイヤー0 {PortableExporter.ScName(sc.Value)} = {token}", $"{label} → layer 0 {PortableExporter.ScName(sc.Value)} = {token}"));
+            Approx(Loc.T("一回だけ有効になる修飾キー(!!)は、タップならそのキー、押し続けると修飾キー(MT)にしました", "A one-shot modifier (!!) was made into the key itself on tap and a modifier (MT) when held"), m.Src);
         }
         else
         {
             _layers[0][sc.Value] = modKey;
-            Say(ConvLevel.Converted, m.Src, $"{label} → レイヤー0 {PortableExporter.ScName(sc.Value)} = {modKey}");
-            Approx("一回だけ有効になる修飾キー（!!）で、キー自体の動作がキーでないものは、常に修飾キーにしました", m.Src);
+            Say(ConvLevel.Converted, m.Src, Loc.T($"{label} → レイヤー0 {PortableExporter.ScName(sc.Value)} = {modKey}", $"{label} → layer 0 {PortableExporter.ScName(sc.Value)} = {modKey}"));
+            Approx(Loc.T("一回だけ有効になる修飾キー(!!)で、キー自体の動作がキーでないものは、常に修飾キーにしました", "A one-shot modifier (!!) whose own action is not a key was made into a plain modifier"), m.Src);
         }
     }
 
@@ -894,25 +894,25 @@ internal sealed class TargetBuilder
     {
         if (!ComboApplies(c.Mod, out string? un))
         {
-            if (un != null) Say(ConvLevel.Skipped, c.Src, $"combo: {un} の条件は対応しません");
+            if (un != null) Say(ConvLevel.Skipped, c.Src, Loc.T($"combo: {un} の条件は対応しません", $"combo: the {un} condition is not supported"));
             return;
         }
-        if (c.Keys.Count != 2) { Say(ConvLevel.Skipped, c.Src, $"combo: {c.Keys.Count}キーの同時押しは対応しません（2キーのみ）"); return; }
+        if (c.Keys.Count != 2) { Say(ConvLevel.Skipped, c.Src, Loc.T($"combo: {c.Keys.Count}キーの同時押しは対応しません(2キーのみ)", $"combo: pressing {c.Keys.Count} keys at once is not supported (2 keys only)")); return; }
         ushort? a = PhysicalKey(c.Keys[0], out string? e1), b = PhysicalKey(c.Keys[1], out string? e2);
         if (a == null || b == null) { Say(ConvLevel.Skipped, c.Src, $"combo: {e1 ?? e2}"); return; }
         var plan = MakePlan(c.Action);
         if (plan.Kind is not (PlanKind.Key or PlanKind.Macro))
         {
-            Say(ConvLevel.Skipped, c.Src, $"combo: 出力は、キーかキーの列だけに対応します（{(plan.Kind == PlanKind.Unsupported ? plan.Reason : DescribeKind(plan.Kind))}）");
+            Say(ConvLevel.Skipped, c.Src, Loc.T($"combo: 出力は、キーかキーの列だけに対応します({(plan.Kind == PlanKind.Unsupported ? plan.Reason : DescribeKind(plan.Kind))})", $"combo: only a key or a sequence of keys is supported as output ({(plan.Kind == PlanKind.Unsupported ? plan.Reason : DescribeKind(plan.Kind))})"));
             return;
         }
         string? output = TokenOf(plan, c.Src, "combo");
         if (output == null) return;
-        if (_combos.Count >= KbdLayerClient.MaxComboCount) { Say(ConvLevel.Skipped, c.Src, $"コンボが{KbdLayerClient.MaxComboCount}個を超えるため変換しません"); return; }
+        if (_combos.Count >= KbdLayerClient.MaxComboCount) { Say(ConvLevel.Skipped, c.Src, Loc.T($"コンボが{KbdLayerClient.MaxComboCount}個を超えるため変換しません", $"Not converted because there would be more than {KbdLayerClient.MaxComboCount} combos")); return; }
         if (_combos.Any(x => x.Key1 == PortableExporter.ScName(a.Value) || x.Key2 == PortableExporter.ScName(a.Value)
                              || x.Key1 == PortableExporter.ScName(b.Value) || x.Key2 == PortableExporter.ScName(b.Value)))
         {
-            Say(ConvLevel.Skipped, c.Src, "combo: メンバーのキーが、ほかのコンボですでに使われています（kasane では1つのキーは1つのコンボにだけ入れられます）");
+            Say(ConvLevel.Skipped, c.Src, Loc.T("combo: メンバーのキーが、ほかのコンボですでに使われています(kasane では1つのキーは1つのコンボにだけ入れられます)", "combo: a member key is already used in another combo (in kasane, a key can belong to only one combo)"));
             return;
         }
         _combos.Add(new PortableCombo { Id = _combos.Count, Key1 = PortableExporter.ScName(a.Value), Key2 = PortableExporter.ScName(b.Value), Output = output });
@@ -925,13 +925,13 @@ internal sealed class TargetBuilder
         var plan = MakePlan(seq);
         if (plan.Kind == PlanKind.Key) return plan.Token;
         if (plan.Kind == PlanKind.Macro && allowMacro) return TokenOf(plan, new SourceRef("", 0), "macro");
-        reason = plan.Kind == PlanKind.Unsupported ? plan.Reason : DescribeKind(plan.Kind) + "は使えません";
+        reason = plan.Kind == PlanKind.Unsupported ? plan.Reason : Loc.T(DescribeKind(plan.Kind) + "は使えません", DescribeKind(plan.Kind) + " cannot be used");
         return null;
     }
 
     private void ConvertTapHold(TapHoldRule t)
     {
-        if (!ComboApplies(t.Mod, out string? un)) { if (un != null) Say(ConvLevel.Skipped, t.Src, $"taphold: {un} の条件は対応しません"); return; }
+        if (!ComboApplies(t.Mod, out string? un)) { if (un != null) Say(ConvLevel.Skipped, t.Src, Loc.T($"taphold: {un} の条件は対応しません", $"taphold: the {un} condition is not supported")); return; }
         ushort? sc = PhysicalKey(t.KeyName, out string? err);
         if (sc == null) { Say(ConvLevel.Skipped, t.Src, $"taphold {t.KeyName}: {err}"); return; }
         string? tap = SimpleKeyToken(t.Tap!, true, true, out string? r1);
@@ -946,22 +946,22 @@ internal sealed class TargetBuilder
             {
                 string token = $"MT({KeycodeTable.ModifierNames[bit]},{tap})";
                 _layers[0][sc.Value] = token;
-                Say(ConvLevel.Converted, t.Src, $"taphold {t.KeyName} → レイヤー0 {PortableExporter.ScName(sc.Value)} = {token}");
+                Say(ConvLevel.Converted, t.Src, Loc.T($"taphold {t.KeyName} → レイヤー0 {PortableExporter.ScName(sc.Value)} = {token}", $"taphold {t.KeyName} → layer 0 {PortableExporter.ScName(sc.Value)} = {token}"));
                 return;
             }
         }
         // それ以外はタップダンス（1回タップ / ホールド）
-        if (_tapDances.Count >= KbdLayerClient.MaxTapDanceCount) { Say(ConvLevel.Skipped, t.Src, $"タップダンスが{KbdLayerClient.MaxTapDanceCount}個を超えるため変換しません"); return; }
+        if (_tapDances.Count >= KbdLayerClient.MaxTapDanceCount) { Say(ConvLevel.Skipped, t.Src, Loc.T($"タップダンスが{KbdLayerClient.MaxTapDanceCount}個を超えるため変換しません", $"Not converted because there would be more than {KbdLayerClient.MaxTapDanceCount} tap dances")); return; }
         var td = new TapDanceDef { Id = _tapDances.Count, SingleTap = tap, SingleHold = hold };
         _tapDances.Add(td);
         _layers[0][sc.Value] = $"TAPDANCE({td.Id})";
-        Say(ConvLevel.Converted, t.Src, $"taphold {t.KeyName} → タップダンス{td.Id}（タップ={tap}、ホールド={hold}）");
-        Approx("修飾キーではない taphold は、タップダンスの「1回タップ / ホールド」にしました", t.Src);
+        Say(ConvLevel.Converted, t.Src, Loc.T($"taphold {t.KeyName} → タップダンス{td.Id}(タップ={tap}、ホールド={hold})", $"taphold {t.KeyName} → tap dance {td.Id} (tap={tap}, hold={hold})"));
+        Approx(Loc.T("修飾キーではない taphold は、タップダンスの「1回タップ / ホールド」にしました", "A taphold that is not a modifier was made into a tap dance \"single tap / hold\""), t.Src);
     }
 
     private void ConvertTapDance(TapDanceRule t)
     {
-        if (!ComboApplies(t.Mod, out string? un)) { if (un != null) Say(ConvLevel.Skipped, t.Src, $"tapdance: {un} の条件は対応しません"); return; }
+        if (!ComboApplies(t.Mod, out string? un)) { if (un != null) Say(ConvLevel.Skipped, t.Src, Loc.T($"tapdance: {un} の条件は対応しません", $"tapdance: the {un} condition is not supported")); return; }
         ushort? sc = PhysicalKey(t.KeyName, out string? err);
         if (sc == null) { Say(ConvLevel.Skipped, t.Src, $"tapdance {t.KeyName}: {err}"); return; }
         var tokens = new string[3] { "", "", "" };
@@ -969,14 +969,14 @@ internal sealed class TargetBuilder
         {
             if (t.Taps[i] == null) continue;
             string? token = SimpleKeyToken(t.Taps[i]!, true, true, out string? reason);
-            if (token == null) { Say(ConvLevel.Skipped, t.Src, $"tapdance {t.KeyName}: tap{i + 1} は{reason}"); return; }
+            if (token == null) { Say(ConvLevel.Skipped, t.Src, Loc.T($"tapdance {t.KeyName}: tap{i + 1} は{reason}", $"tapdance {t.KeyName}: tap{i + 1}: {reason}")); return; }
             tokens[i] = token;
         }
-        if (_tapDances.Count >= KbdLayerClient.MaxTapDanceCount) { Say(ConvLevel.Skipped, t.Src, $"タップダンスが{KbdLayerClient.MaxTapDanceCount}個を超えるため変換しません"); return; }
+        if (_tapDances.Count >= KbdLayerClient.MaxTapDanceCount) { Say(ConvLevel.Skipped, t.Src, Loc.T($"タップダンスが{KbdLayerClient.MaxTapDanceCount}個を超えるため変換しません", $"Not converted because there would be more than {KbdLayerClient.MaxTapDanceCount} tap dances")); return; }
         var td = new TapDanceDef { Id = _tapDances.Count, SingleTap = tokens[0], DoubleTap = tokens[1], TripleTap = tokens[2] };
         _tapDances.Add(td);
         _layers[0][sc.Value] = $"TAPDANCE({td.Id})";
-        Say(ConvLevel.Converted, t.Src, $"tapdance {t.KeyName} → タップダンス{td.Id}");
+        Say(ConvLevel.Converted, t.Src, Loc.T($"tapdance {t.KeyName} → タップダンス{td.Id}", $"tapdance {t.KeyName} → tap dance {td.Id}"));
     }
 
     // ------------------------------------------------------------------
@@ -989,7 +989,7 @@ internal sealed class TargetBuilder
         foreach (var km in _s.Keymaps.Where(k => k.IsWindow).OrderByDescending(k => k.Order))
         {
             if (!_ctx.TryGetValue("km:" + km.Name, out int layer)) continue;
-            if (km.ClassRegex.Length == 0 && km.TitleRegex.Length == 0) { Say(ConvLevel.Skipped, km.Src, $"window {km.Name}: ウィンドウの条件が空のため、アプリ別レイヤーの規則にしません"); continue; }
+            if (km.ClassRegex.Length == 0 && km.TitleRegex.Length == 0) { Say(ConvLevel.Skipped, km.Src, Loc.T($"window {km.Name}: ウィンドウの条件が空のため、アプリ別レイヤーの規則にしません", $"window {km.Name}: not made into a per-app layer rule because the window condition is empty")); continue; }
             _helper.AppLayerRules.Add(new AppLayerRule
             {
                 Name = km.Name,
@@ -1001,7 +1001,7 @@ internal sealed class TargetBuilder
                 },
                 Layers = new List<int> { layer },
             });
-            Say(ConvLevel.Converted, km.Src, $"window {km.Name} → レイヤー{layer} とアプリ別レイヤーの規則（のどか互換の照合）");
+            Say(ConvLevel.Converted, km.Src, Loc.T($"window {km.Name} → レイヤー{layer} とアプリ別レイヤーの規則(のどか互換の照合)", $"window {km.Name} → layer {layer} and a per-app layer rule (Nodoka-compatible matching)"));
         }
     }
 
@@ -1023,7 +1023,7 @@ internal sealed class TargetBuilder
         if (timing.TapTermMs + timing.ComboTermMs + timing.TapDanceTermMs + timing.QuickTapTermMs > 0 || timing.TapHoldMode != 0)
         {
             kb.Timing = timing;
-            Say(ConvLevel.Converted, null, "タイミング（TapHoldThreshold・ComboWindow・TapDanceTimeout など）を読み込みました");
+            Say(ConvLevel.Converted, null, Loc.T("タイミング(TapHoldThreshold・ComboWindow・TapDanceTimeout など)を読み込みました", "Timing (TapHoldThreshold, ComboWindow, TapDanceTimeout, etc.) was imported"));
         }
     }
 }

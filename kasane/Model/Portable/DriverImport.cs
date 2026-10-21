@@ -29,7 +29,7 @@ public static class DriverImport
 
         if (file.ParsedScope == PortableScope.Layer)
         {
-            report.Error("レイヤー1枚だけのファイルは、インストール時の取り込みに使えません（キーボード全体のファイルを選んでください）");
+            report.Error(Loc.T("レイヤー1枚だけのファイルは、インストール時の取り込みに使えません(キーボード全体のファイルを選んでください)", "A single-layer file cannot be used for import during installation (choose a whole-keyboard file)"));
             return new Result(0, 0, file.Keyboards.Count);
         }
 
@@ -37,19 +37,19 @@ public static class DriverImport
         for (int i = 0; i < file.Keyboards.Count; i++)
         {
             var src = file.Keyboards[i];
-            string tag = $"キーボード{i + 1}" + (string.IsNullOrEmpty(src.HardwareId) ? "" : $"（{src.HardwareId}）");
+            string tag = Loc.T($"キーボード{i + 1}" + (string.IsNullOrEmpty(src.HardwareId) ? "" : $"({src.HardwareId})"), $"Keyboard {i + 1}" + (string.IsNullOrEmpty(src.HardwareId) ? "" : $" ({src.HardwareId})"));
 
             uint? model = DeviceKeys.ModelKey(src.HardwareId);
             if (model == null)
             {
-                report.Warn($"{tag}: HardwareId がファイルに無いため、保存先を決められず、飛ばしました");
+                report.Warn(Loc.T($"{tag}: HardwareId がファイルに無いため、保存先を決められず、飛ばしました", $"{tag}: skipped because the file has no HardwareId, so the destination cannot be determined"));
                 skipped++;
                 continue;
             }
             string name = DeviceKeys.ModelSubKeyName(model.Value);
             if (!done.Add(name))
             {
-                report.Warn($"{tag}: 同じ型番（{name}）のキーボードが、ファイルに複数あります。最初の1つだけを書きます");
+                report.Warn(Loc.T($"{tag}: 同じ型番({name})のキーボードが、ファイルに複数あります。最初の1つだけを書きます", $"{tag}: the file contains multiple keyboards of the same model ({name}). Only the first one is written"));
                 skipped++;
                 continue;
             }
@@ -57,7 +57,7 @@ public static class DriverImport
             var layout = resolveLayout(src.LayoutName);
             if (layout == null)
             {
-                report.Error($"{tag}: レイアウト「{src.LayoutName}」が見つからないため、飛ばしました");
+                report.Error(Loc.T($"{tag}: レイアウト「{src.LayoutName}」が見つからないため、飛ばしました", $"{tag}: skipped because the layout \"{src.LayoutName}\" was not found"));
                 skipped++;
                 continue;
             }
@@ -74,16 +74,16 @@ public static class DriverImport
                 bool bak = store.Write(name, settings);
                 written++;
                 if (bak) backedUp++;
-                report.Info($"{tag}: {name} に書きました" + (bak ? $"（前の設定は {name}{PersistedSettings.BackupSuffix} に退避）" : ""));
+                report.Info(Loc.T($"{tag}: {name} に書きました" + (bak ? $"(前の設定は {name}{PersistedSettings.BackupSuffix} に退避)" : ""), $"{tag}: written to {name}" + (bak ? $" (previous settings moved to {name}{PersistedSettings.BackupSuffix})" : "")));
             }
             catch (InvalidOperationException ex)
             {
-                report.Error($"{tag}: 検証に失敗したため、飛ばしました（{ex.Message.Replace('\n', ' ')}）");
+                report.Error(Loc.T($"{tag}: 検証に失敗したため、飛ばしました({ex.Message.Replace('\n', ' ')})", $"{tag}: skipped because validation failed ({ex.Message.Replace('\n', ' ')})"));
                 skipped++;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
             {
-                report.Error($"{tag}: レジストリに書けませんでした（{ex.Message}）");
+                report.Error(Loc.T($"{tag}: レジストリに書けませんでした({ex.Message})", $"{tag}: could not write to the registry ({ex.Message})"));
                 skipped++;
             }
         }

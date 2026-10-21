@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Kasane.Layout;
+using Loc = Kasane.Model.Loc;
 
 namespace Kasane.Views;
 
@@ -47,11 +48,11 @@ public sealed class SoftKeyboardPanel : StackPanel
             current = _layoutFiles.Count - 1;
         }
         var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
-        header.Children.Add(new TextBlock { Text = "配列:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
+        header.Children.Add(new TextBlock { Text = Loc.T("配列:", "Layout:"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
         header.Children.Add(_layoutCombo);
         header.Children.Add(new TextBlock
         {
-            Text = "キーをクリックして選びます（キーコード名はUS配列基準です）。",
+            Text = Loc.T("キーをクリックして選びます(キーコード名はUS配列基準です)。", "Click a key to select it (key code names are based on the US layout)."),
             Foreground = AppTheme.Palette.SubText, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0),
         });
         Children.Add(header);

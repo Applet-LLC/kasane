@@ -1,17 +1,17 @@
-kasane Subscription - Installation Guide 1.00 2026-08-19 Applet LLC
+kasane Subscription - Installation Guide 1.00 2026-10-31 Applet LLC
 ==============================================================
 
-This package installs "kbdlayer.sys", a Windows kernel-mode keyboard class
-filter driver that emulates QMK/VIA/VIAL-style keyboard layers (layer
-switching, Mod-Tap, Layer-Tap, and related actions) directly at the driver
-level, so the remapped layout works system-wide -- in games, at the login
-screen, and in any application -- without a user-mode background process
-standing between your keyboard and Windows.
+This package installs a key remapping tool named kasane. The installer
+installs "kbdlayer.sys", a Windows kernel-mode keyboard class filter driver,
+and the settings tool. The driver itself emulates what keyboard layers can do
+(layer switching, Mod-Tap, Layer-Tap, and so on). Remapping works with the
+device driver alone, but IME state detection is handled by a resident app in
+the taskbar notification area (the tray), which lets layers change while the
+IME is on.
 
-kasane is forked from the same author's kbdaddid device-identification
-driver and reuses its per-device identification core, so a layer keymap can
-be applied to one specific physical keyboard even when you have several
-connected at once.
+kasane's device identification is forked from kbdaddid.sys and keeps its
+per-device identification mechanism as it is. A layer keymap can be applied to
+one specific keyboard even when several keyboards are connected at once.
 
 This edition's functionality is provided according to your Gumroad
 subscription.
@@ -19,83 +19,75 @@ subscription.
 
 Requirements
 ------------
-- Windows 11 24H2 (x64 or ARM64)
+- Windows 11 25H2 (x64 or ARM64)
 - Administrator privileges for installation
-- An internet connection (the license service re-checks your
-  subscription with Gumroad about once every 24 hours. Using the last
-  successful check, the feature keeps working offline for up to 7
-  days without a network connection)
+- An internet connection. The license management service connects to Gumroad
+  about once every 24 hours to re-check whether your subscription is active.
+  It uses the last successful check, so the feature keeps working for up to 7
+  days even without a network connection.
 
 
 Installation
 ------------
 1. Run "Install-kasane.exe".
 
-2. Follow the setup wizard. This installs the keyboard driver, the license
-   management service (kasaneLicenseSvc), and the license management
-   tool.
+2. Follow the instructions of the setup wizard. The keyboard driver, the
+   license management service (kasaneLicenseSvc), and the license management
+   tool are installed.
+   The installation folder is fixed to C:\Program Files\applet\kasane.
 
-   The installation folder is fixed to C:\Program Files\applet\kasane
-   and cannot be changed (the tray app needs UI access (uiAccess), which
-   requires a signed executable in a location only administrators can
-   write to, such as Program Files). The folder where settings are stored
-   can be changed in step 3.
+3. Settings folder (optional)
+   You can specify where settings files (per-keyboard settings, tray settings,
+   logs) are stored with the environment variable KASANE.
+   If left empty, they are stored in each user's %LOCALAPPDATA%\applet\kasane.
+   The specified folder is created if it does not exist.
 
-3. Settings folder (optional). You can set where settings files (per-keyboard
-   settings, tray settings, logs) are stored with the machine-wide
-   environment variable KASANE. If left empty, each user's
-   %LOCALAPPDATA%\applet\kasane is used as before. With Windows 11
-   Administrator protection, an elevated settings window runs as a
-   different user and the location would be split; setting it here keeps
-   it the same. The folder is created if it does not exist.
+4. Import a settings file (optional; off by default)
+   A settings file (*.kasane.json) exported from kasane is applied to the
+   driver during installation.
 
-4. Import a settings file (optional, off by default). Applies a settings
-   file (*.kasane.json) exported from kasane to the driver during
-   installation. This is for environments where you cannot "Apply to
-   keyboard" after installation, such as with Administrator protection.
-   Models that already have settings in the driver are replaced (the
-   previous settings are kept as one backup and can be restored from the
-   Settings dialog).
+5. A system restart is required to complete the installation.
 
-5. A system reboot is required to complete installation.
+6. After the restart, "kasane License Manager" starts automatically. Enter the
+   license key you purchased on Gumroad to activate it.
 
-6. After reboot, "kasane License Manager" launches automatically
-   from the Start menu. Enter the license key you purchased on Gumroad
-   there to activate it.
+7. Restart once more, or reconnect your keyboard, and the feature becomes
+   usable.
 
-7. The feature becomes usable after you restart again, or after
-   reconnecting your keyboard (the driver picks up the current license
-   status when a device is (re)attached).
 
 Tray icon
 ---------
 After you sign in, the kasane icon appears in the notification area of the
 taskbar (inside the "^" flyout when hidden).
-- Left click: opens kasane (the keymap editor).
-- Right click: the menu 設定 (Settings) / 一時停止 (Pause) / ライセンス
-  (License) / 終了 (Exit). "Pause" temporarily stops the remapping on all
-  keyboards (press it again to resume).
-- If you use NICOLA (thumb-shift input), it switches on automatically only
-  while the IME is in kana mode (IME link; turn it on/off in kasane under
-  Settings > NICOLA).
-- Helper actions: a key can launch a program, type text, drive the mouse,
-  switch layers, and more. Create them in kasane's key-assignment screen under
-  "ヘルパー動作" (Helper actions); the tray must be running. Actions triggered by
-  keys such as F13-F24 are under Settings > ヘルパー動作.
-- Per-app layers: switch layers, or pause the remapping (for games), depending
-  on the foreground app. Under Settings > アプリ別レイヤー.
-- Import / export: in kasane, "インポート／エクスポート..." saves your settings
-  to a file (*.kasane.json) and loads them back, e.g. for another keyboard or
-  another PC. It can also convert and import a nodoka settings file.
+- Left click: opens the kasane settings dialog.
+- Right click: a menu with 設定 (Settings), 一時停止 (Pause), レイヤー (Layer),
+  ライセンス (License), バージョン情報 (About), and 終了 (Exit).
+  "Pause" temporarily stops the remapping on all keyboards. Press it again to
+  resume.
+- If you use NICOLA (thumb-shift input), NICOLA is switched on automatically
+  when the IME is enabled. You can turn this on and off at the bottom of
+  kasane's 設定 (Settings) > IME連動 (IME link).
+- Helper actions: a key can launch a program, type text, operate the mouse,
+  switch layers, and more. Create them from "ヘルパー動作" (Helper actions) in
+  kasane's key-assignment screen (the tray must be running). Actions triggered
+  by keys such as F13-F24 are under 設定 (Settings) > ヘルパー動作 (Helper
+  actions).
+- Per-app layers: switch layers, or stop the remapping, depending on the
+  foreground app. This is under 設定 (Settings) > アプリ別レイヤー (Per-app
+  layers).
+- Import / export: in kasane, "インポート／エクスポート..." (Import / Export...)
+  saves your settings to a file (*.kasane.json) and loads them back. You can
+  move settings to another keyboard or another PC. A nodoka settings file can
+  also be converted and imported.
 
-Important: if your subscription license becomes inactive, layer
-remapping is disabled; basic keyboard input is never affected.
+If your subscription license becomes inactive, the layer remapping feature
+stops working. Basic keyboard input keeps working as it is.
 
 
 Files in this package
-----------------------
+---------------------
 - Install-kasane.exe
-  Installer launcher
+  The installer launcher.
 
 - KasaneSetup-en-US.msi
 - KasaneSetup-ja-JP.msi
@@ -109,56 +101,74 @@ Files in this package
 - README.ja-JP.txt
   This README.
 
+- THIRD-PARTY-NOTICES.txt
+- third-party folder
+  The list of third-party software included in kasane
+  (THIRD-PARTY-NOTICES.txt) and the full text of each license (the
+  third-party folder).
+
+The license agreements (License.*.rtf), the README, THIRD-PARTY-NOTICES.txt,
+and the third-party folder are also placed directly in the installation folder
+(C:\Program Files\applet\kasane).
+
 
 Uninstallation
 --------------
-1. Open kasane first and press the "OFF（素通しに戻す）" button so the keyboard
-   returns to its normal behavior (kasane is displayed in Japanese only).
-2. Use "Apps & features" in Windows Settings to remove "kasane Subscription"
+1. First open the kasane settings dialog and press "OFF (pass keys through)"
+   (shown as "OFF(素通しに戻す)" in Japanese). The keyboard remapping is
+   disabled.
+2. Remove "kasane Subscription" from "Apps & features" in Windows Settings
    (administrator rights are required).
 3. Restart your PC. The driver is in use by your keyboard, so its removal
    completes at the restart. Until then the driver may keep running (if you
-   pressed OFF in step 1, no key remapping is applied).
+   pressed OFF in step 1, no key assignments take effect).
 
 What is removed:
 - The program (C:\Program Files\applet\kasane) and its Start menu entries
-- The license service (kasaneLicenseSvc)
-- The driver (kbdlayer) and the settings stored in it (keymaps, macros,
-  combos, timing, NICOLA, the emergency release keys, ...)
+- The license management service (kasaneLicenseSvc)
+- The driver (kbdlayer) and the settings stored in the driver (keymaps,
+  macros, combos, timing, NICOLA, the emergency release key combination, and
+  so on)
 
-What is kept (so that a reinstall picks it up again):
+What is kept:
+  So that a reinstall picks them up again, the following are kept.
 - %ProgramData%\kbdlayer-license ... your license key and logs. After a
-  reinstall the license is re-verified automatically with this key, so you
-  do not need to activate again (an internet connection is required).
-- %LOCALAPPDATA%\applet\kasane ... keymaps saved in kasane. After a reinstall,
-  open kasane and press "キーボードに適用（ON）" (apply) to restore them.
-  (If you used a version named LayerDriver, %LOCALAPPDATA%\LayerDriver is
-  kept as well.)
+  reinstall the license is re-verified automatically with this license key, so
+  you do not need to activate again.
+- The files in the %LOCALAPPDATA%\applet\kasane folder, or in the folder
+  specified by the KASANE environment variable.
+
 To remove everything, delete these folders by hand after uninstalling and
 restarting.
 
-Installing a newer version over an existing one keeps the driver settings
-and the license; you do not need to uninstall first.
+Installing a newer version over an existing one (without uninstalling) keeps
+the driver settings and the license. You do not need to uninstall first.
 
 
 Support / Purchase
--------------------
-Your Gumroad library lets you check your purchased license key, manage
-your subscription, or re-download the zip file at any time.
+------------------
+You can check your purchased license key, manage your subscription, and
+re-download the zip file from your Gumroad library at any time.
 
 
 License
 -------
-kbdlayer is proprietary (closed-source) software, but we plan to publish
-the source code in the future for the sake of transparency.
+kasane is licensed for use on a single PC only.
+Transferring or reselling the files or the license key is not permitted.
+See License.ja-JP.rtf / License.en-US.rtf for details.
 
-The device driver files provided in this zip are licensed for use on
-a single PC only. Transferring or reselling the device driver files
-or license key is not permitted. See License.en-US.rtf /
-License.ja-JP.rtf for the full agreement.
+kasane contains parts derived from the following third-party software and data.
+- nodoka4 (のどか): Eclipse Public License 2.0
+- 窓使いの憂鬱 (mayu) / YAMY: BSD-3-Clause (via nodoka4)
+- Microsoft .NET (runtime and libraries): MIT License
+- Layout data (keyboard diagrams): Keyboard Layout Editor and others
+- WiX Toolset 3.14 (installer): Microsoft Reciprocal License (MS-RL)
+- 天狼 (sirius): MIT License
+The full text of each license is in THIRD-PARTY-NOTICES.txt and the
+third-party folder.
 
 
 Vendor / Developer
--------------------
+------------------
 Applet LLC
 https://appletllc.com/ appletllc@gmail.com

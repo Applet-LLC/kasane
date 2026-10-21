@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Kasane.Interop;
+using Kasane.Model;
 
 namespace Kasane.Views;
 
@@ -9,7 +10,7 @@ namespace Kasane.Views;
 public sealed class WindowPickerWindow : Window
 {
     private readonly ListBox _list = new() { Name = "WindowList", FontFamily = new FontFamily("Consolas"), Margin = new Thickness(0, 6, 0, 0) };
-    private readonly CheckBox _includeClass = new() { Name = "IncludeClassCheck", Content = "クラス名も条件に入れる", Margin = new Thickness(0, 6, 0, 0) };
+    private readonly CheckBox _includeClass = new() { Name = "IncludeClassCheck", Content = Loc.T("クラス名も条件に入れる", "Also match the class name"), Margin = new Thickness(0, 6, 0, 0) };
     private List<OpenWindow> _windows = new();
 
     public OpenWindow? Selected { get; private set; }
@@ -19,7 +20,7 @@ public sealed class WindowPickerWindow : Window
 
     public WindowPickerWindow()
     {
-        Title = "実行中のアプリから選ぶ";
+        Title = Loc.T("実行中のアプリから選ぶ", "Choose from Running Apps");
         Width = 760;
         Height = 480;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -27,19 +28,21 @@ public sealed class WindowPickerWindow : Window
 
         var help = new TextBlock
         {
-            Text = "開いているウィンドウの一覧です。選ぶと、exe のファイル名が照合条件（Exe）に入ります。" +
-                   "管理者として動くアプリも、exe の名前は取れます。",
+            Text = Loc.T("開いているウィンドウの一覧です。選ぶと、exe のファイル名が照合条件(Exe)に入ります。" +
+                         "管理者として動くアプリも、exe の名前は取れます。",
+                         "This is a list of open windows. When you choose one, its exe file name is entered as the match condition (Exe). " +
+                         "The exe name can be obtained even for apps running as administrator."),
             TextWrapping = TextWrapping.Wrap,
             Foreground = AppTheme.Palette.SubText,
         };
-        var refresh = new Button { Name = "RefreshButton", Content = "一覧を更新", Width = 100, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6, 0, 0) };
+        var refresh = new Button { Name = "RefreshButton", Content = Loc.T("一覧を更新", "Refresh"), Width = 100, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6, 0, 0) };
         refresh.Click += (_, _) => Reload();
 
-        var ok = new Button { Name = "OkButton", Content = "選ぶ", IsDefault = true, Width = 90 };
+        var ok = new Button { Name = "OkButton", Content = Loc.T("選ぶ", "Select"), IsDefault = true, Width = 90 };
         ok.Click += (_, _) => Accept();
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
         buttons.Children.Add(ok);
-        buttons.Children.Add(new Button { Name = "CancelButton", Content = "キャンセル", IsCancel = true, Width = 90 });
+        buttons.Children.Add(new Button { Name = "CancelButton", Content = Loc.T("キャンセル", "Cancel"), IsCancel = true, Width = 90 });
 
         var top = new StackPanel();
         top.Children.Add(help);

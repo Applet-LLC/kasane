@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using Kasane.Interop;
 using Kasane.Keycodes;
+using Kasane.Model;
 
 namespace Kasane.Views;
 
@@ -35,7 +36,7 @@ public sealed class EmergencyCheckWindow : Window
     {
         _driverUniqId = driverUniqId;
         _keys = keys.ToList();
-        Title = "緊急解除の組み合わせを試す";
+        Title = Loc.T("緊急解除の組み合わせを試す", "Test the emergency release combination");
         Width = 620;
         SizeToContent = SizeToContent.Height;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -45,14 +46,23 @@ public sealed class EmergencyCheckWindow : Window
         var panel = new StackPanel { Margin = new Thickness(14) };
         panel.Children.Add(new TextBlock
         {
-            Text = "組み合わせのキーを全部同時に押してください。押しているキーが緑になります。全部が緑になれば、" +
+            Text = Loc.T(
+                   ("組み合わせのキーを全部同時に押してください。押しているキーが緑になります。全部が緑になれば、" +
                    "このキーボードはこの組み合わせを同時に検出できます。\n" +
                    $"注意: {KbdLayerClient.EmergencyHoldMs / 1000}秒以上押し続けると、緊急解除が実際に働き、接続中の全キーボードの" +
                    "レイヤーマップがOFFになります。全部が緑になったら、すぐに離してください。\n" +
                    "この画面を開いている間、押したキーはほかのアプリに届きません。" +
                    (driverUniqId != 0
-                       ? "キーはドライバから直接受け取ります（レイヤーマップで置き換える前の物理キー。選んでいるキーボードの入力だけ）。"
-                       : "\n低レベルキーフックモードで確認しており、選択しているキーボードレイアウトに依存して、一部キーアップが認識できないキーが存在します。その場合には、管理者権限モードでやり直してください。"),
+                       ? "キーはドライバから直接受け取ります(レイヤーマップで置き換える前の物理キー。選んでいるキーボードの入力だけ)。"
+                       : "\n管理者権限モードで実施してください。")),
+                   ("Press all the keys of the combination at the same time. The keys you are holding turn green. If all of them turn green, " +
+                   "this keyboard can detect this combination at once.\n" +
+                   $"Note: if you keep holding for {KbdLayerClient.EmergencyHoldMs / 1000} seconds or more, the emergency release actually takes effect and turns the layer map OFF on all connected keyboards. " +
+                   "Release the keys as soon as all of them are green.\n" +
+                   "While this window is open, the keys you press do not reach other apps. " +
+                   (driverUniqId != 0
+                       ? "Keys are received directly from the driver (the physical keys, before the layer map replaces them; only input from the selected keyboard)."
+                       : "\nRun this in administrator mode."))),
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, 10),
         });
@@ -76,10 +86,10 @@ public sealed class EmergencyCheckWindow : Window
         }
         panel.Children.Add(row);
 
-        _result = new TextBlock { Name = "CheckResult", TextWrapping = TextWrapping.Wrap, Text = "まだ押されていません。" };
+        _result = new TextBlock { Name = "CheckResult", TextWrapping = TextWrapping.Wrap, Text = Loc.T("まだ押されていません。", "Nothing pressed yet.") };
         panel.Children.Add(_result);
 
-        var close = new Button { Name = "CloseButton", Content = "閉じる", IsCancel = true, Width = 90, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 10, 0, 0) };
+        var close = new Button { Name = "CloseButton", Content = Loc.T("閉じる", "Close"), IsCancel = true, Width = 90, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 10, 0, 0) };
         close.Click += (_, _) => Close();
         panel.Children.Add(close);
         Content = panel;
@@ -91,7 +101,7 @@ public sealed class EmergencyCheckWindow : Window
         Loaded += (_, _) =>
         {
             try { _hook.Install(); }
-            catch (Exception ex) { _result.Text = $"キーの監視を始められませんでした: {ex.Message}"; }
+            catch (Exception ex) { _result.Text = Loc.T($"キーの監視を始められませんでした: {ex.Message}", $"Could not start monitoring keys: {ex.Message}"); }
             if (_driverUniqId != 0)
             {
                 _driverKeys = true;
@@ -103,7 +113,7 @@ public sealed class EmergencyCheckWindow : Window
                     (state, message) => Dispatcher.BeginInvoke(() =>
                     {
                         _driverKeys = false;
-                        _result.Text = $"ドライバからキーを受け取れないため、Windows のキー入力（LL フック）で確認します: {message}";
+                        _result.Text = Loc.T($"ドライバからキーを受け取れないため、Windows のキー入力(LL フック)で確認します: {message}", $"Cannot receive keys from the driver, so checking with Windows key input (LL hook): {message}");
                     }));
                 _stream.Start();
             }
@@ -132,10 +142,15 @@ public sealed class EmergencyCheckWindow : Window
 
         _result.Foreground = _succeeded ? AppTheme.Palette.OkText : AppTheme.Palette.StrongText;
         _result.Text = _succeeded
-            ? "OK: 全部のキーを同時に検出できました。キーを離してください。"
-            : $"同時に検出できたキー: 最大 {_maxTogether} / {_keys.Count}。" +
-              (_maxTogether > 0 && together == 0
-                  ? " 全部を押しても緑にならないキーがある場合、このキーボードはその組み合わせを同時に検出できません。別の組み合わせを選んでください。"
-                  : "");
+            ? Loc.T("OK: 全部のキーを同時に検出できました。キーを離してください。", "OK: All keys were detected at the same time. Release the keys.")
+            : Loc.T(
+                ($"同時に検出できたキー: 最大 {_maxTogether} / {_keys.Count}。" +
+                  (_maxTogether > 0 && together == 0
+                      ? " 全部を押しても緑にならないキーがある場合、このキーボードはその組み合わせを同時に検出できません。別の組み合わせを選んでください。"
+                      : "")),
+                ($"Keys detected at once: up to {_maxTogether} / {_keys.Count}." +
+                  (_maxTogether > 0 && together == 0
+                      ? " If some keys do not turn green even when you press them all, this keyboard cannot detect that combination at once. Choose a different combination."
+                      : "")));
     }
 }

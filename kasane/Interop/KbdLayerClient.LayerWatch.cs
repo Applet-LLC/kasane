@@ -19,6 +19,6 @@ public sealed partial class KbdLayerClient
     public LayerState WaitLayerChange(uint uniqId, uint lastSeq)
     {
         var input = Build(w => { w.Write(uniqId); w.Write(lastSeq); });
-        return ParseLayerState(Ioctl("レイヤー変化の待機", IOCTL_WAIT_LAYER_CHANGE, input, LayerStateSize));
+        return ParseLayerState(Ioctl(Kasane.Model.Loc.T("レイヤー変化の待機", "Waiting for layer changes"), IOCTL_WAIT_LAYER_CHANGE, input, LayerStateSize));
     }
 }

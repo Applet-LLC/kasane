@@ -140,7 +140,6 @@
 
         <Control Id="DirLabel" Type="Text" X="25" Y="135" Width="330" Height="10" Text="!(loc.DataDirDlg_Label)" />
         <Control Id="KasaneDirEdit" Type="Edit" X="25" Y="147" Width="320" Height="15" Property="KASANE_DIR" Sunken="yes" />
-        <Control Id="DirHint" Type="Text" X="25" Y="168" Width="330" Height="30" Text="!(loc.DataDirDlg_Hint)" />
 
         <Control Id="Back" Type="PushButton" X="192" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)">
           <Publish Event="NewDialog" Value="CustomizeDlg">1</Publish>
@@ -172,7 +171,7 @@
           <Condition Action="disable">NOT IMPORT_SETTINGS</Condition>
           <Condition Action="enable">IMPORT_SETTINGS</Condition>
         </Control>
-        <Control Id="ImportHint" Type="Text" X="40" Y="178" Width="315" Height="50" Text="!(loc.ImportSettingsDlg_Hint)" />
+        <Control Id="ImportHint" Type="Text" X="40" Y="178" Width="315" Height="30" Text="!(loc.ImportSettingsDlg_Hint)" />
 
         <Control Id="Back" Type="PushButton" X="192" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)">
           <Publish Event="NewDialog" Value="DataDirDlg">1</Publish>

@@ -1,5 +1,6 @@
 using System.IO;
 using Kasane.Interop;
+using Kasane.Model;
 
 namespace Kasane.Keycodes;
 
@@ -14,9 +15,9 @@ public static class BlobBuilder
     public static byte[] Build(int layerCount, IReadOnlyList<KeyInput> keys)
     {
         if (layerCount < 1 || layerCount > KbdLayerClient.MaxLayers)
-            throw new InvalidOperationException($"レイヤー数 {layerCount} は1〜{KbdLayerClient.MaxLayers}の範囲外です");
+            throw new InvalidOperationException(Loc.T($"レイヤー数 {layerCount} は1〜{KbdLayerClient.MaxLayers}の範囲外です", $"The layer count {layerCount} is outside the range 1 to {KbdLayerClient.MaxLayers}"));
         if (keys.Count < 1 || keys.Count > KbdLayerClient.MaxKeys)
-            throw new InvalidOperationException($"キー数 {keys.Count} は1〜{KbdLayerClient.MaxKeys}の範囲外です");
+            throw new InvalidOperationException(Loc.T($"キー数 {keys.Count} は1〜{KbdLayerClient.MaxKeys}の範囲外です", $"The key count {keys.Count} is outside the range 1 to {KbdLayerClient.MaxKeys}"));
 
         using var ms = new MemoryStream();
         using (var w = new BinaryWriter(ms))
@@ -36,7 +37,7 @@ public static class BlobBuilder
                     {
                         string token = key.TokensPerLayer[L];
                         if (!KeycodeTable.TryResolve(token, out a, out var error))
-                            throw new InvalidOperationException($"レイヤー{L}のキーコード「{token}」: {error}");
+                            throw new InvalidOperationException(Loc.T($"レイヤー{L}のキーコード「{token}」: {error}", $"Layer {L} keycode \"{token}\": {error}"));
                     }
                     w.Write(a.Type);
                     w.Write(a.Param1);

@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Kasane.Keycodes;
+using Loc = Kasane.Model.Loc;
 
 namespace Kasane.Views;
 
@@ -12,7 +13,11 @@ namespace Kasane.Views;
 /// </summary>
 public sealed class KeycodePickerWindow : Window
 {
-    private static readonly string[] ModLabels = { "左Ctrl", "左Shift", "左Alt", "左Win", "右Ctrl", "右Shift", "右Alt", "右Win" };
+    private static string[] ModLabels => new[]
+    {
+        Loc.T("左Ctrl", "Left Ctrl"), Loc.T("左Shift", "Left Shift"), Loc.T("左Alt", "Left Alt"), Loc.T("左Win", "Left Win"),
+        Loc.T("右Ctrl", "Right Ctrl"), Loc.T("右Shift", "Right Shift"), Loc.T("右Alt", "Right Alt"), Loc.T("右Win", "Right Win"),
+    };
 
     private readonly CheckBox[] _modChecks = new CheckBox[8];
     private readonly TextBox _token = new() { Name = "PickerToken", FontFamily = new FontFamily("Consolas"), FontSize = 14, IsReadOnly = true };
@@ -27,7 +32,7 @@ public sealed class KeycodePickerWindow : Window
     public KeycodePickerWindow(bool allowMods, Action<string>? onAdd = null)
     {
         _onAdd = onAdd;
-        Title = onAdd == null ? "キーを選ぶ" : "キーを選ぶ（「追加」で続けて入れられます）";
+        Title = onAdd == null ? Loc.T("キーを選ぶ", "Choose a key") : Loc.T("キーを選ぶ(「追加」で続けて入れられます)", "Choose a key (use \"Add\" to enter several in a row)");
         Name = "KeycodePicker";
         Width = 1180;
         Height = 600;
@@ -37,10 +42,10 @@ public sealed class KeycodePickerWindow : Window
         var tabs = new TabControl { Name = "PickerTabs" };
         var soft = new SoftKeyboardPanel { Margin = new Thickness(8) };
         soft.KeySelected += kc => SetBase(kc);
-        tabs.Items.Add(new TabItem { Header = "キーボード", Name = "PickerTabKeyboard", Content = soft });
-        tabs.Items.Add(new TabItem { Header = "一覧", Name = "PickerTabList", Content = BuildList() });
+        tabs.Items.Add(new TabItem { Header = Loc.T("キーボード", "Keyboard"), Name = "PickerTabKeyboard", Content = soft });
+        tabs.Items.Add(new TabItem { Header = Loc.T("一覧", "List"), Name = "PickerTabList", Content = BuildList() });
 
-        var ok = new Button { Name = "PickerOk", Content = onAdd == null ? "OK" : "追加", IsDefault = true, Width = 80, IsEnabled = false };
+        var ok = new Button { Name = "PickerOk", Content = onAdd == null ? "OK" : Loc.T("追加", "Add"), IsDefault = true, Width = 80, IsEnabled = false };
         ok.Click += (_, _) =>
         {
             if (_onAdd != null) { _onAdd(_token.Text); return; }
@@ -52,10 +57,10 @@ public sealed class KeycodePickerWindow : Window
         var bottom = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal };
         buttons.Children.Add(ok);
-        buttons.Children.Add(new Button { Name = "PickerCancel", Content = onAdd == null ? "キャンセル" : "閉じる", IsCancel = true, Width = 80 });
+        buttons.Children.Add(new Button { Name = "PickerCancel", Content = onAdd == null ? Loc.T("キャンセル", "Cancel") : Loc.T("閉じる", "Close"), IsCancel = true, Width = 80 });
         DockPanel.SetDock(buttons, Dock.Right);
         bottom.Children.Add(buttons);
-        var tokenLabel = new TextBlock { Text = "選んだキー:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
+        var tokenLabel = new TextBlock { Text = Loc.T("選んだキー:", "Selected key:"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
         DockPanel.SetDock(tokenLabel, Dock.Left);
         bottom.Children.Add(tokenLabel);
         _token.Margin = new Thickness(0, 0, 8, 0);
@@ -77,7 +82,7 @@ public sealed class KeycodePickerWindow : Window
                 mods.Children.Add(cb);
             }
             var modBox = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
-            modBox.Children.Add(new TextBlock { Text = "修飾キー（チェックすると、Ctrl+C のようなショートカットとして送ります）:", Margin = new Thickness(0, 0, 0, 4) });
+            modBox.Children.Add(new TextBlock { Text = Loc.T("修飾キー(チェックすると、Ctrl+C のようなショートカットとして送ります):", "Modifiers (when checked, the key is sent as a shortcut such as Ctrl+C):"), Margin = new Thickness(0, 0, 0, 4) });
             modBox.Children.Add(mods);
             DockPanel.SetDock(modBox, Dock.Bottom);
             root.Children.Add(modBox);
