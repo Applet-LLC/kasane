@@ -1,4 +1,4 @@
-かさね Subscription インストールガイド 1.00 2026-08-19 Applet LLC
+かさね Subscription インストールガイド 1.00 2026-10-31 Applet LLC
 ================================================================================
 
 このパッケージは、Windowsカーネルモードのキーボードクラスフィルタドライバ
@@ -102,6 +102,14 @@
 - README.ja-JP.txt
   この README です。
 
+- THIRD-PARTY-NOTICES.txt
+- third-party フォルダ
+  kasane に含まれる第三者のソフトウェアの一覧（THIRD-PARTY-NOTICES.txt）と、
+  それぞれのライセンスの全文（third-party フォルダ）です。
+
+使用許諾（License.*.rtf）、README、THIRD-PARTY-NOTICES.txt、third-party フォルダは、
+インストール先（C:\Program Filespplet\kasane）の直下にも入ります。
+
 
 アンインストール
 ----------------
@@ -148,6 +156,15 @@ kbdlayerはプロプライエタリ（非公開）ソフトウェアですが、
 この zip ファイルで提供するデバイスドライバファイルは、1台のPCに対してのみ有効
 です。デバイスドライバファイルやライセンスキーの譲渡、販売などは許可していません。
 詳しくは License.ja-JP.rtf / License.en-US.rtf をご確認ください。
+
+kasane には、次の第三者のソフトウェアやデータに由来する部分があります。
+- nodoka4（のどか）: Eclipse Public License 2.0
+- 窓使いの憂鬱（mayu）/ YAMY: BSD-3-Clause（nodoka4 を経由した由来）
+- Microsoft .NET（ランタイムとライブラリ）: MIT License
+- 配列データ（キーボードの図）: Keyboard Layout Editor ほか
+- WiX Toolset 3.14（インストーラー）: Microsoft Reciprocal License（MS-RL）
+- 天狼（sirius）: MIT License
+それぞれのライセンスの全文は、THIRD-PARTY-NOTICES.txt と third-party フォルダにあります。
 
 
 販売・開発元
