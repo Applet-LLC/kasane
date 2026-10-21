@@ -150,7 +150,7 @@ MSI に入っている、WiX 由来の部品:
 6. 天狼 (sirius)  — MIT License
 --------------------------------------------------------------------------------
 使っている場所: 他のアプリの IME の状態（ON/OFF・変換モード）を TSF で読むための、フック用の DLL
-  （sirius_hook_for_nodoka_x64.dll）。kasane-tray が使います。ソースは、のどか（nodoka）で使われている天狼（sirius）の
+  （sirius_hook_for_kasane_x64.dll）。kasane-tray が使います。ソースは、のどか（nodoka）で使われている天狼（sirius）の
   sirius_hook です（リポジトリの sirius フォルダ。全ファイルの冒頭に、次の著作権表示があります）。
 Copyright (C) 2008-2010, MATSUMOTO Reiji   License: MIT License
 ライセンス全文: third-party\sirius-MIT-LICENSE.txt   （http://www.sirius.spline.tv/wiki/WikiStart ）

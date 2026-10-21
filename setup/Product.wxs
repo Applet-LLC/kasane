@@ -354,7 +354,7 @@
     <DirectoryRef Id="TRAYDIR">
       <Component Id="CMP_SiriusHookDll" Guid="{7FF5DCD7-2A33-4E55-93AD-B6B61CEEAE3C}">
         <File Id="FIL_SiriusHookDll"
-              Source="$(var.StagingTray)\sirius_hook_for_nodoka_x64.dll"
+              Source="$(var.StagingTray)\sirius_hook_for_kasane_x64.dll"
               KeyPath="yes" />
       </Component>
     </DirectoryRef>

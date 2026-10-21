@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 namespace Kasane.Tray;
 
 /// <summary>
-/// 天狼（sirius）のフック用 DLL（sirius_hook_for_nodoka_x64.dll。ソースは sirius\ フォルダ）が、共有メモリに書く構造体
+/// 天狼（sirius）のフック用 DLL（sirius_hook_for_kasane_x64.dll。ソースは sirius\ フォルダ）が、共有メモリに書く構造体
 /// （CcommonValues）のフィールドの位置（バイト）。C# 側で構造体を再定義すると、ネストした Win32 構造体（LOGFONT など）の
 /// 大きさでずれるので、位置は DLL の <c>SiriusGetLayout</c>（offsetof）から得る。
 /// </summary>
@@ -82,7 +82,7 @@ internal static class SiriusDecoder
 /// </summary>
 internal sealed class SiriusHook : IDisposable
 {
-    public const string DllName = "sirius_hook_for_nodoka_x64.dll";
+    public const string DllName = "sirius_hook_for_kasane_x64.dll";
 
     // 登録ウィンドウメッセージ。nodoka の WM_SIRIUS_CONTROL とは別の名前にして、のどかと同じPCでも取り合わない。
     private const string ControlMessageName = "KASANE_SIRIUS_CONTROL";

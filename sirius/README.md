@@ -12,7 +12,7 @@ kasane-tray が、前面のアプリの IME の状態を、IMM32 に加えて TS
 
 | フォルダ | 内容 |
 |---|---|
-| `sirius_hook\` | DLL 本体（x64 のみ）。出力: `sirius\bin\<構成>\sirius_hook_for_nodoka_x64.dll` |
+| `sirius_hook\` | DLL 本体（x64 のみ）。出力: `sirius\bin\<構成>\sirius_hook_for_kasane_x64.dll` |
 | `include\sirius\` | 共通ヘッダ（`commonValues.h` ほか） |
 | `sdk\getCommonValues\` | DLL をロードして、共有メモリの IME の状態を表示するサンプル（診断用。元のまま） |
 
