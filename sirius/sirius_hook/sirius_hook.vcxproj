@@ -49,7 +49,7 @@
     <!-- 出力は sirius\bin\<構成>\ （ソリューションの場所に依存しない）。DLL 名は構成によらず同じ。 -->
     <OutDir>$(MSBuildThisFileDirectory)..\bin\$(Configuration)\</OutDir>
     <IntDir>$(MSBuildThisFileDirectory)..\obj\$(Configuration)\sirius_hook\</IntDir>
-    <TargetName>sirius_hook_for_nodoka_x64</TargetName>
+    <TargetName>sirius_hook_for_kasane_x64</TargetName>
     <LinkIncremental Condition="'$(Configuration)'=='Debug'">true</LinkIncremental>
     <LinkIncremental Condition="'$(Configuration)'=='Release'">false</LinkIncremental>
   </PropertyGroup>
@@ -69,7 +69,7 @@
       <AdditionalOptions>/SECTION:.HookData,RWS %(AdditionalOptions)</AdditionalOptions>
       <AdditionalDependencies>imm32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(WindowsSdkDir)Lib\10.0.26100.0\um\x64;$(WindowsSdkDir)Lib\10.0.26100.0\ucrt\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <OutputFile>$(OutDir)sirius_hook_for_nodoka_x64.dll</OutputFile>
+      <OutputFile>$(OutDir)sirius_hook_for_kasane_x64.dll</OutputFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
       <TargetMachine>MachineX64</TargetMachine>
@@ -92,10 +92,10 @@
       <AdditionalOptions>/SECTION:.HookData,RWS %(AdditionalOptions)</AdditionalOptions>
       <AdditionalDependencies>imm32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(WindowsSdkDir)Lib\10.0.26100.0\um\x64;$(WindowsSdkDir)Lib\10.0.26100.0\ucrt\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <OutputFile>$(OutDir)sirius_hook_for_nodoka_x64.dll</OutputFile>
+      <OutputFile>$(OutDir)sirius_hook_for_kasane_x64.dll</OutputFile>
       <UACUIAccess>false</UACUIAccess>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ProgramDatabaseFile>$(OutDir)sirius_hook_for_nodoka_x64.pdb</ProgramDatabaseFile>
+      <ProgramDatabaseFile>$(OutDir)sirius_hook_for_kasane_x64.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>

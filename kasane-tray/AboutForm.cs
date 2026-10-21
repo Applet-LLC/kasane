@@ -38,28 +38,49 @@ internal sealed class AboutForm : Form
         MinimizeBox = false;
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.CenterScreen;
-        ClientSize = new Size(460, 250);
         Icon = TrayIcons.Load();
 
-        Controls.Add(new Label { Name = "AboutName", Text = AppInfo.DisplayName, Font = new Font(Font.FontFamily, 18f, FontStyle.Bold), AutoSize = true, Location = new Point(22, 16) });
-        Controls.Add(new Label { Name = "AboutVersion", Text = $"バージョン {AppInfo.VersionText}", AutoSize = true, Location = new Point(24, 62) });
-        Controls.Add(new Label { Name = "AboutBuildTime", Text = $"ビルド日時 {AppInfo.BuildTimeText}", AutoSize = true, Location = new Point(24, 86) });
+        // 並べ方は、位置の数値ではなく、レイアウトの部品（縦に並べる）に任せる。以前は、位置を直接書いたため、
+        // 画面の拡大率が高いと、大きい字の「かさね」の下に、次の行が重なって、上が隠れた。
+        var content = new FlowLayoutPanel
+        {
+            Name = "AboutContent", FlowDirection = FlowDirection.TopDown, WrapContents = false,
+            AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = Padding.Empty,
+        };
+        content.Controls.Add(new Label { Name = "AboutName", Text = AppInfo.DisplayName, Font = new Font(Font.FontFamily, 18f, FontStyle.Bold), AutoSize = true, Margin = new Padding(0, 0, 0, 6) });
+        content.Controls.Add(new Label { Name = "AboutVersion", Text = $"バージョン {AppInfo.VersionText}", AutoSize = true, Margin = new Padding(2, 0, 0, 4) });
+        content.Controls.Add(new Label { Name = "AboutBuildTime", Text = $"ビルド日時 {AppInfo.BuildTimeText}", AutoSize = true, Margin = new Padding(2, 0, 0, 4) });
         // 実行しているファイルの、インストール先を含むフルパス（長くても折り返して、選んでコピーできる）。
-        Controls.Add(new TextBox
+        content.Controls.Add(new TextBox
         {
             Name = "AboutPath", Text = AppInfo.ExePath, ReadOnly = true, BorderStyle = BorderStyle.None, BackColor = BackColor,
-            ForeColor = SystemColors.GrayText, Multiline = true, Location = new Point(24, 112), Size = new Size(412, 36), ScrollBars = ScrollBars.None,
+            ForeColor = SystemColors.GrayText, Multiline = true, Size = new Size(560, 36), ScrollBars = ScrollBars.None, Margin = new Padding(2, 0, 0, 8),
         });
-        var link = new LinkLabel { Name = "AboutWebsite", Text = AppInfo.Website, AutoSize = true, Location = new Point(24, 160) };
+        var link = new LinkLabel { Name = "AboutWebsite", Text = AppInfo.Website, AutoSize = true, Margin = new Padding(2, 0, 0, 4) };
         link.LinkClicked += (_, _) => OpenWebsite();
-        Controls.Add(link);
-        Controls.Add(new Label { Name = "AboutCopyright", Text = AppInfo.Copyright, ForeColor = SystemColors.GrayText, AutoSize = true, Location = new Point(24, 184) });
+        content.Controls.Add(link);
+        content.Controls.Add(new Label { Name = "AboutCopyright", Text = AppInfo.Copyright, ForeColor = SystemColors.GrayText, AutoSize = true, Margin = new Padding(2, 0, 0, 0) });
 
-        var ok = new Button { Name = "AboutOk", Text = "OK", Size = new Size(80, 28), Location = new Point(356, 210) };
+        // OK ボタンは、右下に置く（下端は、最後の行 Copyright の下端と同じ。行の高さが、その行を決める）。文字の下が切れないよう、少し高くする。
+        var ok = new Button { Name = "AboutOk", Text = "OK", Size = new Size(80, 32), Anchor = AnchorStyles.Bottom | AnchorStyles.Right, Margin = new Padding(16, 0, 0, 0) };
         ok.Click += (_, _) => Close(); // Show() で開く（非モーダル）ので、DialogResult では閉じない
-        Controls.Add(ok);
+
+        var layout = new TableLayoutPanel
+        {
+            Name = "AboutLayout", ColumnCount = 2, RowCount = 1, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Padding = new Padding(24, 18, 24, 22),
+        };
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.Controls.Add(content, 0, 0);
+        layout.Controls.Add(ok, 1, 0);
+
+        AutoSize = true;
+        AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        Controls.Add(layout);
         AcceptButton = ok;
         CancelButton = ok;
-        TrayTheme.Apply(this); // 色のモード（ダークなら暗くする）
+        ActiveControl = ok; // 最初に、パスの欄を選択状態にしない        TrayTheme.Apply(this); // 色のモード（ダークなら暗くする）
     }
 }
