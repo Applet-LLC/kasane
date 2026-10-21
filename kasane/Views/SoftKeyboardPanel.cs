@@ -13,7 +13,7 @@ namespace Kasane.Views;
 /// </summary>
 public sealed class SoftKeyboardPanel : StackPanel
 {
-    private static readonly Brush SelectedBrush = new SolidColorBrush(Color.FromRgb(0xBF, 0xDB, 0xFF));
+    private static Brush SelectedBrush => AppTheme.Palette.KeySelected;
 
     private readonly KeyboardCanvas _canvas = new();
     private readonly ComboBox _layoutCombo = new() { Name = "SoftKeyboardLayout", Width = 140, HorizontalAlignment = HorizontalAlignment.Left };
@@ -52,7 +52,7 @@ public sealed class SoftKeyboardPanel : StackPanel
         header.Children.Add(new TextBlock
         {
             Text = "キーをクリックして選びます（キーコード名はUS配列基準です）。",
-            Foreground = Brushes.DimGray, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0),
+            Foreground = AppTheme.Palette.SubText, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0),
         });
         Children.Add(header);
         Children.Add(new ScrollViewer
@@ -107,9 +107,9 @@ public sealed class SoftKeyboardPanel : StackPanel
         return new KeyVisual(
             slot.MainLegend.Length > 0 ? slot.MainLegend : slot.PrintedLabel,
             bg,
-            selected ? Brushes.SteelBlue : KeyboardCanvas.DefaultBorderBrush,
+            selected ? AppTheme.Palette.KeySelectedBorder : KeyboardCanvas.DefaultBorderBrush,
             selected ? 2 : 1,
             selectable ? slot.DefaultKeycode : slot.Description,
-            selectable ? null : Brushes.Silver);
+            selectable ? null : AppTheme.Palette.KeyDisabledText);
     }
 }

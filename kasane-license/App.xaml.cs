@@ -32,6 +32,8 @@ public partial class App : System.Windows.Application
 
         // MainWindow（StartupUri）が生成される前に表示言語を確定させる。
         LocalizationHelper.Initialize();
+        // 色のモード（tray.json の ColorMode。kasane の設定の「全般」タブで選ぶ）。最初の画面の前に適用する。
+        Kasane.Views.AppTheme.Initialize(Kasane.Model.ColorModeStore.Read(), kasaneMetrics: false);
         base.OnStartup(e);
     }
 }

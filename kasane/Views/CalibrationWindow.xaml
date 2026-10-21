@@ -19,7 +19,7 @@
                          ToolTip="黄色のキーを順に押して、全部のキーを実測します（管理者権限が要ります）。" />
         </StackPanel>
         <TextBlock x:Name="TxtInstruction" DockPanel.Dock="Top" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" />
-        <TextBlock x:Name="TxtNote" DockPanel.Dock="Top" Margin="0,4,0,0" Foreground="DimGray" TextWrapping="Wrap"
+        <TextBlock x:Name="TxtNote" DockPanel.Dock="Top" Margin="0,4,0,0" Foreground="{DynamicResource Theme.TextDim}" TextWrapping="Wrap"
                    Text="このウィンドウが前面にある間、キーボードで押したキーはWindowsに送られません。操作はマウスで行ってください。" />
         <TextBlock x:Name="TxtLast" DockPanel.Dock="Top" Margin="0,6,0,6" FontSize="13" TextWrapping="Wrap" />
 

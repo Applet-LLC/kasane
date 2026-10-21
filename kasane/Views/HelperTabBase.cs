@@ -25,7 +25,7 @@ internal abstract class HelperTabBase
         Model = model;
         Owner = owner;
 
-        Stack.Children.Add(new TextBlock { Text = help, TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, Margin = new Thickness(0, 0, 0, 10) });
+        Stack.Children.Add(new TextBlock { Text = help, TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 10) });
 
         _deviceRadio = new RadioButton { Name = idPrefix + "ScopeDevice", Content = "このキーボード", GroupName = idPrefix + "Scope", Margin = new Thickness(0, 0, 16, 0) };
         _globalRadio = new RadioButton { Name = idPrefix + "ScopeGlobal", Content = "全キーボード共通", GroupName = idPrefix + "Scope" };

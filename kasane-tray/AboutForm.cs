@@ -60,5 +60,6 @@ internal sealed class AboutForm : Form
         Controls.Add(ok);
         AcceptButton = ok;
         CancelButton = ok;
+        TrayTheme.Apply(this); // 色のモード（ダークなら暗くする）
     }
 }

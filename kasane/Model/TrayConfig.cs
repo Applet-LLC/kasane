@@ -30,6 +30,17 @@ public sealed class TrayConfig
     [JsonIgnore]
     public ImeSourceMode ImeSourceMode => ImeSourceModes.Parse(ImeSource);
 
+    /// <summary>
+    /// 色のモード（<see cref="Model.ColorMode"/> の名前。Light / Dark。2026-10-21）。既定は Light。kasane の全画面・トレイのメニューとバージョン情報・ライセンス管理に効く。
+    /// 無い・読めない値は既定。設定の「全般」タブで選ぶ。
+    /// </summary>
+    [JsonPropertyName("ColorMode")]
+    public string ColorModeName { get; set; } = nameof(ColorMode.Light);
+
+    /// <summary><see cref="ColorModeName"/> を解釈したもの（保存はしない）。</summary>
+    [JsonIgnore]
+    public ColorMode ColorModeValue => ColorModes.Parse(ColorModeName);
+
     /// <summary>トレイのアイコンの右下に、今のレイヤー番号を重ねる（基底のレイヤーだけのときは重ねない）。既定はON。</summary>
     public bool ShowLayerOnIcon { get; set; } = true;
 

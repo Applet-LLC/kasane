@@ -15,7 +15,7 @@ internal sealed class NicolaLinkPanel : HelperTabBase
     private readonly Action<bool> _setGlobal;
     private readonly Action _changed;
     private readonly Button _inherit = Btn("NicolaLinkInheritButton", "共通の設定に従う", 150);
-    private readonly TextBlock _hint = new() { TextWrapping = TextWrapping.Wrap, Foreground = System.Windows.Media.Brushes.DimGray, Margin = new Thickness(0, 4, 0, 6) };
+    private readonly TextBlock _hint = new() { TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 4, 0, 6) };
     private bool _loading;
 
     /// <summary>連動のチェック（今の範囲での値）。</summary>

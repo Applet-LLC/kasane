@@ -63,7 +63,7 @@ public sealed class HelperActionEditorWindow : Window
     private readonly StackPanel _pausePanel = new();
     private readonly StackPanel _argsRow;
     private readonly StackPanel _workDirRow;
-    private readonly TextBlock _pathHelp = new() { TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, Margin = new Thickness(0, 0, 0, 4) };
+    private readonly TextBlock _pathHelp = new() { TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 4) };
     private readonly TextBlock _status = new() { Name = "ActionStatus", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) };
     private bool _loading = true;
 
@@ -123,7 +123,7 @@ public sealed class HelperActionEditorWindow : Window
         _workDirRow = Row("作業フォルダ", _workDir);
         _launchPanel.Children.Add(_argsRow);
         _launchPanel.Children.Add(_workDirRow);
-        _launchPanel.Children.Add(new TextBlock { Text = "%USERPROFILE% のような環境変数が使えます。昇格（管理者として実行）はしません。", Foreground = Brushes.DimGray, TextWrapping = TextWrapping.Wrap });
+        _launchPanel.Children.Add(new TextBlock { Text = "%USERPROFILE% のような環境変数が使えます。昇格（管理者として実行）はしません。", Foreground = AppTheme.Palette.SubText, TextWrapping = TextWrapping.Wrap });
 
         // Sequence
         _sequencePanel.Children.Add(Help(
@@ -379,7 +379,7 @@ public sealed class HelperActionEditorWindow : Window
     };
 
     private static TextBlock Help(string text) =>
-        new() { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, Margin = new Thickness(0, 0, 0, 8) };
+        new() { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 8) };
 
     private static StackPanel Row(string label, UIElement input, string? help = null)
     {
@@ -387,7 +387,7 @@ public sealed class HelperActionEditorWindow : Window
         row.Children.Add(new TextBlock { Text = label, Width = 100, VerticalAlignment = VerticalAlignment.Center });
         row.Children.Add(input);
         if (help != null)
-            row.Children.Add(new TextBlock { Text = help, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.DimGray });
+            row.Children.Add(new TextBlock { Text = help, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = AppTheme.Palette.SubText });
         return row;
     }
 }

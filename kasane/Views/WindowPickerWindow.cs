@@ -30,7 +30,7 @@ public sealed class WindowPickerWindow : Window
             Text = "開いているウィンドウの一覧です。選ぶと、exe のファイル名が照合条件（Exe）に入ります。" +
                    "管理者として動くアプリも、exe の名前は取れます。",
             TextWrapping = TextWrapping.Wrap,
-            Foreground = Brushes.DimGray,
+            Foreground = AppTheme.Palette.SubText,
         };
         var refresh = new Button { Name = "RefreshButton", Content = "一覧を更新", Width = 100, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6, 0, 0) };
         refresh.Click += (_, _) => Reload();

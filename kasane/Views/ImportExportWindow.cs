@@ -50,7 +50,7 @@ public sealed class ImportExportWindow : Window
     private readonly TextBlock _exDest = new()
     {
         Name = "ExportDestinationText", VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(10, 0, 0, 3),
-        Foreground = Brushes.DimGray, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 420,
+        Foreground = AppTheme.Palette.SubText, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 420,
     };
     private string? _lastExportPath; // 直前に書き出したファイル（または KeymapTool 用 JSON のフォルダ）。書き出す前は null（設定の保存先を出力先として見せる）
 
@@ -160,12 +160,12 @@ public sealed class ImportExportWindow : Window
     private static TextBox ReportBox(string name) => new()
     {
         Name = name, IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-        MinHeight = 90, Margin = new Thickness(0, 8, 0, 0), Background = new SolidColorBrush(Color.FromRgb(0xF7, 0xF7, 0xF7)),
+        MinHeight = 90, Margin = new Thickness(0, 8, 0, 0), Background = AppTheme.Palette.ReportBackground,
     };
 
     private static CheckBox Check(string name, string text) => new() { Name = name, Content = text, IsChecked = true, Margin = new Thickness(0, 1, 0, 1) };
 
-    private static TextBlock Help(string text) => new() { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, Margin = new Thickness(0, 0, 0, 8) };
+    private static TextBlock Help(string text) => new() { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 8) };
 
     private static string FileNameFor(PortableScope scope, uint uniq) =>
         scope == PortableScope.All ? "kasane-all.kasane.json" : $"kasane-{scope.ToString().ToLowerInvariant()}-{uniq:X8}.kasane.json";
@@ -404,7 +404,7 @@ public sealed class ImportExportWindow : Window
             _clPickBoxes[d.UniqId] = box;
             _clPickList.Children.Add(box);
         }
-        if (_devices.Count == 0) _clPickList.Children.Add(new TextBlock { Text = "（接続中のキーボードがありません）", Foreground = Brushes.DimGray });
+        if (_devices.Count == 0) _clPickList.Children.Add(new TextBlock { Text = "（接続中のキーボードがありません）", Foreground = AppTheme.Palette.SubText });
         p.Children.Add(_clPickList);
         _clPick.Checked += (_, _) => _clPickList.IsEnabled = true;
         _clPick.Unchecked += (_, _) => _clPickList.IsEnabled = false;
@@ -427,7 +427,7 @@ public sealed class ImportExportWindow : Window
             Name = "ClearDriverNote",
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 10, 0, 0),
-            Foreground = _canWriteDriver ? Brushes.DarkRed : Brushes.DimGray,
+            Foreground = _canWriteDriver ? Brushes.DarkRed : AppTheme.Palette.SubText,
             Text = _canWriteDriver
                 ? "ドライバに保存された設定も、同時に消します（管理者権限があるため）。「同じ型番で共有」のキーボードは、同じ型番のものすべてに効きます。"
                 : "ドライバには書き込めない（接続していない、または閲覧専用）ため、画面の設定だけを消します。ドライバの設定は残ります（あとで管理者として「キーボードに適用」するか、このクリアをやり直してください）。",
@@ -622,7 +622,7 @@ public sealed class ImportExportWindow : Window
     {
         _file = file;
         _imPath.Text = path;
-        _imSummary.Foreground = Brushes.Black;
+        _imSummary.Foreground = AppTheme.Palette.StrongText;
         var scope = file.ParsedScope!.Value;
 
         var lines = new List<string> { $"{ScopeText(scope)}（{file.Exported ?? "日時不明"}、{file.App ?? "?"}）" };
@@ -685,7 +685,7 @@ public sealed class ImportExportWindow : Window
         {
             Text = "ファイルのキーボードを、どのキーボードに読み込むかを選びます（UniqId、次に機器の ID が同じものを自動で選んであります）。" +
                    "読み込む前に、今の設定を自動でバックアップします。",
-            TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, Margin = new Thickness(0, 0, 0, 6),
+            TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 6),
         });
 
         var targets = new List<Target> { new(null, "(読み込まない)") };

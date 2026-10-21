@@ -107,7 +107,7 @@ public partial class KeyAssignDialog : Window
         {
             Text = "NLS（National Language Support）キー: 日本語キーボードにあるキーです。使っているキーボード（US配列など）に無いキーも、" +
                    "出力としては割り当てられます（例: US配列のキーに「変換」を割り当てる）。",
-            TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, Margin = new Thickness(4, 4, 4, 8),
+            TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(4, 4, 4, 8),
         });
         panel.Children.Add(KeyButtons(cat.Keycodes));
         return panel;

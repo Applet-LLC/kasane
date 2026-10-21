@@ -168,7 +168,7 @@ public sealed class AppRuleEditorWindow : Window
     private static TextBox Box(string name, double width) => new() { Name = name, Width = width, VerticalContentAlignment = VerticalAlignment.Center };
 
     private static TextBlock Help(string text) =>
-        new() { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, Margin = new Thickness(0, 0, 0, 10) };
+        new() { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 10) };
 
     private static StackPanel Row(string label, UIElement input, string? help = null)
     {
@@ -176,7 +176,7 @@ public sealed class AppRuleEditorWindow : Window
         row.Children.Add(new TextBlock { Text = label, Width = 110, VerticalAlignment = VerticalAlignment.Center });
         row.Children.Add(input);
         if (help != null)
-            row.Children.Add(new TextBlock { Text = help, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.DimGray, TextWrapping = TextWrapping.Wrap, MaxWidth = 260 });
+            row.Children.Add(new TextBlock { Text = help, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = AppTheme.Palette.SubText, TextWrapping = TextWrapping.Wrap, MaxWidth = 260 });
         return row;
     }
 }

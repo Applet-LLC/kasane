@@ -9,7 +9,7 @@
         <!-- 閲覧専用モード（管理者として実行していない）の案内。ドライバは設定の書き換えと
              キーのキャプチャを管理者にしか許さない（kbdlayer_ioctl.h のアクセスビット参照）。 -->
         <Border x:Name="ReadOnlyBanner" DockPanel.Dock="Top" Visibility="Collapsed"
-                Background="#FFF4CE" BorderBrush="#E0C060" BorderThickness="0,0,0,1" Padding="8,6">
+                Background="{DynamicResource Theme.BannerBackground}" BorderBrush="{DynamicResource Theme.BannerBorder}" BorderThickness="0,0,0,1" Padding="8,6">
             <DockPanel>
                 <Button DockPanel.Dock="Right" Content="管理者として再起動" Click="BtnRestartAsAdmin_Click" />
                 <TextBlock VerticalAlignment="Center" TextWrapping="Wrap"
@@ -48,9 +48,6 @@
             <Button x:Name="BtnRemoveLayer" Content="− 最後を削除" Click="BtnRemoveLayer_Click" />
         </StackPanel>
 
-        <!-- ドライバの状態（ON/OFF・適用済みか）。キー図だけでは、今リマップが効いているかが分からないため。 -->
-        <TextBlock x:Name="TxtDriverState" DockPanel.Dock="Top" Margin="10,0,8,4" AutomationProperties.AutomationId="DriverStateText" />
-
         <StatusBar DockPanel.Dock="Bottom">
             <TextBlock x:Name="TxtStatus" />
         </StatusBar>
@@ -73,7 +70,7 @@
             <Button x:Name="BtnOff" Content="OFF（素通しに戻す）" Click="BtnOff_Click" />
         </WrapPanel>
 
-        <TextBlock DockPanel.Dock="Bottom" Margin="10,0" Foreground="DimGray" TextWrapping="Wrap"
+        <TextBlock DockPanel.Dock="Bottom" Margin="10,0" Foreground="{DynamicResource Theme.TextDim}" TextWrapping="Wrap"
                    Text="クリック: 割り当てを変更 ／ 右クリック: 実測値を消す・割り当てを戻す ／ 青: 既定から変更 ／ 緑: レイヤー・Mod-Tap等 ／ 右下の印: M=マクロ・D=タップダンス・C=コンボ・R=キー置換（ボタンの（ ）は定義の数）／ 橙枠: 実測値が既定と異なる ／ 赤枠: スキャンコード不明（要実測） ／ ▽: 下のレイヤーと同じ（透過）" />
 
         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">

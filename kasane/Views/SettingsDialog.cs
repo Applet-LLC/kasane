@@ -52,6 +52,7 @@ public sealed class SettingsDialog : Window
     private bool _globalNicolaLink; // 全キーボード共通の、NICOLAのIME連動（tray.json の ImeLink。OK のとき保存）
     private CheckBox _showLayerOnIcon = null!;
     private ComboBox _imeSourceBox = null!; // IME の状態の取得方法（tray.json の ImeSource）
+    private ComboBox _colorModeBox = null!;  // 色のモード（tray.json の ColorMode）。OK で保存して、すぐ全画面に効かせる
     private readonly TrayConfig _trayConfig = TrayConfig.Load();
     private TextBlock _nicolaSummary = null!;
     // ヘルパー動作・アプリ別レイヤー（このキーボードの helper.json と、共通の tray.json の Helper。OKで直接保存する）
@@ -135,8 +136,18 @@ public sealed class SettingsDialog : Window
             Margin = new Thickness(0, 12, 0, 8),
         };
         panel.Children.Add(_showLayerOnIcon);
+
+        // 色のモード（ライト／ダーク）。既定はライト。OK で、開いている画面と、これから開く画面すべてに効く。
+        panel.Children.Add(new TextBlock { Text = "画面の色", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 12, 0, 4) });
+        _colorModeBox = new ComboBox { Name = "ColorModeBox", Width = 160, ItemsSource = ColorModeLabels, SelectedIndex = (int)_trayConfig.ColorModeValue };
+        Row(panel, "色のモード", _colorModeBox,
+            "ライトは、これまでの見た目です（既定）。ダークは、背景を暗くします（Windows の設定のモードには、合わせていません）。" +
+            "OK で保存すると、すぐに全部の画面に効きます。Windows が出す確認の画面（メッセージ・ファイルを選ぶ画面）は、色が変わりません。トレイとライセンス管理にも効きます（次に開いたときから）。",
+            labelWidth: 120);
         return panel;
     }
+
+    private static readonly string[] ColorModeLabels = { "ライト（既定）", "ダーク" };
 
     private static readonly string[] DesktopViewLabels =
     {
@@ -202,7 +213,7 @@ public sealed class SettingsDialog : Window
         panel.Children.Add(new TextBox
         {
             Name = "AboutPath", Text = AppInfo.ExePath, IsReadOnly = true, BorderThickness = new Thickness(0), Background = Brushes.Transparent,
-            Foreground = Brushes.DimGray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(-2, 6, 0, 0),
+            Foreground = AppTheme.Palette.SubText, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(-2, 6, 0, 0),
         });
         var link = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run(AppInfo.Website)) { NavigateUri = new Uri(AppInfo.Website) };
         link.RequestNavigate += (_, e) =>
@@ -212,7 +223,7 @@ public sealed class SettingsDialog : Window
             e.Handled = true;
         };
         panel.Children.Add(new TextBlock(link) { Name = "AboutWebsite", Margin = new Thickness(0, 14, 0, 0) });
-        panel.Children.Add(new TextBlock { Name = "AboutCopyright", Text = AppInfo.Copyright, Foreground = Brushes.DimGray, Margin = new Thickness(0, 4, 0, 0) });
+        panel.Children.Add(new TextBlock { Name = "AboutCopyright", Text = AppInfo.Copyright, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 4, 0, 0) });
         return panel;
     }
 
@@ -234,7 +245,7 @@ public sealed class SettingsDialog : Window
         new() { Content = content, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(10) };
 
     private static TextBlock Help(string text) =>
-        new() { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, Margin = new Thickness(0, 0, 0, 10) };
+        new() { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 10) };
 
     private static StackPanel Row(Panel parent, string label, UIElement input, string? help = null, double labelWidth = 120)
     {
@@ -242,7 +253,7 @@ public sealed class SettingsDialog : Window
         row.Children.Add(new TextBlock { Text = label, Width = labelWidth, VerticalAlignment = VerticalAlignment.Center });
         row.Children.Add(input);
         if (help != null)
-            row.Children.Add(new TextBlock { Text = help, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.DimGray, TextWrapping = TextWrapping.Wrap, MaxWidth = 340 });
+            row.Children.Add(new TextBlock { Text = help, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = AppTheme.Palette.SubText, TextWrapping = TextWrapping.Wrap, MaxWidth = 340 });
         parent.Children.Add(row);
         return row;
     }
@@ -865,7 +876,7 @@ public sealed class SettingsDialog : Window
         }
         if (backups.Count == 0)
         {
-            panel.Children.Add(new TextBlock { Name = "ImportBackupNone", Text = "退避はありません。", Foreground = Brushes.DimGray });
+            panel.Children.Add(new TextBlock { Name = "ImportBackupNone", Text = "退避はありません。", Foreground = AppTheme.Palette.SubText });
             return;
         }
 
@@ -982,7 +993,7 @@ public sealed class SettingsDialog : Window
             type.Text = p.Type; subtype.Text = p.Subtype; identifier.Text = p.Identifier; jpn.Text = p.Jpn; kor.Text = p.Kor;
         };
 
-        var others = new TextBlock { Name = "I8042Others", Foreground = Brushes.DimGray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) };
+        var others = new TextBlock { Name = "I8042Others", Foreground = AppTheme.Palette.SubText, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) };
         var status = Status("I8042Status");
         var apply = new Button { Name = "I8042ApplyButton", Content = "反映する", IsEnabled = IsOnline && _canWrite, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0), Padding = new Thickness(8, 2, 8, 2) };
         panel.Children.Add(others);
@@ -1178,13 +1189,16 @@ public sealed class SettingsDialog : Window
         bool remapOnlyWhileTray = _remapOnlyWhileTray.IsChecked == true;
         int? desktopView = SelectedDesktopViewMode();
         string imeSource = ((ImeSourceMode)Math.Max(0, _imeSourceBox.SelectedIndex)).ToString();
-        if (imeSource != _trayConfig.ImeSource || imeLink != _trayConfig.ImeLink || showLayer != _trayConfig.ShowLayerOnIcon || remapOnlyWhileTray != _trayConfig.RemapOnlyWhileTrayRuns
+        string colorMode = ((ColorMode)Math.Max(0, _colorModeBox.SelectedIndex)).ToString();
+        bool colorChanged = colorMode != _trayConfig.ColorModeName;
+        if (colorChanged || imeSource != _trayConfig.ImeSource || imeLink != _trayConfig.ImeLink || showLayer != _trayConfig.ShowLayerOnIcon || remapOnlyWhileTray != _trayConfig.RemapOnlyWhileTrayRuns
             || desktopView != _trayConfig.DesktopViewMode)
         {
             try
             {
                 _trayConfig.DesktopViewMode = desktopView;
                 _trayConfig.ImeSource = imeSource;
+                _trayConfig.ColorModeName = colorMode;
                 _trayConfig.ImeLink = imeLink;
                 _trayConfig.ShowLayerOnIcon = showLayer;
                 _trayConfig.RemapOnlyWhileTrayRuns = remapOnlyWhileTray;
@@ -1195,6 +1209,7 @@ public sealed class SettingsDialog : Window
                 Fail("TabImeLayer", $"トレイの設定を保存できませんでした: {ex.Message}");
                 return false;
             }
+            if (colorChanged) AppTheme.Apply(_trayConfig.ColorModeValue); // 保存できたら、すぐ全画面に効かせる
         }
         return true;
     }

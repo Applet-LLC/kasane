@@ -67,8 +67,9 @@ public sealed class KeyboardCanvas : Canvas
 
     public KeyboardLayout? Layout => _layout;
 
-    public static readonly Brush DefaultKeyBrush = new SolidColorBrush(Color.FromRgb(0xF4, 0xF4, 0xF4));
-    public static readonly Brush DefaultBorderBrush = new SolidColorBrush(Color.FromRgb(0x9A, 0x9A, 0x9A));
+    // 色のモード（ライト／ダーク）で変わる（AppTheme.Palette）。
+    public static Brush DefaultKeyBrush => Kasane.Views.AppTheme.Palette.KeyDefault;
+    public static Brush DefaultBorderBrush => Kasane.Views.AppTheme.Palette.KeyBorder;
 
     /// <summary>レイアウトを差し替え、visualFor で各キーの見た目を決めて描き直す。</summary>
     public void Render(KeyboardLayout? layout, Func<KeySlot, KeyVisual> visualFor)
@@ -167,7 +168,7 @@ public sealed class KeyboardCanvas : Canvas
             FontFamily = KeyFont,
             FontSize = visual.MainText.Length > 6 ? 9 : 12,
             FontWeight = FontWeights.SemiBold,
-            Foreground = visual.MainForeground ?? Brushes.Black,
+            Foreground = visual.MainForeground ?? Kasane.Views.AppTheme.Palette.KeyText,
             Margin = new Thickness(2, 10, 2, 2),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,

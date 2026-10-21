@@ -8,7 +8,8 @@
         WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
-        <Style TargetType="Button">
+        <!-- アプリ全体のスタイル（ダークのときの暗いボタン）の上に、この画面の寸法を足す。 -->
+        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Padding" Value="12,4"/>
             <Setter Property="MinWidth" Value="80"/>
         </Style>
@@ -47,7 +48,7 @@
             </Grid.RowDefinitions>
 
             <!-- ライセンス状態表示 -->
-            <Border Grid.Row="0" BorderBrush="#CCCCCC" BorderThickness="1"
+            <Border Grid.Row="0" BorderBrush="{DynamicResource Theme.LicenseLine}" BorderThickness="1"
                     CornerRadius="4" Padding="12,10">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -56,9 +57,9 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0" Margin="0,0,10,0">
                         <TextBlock x:Name="TxtStatus" FontSize="14" FontWeight="Bold"
-                                   Foreground="#555555" TextWrapping="Wrap"/>
-                        <TextBlock x:Name="TxtExpiry" Foreground="#666666" TextWrapping="Wrap"/>
-                        <TextBlock x:Name="TxtUser"   Foreground="#666666" TextWrapping="Wrap"/>
+                                   Foreground="{DynamicResource Theme.LicenseMuted}" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="TxtExpiry" Foreground="{DynamicResource Theme.LicenseMuted2}" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="TxtUser"   Foreground="{DynamicResource Theme.LicenseMuted2}" TextWrapping="Wrap"/>
                     </StackPanel>
                     <Button x:Name="BtnRefresh" Grid.Column="1"
                             VerticalAlignment="Top"
@@ -89,12 +90,12 @@
                 <TextBox x:Name="TxtActivatedKey" IsReadOnly="True"
                          Height="28" VerticalContentAlignment="Center"
                          FontFamily="Consolas" FontSize="13"
-                         Background="#F2F2F2" Foreground="#555555"/>
+                         Background="{DynamicResource Theme.LicenseReadOnly}" Foreground="{DynamicResource Theme.LicenseMuted}"/>
             </StackPanel>
 
             <!-- アクティベート処理中の接続診断 -->
             <StackPanel Grid.Row="4" x:Name="PanelDiagnostics" Visibility="Collapsed">
-                <Border BorderBrush="#DDDDDD" BorderThickness="1" CornerRadius="4" Padding="10,8">
+                <Border BorderBrush="{DynamicResource Theme.LicenseLine2}" BorderThickness="1" CornerRadius="4" Padding="10,8">
                     <StackPanel>
                         <TextBlock x:Name="TxtDiagService" FontSize="12"/>
                         <TextBlock x:Name="TxtDiagGumroad" FontSize="12"/>
@@ -104,14 +105,14 @@
 
             <!-- エラー・メッセージ -->
             <TextBlock x:Name="TxtMessage" Grid.Row="6"
-                       Foreground="#CC0000" TextWrapping="Wrap"
+                       Foreground="{DynamicResource Theme.LicenseError}" TextWrapping="Wrap"
                        Visibility="Collapsed"/>
 
             <!-- Gumroad リンク -->
             <StackPanel Grid.Row="8" Orientation="Horizontal"
                         HorizontalAlignment="Right">
                 <TextBlock x:Name="LblPurchase" VerticalAlignment="Center" Margin="0,0,8,0"
-                           Foreground="#666666" FontSize="12"/>
+                           Foreground="{DynamicResource Theme.LicenseMuted2}" FontSize="12"/>
                 <TextBlock>
                     <Hyperlink x:Name="LinkGumroad" Click="LinkGumroad_Click">
                         <Run x:Name="RunLinkGumroad"/>
