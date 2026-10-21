@@ -306,7 +306,7 @@ public class HelperSummaryTests
     {
         Assert.Equal("起動: notepad.exe a.txt", HelperSummary.Body(new HelperActionBody { Type = HelperActionBody.Launch, Path = "notepad.exe", Args = "a.txt" }));
         Assert.Equal("開く: https://example.com", HelperSummary.Body(new HelperActionBody { Type = HelperActionBody.Open, Path = "https://example.com" }));
-        Assert.Equal("操作 2 手順 + 離したとき 1 手順（繰り返す）", HelperSummary.Body(new HelperActionBody
+        Assert.Equal("操作 2 手順 + 離したとき 1 手順(繰り返す)", HelperSummary.Body(new HelperActionBody
         {
             Type = HelperActionBody.Sequence, Repeat = true,
             Steps = new() { new HelperStep(), new HelperStep() }, ReleaseSteps = new() { new HelperStep() },
@@ -330,7 +330,7 @@ public class HelperSummaryTests
     {
         var r = new AppLayerRule { Name = "ゲーム", Match = { Exe = "game.exe", TitleRegex = "Level" }, MapOff = true, Layers = { 2 } };
         Assert.Equal("[有効] ゲーム  exe=game.exe かつ title~Level → レイヤー 2、リマップOFF", HelperSummary.Rule(r));
-        Assert.Equal("[無効] （既定） → 何もしない", HelperSummary.Rule(new AppLayerRule { Default = true, Enabled = false }));
+        Assert.Equal("[無効] (既定) → 何もしない", HelperSummary.Rule(new AppLayerRule { Default = true, Enabled = false }));
         Assert.Contains("条件なし", HelperSummary.Rule(new AppLayerRule()));
     }
 

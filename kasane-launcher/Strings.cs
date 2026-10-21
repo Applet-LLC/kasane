@@ -42,7 +42,7 @@ internal static class Strings
     public static string ErrorTitle => IsJapanese ? "エラー" : "Error";
 
     public static string InstallFailedMessage => IsJapanese
-        ? "インストールに失敗しました。\n\n詳しくは次のログを確認してください:\n  %TEMP%\\MSI*.LOG（msiexec の詳細ログ）\n  %ProgramData%\\kbdlayer-license\\debug.log\n  %ProgramData%\\kbdlayer-license\\gui-debug.log"
+        ? "インストールに失敗しました。\n\n詳しくは次のログを確認してください:\n  %TEMP%\\MSI*.LOG(msiexec の詳細ログ)\n  %ProgramData%\\kbdlayer-license\\debug.log\n  %ProgramData%\\kbdlayer-license\\gui-debug.log"
         : "Installation failed.\n\nCheck the following logs for details:\n  %TEMP%\\MSI*.LOG (msiexec verbose log)\n  %ProgramData%\\kbdlayer-license\\debug.log\n  %ProgramData%\\kbdlayer-license\\gui-debug.log";
 
     public static string InstallFailedTitle => IsJapanese ? "インストール失敗" : "Installation Failed";

@@ -183,7 +183,7 @@ public sealed class TrayContext : ApplicationContext
     {
         bool exists = AppLauncher.FindLicense() != null;
         _licenseItem.Enabled = exists;
-        _licenseItem.ToolTipText = exists ? "" : "ライセンス管理（kasane-license.exe）が見つかりません";
+        _licenseItem.ToolTipText = exists ? "" : "ライセンス管理(kasane-license.exe)が見つかりません";
     }
 
     private void OpenEditor()
@@ -277,11 +277,11 @@ public sealed class TrayContext : ApplicationContext
             TrayStatus.Paused => (_pausedIcon, $"{AppInfo.NameWithVersion} - 一時停止中"),
             TrayStatus.DriverUnavailable => (_unavailableIcon, $"{AppInfo.NameWithVersion} - ドライバに接続できません"),
             _ when snapshot.ActiveCount == 0 => (_normalIcon, $"{AppInfo.NameWithVersion} - リマップ中のキーボードはありません"),
-            _ => (_normalIcon, $"{AppInfo.NameWithVersion} - 動作中（{snapshot.ActiveCount}台）"),
+            _ => (_normalIcon, $"{AppInfo.NameWithVersion} - 動作中({snapshot.ActiveCount}台)"),
         };
         var ime = _imeLink.Status;
         if (snapshot.Status == TrayStatus.Running && ime.HasNicola)
-            text += ime.NicolaOn ? "・NICOLA 入力中" : "・NICOLA 待機（IME連動）";
+            text += ime.NicolaOn ? "・NICOLA 入力中" : "・NICOLA 待機(IME連動)";
         if (snapshot.Status == TrayStatus.Running && snapshot.ActiveCount > 0 && _showLayer && _layerBadge != null)
         {
             icon = BadgeIcon(_layerBadge);

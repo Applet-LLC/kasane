@@ -16,8 +16,8 @@ public sealed class ComboEditorWindow : IdListEditorWindow
 
     public ComboEditorWindow(KeymapProject project, KeyboardLayout layout)
         : base("コンボ", KbdLayerClient.MaxComboCount,
-            "コンボは、2つのキーをほぼ同時（タイミング設定の ComboTerm 以内）に押すと、代わりに別のキーを送ります。\n" +
-            "出力は、キー(KC_*)、LCTL(KC_Z) のような修飾付きキー（押している間）、MACRO(n)（成立したときに1回実行）のいずれかです。" +
+            "コンボは、2つのキーをほぼ同時(タイミング設定の ComboTerm 以内)に押すと、代わりに別のキーを送ります。\n" +
+            "出力は、キー(KC_*)、LCTL(KC_Z) のような修飾付きキー(押している間)、MACRO(n)(成立したときに1回実行)のいずれかです。" +
             "制約: メンバーは2キーだけで、同じキーを2つ以上のコンボには使えません。" +
             "コンボは物理キーに対して働くので、どのレイヤーでも有効です。")
     {
@@ -36,7 +36,7 @@ public sealed class ComboEditorWindow : IdListEditorWindow
 
     protected override void ShowDetail(int id)
     {
-        var items = new List<string> { "（未使用）" };
+        var items = new List<string> { "(未使用)" };
         items.AddRange(_layout.Slots.Select(s => s.Description));
         var m1 = new ComboBox { Name = "Member1Combo", Width = 300, ItemsSource = items, IsEditable = false };
         var m2 = new ComboBox { Name = "Member2Combo", Width = 300, ItemsSource = items, IsEditable = false };
@@ -79,7 +79,7 @@ public sealed class ComboEditorWindow : IdListEditorWindow
             {
                 if (slot < 0) continue;
                 if (used.TryGetValue(slot, out var other))
-                    errors.Add($"「{SlotName(slot)}」がコンボ{other}とコンボ{c.Id}の両方に使われています（1つのキーは1つのコンボにしか使えません）");
+                    errors.Add($"「{SlotName(slot)}」がコンボ{other}とコンボ{c.Id}の両方に使われています(1つのキーは1つのコンボにしか使えません)");
                 else used[slot] = c.Id;
             }
         }

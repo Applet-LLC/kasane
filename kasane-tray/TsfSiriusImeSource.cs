@@ -70,9 +70,9 @@ internal sealed class TsfSiriusImeSource : IImeSource, IImeSourceDiagnostics
         TsfReason.NoTarget => "TSF: 前面が対象外のウィンドウです",
         TsfReason.NotHooked => "TSF: DLL がフックの設置を報告していません",
         TsfReason.OpenCloseUnsupported =>
-            $"TSF: 前面のアプリの OpenClose が読めていません（共有メモリの最後のフォーカス窓: {_foreground.ProcessLabelOfWindow((IntPtr)_lastFocusHwnd)}、前面: {_foreground.ProcessLabelOfWindow(_lastForeground)}）",
+            $"TSF: 前面のアプリの OpenClose が読めていません(共有メモリの最後のフォーカス窓: {_foreground.ProcessLabelOfWindow((IntPtr)_lastFocusHwnd)}、前面: {_foreground.ProcessLabelOfWindow(_lastForeground)})",
         TsfReason.FocusNotForeground =>
-            $"TSF: 共有メモリの値は前面のアプリのものではありません（最後のフォーカス窓: {_foreground.ProcessLabelOfWindow((IntPtr)_lastFocusHwnd)}、前面: {_foreground.ProcessLabelOfWindow(_lastForeground)}）",
+            $"TSF: 共有メモリの値は前面のアプリのものではありません(最後のフォーカス窓: {_foreground.ProcessLabelOfWindow((IntPtr)_lastFocusHwnd)}、前面: {_foreground.ProcessLabelOfWindow(_lastForeground)})",
         TsfReason.ConversionUnsupported => "TSF: ON ですが、変換モードが読めていません",
         _ => "",
     };

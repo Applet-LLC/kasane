@@ -16,10 +16,10 @@ internal sealed class AppRulesTab : HelperTabBase
 
     public AppRulesTab(HelperSettingsModel model, Window owner)
         : base(model, owner, "Rules",
-            "前面のアプリに応じて、アプリ管理レイヤーを自動で立てる、またはそのキーボードのリマップをOFF（素通し）にします。" +
-            "規則は上から順に見て、最初に一致したものを使います（キーボードごとの規則が、共通の規則より先です）。" +
-            "どれにも一致しないときは「既定」の規則を使います（無ければ何もしません）。" +
-            "変更は、OK を押すと保存されます（管理者権限は要りません）。トレイが数秒で読み直します。")
+            "前面のアプリに応じて、アプリ管理レイヤーを自動で立てる、またはそのキーボードのリマップをOFF(素通し)にします。" +
+            "規則は上から順に見て、最初に一致したものを使います(キーボードごとの規則が、共通の規則より先です)。" +
+            "どれにも一致しないときは「既定」の規則を使います(無ければ何もしません)。" +
+            "変更は、OK を押すと保存されます(管理者権限は要りません)。トレイが数秒で読み直します。")
     {
         _add = Btn("AddRuleButton", "追加...");
         _edit = Btn("EditRuleButton", "編集...");
@@ -92,7 +92,7 @@ internal sealed class AppRulesTab : HelperTabBase
     {
         if (!Selected(out int i)) return;
         var copy = HelperSummary.CloneRule(Config.AppLayerRules[i]);
-        copy.Name = string.IsNullOrWhiteSpace(copy.Name) ? null : copy.Name + "（複製）";
+        copy.Name = string.IsNullOrWhiteSpace(copy.Name) ? null : copy.Name + "(複製)";
         Config.AppLayerRules.Insert(i + 1, copy);
         Refresh(i + 1);
     }

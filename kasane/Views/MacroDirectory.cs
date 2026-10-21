@@ -11,8 +11,8 @@ public sealed record MacroInfo(int Id, string? Name, string Content, string Kind
 {
     public override string ToString() =>
         string.IsNullOrWhiteSpace(Name)
-            ? $"{Id,3}: {(Content.Length == 0 ? "（未使用）" : Content)}"
-            : $"{Id,3}: {Name} — {(Content.Length == 0 ? "（未使用）" : Content)}";
+            ? $"{Id,3}: {(Content.Length == 0 ? "(未使用)" : Content)}"
+            : $"{Id,3}: {Name} — {(Content.Length == 0 ? "(未使用)" : Content)}";
 
     public string Token => $"{Kind}({Id})";
 }
@@ -59,7 +59,7 @@ public static class MacroInsert
     {
         if (_box == null || _put == null || !_box.IsLoaded)
         {
-            reason = "入れ先の入力欄がありません。他の画面（コンボ・タップダンス・キー置換・キーの割り当て）で、入れたい欄を一度クリックしてから、もう一度試してください。";
+            reason = "入れ先の入力欄がありません。他の画面(コンボ・タップダンス・キー置換・キーの割り当て)で、入れたい欄を一度クリックしてから、もう一度試してください。";
             return false;
         }
         if (token.StartsWith("TAPDANCE(", StringComparison.Ordinal) && !_acceptsTapDance)

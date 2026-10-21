@@ -135,12 +135,12 @@ public static class PortableIO
             if (f == null) { error = "中身が空です"; return false; }
             if (!string.Equals(f.Format, PortableFile.FormatName, StringComparison.Ordinal))
             {
-                error = "kasane の設定ファイルではありません（Format が kasane-export ではありません）";
+                error = "kasane の設定ファイルではありません(Format が kasane-export ではありません)";
                 return false;
             }
             if (f.Version > PortableFile.CurrentVersion)
             {
-                error = $"新しい版（Version {f.Version}）のファイルです。この版の kasane は Version {PortableFile.CurrentVersion} まで読めます";
+                error = $"新しい版(Version {f.Version})のファイルです。この版の kasane は Version {PortableFile.CurrentVersion} まで読めます";
                 return false;
             }
             if (f.ParsedScope == null) { error = $"Scope「{f.Scope}」は All / Keyboard / Layer のいずれかにしてください"; return false; }
@@ -154,7 +154,7 @@ public static class PortableIO
         {
             // .NET のメッセージは英語なので、場所だけを日本語で添える。
             error = ex.LineNumber is long line
-                ? $"JSON として読めません（{line + 1}行目付近）。kasane が書き出したファイルを選んでください"
+                ? $"JSON として読めません({line + 1}行目付近)。kasane が書き出したファイルを選んでください"
                 : "JSON として読めません。kasane が書き出したファイルを選んでください";
             return false;
         }

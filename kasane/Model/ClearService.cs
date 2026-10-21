@@ -33,7 +33,7 @@ public sealed class ClearOptions
     public List<string> Names()
     {
         var n = new List<string>();
-        if (Layers) n.Add("レイヤー（キー割り当て）");
+        if (Layers) n.Add("レイヤー(キー割り当て)");
         if (Macros) n.Add("マクロ");
         if (Combos) n.Add("コンボ");
         if (TapDances) n.Add("タップダンス");
@@ -95,7 +95,7 @@ public static class ClearService
         {
             client.SetEnabled(uniqId, false);
             client.ClearLayerMap(uniqId);
-            report.Info($"{tag}: ドライバのレイヤーマップを消しました（OFF）");
+            report.Info($"{tag}: ドライバのレイヤーマップを消しました(OFF)");
         }
         if (o.Macros)
         {
@@ -106,7 +106,7 @@ public static class ClearService
                 client.SetMacro(uniqId, m, new List<MacroStep>());
                 n++;
             }
-            report.Info($"{tag}: ドライバのマクロを消しました（{n}件）");
+            report.Info($"{tag}: ドライバのマクロを消しました({n}件)");
         }
         if (o.Combos)
         {
@@ -117,7 +117,7 @@ public static class ClearService
                 client.SetCombo(uniqId, c, null);
                 n++;
             }
-            report.Info($"{tag}: ドライバのコンボを消しました（{n}件）");
+            report.Info($"{tag}: ドライバのコンボを消しました({n}件)");
         }
         if (o.TapDances)
         {
@@ -128,7 +128,7 @@ public static class ClearService
                 client.SetTapDance(uniqId, t, null);
                 n++;
             }
-            report.Info($"{tag}: ドライバのタップダンスを消しました（{n}件）");
+            report.Info($"{tag}: ドライバのタップダンスを消しました({n}件)");
         }
         if (o.KeyOverrides)
         {
@@ -141,7 +141,7 @@ public static class ClearService
                     client.SetKeyOverride(uniqId, k, null);
                     n++;
                 }
-                report.Info($"{tag}: ドライバのキー置換を消しました（{n}件）");
+                report.Info($"{tag}: ドライバのキー置換を消しました({n}件)");
             }
             catch (KbdLayerException)
             {
@@ -206,24 +206,24 @@ public static class ClearService
                         ResetProject(project, layout, o);
                         if (o.Nicola && driverCleared) project.ClearNicola = false;
                         ProjectService.Save(project, baseDirectory);
-                        report.Info($"{tag}: 画面の設定（project.json）の " + string.Join("・", o.Names().Where(n => n != "ヘルパー設定")) + " を初期状態にしました");
+                        report.Info($"{tag}: 画面の設定(project.json)の " + string.Join("・", o.Names().Where(n => n != "ヘルパー設定")) + " を初期状態にしました");
                     }
                 }
 
                 if (o.Helper)
                 {
                     string helperPath = HelperConfig.DevicePath(uniq, baseDirectory);
-                    if (File.Exists(helperPath)) { File.Delete(helperPath); report.Info($"{tag}: ヘルパー設定（helper.json）を消しました"); }
+                    if (File.Exists(helperPath)) { File.Delete(helperPath); report.Info($"{tag}: ヘルパー設定(helper.json)を消しました"); }
                 }
                 cleared.Add(uniq);
             }
             catch (KbdLayerException ex)
             {
-                report.Error($"{tag}: ドライバの設定を消せませんでした（{ex.Message}）。途中まで消えている可能性があります");
+                report.Error($"{tag}: ドライバの設定を消せませんでした({ex.Message})。途中まで消えている可能性があります");
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
             {
-                report.Error($"{tag}: 保存できませんでした（{ex.Message}）");
+                report.Error($"{tag}: 保存できませんでした({ex.Message})");
             }
         }
 
@@ -237,12 +237,12 @@ public static class ClearService
                 {
                     tray.Helper = null;
                     tray.Save(trayPath);
-                    report.Info("トレイの共通のヘルパー設定（tray.json の Helper）を消しました");
+                    report.Info("トレイの共通のヘルパー設定(tray.json の Helper)を消しました");
                 }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                report.Error($"tray.json に書けませんでした（{ex.Message}）");
+                report.Error($"tray.json に書けませんでした({ex.Message})");
             }
         }
         return cleared;

@@ -67,7 +67,7 @@ public static class PortableImporter
         if (o.MeasuredScanCodes && src.MeasuredScanCodes is { Count: > 0 } measured)
         {
             if (string.Equals(src.LayoutName, target.LayoutName, StringComparison.OrdinalIgnoreCase)) ApplyMeasured(target, layout, measured, r);
-            else r.Warn($"実測値は、同じレイアウトのときだけ読み込みます（ファイル: {src.LayoutName}、今: {target.LayoutName}）");
+            else r.Warn($"実測値は、同じレイアウトのときだけ読み込みます(ファイル: {src.LayoutName}、今: {target.LayoutName})");
         }
 
         // ヘルパー動作を先に決める（キーの HLP(n) の番号を付け替えるため）。
@@ -78,7 +78,7 @@ public static class PortableImporter
             result.Helper = merged;
         }
         else if (!o.Helper && src.Helper != null && src.Helper.Actions.Count > 0)
-            r.Info("ヘルパー設定は読み込みません（HLP(n) のキーは、番号のまま取り込みます）");
+            r.Info("ヘルパー設定は読み込みません(HLP(n) のキーは、番号のまま取り込みます)");
 
         Dictionary<int, int>? macroMap = null, tdMap = null;
         if (o.Macros && src.Macros != null) macroMap = ImportMacros(src.Macros, target, mode, r);
@@ -173,7 +173,7 @@ public static class PortableImporter
         {
             if (l.Index < 0 || l.Index >= KbdLayerClient.MaxLayers)
             {
-                r.Warn($"レイヤー{l.Index}は読み込めません（0〜{KbdLayerClient.MaxLayers - 1}）");
+                r.Warn($"レイヤー{l.Index}は読み込めません(0〜{KbdLayerClient.MaxLayers - 1})");
                 continue;
             }
             while (target.Layers.Count <= l.Index) target.Layers.Add(ProjectService.DefaultLayer(layout, target.Layers.Count));
@@ -207,10 +207,10 @@ public static class PortableImporter
         if (!string.IsNullOrWhiteSpace(src.Name)) ProjectService.SetLayerName(target, index, src.Name);
         var missing = new List<string>();
         int placed = PlaceKeys(src, target.Layers[index], bySc, fix, missing, r, index);
-        r.Info($"レイヤー{index}に、キーを{placed}個読み込みました" + (targetLayer == null ? "（新しいレイヤー）" : "（上書き）"));
+        r.Info($"レイヤー{index}に、キーを{placed}個読み込みました" + (targetLayer == null ? "(新しいレイヤー)" : "(上書き)"));
         ReportMissing(missing, r);
         if (src.Keys.Values.Any(v => KeycodeTable.TryResolve(v, out var a) && ActionType.ReferencesLayer(a.Type)))
-            r.Warn("レイヤーを切り替えるキー（MO(1) など）は、元の番号のまま取り込みました。番号が合っているか確かめてください");
+            r.Warn("レイヤーを切り替えるキー(MO(1) など)は、元の番号のまま取り込みました。番号が合っているか確かめてください");
     }
 
     private static int PlaceKeys(PortableLayer l, List<string> tokens, Dictionary<ushort, KeySlot> bySc, Func<string, string> fix,
@@ -221,7 +221,7 @@ public static class PortableImporter
         {
             if (!KeycodeTable.TryParseRawScanCode(name, out ushort sc) && !KeycodeTable.TryResolveBaseKey(name, out sc))
             {
-                r.Warn($"レイヤー{index}: キー「{name}」はスキャンコード（SC_XXXX）として読めないため、読み込みません");
+                r.Warn($"レイヤー{index}: キー「{name}」はスキャンコード(SC_XXXX)として読めないため、読み込みません");
                 continue;
             }
             string token = fix(raw.Trim());
@@ -246,7 +246,7 @@ public static class PortableImporter
         if (missing.Count == 0) return;
         var distinct = missing.Distinct().ToList();
         string list = string.Join(", ", distinct.Take(12)) + (distinct.Count > 12 ? $" ほか{distinct.Count - 12}個" : "");
-        r.Warn($"今のレイアウトに無いキーがありました（読み込んでいません）: {list}");
+        r.Warn($"今のレイアウトに無いキーがありました(読み込んでいません): {list}");
     }
 
     private static void CheckLayerReferences(KeymapProject p, PortableReport r)
@@ -255,7 +255,7 @@ public static class PortableImporter
         foreach (var layer in p.Layers)
             foreach (var t in layer)
                 if (KeycodeTable.TryResolve(t, out var a) && ActionType.ReferencesLayer(a.Type) && a.Param1 >= p.Layers.Count) bad++;
-        if (bad > 0) r.Warn($"存在しないレイヤーへ切り替えるキーが{bad}個あります（レイヤーを足すか、キーを直してください）");
+        if (bad > 0) r.Warn($"存在しないレイヤーへ切り替えるキーが{bad}個あります(レイヤーを足すか、キーを直してください)");
     }
 
     private static void ApplyMeasured(KeymapProject target, KeyboardLayout layout, Dictionary<string, string> measured, PortableReport r)
@@ -289,11 +289,11 @@ public static class PortableImporter
             target.Macros = new List<MacroDef>();
             foreach (var m in src)
             {
-                if (m.Id < 0 || m.Id >= KbdLayerClient.MaxMacroCount) { r.Warn($"マクロ{m.Id}は読み込めません（0〜{KbdLayerClient.MaxMacroCount - 1}）"); continue; }
+                if (m.Id < 0 || m.Id >= KbdLayerClient.MaxMacroCount) { r.Warn($"マクロ{m.Id}は読み込めません(0〜{KbdLayerClient.MaxMacroCount - 1})"); continue; }
                 target.Macros.Add(new MacroDef { Id = m.Id, Keys = new List<string>(m.Keys) });
                 map[m.Id] = m.Id;
             }
-            r.Info($"マクロを{target.Macros.Count}個読み込みました（置き換え）");
+            r.Info($"マクロを{target.Macros.Count}個読み込みました(置き換え)");
             return map;
         }
         int added = 0, reused = 0;
@@ -303,13 +303,13 @@ public static class PortableImporter
             if (same != null) { map[m.Id] = same.Id; reused++; continue; }
             int id = target.Macros.All(x => x.Id != m.Id) && m.Id >= 0 && m.Id < KbdLayerClient.MaxMacroCount
                 ? m.Id : FreeId(target.Macros.Select(x => x.Id), KbdLayerClient.MaxMacroCount);
-            if (id < 0) { r.Warn($"マクロの空きが無いため、マクロ{m.Id}は読み込めませんでした（上限{KbdLayerClient.MaxMacroCount}）"); continue; }
+            if (id < 0) { r.Warn($"マクロの空きが無いため、マクロ{m.Id}は読み込めませんでした(上限{KbdLayerClient.MaxMacroCount})"); continue; }
             target.Macros.Add(new MacroDef { Id = id, Keys = new List<string>(m.Keys) });
             map[m.Id] = id;
             added++;
-            if (id != m.Id) r.Info($"マクロ{m.Id} → マクロ{id}（番号を付け直しました）");
+            if (id != m.Id) r.Info($"マクロ{m.Id} → マクロ{id}(番号を付け直しました)");
         }
-        r.Info($"マクロを{added}個足しました" + (reused > 0 ? $"（同じ内容の{reused}個は今のものを使います）" : ""));
+        r.Info($"マクロを{added}個足しました" + (reused > 0 ? $"(同じ内容の{reused}個は今のものを使います)" : ""));
         return map;
     }
 
@@ -329,11 +329,11 @@ public static class PortableImporter
             target.TapDances = new List<TapDanceDef>();
             foreach (var t in src)
             {
-                if (t.Id < 0 || t.Id >= KbdLayerClient.MaxTapDanceCount) { r.Warn($"タップダンス{t.Id}は読み込めません（0〜{KbdLayerClient.MaxTapDanceCount - 1}）"); continue; }
+                if (t.Id < 0 || t.Id >= KbdLayerClient.MaxTapDanceCount) { r.Warn($"タップダンス{t.Id}は読み込めません(0〜{KbdLayerClient.MaxTapDanceCount - 1})"); continue; }
                 target.TapDances.Add(Copy(t, t.Id));
                 map[t.Id] = t.Id;
             }
-            r.Info($"タップダンスを{target.TapDances.Count}個読み込みました（置き換え）");
+            r.Info($"タップダンスを{target.TapDances.Count}個読み込みました(置き換え)");
             return map;
         }
         int added = 0, reused = 0;
@@ -344,14 +344,14 @@ public static class PortableImporter
             if (same != null) { map[t.Id] = same.Id; reused++; continue; }
             int id = target.TapDances.All(x => x.Id != t.Id) && t.Id >= 0 && t.Id < KbdLayerClient.MaxTapDanceCount
                 ? t.Id : FreeId(target.TapDances.Select(x => x.Id), KbdLayerClient.MaxTapDanceCount);
-            if (id < 0) { r.Warn($"タップダンスの空きが無いため、タップダンス{t.Id}は読み込めませんでした（上限{KbdLayerClient.MaxTapDanceCount}）"); continue; }
+            if (id < 0) { r.Warn($"タップダンスの空きが無いため、タップダンス{t.Id}は読み込めませんでした(上限{KbdLayerClient.MaxTapDanceCount})"); continue; }
             copy.Id = id;
             target.TapDances.Add(copy);
             map[t.Id] = id;
             added++;
-            if (id != t.Id) r.Info($"タップダンス{t.Id} → タップダンス{id}（番号を付け直しました）");
+            if (id != t.Id) r.Info($"タップダンス{t.Id} → タップダンス{id}(番号を付け直しました)");
         }
-        r.Info($"タップダンスを{added}個足しました" + (reused > 0 ? $"（同じ内容の{reused}個は今のものを使います）" : ""));
+        r.Info($"タップダンスを{added}個足しました" + (reused > 0 ? $"(同じ内容の{reused}個は今のものを使います)" : ""));
         return map;
     }
 
@@ -366,7 +366,7 @@ public static class PortableImporter
             if (!KeycodeTable.TryParseRawScanCode(c.Key1, out ushort a) || !KeycodeTable.TryParseRawScanCode(c.Key2, out ushort b)
                 || !bySc.TryGetValue(a, out var s1) || !bySc.TryGetValue(b, out var s2))
             {
-                r.Warn($"コンボ{c.Id}: メンバーのキー（{c.Key1}, {c.Key2}）が今のレイアウトに無いため、読み込みません");
+                r.Warn($"コンボ{c.Id}: メンバーのキー({c.Key1}, {c.Key2})が今のレイアウトに無いため、読み込みません");
                 continue;
             }
             if (mode == ImportMode.Append)
@@ -375,19 +375,19 @@ public static class PortableImporter
                     continue; // 同じ組み合わせは、すでにある
                 if (target.Combos.Any(x => x.Slot1 == s1.Index || x.Slot2 == s1.Index || x.Slot1 == s2.Index || x.Slot2 == s2.Index))
                 {
-                    r.Warn($"コンボ{c.Id}: メンバーのキーが、今のコンボですでに使われているため読み込みません（1つのキーは1つのコンボにだけ入れられます）");
+                    r.Warn($"コンボ{c.Id}: メンバーのキーが、今のコンボですでに使われているため読み込みません(1つのキーは1つのコンボにだけ入れられます)");
                     continue;
                 }
             }
             int id = c.Id;
             if (id < 0 || id >= KbdLayerClient.MaxComboCount || target.Combos.Any(x => x.Id == id))
                 id = FreeId(target.Combos.Select(x => x.Id), KbdLayerClient.MaxComboCount);
-            if (id < 0) { r.Warn($"コンボの空きが無いため、コンボ{c.Id}は読み込めませんでした（上限{KbdLayerClient.MaxComboCount}）"); continue; }
+            if (id < 0) { r.Warn($"コンボの空きが無いため、コンボ{c.Id}は読み込めませんでした(上限{KbdLayerClient.MaxComboCount})"); continue; }
             target.Combos.Add(new ComboDef { Id = id, Slot1 = s1.Index, Slot2 = s2.Index, Output = fix(c.Output) });
             map[c.Id] = id;
             added++;
         }
-        r.Info($"コンボを{added}個読み込みました" + (mode == ImportMode.Replace ? "（置き換え）" : ""));
+        r.Info($"コンボを{added}個読み込みました" + (mode == ImportMode.Replace ? "(置き換え)" : ""));
         return map;
     }
 
@@ -403,12 +403,12 @@ public static class PortableImporter
             int id = k.Id;
             if (id < 0 || id >= KbdLayerClient.MaxKeyOverrideCount || target.KeyOverrides.Any(x => x.Id == id))
                 id = FreeId(target.KeyOverrides.Select(x => x.Id), KbdLayerClient.MaxKeyOverrideCount);
-            if (id < 0) { r.Warn($"キー置換の空きが無いため、キー置換{k.Id}は読み込めませんでした（上限{KbdLayerClient.MaxKeyOverrideCount}）"); continue; }
+            if (id < 0) { r.Warn($"キー置換の空きが無いため、キー置換{k.Id}は読み込めませんでした(上限{KbdLayerClient.MaxKeyOverrideCount})"); continue; }
             target.KeyOverrides.Add(new KeyOverrideDef { Id = id, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement, RepeatMacro = k.RepeatMacro });
             map[k.Id] = id;
             added++;
         }
-        r.Info($"キー置換を{added}個読み込みました" + (mode == ImportMode.Replace ? "（置き換え）" : ""));
+        r.Info($"キー置換を{added}個読み込みました" + (mode == ImportMode.Replace ? "(置き換え)" : ""));
         return map;
     }
 
@@ -455,7 +455,7 @@ public static class HelperMerge
         {
             var copy = PortableExporter.CloneHelper(incoming);
             foreach (var a in copy.Actions) idMap[a.Id] = a.Id;
-            r.Info($"ヘルパー設定を読み込みました（動作{copy.Actions.Count}、トリガー{copy.Triggers.Count}、アプリ別レイヤーの規則{copy.AppLayerRules.Count}。置き換え）");
+            r.Info($"ヘルパー設定を読み込みました(動作{copy.Actions.Count}、トリガー{copy.Triggers.Count}、アプリ別レイヤーの規則{copy.AppLayerRules.Count}。置き換え)");
             return copy;
         }
 
@@ -476,7 +476,7 @@ public static class HelperMerge
                 id = 1;
                 while (id <= HelperSettingsModel.MaxActionId && used.Contains(id)) id++;
                 if (id > HelperSettingsModel.MaxActionId) { r.Warn($"ヘルパー動作の空き番号が無いため、動作{a.Id}は読み込めませんでした"); continue; }
-                r.Info($"ヘルパー動作{a.Id} → 動作{id}（番号を付け直しました）");
+                r.Info($"ヘルパー動作{a.Id} → 動作{id}(番号を付け直しました)");
             }
             used.Add(id);
             var copy = PortableExporter.CloneHelper(new HelperConfig { Actions = { a } }).Actions[0];
@@ -502,7 +502,7 @@ public static class HelperMerge
             result.AppLayerRules.Add(PortableExporter.CloneHelper(new HelperConfig { AppLayerRules = { rule } }).AppLayerRules[0]);
             addedRules++;
         }
-        r.Info($"ヘルパー設定を足しました（動作{addedActions}、トリガー{addedTriggers}、アプリ別レイヤーの規則{addedRules}）");
+        r.Info($"ヘルパー設定を足しました(動作{addedActions}、トリガー{addedTriggers}、アプリ別レイヤーの規則{addedRules})");
         return result;
     }
 }

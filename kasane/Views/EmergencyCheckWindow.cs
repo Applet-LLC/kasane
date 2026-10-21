@@ -51,7 +51,7 @@ public sealed class EmergencyCheckWindow : Window
                    "レイヤーマップがOFFになります。全部が緑になったら、すぐに離してください。\n" +
                    "この画面を開いている間、押したキーはほかのアプリに届きません。" +
                    (driverUniqId != 0
-                       ? "キーはドライバから直接受け取ります（レイヤーマップで置き換える前の物理キー。選んでいるキーボードの入力だけ）。"
+                       ? "キーはドライバから直接受け取ります(レイヤーマップで置き換える前の物理キー。選んでいるキーボードの入力だけ)。"
                        : "\n管理者権限モードで実施してください。"),
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, 10),
@@ -103,7 +103,7 @@ public sealed class EmergencyCheckWindow : Window
                     (state, message) => Dispatcher.BeginInvoke(() =>
                     {
                         _driverKeys = false;
-                        _result.Text = $"ドライバからキーを受け取れないため、Windows のキー入力（LL フック）で確認します: {message}";
+                        _result.Text = $"ドライバからキーを受け取れないため、Windows のキー入力(LL フック)で確認します: {message}";
                     }));
                 _stream.Start();
             }

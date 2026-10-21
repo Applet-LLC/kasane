@@ -170,9 +170,9 @@ public class KleImporterTests
             if (bundled != null)
             {
                 var original = KeyboardLayout.Load(BundledPath(bundled));
-                if (original.Slots.Count != r.Keys.Count) { problems.Add($"{name}: キーの数 {r.Keys.Count}（同梱は {original.Slots.Count}）"); continue; }
+                if (original.Slots.Count != r.Keys.Count) { problems.Add($"{name}: キーの数 {r.Keys.Count}(同梱は {original.Slots.Count})"); continue; }
                 foreach (var k in r.Keys.Where(k => k.Keycode != original.Slots[k.Slot].DefaultKeycode))
-                    problems.Add($"{name} #{k.Slot + 1} {k.Label}: {k.Keycode ?? "(なし)"}（同梱は {original.Slots[k.Slot].DefaultKeycode}）");
+                    problems.Add($"{name} #{k.Slot + 1} {k.Label}: {k.Keycode ?? "(なし)"}(同梱は {original.Slots[k.Slot].DefaultKeycode})");
             }
             else if (r.Keys.Count == 0) problems.Add($"{name}: キーが 0 個");
         }

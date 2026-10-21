@@ -27,7 +27,7 @@ public static class KeycodeField
             Margin = new Thickness(6, 0, 0, 0),
             Padding = new Thickness(8, 1, 8, 1),
             Focusable = false, // キー操作でボタンが反応して、取り込んだキーが重ならないように
-            ToolTip = "このボタンを押したあと、入力したいキーを押します（Esc で取消）。Win キーや Alt+Tab は入力できないので「選ぶ...」を使ってください。",
+            ToolTip = "このボタンを押したあと、入力したいキーを押します(Esc で取消)。Win キーや Alt+Tab は入力できないので「選ぶ...」を使ってください。",
         };
         KeycodeCapture? session = null;
         // 末尾に足していく欄（マクロ）は、取り込みを続けて、何個でも続けて入れられる（Esc かボタンをもう一度押すと終わる）。
@@ -37,7 +37,7 @@ public static class KeycodeField
         capture.Click += (_, _) =>
         {
             if (session.IsActive) { session.Cancel(); return; }
-            capture.Content = append ? "キーを押す（Esc で終了）" : "キーを押してください…";
+            capture.Content = append ? "キーを押す(Esc で終了)" : "キーを押してください…";
             session.Start();
         };
         box.Unloaded += (_, _) => session.Cancel();
@@ -80,7 +80,7 @@ public static class KeycodeField
                 Content = "マクロ...",
                 Margin = new Thickness(4, 0, 0, 0),
                 Padding = new Thickness(8, 1, 8, 1),
-                ToolTip = "マクロの一覧（番号・名前・中身）から選んで、MACRO(n) を入れます。",
+                ToolTip = "マクロの一覧(番号・名前・中身)から選んで、MACRO(n) を入れます。",
             };
             macro.Click += (_, _) =>
             {

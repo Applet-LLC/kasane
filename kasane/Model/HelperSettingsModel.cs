@@ -129,7 +129,7 @@ public sealed class HelperSettingsModel
         var ids = new HashSet<int>();
         foreach (var a in c.Actions)
         {
-            string owner = $"{label}の動作 {a.Id}" + (string.IsNullOrWhiteSpace(a.Name) ? "" : $"（{a.Name}）");
+            string owner = $"{label}の動作 {a.Id}" + (string.IsNullOrWhiteSpace(a.Name) ? "" : $"({a.Name})");
             if (a.Id < 0 || a.Id > MaxActionId) errors.Add($"{owner}: Id は 0〜{MaxActionId} です");
             else if (!ids.Add(a.Id)) errors.Add($"{owner}: Id が重複しています");
             ValidateBody(a.Action, owner, errors);
@@ -141,8 +141,8 @@ public sealed class HelperSettingsModel
             string owner = $"{label}のトリガー {t.Key}" + (string.IsNullOrWhiteSpace(t.Mods) ? "" : $" + {t.Mods}");
             bool keyOk = Keycodes.KeycodeTable.TryResolveBaseKey(t.Key ?? "", out ushort sc) && sc != 0;
             bool modsOk = TriggerTable.TryParseMods(t.Mods, out byte mods);
-            if (!keyOk) errors.Add($"{owner}: キー '{t.Key}' を解決できません（KC_F13 や SC_E06A のような書き方）");
-            if (!modsOk) errors.Add($"{owner}: 修飾キー '{t.Mods}' を解決できません（MOD_LCTL|MOD_LSFT や ctrl|shift のような書き方）");
+            if (!keyOk) errors.Add($"{owner}: キー '{t.Key}' を解決できません(KC_F13 や SC_E06A のような書き方)");
+            if (!modsOk) errors.Add($"{owner}: 修飾キー '{t.Mods}' を解決できません(MOD_LCTL|MOD_LSFT や ctrl|shift のような書き方)");
             if (keyOk && modsOk && !triggers.Add((sc, mods))) errors.Add($"{owner}: 同じキーと修飾キーのトリガーが重複しています");
             ValidateBody(t.Action, owner, errors);
         }
@@ -159,7 +159,7 @@ public sealed class HelperSettingsModel
         foreach (var r in c.AppLayerRules)
         {
             n++;
-            errors.AddRange(ValidateRule(r, $"{label}の規則 {n}" + (string.IsNullOrWhiteSpace(r.Name) ? "" : $"（{r.Name}）")));
+            errors.AddRange(ValidateRule(r, $"{label}の規則 {n}" + (string.IsNullOrWhiteSpace(r.Name) ? "" : $"({r.Name})")));
         }
     }
 
@@ -177,13 +177,13 @@ public sealed class HelperSettingsModel
                 if ((body.Steps?.Count ?? 0) == 0 && (body.ReleaseSteps?.Count ?? 0) == 0)
                     errors.Add($"{owner}: Sequence に手順がありません");
                 foreach (var e in SequenceCompiler.Compile(body.Steps).Errors) errors.Add($"{owner}: {e}");
-                foreach (var e in SequenceCompiler.Compile(body.ReleaseSteps).Errors) errors.Add($"{owner}（離したとき）: {e}");
+                foreach (var e in SequenceCompiler.Compile(body.ReleaseSteps).Errors) errors.Add($"{owner}(離したとき): {e}");
                 break;
 
             case HelperActionBody.TextInput:
                 if (string.IsNullOrEmpty(body.Text)) errors.Add($"{owner}: Text の文字列が空です");
                 else if (body.Text.Length > HelperActionBody.MaxTextLength)
-                    errors.Add($"{owner}: Text の文字列が長すぎます（{HelperActionBody.MaxTextLength} 文字まで）");
+                    errors.Add($"{owner}: Text の文字列が長すぎます({HelperActionBody.MaxTextLength} 文字まで)");
                 break;
 
             case HelperActionBody.AppLayer:
@@ -198,7 +198,7 @@ public sealed class HelperSettingsModel
                 break;
 
             default:
-                errors.Add($"{owner}: 種類 '{body.Type}' は未対応です（Launch / Open / Sequence / Text / AppLayer / PauseToggle）");
+                errors.Add($"{owner}: 種類 '{body.Type}' は未対応です(Launch / Open / Sequence / Text / AppLayer / PauseToggle)");
                 break;
         }
     }
@@ -209,7 +209,7 @@ public sealed class HelperSettingsModel
         var errors = new List<string>();
         if (!rule.Default)
         {
-            if (rule.Match.IsEmpty) errors.Add($"{owner}: 照合条件がありません（Default にするか、条件を1つ以上書きます）");
+            if (rule.Match.IsEmpty) errors.Add($"{owner}: 照合条件がありません(Default にするか、条件を1つ以上書きます)");
             string? bad = rule.Match.InvalidRegexField;
             if (bad != null) errors.Add($"{owner}: {bad} の正規表現が正しくありません");
         }
@@ -229,8 +229,8 @@ public static class HelperSummary
         HelperActionBody.TextInput => "文字列: " + ShortText(b.Text),
         HelperActionBody.AppLayer => $"レイヤー {string.Join(",", b.Layers ?? new List<int>())} を {(string.IsNullOrWhiteSpace(b.LayerOp) ? "On" : b.LayerOp)}",
         HelperActionBody.PauseToggle => "一時停止・再開",
-        _ => $"（不明な種類 '{b.Type}'）",
-    } + (b.Repeat ? "（繰り返す）" : "");
+        _ => $"(不明な種類 '{b.Type}')",
+    } + (b.Repeat ? "(繰り返す)" : "");
 
     // 一覧に出す文字列（長ければ省略。改行は ↵）。
     private static string ShortText(string? text)
@@ -259,7 +259,7 @@ public static class HelperSummary
     public static string Rule(AppLayerRule r)
     {
         var cond = new List<string>();
-        if (r.Default) cond.Add("（既定）");
+        if (r.Default) cond.Add("(既定)");
         else
         {
             var m = r.Match;
@@ -269,7 +269,7 @@ public static class HelperSummary
             if (!string.IsNullOrEmpty(m.Class)) cond.Add("class=" + m.Class);
             if (!string.IsNullOrEmpty(m.NodokaClass)) cond.Add("のどかclass~" + m.NodokaClass);
             if (!string.IsNullOrEmpty(m.NodokaTitle)) cond.Add("のどかtitle~" + m.NodokaTitle);
-            if (cond.Count == 0) cond.Add("（条件なし）");
+            if (cond.Count == 0) cond.Add("(条件なし)");
         }
         var act = new List<string>();
         if (r.Layers.Count > 0) act.Add("レイヤー " + string.Join(",", r.Layers));

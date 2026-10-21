@@ -13,18 +13,18 @@ internal sealed class ImeLayerTab : HelperTabBase
 {
     private readonly CheckBox _enabled = new() { Name = "ImeLayerEnabledCheck", Content = "IME の ON/OFF に合わせて、レイヤーを立てる", Margin = new Thickness(0, 0, 0, 6) };
     private readonly CheckBox[] _layers = new CheckBox[16];
-    private readonly RadioButton _modeOn = new() { Name = "ImeLayerModeOn", Content = "IME が ON のとき（Microsoft IME では、半角英数のモードは OFF と同じ扱いです）", GroupName = "ImeLayerMode", Margin = new Thickness(0, 2, 0, 2) };
-    private readonly RadioButton _modeKana = new() { Name = "ImeLayerModeKana", Content = "かな入力のときだけ（IME が ON で、日本語の入力モード）", GroupName = "ImeLayerMode", Margin = new Thickness(0, 2, 0, 2) };
+    private readonly RadioButton _modeOn = new() { Name = "ImeLayerModeOn", Content = "IME が ON のとき(Microsoft IME では、半角英数のモードは OFF と同じ扱いです)", GroupName = "ImeLayerMode", Margin = new Thickness(0, 2, 0, 2) };
+    private readonly RadioButton _modeKana = new() { Name = "ImeLayerModeKana", Content = "かな入力のときだけ(IME が ON で、日本語の入力モード)", GroupName = "ImeLayerMode", Margin = new Thickness(0, 2, 0, 2) };
     private readonly Button _clear = Btn("ImeLayerClearButton", "この範囲の設定を消す", 150);
     private readonly TextBlock _hint = new() { TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 6, 0, 0) };
     private bool _loading;
 
     public ImeLayerTab(HelperSettingsModel model, Window owner)
         : base(model, owner, "ImeLayer",
-            "IME の ON/OFF に合わせて、選んだレイヤーを自動で立てます（IME が OFF のときは下ろします）。NICOLA を使わなくても使えます。" +
-            "タスクトレイの kasane が動いているときだけ働きます。キーボード側の TG などのレイヤーとは、OR で重なります（どれかが立てていれば有効）。" +
-            "「このキーボード」の設定が、「全キーボード共通」より先に使われます。変更は、OK を押すと保存されます（管理者権限は要りません）。" +
-            "前面のウィンドウの IME の状態が取れないとき（管理者として動いているウィンドウなど）は、直前の状態を保ちます。")
+            "IME の ON/OFF に合わせて、選んだレイヤーを自動で立てます(IME が OFF のときは下ろします)。NICOLA を使わなくても使えます。" +
+            "タスクトレイの kasane が動いているときだけ働きます。キーボード側の TG などのレイヤーとは、OR で重なります(どれかが立てていれば有効)。" +
+            "「このキーボード」の設定が、「全キーボード共通」より先に使われます。変更は、OK を押すと保存されます(管理者権限は要りません)。" +
+            "前面のウィンドウの IME の状態が取れないとき(管理者として動いているウィンドウなど)は、直前の状態を保ちます。")
     {
         Stack.Children.Add(_enabled);
 
@@ -67,8 +67,8 @@ internal sealed class ImeLayerTab : HelperTabBase
         foreach (var c in _layers) c.IsEnabled = editable;
         _clear.IsEnabled = editable && link != null;
         _hint.Text = link == null
-            ? (Scope == HelperScope.Device ? "このキーボードには、設定がありません（共通の設定があれば、それに従います）。" : "共通の設定がありません。")
-            : (link.Enabled ? "" : "この範囲は、IME 連動をしません（キーボードごとの設定を「連動しない」にすると、共通の設定があっても、そのキーボードは連動しません）。");
+            ? (Scope == HelperScope.Device ? "このキーボードには、設定がありません(共通の設定があれば、それに従います)。" : "共通の設定がありません。")
+            : (link.Enabled ? "" : "この範囲は、IME 連動をしません(キーボードごとの設定を「連動しない」にすると、共通の設定があっても、そのキーボードは連動しません)。");
         _loading = false;
     }
 

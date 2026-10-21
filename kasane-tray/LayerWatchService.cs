@@ -177,7 +177,7 @@ public sealed class LayerWatchService : IDisposable
             catch (KbdLayerException ex) when (ex.Win32Error == KbdLayerClient.ErrorInvalidFunction)
             {
                 _owner._unsupported = true;
-                _owner._log("LayerWatch: このドライバは WAIT_LAYER_CHANGE に対応していません（レイヤー表示は使えません）");
+                _owner._log("LayerWatch: このドライバは WAIT_LAYER_CHANGE に対応していません(レイヤー表示は使えません)");
             }
             catch (KbdLayerException ex) when (ex.Win32Error is ErrorOperationAborted or KbdLayerClient.ErrorDeviceRemoved or KbdLayerClient.ErrorNoSystemResources)
             {

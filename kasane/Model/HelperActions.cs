@@ -60,7 +60,7 @@ public static class SequenceCompiler
         foreach (var step in steps ?? Enumerable.Empty<HelperStep>())
         {
             index++;
-            if (ops.Count > MaxOps) { errors.Add($"手順が多すぎます（{MaxOps} 件まで）"); break; }
+            if (ops.Count > MaxOps) { errors.Add($"手順が多すぎます({MaxOps} 件まで)"); break; }
             string at = $"手順{index}: ";
 
             if (!string.IsNullOrEmpty(step.Key))
@@ -84,7 +84,7 @@ public static class SequenceCompiler
                 int d = Math.Clamp(delay, 0, MaxDelayMs);
                 if (d != delay) errors.Add(at + $"DelayMs {delay} は 0〜{MaxDelayMs} に丸めました");
                 totalDelay += d;
-                if (totalDelay > MaxTotalDelayMs) { errors.Add($"待ち時間の合計が長すぎます（{MaxTotalDelayMs}ms まで）"); break; }
+                if (totalDelay > MaxTotalDelayMs) { errors.Add($"待ち時間の合計が長すぎます({MaxTotalDelayMs}ms まで)"); break; }
                 if (d > 0) ops.Add(new InputOp(InputKind.Delay, d));
             }
             if (!string.IsNullOrEmpty(step.Mouse))
@@ -96,7 +96,7 @@ public static class SequenceCompiler
                     if (action == "click") { ops.Add(new InputOp(InputKind.MouseButton, button)); ops.Add(new InputOp(InputKind.MouseButton, button, Up: true)); }
                     else if (action == "down") ops.Add(new InputOp(InputKind.MouseButton, button));
                     else if (action == "up") ops.Add(new InputOp(InputKind.MouseButton, button, Up: true));
-                    else errors.Add(at + $"MouseAction '{step.MouseAction}' を解決できません（Click / Down / Up）");
+                    else errors.Add(at + $"MouseAction '{step.MouseAction}' を解決できません(Click / Down / Up)");
                 }
             }
             if (step.MoveX != null || step.MoveY != null)

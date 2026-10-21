@@ -44,7 +44,7 @@ public sealed class MacroPickerWindow : Window
         panel.Children.Add(new TextBlock
         {
             Text = items.Count > 0
-                ? $"使う{noun}を選んでください（ダブルクリックでも選べます）。"
+                ? $"使う{noun}を選んでください(ダブルクリックでも選べます)。"
                 : $"{noun}がありません。画面下の「{noun}...」で作ってください。",
             Margin = new Thickness(0, 0, 0, 8),
         });

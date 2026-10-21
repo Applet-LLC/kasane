@@ -51,7 +51,7 @@ public sealed class NodokaImportWindow : Window
         var top = new StackPanel();
         top.Children.Add(new TextBlock
         {
-            Text = "のどかの設定ファイル（.nodoka）を、kasane の設定に変換します。のどかの設定一覧から選ぶか、ファイルを選んでください。" +
+            Text = "のどかの設定ファイル(.nodoka)を、kasane の設定に変換します。のどかの設定一覧から選ぶか、ファイルを選んでください。" +
                    "include しているファイルも読みます。変換できないものは、ファイル名と行番号つきで下に出ます。この画面では何も書き換えません。",
             TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 8),
         });
@@ -66,7 +66,7 @@ public sealed class NodokaImportWindow : Window
         top.Children.Add(new TextBlock { Text = "設定ファイル:", Margin = new Thickness(0, 8, 0, 0) });
         top.Children.Add(pathRow);
 
-        top.Children.Add(new TextBlock { Text = "シンボル（-D。空白かカンマで区切る。例: USE109 EMACS）:", Margin = new Thickness(0, 8, 0, 0) });
+        top.Children.Add(new TextBlock { Text = "シンボル(-D。空白かカンマで区切る。例: USE109 EMACS):", Margin = new Thickness(0, 8, 0, 0) });
         top.Children.Add(_symbols);
 
         var buttons = new StackPanel { Orientation = Orientation.Horizontal };
@@ -121,7 +121,7 @@ public sealed class NodokaImportWindow : Window
     {
         _profiles.Items.Clear();
         var list = NodokaRegistry.ListProfiles();
-        _profiles.Items.Add(new Profile(null, list.Count == 0 ? "（のどかの設定が見つかりません。ファイルを選んでください）" : "（選んでください）"));
+        _profiles.Items.Add(new Profile(null, list.Count == 0 ? "(のどかの設定が見つかりません。ファイルを選んでください)" : "(選んでください)"));
         foreach (var p in list) _profiles.Items.Add(new Profile(p, (p.IsActive ? "★ " : "") + $"{p.Name}  {p.Path}"));
         int active = list.FindIndex(p => p.IsActive);
         _profiles.SelectedIndex = active >= 0 ? active + 1 : 0;
@@ -162,9 +162,9 @@ public sealed class NodokaImportWindow : Window
         int skipped = _conversion.Count(ConvLevel.Skipped) + _conversion.Count(ConvLevel.Error);
         var kb = _conversion.File.Keyboards;
         _summary.Text = $"変換できた {ok} 件、近似 {approx} 件、変換できない {skipped} 件。" +
-                        (kb.Count > 0 ? $"（レイヤー{kb[0].Layers?.Count ?? 0}枚、マクロ{kb[0].Macros?.Count ?? 0}、コンボ{kb[0].Combos?.Count ?? 0}、" +
+                        (kb.Count > 0 ? $"(レイヤー{kb[0].Layers?.Count ?? 0}枚、マクロ{kb[0].Macros?.Count ?? 0}、コンボ{kb[0].Combos?.Count ?? 0}、" +
                                          $"タップダンス{kb[0].TapDances?.Count ?? 0}、キー置換{kb[0].KeyOverrides?.Count ?? 0}、" +
-                                         $"ヘルパー動作{kb[0].Helper?.Actions.Count ?? 0}）" : "") +
+                                         $"ヘルパー動作{kb[0].Helper?.Actions.Count ?? 0})" : "") +
                         (kb.Count > 1 ? $" キーボードごとの設定が {kb.Count - 1} 台分あります。" : "");
         _accept.IsEnabled = !_conversion.Lines.Any(l => l.Level == ConvLevel.Error) && kb.Count > 0;
         _filter.SelectedIndex = skipped > 0 ? 1 : 0;
@@ -198,7 +198,7 @@ public sealed class NodokaImportWindow : Window
             string where = l.Src != null ? $"{Path.GetFileName(l.Src.File)}:{l.Src.Line}: " : "";
             _list.Items.Add($"{mark} {where}{l.Text}");
         }
-        if (_list.Items.Count == 0) _list.Items.Add("（該当する項目はありません）");
+        if (_list.Items.Count == 0) _list.Items.Add("(該当する項目はありません)");
     }
 
     private void Accept()

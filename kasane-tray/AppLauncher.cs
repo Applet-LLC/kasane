@@ -47,7 +47,7 @@ public static class AppLauncher
     /// <param name="onStarted">新しく起動したときだけ呼ぶ（準備中の表示を出すため）。受け取った側が Process を破棄する。</param>
     public static string? OpenOrActivate(string? exePath, string displayName, Action<Process>? onStarted = null)
     {
-        if (exePath == null) return $"{displayName}が見つかりません（インストールし直してください）。";
+        if (exePath == null) return $"{displayName}が見つかりません(インストールし直してください)。";
 
         string processName = Path.GetFileNameWithoutExtension(exePath);
         foreach (var p in Process.GetProcessesByName(processName))

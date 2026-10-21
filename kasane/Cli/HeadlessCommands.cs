@@ -143,7 +143,7 @@ public static class HeadlessCommands
         var result = DriverImport.Apply(file!, store, report);
         foreach (var l in report.Lines)
             log.Write((l.Level switch { ReportLevel.Error => "エラー: ", ReportLevel.Warning => "注意: ", _ => "" }) + l.Text);
-        log.Write($"結果: 書き込み {result.Written}（退避 {result.BackedUp}）、飛ばした {result.Skipped}");
+        log.Write($"結果: 書き込み {result.Written}(退避 {result.BackedUp})、飛ばした {result.Skipped}");
         return result.Skipped > 0 || report.HasErrors ? 2 : 0;
     }
 
@@ -160,7 +160,7 @@ public static class HeadlessCommands
         {
             try
             {
-                if (store.Restore(n)) log.Write($"{n}: 退避と入れ替えました（キーボードの接続し直しか再起動で反映されます）");
+                if (store.Restore(n)) log.Write($"{n}: 退避と入れ替えました(キーボードの接続し直しか再起動で反映されます)");
                 else { log.Write($"エラー: {n}: 退避がありません"); failed++; }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)

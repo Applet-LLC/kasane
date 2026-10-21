@@ -37,7 +37,7 @@ public sealed class KleImportWindow : Window
         public KleKeyStatus Status => Keycode.Length == 0 ? KleKeyStatus.Unassigned
             : Keycode == (Source.Keycode ?? "") ? Source.Status : KleKeyStatus.Confirmed;
         public bool EditedByUser => Keycode != (Source.Keycode ?? "");
-        public string StatusText => EditedByUser ? (Keycode.Length == 0 ? "未割り当て（手で消した）" : "手で指定") : Status switch
+        public string StatusText => EditedByUser ? (Keycode.Length == 0 ? "未割り当て(手で消した)" : "手で指定") : Status switch
         {
             KleKeyStatus.Confirmed => "確定",
             KleKeyStatus.Inferred => "推定",
@@ -89,12 +89,12 @@ public sealed class KleImportWindow : Window
         var nameRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
         nameRow.Children.Add(new TextBlock { Text = "名前:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
         nameRow.Children.Add(_name);
-        nameRow.Children.Add(new TextBlock { Text = "（英数字とハイフン。レイアウトの一覧にこの名前で出ます）", Foreground = AppTheme.Palette.SubText, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) });
+        nameRow.Children.Add(new TextBlock { Text = "(英数字とハイフン。レイアウトの一覧にこの名前で出ます)", Foreground = AppTheme.Palette.SubText, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) });
 
         var help = new TextBlock
         {
-            Text = "keyboard-layout-editor.com で作った配列の JSON（Raw data）を読み込みます。各キーの既定のキーコードは、ラベルと位置から推定します。" +
-                   "黄色は推定、赤は未割り当て（選ばなくても保存できますが、キャリブレーションが要ります）です。キーコードは、一覧で書き換えるか、「一覧から選ぶ」で選べます。",
+            Text = "keyboard-layout-editor.com で作った配列の JSON(Raw data)を読み込みます。各キーの既定のキーコードは、ラベルと位置から推定します。" +
+                   "黄色は推定、赤は未割り当て(選ばなくても保存できますが、キャリブレーションが要ります)です。キーコードは、一覧で書き換えるか、「一覧から選ぶ」で選べます。",
             TextWrapping = TextWrapping.Wrap,
             Foreground = AppTheme.Palette.SubText,
             Margin = new Thickness(0, 0, 0, 6),
@@ -195,7 +195,7 @@ public sealed class KleImportWindow : Window
 
     private void ChooseFile()
     {
-        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "KLE JSON (*.json)|*.json", Title = "KLE の配列（JSON）を開く", InitialDirectory = DialogDefaults.DataFolder, ClientGuid = DialogDefaults.Kle };
+        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "KLE JSON (*.json)|*.json", Title = "KLE の配列(JSON)を開く", InitialDirectory = DialogDefaults.DataFolder, ClientGuid = DialogDefaults.Kle };
         if (dlg.ShowDialog(this) == true) LoadFile(dlg.FileName);
     }
 
@@ -290,7 +290,7 @@ public sealed class KleImportWindow : Window
         int inferred = _rows.Count(r => r.Status == KleKeyStatus.Inferred);
         int unassigned = _rows.Count(r => r.Status == KleKeyStatus.Unassigned);
         _summary.Text = total == 0 ? "" : $"{total} キー: 確定 {confirmed}、推定 {inferred}、未割り当て {unassigned}"
-            + (_result is { IsJis: true } ? "（日本語配列として読みました）" : "");
+            + (_result is { IsJis: true } ? "(日本語配列として読みました)" : "");
     }
 
     // ---- キーコードの編集 ----
@@ -317,7 +317,7 @@ public sealed class KleImportWindow : Window
         if (dlg.ShowDialog() != true) return;
         if (!KeycodeTable.TryResolveBaseKey(dlg.ResultToken, out _))
         {
-            MessageBox.Show(this, $"「{dlg.ResultToken}」は、1 つのキーの名前ではありません。レイアウトの既定には、キーの名前（KC_A など）を選んでください。", Title);
+            MessageBox.Show(this, $"「{dlg.ResultToken}」は、1 つのキーの名前ではありません。レイアウトの既定には、キーの名前(KC_A など)を選んでください。", Title);
             return;
         }
         row.Keycode = dlg.ResultToken;

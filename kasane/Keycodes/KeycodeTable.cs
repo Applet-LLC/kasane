@@ -388,7 +388,7 @@ public static class KeycodeTable
                     // ヘルパー動作（CUSTOM）: キーは出さず、押下・解放をトレイへ知らせる。
                     if (!TryParseHelperId(parts[0], out var helperId))
                     {
-                        error = $"ヘルパー動作の番号「{parts[0]}」は0〜65535（10進、または0x付きの16進）で指定してください";
+                        error = $"ヘルパー動作の番号「{parts[0]}」は0〜65535(10進、または0x付きの16進)で指定してください";
                         return false;
                     }
                     action = new KeyAction(ActionType.Custom, 0, helperId);

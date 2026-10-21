@@ -361,7 +361,7 @@ public sealed class NodokaParser
             }
             else
             {
-                _p.Diag(DiagLevel.Warning, Here, $"def option UnitID = K{keyNum} {string.Join(" ", rest.Select(r => r.Text))}: ExtraInfo の形ではないため、キーボードを特定できません（ベンダーID・製品IDの形は対応しません）");
+                _p.Diag(DiagLevel.Warning, Here, $"def option UnitID = K{keyNum} {string.Join(" ", rest.Select(r => r.Text))}: ExtraInfo の形ではないため、キーボードを特定できません(ベンダーID・製品IDの形は対応しません)");
             }
         }
 

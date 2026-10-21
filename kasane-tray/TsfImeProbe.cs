@@ -71,7 +71,7 @@ internal static class TsfImeProbe
         }
 
         var sb = new StringBuilder();
-        sb.AppendLine($"=== {DateTime.Now:yyyy-MM-dd HH:mm:ss} --probe-tsf（{count} 回、{intervalSeconds} 秒おき）。{initNote}");
+        sb.AppendLine($"=== {DateTime.Now:yyyy-MM-dd HH:mm:ss} --probe-tsf({count} 回、{intervalSeconds} 秒おき)。{initNote}");
         File.AppendAllText(path, sb.ToString());
 
         Thread.Sleep(3000);

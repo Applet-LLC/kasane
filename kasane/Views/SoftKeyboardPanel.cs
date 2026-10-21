@@ -51,7 +51,7 @@ public sealed class SoftKeyboardPanel : StackPanel
         header.Children.Add(_layoutCombo);
         header.Children.Add(new TextBlock
         {
-            Text = "キーをクリックして選びます（キーコード名はUS配列基準です）。",
+            Text = "キーをクリックして選びます(キーコード名はUS配列基準です)。",
             Foreground = AppTheme.Palette.SubText, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0),
         });
         Children.Add(header);

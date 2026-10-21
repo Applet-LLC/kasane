@@ -29,7 +29,7 @@ public static class DriverImport
 
         if (file.ParsedScope == PortableScope.Layer)
         {
-            report.Error("レイヤー1枚だけのファイルは、インストール時の取り込みに使えません（キーボード全体のファイルを選んでください）");
+            report.Error("レイヤー1枚だけのファイルは、インストール時の取り込みに使えません(キーボード全体のファイルを選んでください)");
             return new Result(0, 0, file.Keyboards.Count);
         }
 
@@ -37,7 +37,7 @@ public static class DriverImport
         for (int i = 0; i < file.Keyboards.Count; i++)
         {
             var src = file.Keyboards[i];
-            string tag = $"キーボード{i + 1}" + (string.IsNullOrEmpty(src.HardwareId) ? "" : $"（{src.HardwareId}）");
+            string tag = $"キーボード{i + 1}" + (string.IsNullOrEmpty(src.HardwareId) ? "" : $"({src.HardwareId})");
 
             uint? model = DeviceKeys.ModelKey(src.HardwareId);
             if (model == null)
@@ -49,7 +49,7 @@ public static class DriverImport
             string name = DeviceKeys.ModelSubKeyName(model.Value);
             if (!done.Add(name))
             {
-                report.Warn($"{tag}: 同じ型番（{name}）のキーボードが、ファイルに複数あります。最初の1つだけを書きます");
+                report.Warn($"{tag}: 同じ型番({name})のキーボードが、ファイルに複数あります。最初の1つだけを書きます");
                 skipped++;
                 continue;
             }
@@ -74,16 +74,16 @@ public static class DriverImport
                 bool bak = store.Write(name, settings);
                 written++;
                 if (bak) backedUp++;
-                report.Info($"{tag}: {name} に書きました" + (bak ? $"（前の設定は {name}{PersistedSettings.BackupSuffix} に退避）" : ""));
+                report.Info($"{tag}: {name} に書きました" + (bak ? $"(前の設定は {name}{PersistedSettings.BackupSuffix} に退避)" : ""));
             }
             catch (InvalidOperationException ex)
             {
-                report.Error($"{tag}: 検証に失敗したため、飛ばしました（{ex.Message.Replace('\n', ' ')}）");
+                report.Error($"{tag}: 検証に失敗したため、飛ばしました({ex.Message.Replace('\n', ' ')})");
                 skipped++;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
             {
-                report.Error($"{tag}: レジストリに書けませんでした（{ex.Message}）");
+                report.Error($"{tag}: レジストリに書けませんでした({ex.Message})");
                 skipped++;
             }
         }

@@ -14,9 +14,9 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
         : base("タップダンス", KbdLayerClient.MaxTapDanceCount,
             "タップダンスは、キーマップで TAPDANCE(n) を割り当てたキーを、何回続けてタップしたか・長押ししたかで動作を変えます。\n" +
             "1回・2回・3回タップはキー(KC_*)、LCTL(KC_C) のような修飾付きキー、MACRO(n) のいずれか、" +
-            "長押しは KC_*、MT(MOD_LCTL,KC_NO) のような修飾キー、LT(1,KC_NO) のようなレイヤー（MT/LTのタップ側のキーは使われません）、" +
-            "LCTL(KC_C) のような修飾付きキー（押している間）、LM(1,MOD_LCTL)、MACRO(n)（長押しが決まったときに1回実行）のいずれかを指定します。" +
-            "空欄（または KC_NO）にした欄は「動作なし」で、そのタップ回数・長押しでは何も起きません。" +
+            "長押しは KC_*、MT(MOD_LCTL,KC_NO) のような修飾キー、LT(1,KC_NO) のようなレイヤー(MT/LTのタップ側のキーは使われません)、" +
+            "LCTL(KC_C) のような修飾付きキー(押している間)、LM(1,MOD_LCTL)、MACRO(n)(長押しが決まったときに1回実行)のいずれかを指定します。" +
+            "空欄(または KC_NO)にした欄は「動作なし」で、そのタップ回数・長押しでは何も起きません。" +
             "判定時間はタイミング設定の TapDanceTerm です。4つとも空にすると未使用になります。")
     {
         foreach (var t in tapDances)
@@ -91,7 +91,7 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
             Margin = new System.Windows.Thickness(110, 8, 0, 0),
             Padding = new System.Windows.Thickness(10, 3, 10, 3),
             HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
-            ToolTip = "キーの割り当て画面のキーコード欄を一度クリックしてから押します（一覧の行をダブルクリックでも同じ）。",
+            ToolTip = "キーの割り当て画面のキーコード欄を一度クリックしてから押します(一覧の行をダブルクリックでも同じ)。",
         };
         insert.Click += (_, _) => InsertIntoOtherWindow(id);
         Detail.Children.Add(insert);

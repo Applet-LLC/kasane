@@ -200,7 +200,7 @@ public static class NicolaService
         bool jisKana;
         if (def.Output == "romaji") jisKana = false;
         else if (def.Output == "jis-kana") jisKana = true;
-        else { errors.Add($"NICOLA: 出力の形式は romaji か jis-kana にしてください（{def.Output}）"); return null; }
+        else { errors.Add($"NICOLA: 出力の形式は romaji か jis-kana にしてください({def.Output})"); return null; }
 
         uint overlapPct = (uint)Math.Max(0, Math.Round(def.OverlapRatio * 100.0, MidpointRounding.AwayFromZero));
         if (def.Layer < 0 || def.Layer >= KbdLayerClient.MaxLayers)
@@ -253,7 +253,7 @@ public static class NicolaService
                 }
                 if (steps.Count > KbdLayerClient.NicolaMaxSteps)
                 {
-                    errors.Add($"NICOLA: {k.Key}の{name}「{text}」は送出に{steps.Count}ステップ必要です（最大{KbdLayerClient.NicolaMaxSteps}）");
+                    errors.Add($"NICOLA: {k.Key}の{name}「{text}」は送出に{steps.Count}ステップ必要です(最大{KbdLayerClient.NicolaMaxSteps})");
                     continue;
                 }
                 planes[plane] = steps;
@@ -261,7 +261,7 @@ public static class NicolaService
             entries.Add((source, planes));
         }
         if (entries.Count == 0 && errors.Count == before) errors.Add("NICOLA: 文字キーがありません");
-        if (entries.Count > KbdLayerClient.NicolaMaxKeys) errors.Add($"NICOLA: 文字キーが多すぎます（最大{KbdLayerClient.NicolaMaxKeys}）");
+        if (entries.Count > KbdLayerClient.NicolaMaxKeys) errors.Add($"NICOLA: 文字キーが多すぎます(最大{KbdLayerClient.NicolaMaxKeys})");
         if (errors.Count > before) return null;
 
         using var ms = new MemoryStream();
@@ -313,7 +313,7 @@ public static class NicolaService
         uint simul = BitConverter.ToUInt32(blob, 24);
         uint keyCount = BitConverter.ToUInt32(blob, 40);
         string Name(ushort sc) => KeycodeTable.NameForScanCode(sc) ?? $"0x{sc:X4}";
-        return $"設定あり（{(enabled != 0 ? "有効" : "無効")}、レイヤー{layer}、文字キー{keyCount}個、" +
-               $"親指 {Name(thumbL)} / {Name(thumbR)}、判定時間 {simul}ms）";
+        return $"設定あり({(enabled != 0 ? "有効" : "無効")}、レイヤー{layer}、文字キー{keyCount}個、" +
+               $"親指 {Name(thumbL)} / {Name(thumbR)}、判定時間 {simul}ms)";
     }
 }

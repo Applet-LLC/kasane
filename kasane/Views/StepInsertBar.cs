@@ -17,8 +17,8 @@ public static class StepInsertBar
         ("左ボタンをクリック", "mouse left", "left"),
         ("右ボタンをクリック", "mouse right", "right"),
         ("中ボタンをクリック", "mouse middle", "middle"),
-        ("戻るボタン（X1）をクリック", "mouse x1", "x1"),
-        ("進むボタン（X2）をクリック", "mouse x2", "x2"),
+        ("戻るボタン(X1)をクリック", "mouse x1", "x1"),
+        ("進むボタン(X2)をクリック", "mouse x2", "x2"),
         ("", "", ""), // 区切り
         ("左ボタンを押す", "mouse left down", "left_down"),
         ("左ボタンを離す", "mouse left up", "left_up"),
@@ -27,8 +27,8 @@ public static class StepInsertBar
         ("中ボタンを押す", "mouse middle down", "middle_down"),
         ("中ボタンを離す", "mouse middle up", "middle_up"),
         ("", "", ""),
-        ("今の位置から動かす（x y）", "move 10 0", "move"),
-        ("画面の座標へ動かす（x y）", "moveto 100 100", "moveto"),
+        ("今の位置から動かす(x y)", "move 10 0", "move"),
+        ("画面の座標へ動かす(x y)", "moveto 100 100", "moveto"),
         ("", "", ""),
         ("ホイール 上へ1ノッチ", "wheel 120", "wheel_up"),
         ("ホイール 下へ1ノッチ", "wheel -120", "wheel_down"),
@@ -62,7 +62,7 @@ public static class StepInsertBar
             Content = "キーを押して挿入",
             Padding = new Thickness(8, 1, 8, 1),
             Focusable = false, // キー操作でボタンが反応して、取り込んだキーが重ならないように
-            ToolTip = "このボタンを押したあと、入れたいキーを押します（Esc で取消）。Win キーや Alt+Tab は入力できないので「選ぶ...」を使ってください。",
+            ToolTip = "このボタンを押したあと、入れたいキーを押します(Esc で取消)。Win キーや Alt+Tab は入力できないので「選ぶ...」を使ってください。",
         };
         KeycodeCapture? session = null;
         session = new KeycodeCapture(

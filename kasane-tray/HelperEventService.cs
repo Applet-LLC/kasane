@@ -80,7 +80,7 @@ public sealed class HelperEventService : IDisposable
             catch (KbdLayerException ex) when (ex.Win32Error == KbdLayerClient.ErrorInvalidFunction)
             {
                 _unsupported = true;
-                TrayLog.Write("HelperEvents: このドライバは WAIT_HELPER_EVENT に対応していません（HLP は使えません）");
+                TrayLog.Write("HelperEvents: このドライバは WAIT_HELPER_EVENT に対応していません(HLP は使えません)");
             }
             catch (KbdLayerException ex) when (ex.Win32Error == ErrorOperationAborted)
             {

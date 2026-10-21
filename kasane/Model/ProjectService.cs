@@ -221,12 +221,12 @@ public static class ProjectService
             var sc = EffectiveScanCode(project, slot);
             if (sc == null)
             {
-                warnings.Add($"{slot.Description}: スキャンコードが不明なため適用されません（キャリブレーションで実測してください）");
+                warnings.Add($"{slot.Description}: スキャンコードが不明なため適用されません(キャリブレーションで実測してください)");
                 continue;
             }
             if (seen.TryGetValue(sc.Value, out var other))
             {
-                errors.Add($"{slot.Description} と {other.Description} が同じスキャンコード 0x{sc:X4} です（キャリブレーションをやり直してください）");
+                errors.Add($"{slot.Description} と {other.Description} が同じスキャンコード 0x{sc:X4} です(キャリブレーションをやり直してください)");
                 continue;
             }
             seen[sc.Value] = slot;
@@ -291,11 +291,11 @@ public static class ProjectService
                 }
                 bool layerRef = ActionType.ReferencesLayer(a.Type);
                 if (layerRef && a.Param1 >= project.Layers.Count)
-                    errors.Add($"レイヤー{L} {slot.Description}: {token} のレイヤー{a.Param1}がありません（レイヤーを追加してください）");
+                    errors.Add($"レイヤー{L} {slot.Description}: {token} のレイヤー{a.Param1}がありません(レイヤーを追加してください)");
                 else if (a.Type == ActionType.Macro && !macroIds.Contains(a.Param1))
-                    warnings.Add($"{token} の中身が未設定です（押しても何も起きません）");
+                    warnings.Add($"{token} の中身が未設定です(押しても何も起きません)");
                 else if (a.Type == ActionType.TapDance && !tapDanceIds.Contains(a.Param1))
-                    warnings.Add($"{token} の中身が未設定です（押しても何も起きません）");
+                    warnings.Add($"{token} の中身が未設定です(押しても何も起きません)");
             }
         }
         // タップダンス（タップ側・長押し）とコンボの出力から参照しているマクロ。
@@ -304,13 +304,13 @@ public static class ProjectService
             foreach (var token in new[] { td.SingleTap, td.SingleHold, td.DoubleTap, td.TripleTap })
             {
                 if (KeycodeTable.TryResolve(token, out var a) && a.Type == ActionType.Macro && !macroIds.Contains(a.Param1))
-                    warnings.Add($"タップダンス{td.Id}: {token} の中身が未設定です（そこでは何も起きません）");
+                    warnings.Add($"タップダンス{td.Id}: {token} の中身が未設定です(そこでは何も起きません)");
             }
         }
         foreach (var combo in project.Combos)
         {
             if (KeycodeTable.TryResolve(combo.Output, out var a) && a.Type == ActionType.Macro && !macroIds.Contains(a.Param1))
-                warnings.Add($"コンボ{combo.Id}: {combo.Output} の中身が未設定です（成立しても何も起きません）");
+                warnings.Add($"コンボ{combo.Id}: {combo.Output} の中身が未設定です(成立しても何も起きません)");
         }
     }
 
@@ -334,8 +334,8 @@ public static class ProjectService
                 if ((mods & (1 << bit)) != 0) steps.Add(new MacroStep(KeycodeTable.ModifierScanCodes[bit], true));
         }
         if (steps.Count > KbdLayerClient.MaxMacroSteps)
-            errors.Add($"マクロ{macro.Id}: 長すぎます（{steps.Count}ステップ。上限は{KbdLayerClient.MaxMacroSteps}で、" +
-                       "キー1つが2、修飾キー1つにつき2を使います）");
+            errors.Add($"マクロ{macro.Id}: 長すぎます({steps.Count}ステップ。上限は{KbdLayerClient.MaxMacroSteps}で、" +
+                       "キー1つが2、修飾キー1つにつき2を使います)");
         return steps;
     }
 
@@ -414,7 +414,7 @@ public static class ProjectService
             if (!KeycodeTable.TryResolve(token, out var a) ||
                 a.Type is not (ActionType.Key or ActionType.ModdedKey or ActionType.Macro))
             {
-                errors.Add($"タップダンス{td.Id}: {what}「{token}」はキー(KC_*)、修飾付きキー(LCTL(KC_C)等)、MACRO(n)、空欄（動作なし）のいずれかにしてください");
+                errors.Add($"タップダンス{td.Id}: {what}「{token}」はキー(KC_*)、修飾付きキー(LCTL(KC_C)等)、MACRO(n)、空欄(動作なし)のいずれかにしてください");
                 return KeyAction.None;
             }
             return a;
@@ -430,7 +430,7 @@ public static class ProjectService
                  or ActionType.ModdedKey or ActionType.LayerMod or ActionType.Macro)))
         {
             errors.Add($"タップダンス{td.Id}: ホールド「{td.SingleHold}」はKC_*、MT(mod,kc)、LT(layer,kc)、修飾付きキー(LCTL(KC_Z)等)、" +
-                       "LM(layer,mod)、MACRO(n)、空欄（動作なし）のいずれかにしてください");
+                       "LM(layer,mod)、MACRO(n)、空欄(動作なし)のいずれかにしてください");
         }
         return errors.Count == before ? new TapDanceEntry(single, hold, dbl, triple) : null;
     }
@@ -466,7 +466,7 @@ public static class ProjectService
             nicolaBlob = NicolaService.BuildBlob(project.Nicola, warnings, errors);
             // IME連動（トレイ）が、IMEがかなモードのときにそのレイヤーを立てる。使わない場合は、そのレイヤーに切り替えるキーが要る。
             if (project.Nicola.Layer >= project.Layers.Count && !NicolaImeLinkFor(project.UniqId))
-                warnings.Add($"NICOLAのレイヤー{project.Nicola.Layer}はキーマップにありません（IME連動を使わない場合は、そのレイヤーに切り替えるキー（TG({project.Nicola.Layer})等）が無いと、親指シフトは働きません）");
+                warnings.Add($"NICOLAのレイヤー{project.Nicola.Layer}はキーマップにありません(IME連動を使わない場合は、そのレイヤーに切り替えるキー(TG({project.Nicola.Layer})等)が無いと、親指シフトは働きません)");
         }
         if (project.EnabledFeatures is uint f && (f & ~KbdLayerClient.FeatureAll) != 0)
             errors.Add($"機能のON/OFFの値 0x{f:X} に未知のビットがあります");
@@ -706,7 +706,7 @@ public static class ProjectService
         File.WriteAllText(profilePath, sb.ToString(), new UTF8Encoding(false));
 
         if (project.Macros.Count + project.Combos.Count + project.TapDances.Count + project.KeyOverrides.Count > 0)
-            warnings.Add("マクロ・コンボ・タップダンス・キー置換はkeymap.jsonに含まれません（CLIでは --set-macro / --set-combo / --set-tapdance / --set-key-override で別途登録します）");
+            warnings.Add("マクロ・コンボ・タップダンス・キー置換はkeymap.jsonに含まれません(CLIでは --set-macro / --set-combo / --set-tapdance / --set-key-override で別途登録します)");
         return warnings;
     }
 }

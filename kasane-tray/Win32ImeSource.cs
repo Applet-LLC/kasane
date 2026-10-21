@@ -70,11 +70,11 @@ public sealed class Win32ImeSource : IImeSource
 
         threadId = GetWindowThreadProcessId(foreground, out uint pid);
         cls = ClassOf(foreground);
-        if (pid == _ownPid) { if (wantDetail) detail = $"前面はトレイ自身（{cls}）なので見ません"; return false; }
+        if (pid == _ownPid) { if (wantDetail) detail = $"前面はトレイ自身({cls})なので見ません"; return false; }
         process = ProcessNameCached(pid);
         if (IsShellWindow(cls, process))
         {
-            if (wantDetail) detail = $"前面はシェルのウィンドウ（{cls}、{process}）なので見ません";
+            if (wantDetail) detail = $"前面はシェルのウィンドウ({cls}、{process})なので見ません";
             return false;
         }
         return true;
@@ -106,28 +106,28 @@ public sealed class Win32ImeSource : IImeSource
         if (GetGUIThreadInfo(threadId, ref info) && info.hwndFocus != IntPtr.Zero) target = info.hwndFocus;
 
         IntPtr imeWindow = ImmGetDefaultIMEWnd(target);
-        if (imeWindow == IntPtr.Zero) { if (wantDetail) detail = $"{process}（{cls}）: IMEのウィンドウがありません"; return ImeState.Unknown; }
+        if (imeWindow == IntPtr.Zero) { if (wantDetail) detail = $"{process}({cls}): IMEのウィンドウがありません"; return ImeState.Unknown; }
 
         if (!Query(imeWindow, IMC_GETOPENSTATUS, out long open))
         {
-            if (wantDetail) detail = $"{process}（{cls}）: IMEのON/OFFを問い合わせられません（管理者として動いている・応答しない等）";
+            if (wantDetail) detail = $"{process}({cls}): IMEのON/OFFを問い合わせられません(管理者として動いている・応答しない等)";
             return ImeState.Unknown;
         }
         if (open == 0)
         {
             // IMEがOFFなら、変換モードは関係しない（かな入力にならない）ので聞かない。相手のアプリへのメッセージを半分にする。
-            if (wantDetail) detail = $"{process}（{cls}）: IME OFF";
+            if (wantDetail) detail = $"{process}({cls}): IME OFF";
             return new ImeState(true, false, 0);
         }
         if (!Query(imeWindow, IMC_GETCONVERSIONMODE, out long mode))
         {
-            if (wantDetail) detail = $"{process}（{cls}）: IMEの変換モードを問い合わせられません";
+            if (wantDetail) detail = $"{process}({cls}): IMEの変換モードを問い合わせられません";
             return ImeState.Unknown;
         }
 
         var state = new ImeState(true, open != 0, (uint)mode);
         if (wantDetail)
-            detail = $"{process}（{cls}）: IME {(state.Open ? "ON" : "OFF")}、変換モード 0x{state.ConversionMode:X}、かな入力 {(state.IsKanaInput ? "はい" : "いいえ")}";
+            detail = $"{process}({cls}): IME {(state.Open ? "ON" : "OFF")}、変換モード 0x{state.ConversionMode:X}、かな入力 {(state.IsKanaInput ? "はい" : "いいえ")}";
         return state;
     }
 

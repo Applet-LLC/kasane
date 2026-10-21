@@ -48,7 +48,7 @@ public sealed class KeyStreamSession : IDisposable
         try
         {
             client = KbdLayerClient.TryOpen(out var error);
-            if (client == null) { Report(KeyStreamState.Failed, $"ドライバに接続できません（{error}）"); return; }
+            if (client == null) { Report(KeyStreamState.Failed, $"ドライバに接続できません({error})"); return; }
             if (client.IsReadOnly) { Report(KeyStreamState.AccessDenied, "管理者権限が無いため、ドライバから直接キーを受け取れません"); return; }
 
             uint lastSeq = KbdLayerClient.KeySeqLatest;
@@ -74,11 +74,11 @@ public sealed class KeyStreamSession : IDisposable
         }
         catch (KbdLayerException ex) when (ex.Win32Error == KbdLayerClient.ErrorInvalidFunction)
         {
-            Report(KeyStreamState.Unsupported, "このドライバはキーイベントの通知に対応していません（kbdlayer.sys を更新してください）");
+            Report(KeyStreamState.Unsupported, "このドライバはキーイベントの通知に対応していません(kbdlayer.sys を更新してください)");
         }
         catch (KbdLayerException ex) when (ex.Win32Error == KbdLayerClient.ErrorNoSystemResources)
         {
-            Report(KeyStreamState.Failed, "同時にキーを監視できる数の上限に達しています（KeymapTool --watch-keys などを閉じてください）");
+            Report(KeyStreamState.Failed, "同時にキーを監視できる数の上限に達しています(KeymapTool --watch-keys などを閉じてください)");
         }
         catch (Exception ex)
         {

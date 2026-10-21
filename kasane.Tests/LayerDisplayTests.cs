@@ -57,7 +57,7 @@ public class LayerDisplayTests
     public void Tooltip_KeepsPrefixAndFitsLimit()
     {
         var badge = new LayerBadge(1, '1', "レイヤー 1");
-        string t = LayerDisplay.AppendToTooltip("kasane — 動作中（2台）", badge);
+        string t = LayerDisplay.AppendToTooltip("kasane — 動作中(2台)", badge);
         Assert.StartsWith("kasane", t);
         Assert.EndsWith("レイヤー 1", t);
         string longText = LayerDisplay.AppendToTooltip(new string('x', 200), badge);

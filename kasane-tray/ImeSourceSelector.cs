@@ -96,7 +96,7 @@ public sealed class ImeSourceSelector : IImeSource
         _lastForeground = foreground;
         _lastReason = reason;
         string text = $"IME: {source} {Describe(state)}" + (foreground.Length > 0 ? $" [{foreground}]" : "");
-        if (reason != 0) text += $" （{_tsfDiagnostics!.DescribeLast()}）";
+        if (reason != 0) text += $" ({_tsfDiagnostics!.DescribeLast()})";
         _log!(text);
     }
 
@@ -110,6 +110,6 @@ public sealed class ImeSourceSelector : IImeSource
         if (!state.Open) return "OFF";
         string method = (state.ConversionMode & CModeRoman) != 0 ? "ローマ字入力" : "カナ入力";
         string mode = (state.ConversionMode & ImeConversion.Native) != 0 ? "日本語" : "半角英数";
-        return $"ON {method}（{mode}、変換モード 0x{state.ConversionMode:X}）";
+        return $"ON {method}({mode}、変換モード 0x{state.ConversionMode:X})";
     }
 }

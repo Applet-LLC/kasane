@@ -447,7 +447,7 @@ public sealed class HelperConfigSet
                     if (name.Length != 8 || !uint.TryParse(name, System.Globalization.NumberStyles.AllowHexSpecifier, null, out var id))
                         continue;
                     string path = Path.Combine(sub, HelperConfig.FileName);
-                    if (!HelperConfig.TryLoad(path, out var cfg, out var error)) log?.Invoke($"{path}: 読めないため無視します（{error}）");
+                    if (!HelperConfig.TryLoad(path, out var cfg, out var error)) log?.Invoke($"{path}: 読めないため無視します({error})");
                     if (cfg != null) perDevice[id] = cfg;
                 }
             }

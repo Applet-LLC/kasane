@@ -83,7 +83,7 @@ public static class KleImporter
     private static List<WalkedKey> Walk(JsonNode? root, out bool rotation)
     {
         rotation = false;
-        if (root is not JsonArray rows) throw new FormatException("KLE の JSON は、行の配列である必要があります（Raw data のまま）。");
+        if (root is not JsonArray rows) throw new FormatException("KLE の JSON は、行の配列である必要があります(Raw data のまま)。");
         var keys = new List<WalkedKey>();
         double cy = 0;
         int align = 4;
@@ -131,7 +131,7 @@ public static class KleImporter
         catch (JsonException ex) { throw new FormatException("JSON として読めません: " + ex.Message, ex); }
         var keys = Walk(root, out bool rotation);
         var warnings = new List<string>();
-        if (rotation) warnings.Add("回転したキー（r / rx / ry）があります。kasane は回転に対応しないので、取り込めません（KLE で回転を外してください）。");
+        if (rotation) warnings.Add("回転したキー(r / rx / ry)があります。kasane は回転に対応しないので、取り込めません(KLE で回転を外してください)。");
         if (keys.Count == 0) warnings.Add("キーがありません。");
         if (keys.Count > KbdLayerLimits.MaxSlots) warnings.Add($"キーが {keys.Count} 個あります。上限は {KbdLayerLimits.MaxSlots} 個です。");
 
@@ -147,9 +147,9 @@ public static class KleImporter
         }
 
         foreach (var g in results.Where(r => r.Keycode != null).GroupBy(r => r.Keycode!).Where(g => g.Count() > 1))
-            warnings.Add($"{g.Key} が {g.Count()} 個のキーに割り当てられています（スロット {string.Join("、", g.Select(r => "#" + (r.Slot + 1)))}）。");
+            warnings.Add($"{g.Key} が {g.Count()} 個のキーに割り当てられています(スロット {string.Join("、", g.Select(r => "#" + (r.Slot + 1)))})。");
         int unassigned = results.Count(r => r.Status == KleKeyStatus.Unassigned);
-        if (unassigned > 0) warnings.Add($"キーコードが決まらなかったキーが {unassigned} 個あります。画面で選んでください（選ばなくても保存できます）。");
+        if (unassigned > 0) warnings.Add($"キーコードが決まらなかったキーが {unassigned} 個あります。画面で選んでください(選ばなくても保存できます)。");
 
         return new KleImportResult { Keys = results, Warnings = warnings, HasRotation = rotation, IsJis = isJis };
     }
@@ -281,10 +281,10 @@ public static class KleImporter
         }
         foreach (var l in v.Legends)
         {
-            if (ResolveSymbol(l.Text, ctx.IsJis) is { } sym) return (sym, KleKeyStatus.Inferred, Join(ctx.IsJis ? "記号（日本語配列として）" : "記号（US 配列として）", note));
+            if (ResolveSymbol(l.Text, ctx.IsJis) is { } sym) return (sym, KleKeyStatus.Inferred, Join(ctx.IsJis ? "記号(日本語配列として)" : "記号(US 配列として)", note));
         }
         if (IsSpaceLike(v))
-            return ("KC_SPACE", KleKeyStatus.Inferred, Join("凡例の無い幅の広いキー（スペースバーとして）", note));
+            return ("KC_SPACE", KleKeyStatus.Inferred, Join("凡例の無い幅の広いキー(スペースバーとして)", note));
         return (null, KleKeyStatus.Unassigned, Join("ラベルから決まりませんでした", note));
     }
 

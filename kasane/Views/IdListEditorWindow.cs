@@ -128,11 +128,11 @@ public abstract class IdListEditorWindow : Window
             Names[id] = string.IsNullOrWhiteSpace(box.Text) ? null : box.Text.Trim();
             RefreshItem(id);
         };
-        Detail.Children.Add(Row("名前（任意）", box));
+        Detail.Children.Add(Row("名前(任意)", box));
         if (string.IsNullOrEmpty(Summary(id)))
             Detail.Children.Add(new TextBlock
             {
-                Text = "中身が空の番号は未使用です。名前だけ先に付けておけます（中身を入れるまで、キーボードには適用されません）。",
+                Text = "中身が空の番号は未使用です。名前だけ先に付けておけます(中身を入れるまで、キーボードには適用されません)。",
                 Foreground = AppTheme.Palette.SubText, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6),
             });
     }
@@ -141,7 +141,7 @@ public abstract class IdListEditorWindow : Window
     {
         var s = Summary(id);
         var name = Names[id];
-        string body = string.IsNullOrEmpty(s) ? "（未使用）" : s;
+        string body = string.IsNullOrEmpty(s) ? "(未使用)" : s;
         return string.IsNullOrEmpty(name) ? $"{id,2}: {body}" : $"{id,2}: {name} — {body}";
     }
 

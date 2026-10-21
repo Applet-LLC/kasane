@@ -20,7 +20,7 @@ internal sealed class HelperActionsTab : HelperTabBase
             "キーで、プログラムの起動・文字列の入力・マウス操作・レイヤーの操作などを実行します。" +
             "「動作」は、キー割り当て画面で HLP(Id) を割り当てたキーで実行されます。" +
             "「トリガー」は、F13〜F24 などのキーを、トレイが監視して実行します。" +
-            "変更は、OK を押すと保存されます（管理者権限は要りません）。トレイが数秒で読み直します。")
+            "変更は、OK を押すと保存されます(管理者権限は要りません)。トレイが数秒で読み直します。")
     {
         _addAction = Btn("AddActionButton", "追加...");
         _editAction = Btn("EditActionButton", "編集...");
@@ -31,10 +31,10 @@ internal sealed class HelperActionsTab : HelperTabBase
         _copyTrigger = Btn("CopyTriggerButton", "複製");
         _deleteTrigger = Btn("DeleteTriggerButton", "削除");
 
-        Stack.Children.Add(new TextBlock { Text = "動作（HLP(Id) のキーから呼ぶ）", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 0) });
+        Stack.Children.Add(new TextBlock { Text = "動作(HLP(Id) のキーから呼ぶ)", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 0) });
         Stack.Children.Add(_actions);
         Stack.Children.Add(Buttons(_addAction, _editAction, _copyAction, _deleteAction));
-        Stack.Children.Add(new TextBlock { Text = "トリガー（F13 などのキー。キーフックで受ける）", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 0) });
+        Stack.Children.Add(new TextBlock { Text = "トリガー(F13 などのキー。キーフックで受ける)", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 0) });
         Stack.Children.Add(_triggers);
         Stack.Children.Add(Buttons(_addTrigger, _editTrigger, _copyTrigger, _deleteTrigger));
 
@@ -110,7 +110,7 @@ internal sealed class HelperActionsTab : HelperTabBase
         if (id < 0) { MessageBox.Show(Owner, "使える Id がありません。", "動作の複製"); return; }
         var copy = HelperSummary.CloneAction(Config.Actions[i]);
         copy.Id = id;
-        copy.Name = string.IsNullOrWhiteSpace(copy.Name) ? null : copy.Name + "（複製）";
+        copy.Name = string.IsNullOrWhiteSpace(copy.Name) ? null : copy.Name + "(複製)";
         Config.Actions.Insert(i + 1, copy);
         Refresh(i + 1, _triggers.SelectedIndex);
     }

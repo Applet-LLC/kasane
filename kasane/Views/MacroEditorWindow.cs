@@ -13,10 +13,10 @@ public sealed class MacroEditorWindow : IdListEditorWindow
 
     public MacroEditorWindow(IEnumerable<MacroDef> macros, IReadOnlyDictionary<int, string>? names = null)
         : base("マクロ", KbdLayerClient.MaxMacroCount,
-            "マクロは、キーマップで MACRO(n) を割り当てたキーを押したときに、並べたキーを順にタップ（押して離す）します。\n" +
-            "キーコードをスペース区切りで並べてください（例: KC_H KC_I）。Ctrl+C のような同時押しは LCTL(KC_C) と書きます" +
-            "（C(KC_C) でも可。Ctrl+Shift+T は LCTL(LSFT(KC_T))）。\n" +
-            $"1つのマクロは{KbdLayerClient.MaxMacroSteps}ステップまでです（キー1つで2、修飾キー1つにつき2を使います）。")
+            "マクロは、キーマップで MACRO(n) を割り当てたキーを押したときに、並べたキーを順にタップ(押して離す)します。\n" +
+            "キーコードをスペース区切りで並べてください(例: KC_H KC_I)。Ctrl+C のような同時押しは LCTL(KC_C) と書きます" +
+            "(C(KC_C) でも可。Ctrl+Shift+T は LCTL(LSFT(KC_T)))。\n" +
+            $"1つのマクロは{KbdLayerClient.MaxMacroSteps}ステップまでです(キー1つで2、修飾キー1つにつき2を使います)。")
     {
         for (int i = 0; i < _texts.Length; i++) _texts[i] = "";
         foreach (var m in macros)
@@ -71,7 +71,7 @@ public sealed class MacroEditorWindow : IdListEditorWindow
             Margin = new System.Windows.Thickness(110, 8, 0, 0),
             Padding = new System.Windows.Thickness(10, 3, 10, 3),
             HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
-            ToolTip = "コンボ・タップダンス・キー置換・キーの割り当ての画面で、最後に選んだ入力欄へ入れます（一覧の行をダブルクリックでも同じ）。",
+            ToolTip = "コンボ・タップダンス・キー置換・キーの割り当ての画面で、最後に選んだ入力欄へ入れます(一覧の行をダブルクリックでも同じ)。",
         };
         insert.Click += (_, _) => InsertIntoOtherWindow(id);
         Detail.Children.Add(insert);

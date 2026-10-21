@@ -29,7 +29,7 @@ public static class PendingImport
 
         if (!PortableIO.TryRead(path, out var file, out string? error))
         {
-            report.Error($"{FileName} を読めないため、取り込みません（{error}）");
+            report.Error($"{FileName} を読めないため、取り込みません({error})");
             return new Result(true, 0, false);
         }
         if (file!.ParsedScope == PortableScope.Layer)
@@ -59,7 +59,7 @@ public static class PendingImport
         };
         var options = new ImportOptions { Mode = ImportMode.Replace, Helper = true, MeasuredScanCodes = false };
         var changed = PortableService.ImportAll(target, unset, options, baseDirectory, report, resolveLayout);
-        report.Info($"{FileName} から、キーボード{changed.Count}台" + (trayUnset ? "とトレイの設定" : "") + "を取り込みました（設定が無かったものだけ）");
+        report.Info($"{FileName} から、キーボード{changed.Count}台" + (trayUnset ? "とトレイの設定" : "") + "を取り込みました(設定が無かったものだけ)");
         return new Result(true, changed.Count, trayUnset);
     }
 

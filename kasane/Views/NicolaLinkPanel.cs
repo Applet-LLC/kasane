@@ -26,8 +26,8 @@ internal sealed class NicolaLinkPanel : HelperTabBase
     /// <param name="changed">値が変わったとき（NICOLA の説明の注意を見直すため）。</param>
     public NicolaLinkPanel(HelperSettingsModel model, Window owner, Func<bool> getGlobal, Action<bool> setGlobal, Action changed)
         : base(model, owner, "NicolaLink",
-            "NICOLA の IME 連動（IME がかなモードのときだけ、NICOLA のレイヤーを自動で立てる）を使うかどうかを決めます。" +
-            "「このキーボード」の設定が、「全キーボード共通」より先に使われます。変更は、OK を押すと保存されます（管理者権限は要りません）。" +
+            "NICOLA の IME 連動(IME がかなモードのときだけ、NICOLA のレイヤーを自動で立てる)を使うかどうかを決めます。" +
+            "「このキーボード」の設定が、「全キーボード共通」より先に使われます。変更は、OK を押すと保存されます(管理者権限は要りません)。" +
             "タスクトレイの kasane が動いているときだけ働きます。")
     {
         _getGlobal = getGlobal;
@@ -37,7 +37,7 @@ internal sealed class NicolaLinkPanel : HelperTabBase
         LinkCheck = new CheckBox
         {
             Name = "NicolaImeLinkCheck",
-            Content = "IME連動: IMEがかなモードのときだけNICOLAにする（タスクトレイの kasane が必要）",
+            Content = "IME連動: IMEがかなモードのときだけNICOLAにする(タスクトレイの kasane が必要)",
             Margin = new Thickness(0, 6, 0, 0),
         };
         LinkCheck.Click += (_, _) => Apply();
@@ -61,7 +61,7 @@ internal sealed class NicolaLinkPanel : HelperTabBase
         {
             LinkCheck.IsChecked = global;
             _inherit.IsEnabled = false;
-            _hint.Text = "全キーボード共通の設定です（キーボードごとの設定が無いキーボードは、これに従います）。";
+            _hint.Text = "全キーボード共通の設定です(キーボードごとの設定が無いキーボードは、これに従います)。";
         }
         else
         {
@@ -69,7 +69,7 @@ internal sealed class NicolaLinkPanel : HelperTabBase
             LinkCheck.IsChecked = own ?? global;
             _inherit.IsEnabled = Editable && own != null;
             _hint.Text = own == null
-                ? $"このキーボードには設定がありません。全キーボード共通の設定（今は「{(global ? "連動する" : "連動しない")}」）に従います。"
+                ? $"このキーボードには設定がありません。全キーボード共通の設定(今は「{(global ? "連動する" : "連動しない")}」)に従います。"
                 : "このキーボードだけの設定です。";
         }
         LinkCheck.IsEnabled = Editable;

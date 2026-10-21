@@ -130,7 +130,7 @@ internal sealed class SiriusHook : IDisposable
             getLayout(out var native);
             if (SiriusLayout.From(native) is not { } layout)
             {
-                error = $"{DllName} の共有メモリの形が分かりません（版 {native.Version}、大きさ {native.CbSize}）";
+                error = $"{DllName} の共有メモリの形が分かりません(版 {native.Version}、大きさ {native.CbSize})";
                 NativeLibrary.Free(module);
                 return null;
             }
@@ -139,7 +139,7 @@ internal sealed class SiriusHook : IDisposable
             IntPtr memory = setup(messageId);
             if (memory == IntPtr.Zero)
             {
-                error = "SiriusSetupHook が失敗しました（フックを入れられません）";
+                error = "SiriusSetupHook が失敗しました(フックを入れられません)";
                 NativeLibrary.Free(module);
                 return null;
             }

@@ -55,8 +55,8 @@ public sealed class HelperActionEditorWindow : Window
     private readonly StackPanel _textPanel = new();
     private readonly CheckBox[] _layers = new CheckBox[16];
     private readonly ComboBox _layerOp = new() { Name = "ActionLayerOp", Width = 300 };
-    private readonly CheckBox _repeat = new() { Name = "ActionRepeat", Content = "キーを押し続けたとき（オートリピート）も繰り返す", Margin = new Thickness(0, 8, 0, 0) };
-    private readonly CheckBox _keepMods = new() { Name = "ActionKeepMods", Content = "実行中も、押している修飾キー（Ctrl など）を送る（チェックしないと、実行の間だけ隠す）", Margin = new Thickness(0, 6, 0, 0) };
+    private readonly CheckBox _repeat = new() { Name = "ActionRepeat", Content = "キーを押し続けたとき(オートリピート)も繰り返す", Margin = new Thickness(0, 8, 0, 0) };
+    private readonly CheckBox _keepMods = new() { Name = "ActionKeepMods", Content = "実行中も、押している修飾キー(Ctrl など)を送る(チェックしないと、実行の間だけ隠す)", Margin = new Thickness(0, 6, 0, 0) };
     private readonly StackPanel _launchPanel = new();
     private readonly StackPanel _sequencePanel = new();
     private readonly StackPanel _layerPanel = new();
@@ -89,14 +89,14 @@ public sealed class HelperActionEditorWindow : Window
         var panel = new StackPanel();
         if (mode == HelperEditMode.Action)
         {
-            panel.Children.Add(Help("この動作は、キーに割り当てた HLP(Id) を押したときに動きます（キー割り当て画面の「ヘルパー動作」から選びます）。" +
-                                    "Id は、このキーボードの分と共通の分で重ならない数（0〜65535）にします。"));
+            panel.Children.Add(Help("この動作は、キーに割り当てた HLP(Id) を押したときに動きます(キー割り当て画面の「ヘルパー動作」から選びます)。" +
+                                    "Id は、このキーボードの分と共通の分で重ならない数(0〜65535)にします。"));
             panel.Children.Add(Row("Id", _id, "HLP(Id)"));
             panel.Children.Add(Row("名前", _name));
         }
         else
         {
-            panel.Children.Add(Help("このトリガーは、トレイのキーボードフックで受けます（トリガーが1つでもあると、フックを張ります）。" +
+            panel.Children.Add(Help("このトリガーは、トレイのキーボードフックで受けます(トリガーが1つでもあると、フックを張ります)。" +
                                     "押したキーはアプリに届きません。F13〜F24 など、普段使わないキーが向いています。" +
                                     "修飾キーは左右を区別せず、押している分と過不足なく一致したときだけ動きます。Alt・Win の組み合わせは、" +
                                     "単独で離したときにメニューやスタートが開くことがあるので、避けてください。"));
@@ -123,36 +123,36 @@ public sealed class HelperActionEditorWindow : Window
         _workDirRow = Row("作業フォルダ", _workDir);
         _launchPanel.Children.Add(_argsRow);
         _launchPanel.Children.Add(_workDirRow);
-        _launchPanel.Children.Add(new TextBlock { Text = "%USERPROFILE% のような環境変数が使えます。昇格（管理者として実行）はしません。", Foreground = AppTheme.Palette.SubText, TextWrapping = TextWrapping.Wrap });
+        _launchPanel.Children.Add(new TextBlock { Text = "%USERPROFILE% のような環境変数が使えます。昇格(管理者として実行)はしません。", Foreground = AppTheme.Palette.SubText, TextWrapping = TextWrapping.Wrap });
 
         // Sequence
         _sequencePanel.Children.Add(Help(
             "1行が1手順です。書き方:\n" +
-            "  key LCTL(KC_C)   キーを押して離す（KC_A、LCTL(KC_C)、SC_E06A など）\n" +
+            "  key LCTL(KC_C)   キーを押して離す(KC_A、LCTL(KC_C)、SC_E06A など)\n" +
             "  down KC_A / up KC_A   押す / 離す\n" +
-            "  text こんにちは\\n   文字列を打つ（\\n = Enter、\\t = Tab、\\\\ = バックスラッシュ。バックスラッシュは日本語のフォントでは円記号（¥）の形で表示されます。¥ キーで入力できます）\n" +
-            "  delay 50   待つ（ミリ秒、0〜10000）\n" +
-            "  mouse left / mouse right down / mouse x1 up   ボタン（left right middle x1 x2、click down up）\n" +
-            "  move 10 -5 / moveto 100 200   マウスを動かす（今の位置から / 画面の座標へ）\n" +
-            "  wheel -120 / hwheel 120   ホイール（120 で1ノッチ）\n" +
+            "  text こんにちは\\n   文字列を打つ(\\n = Enter、\\t = Tab、\\\\ = バックスラッシュ。バックスラッシュは日本語のフォントでは円記号(¥)の形で表示されます。¥ キーで入力できます)\n" +
+            "  delay 50   待つ(ミリ秒、0〜10000)\n" +
+            "  mouse left / mouse right down / mouse x1 up   ボタン(left right middle x1 x2、click down up)\n" +
+            "  move 10 -5 / moveto 100 200   マウスを動かす(今の位置から / 画面の座標へ)\n" +
+            "  wheel -120 / hwheel 120   ホイール(120 で1ノッチ)\n" +
             "# で始まる行は無視します。\n" +
-            "欄の上のボタンで、キー名（キーを押して挿入／選んで挿入）やマウス操作を、カーソルのある行の次に1行挿入できます。"));
+            "欄の上のボタンで、キー名(キーを押して挿入／選んで挿入)やマウス操作を、カーソルのある行の次に1行挿入できます。"));
         _sequencePanel.Children.Add(new TextBlock { Text = "キーを押したときの手順:", Margin = new Thickness(0, 4, 0, 2) });
         _sequencePanel.Children.Add(StepInsertBar.Create(_steps));
         _sequencePanel.Children.Add(_steps);
-        _sequencePanel.Children.Add(new TextBlock { Text = "キーを離したときの手順（任意。マウスのボタンを押している間だけ押す、など）:", Margin = new Thickness(0, 8, 0, 2) });
+        _sequencePanel.Children.Add(new TextBlock { Text = "キーを離したときの手順(任意。マウスのボタンを押している間だけ押す、など):", Margin = new Thickness(0, 8, 0, 2) });
         _sequencePanel.Children.Add(StepInsertBar.Create(_releaseSteps));
         _sequencePanel.Children.Add(_releaseSteps);
 
         // Text
         _textPanel.Children.Add(Help(
-            "入力した文字列を、そのまま送ります（例: Apple 漢字）。キーボードで打ったように、いま入力できる場所（エディタなど）の現在の位置に追記されます。" +
-            "日本語や記号もそのまま送れます。改行は Enter、タブは Tab として送ります。バックスラッシュなどに特別な意味はありません（そのまま送ります）。" +
+            "入力した文字列を、そのまま送ります(例: Apple 漢字)。キーボードで打ったように、いま入力できる場所(エディタなど)の現在の位置に追記されます。" +
+            "日本語や記号もそのまま送れます。改行は Enter、タブは Tab として送ります。バックスラッシュなどに特別な意味はありません(そのまま送ります)。" +
             $"{HelperActionBody.MaxTextLength} 文字までです。"));
         _textPanel.Children.Add(_text);
 
         // AppLayer
-        _layerPanel.Children.Add(Help("アプリ管理レイヤーを操作します（IME連動・前面のアプリの規則と合わせて、ORで効きます）。対象は、そのキーを押したキーボードです。"));
+        _layerPanel.Children.Add(Help("アプリ管理レイヤーを操作します(IME連動・前面のアプリの規則と合わせて、ORで効きます)。対象は、そのキーを押したキーボードです。"));
         var wrap = new WrapPanel();
         for (int i = 0; i < _layers.Length; i++)
         {
@@ -164,7 +164,7 @@ public sealed class HelperActionEditorWindow : Window
         foreach (var label in LayerOpLabels) _layerOp.Items.Add(label);
         _layerPanel.Children.Add(Row("操作", _layerOp));
 
-        _pausePanel.Children.Add(Help("トレイの一時停止・再開を切り替えます。一時停止中は、キーフックのトリガーだけが動きます（HLP のキーはリマップが止まるので届きません）。同じキーで再開したいときは、F13〜F24 などのトリガーに結び付けてください。"));
+        _pausePanel.Children.Add(Help("トレイの一時停止・再開を切り替えます。一時停止中は、キーフックのトリガーだけが動きます(HLP のキーはリマップが止まるので届きません)。同じキーで再開したいときは、F13〜F24 などのトリガーに結び付けてください。"));
 
         panel.Children.Add(_launchPanel);
         panel.Children.Add(_sequencePanel);
@@ -234,7 +234,7 @@ public sealed class HelperActionEditorWindow : Window
         _launchPanel.Visibility = launch ? Visibility.Visible : Visibility.Collapsed;
         _argsRow.Visibility = _workDirRow.Visibility = type == HelperActionBody.Launch ? Visibility.Visible : Visibility.Collapsed;
         _pathHelp.Text = type == HelperActionBody.Launch
-            ? "起動するプログラムのパス（notepad.exe のように、PATH にあるものは名前だけでもよい）。"
+            ? "起動するプログラムのパス(notepad.exe のように、PATH にあるものは名前だけでもよい)。"
             : "開く URL・ファイル・フォルダ。関連付けられたアプリで開きます。";
         _sequencePanel.Visibility = type == HelperActionBody.Sequence ? Visibility.Visible : Visibility.Collapsed;
         _textPanel.Visibility = type == HelperActionBody.TextInput ? Visibility.Visible : Visibility.Collapsed;
@@ -319,7 +319,7 @@ public sealed class HelperActionEditorWindow : Window
         else
         {
             bool keyOk = KeycodeTable.TryResolveBaseKey(_key.Text.Trim(), out ushort sc) && sc != 0;
-            if (!keyOk) errors.Add($"キー '{_key.Text.Trim()}' を解決できません（KC_F13 や SC_E06A のような書き方）。");
+            if (!keyOk) errors.Add($"キー '{_key.Text.Trim()}' を解決できません(KC_F13 や SC_E06A のような書き方)。");
         }
 
         if (errors.Count == 0) HelperSettingsModel.ValidateBody(body, "この動作", errors);

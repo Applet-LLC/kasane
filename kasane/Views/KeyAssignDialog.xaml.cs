@@ -56,7 +56,7 @@ public partial class KeyAssignDialog : Window
         // トークン欄は、マクロの編集画面の「他の画面の入力欄に挿入」の入れ先にもなる。
         MacroInsert.Register(TxtToken, token => TxtToken.Text = token, acceptsTapDance: true);
         string? layerName = project == null ? null : ProjectService.LayerName(project, layer);
-        TxtHeader.Text = $"{slot.Description} ／ レイヤー{layer}" + (layerName != null ? $"（{layerName}）" : "");
+        TxtHeader.Text = $"{slot.Description} ／ レイヤー{layer}" + (layerName != null ? $"({layerName})" : "");
 
         for (int bit = 0; bit < 8; bit++)
         {
@@ -105,8 +105,8 @@ public partial class KeyAssignDialog : Window
         var panel = new StackPanel();
         panel.Children.Add(new TextBlock
         {
-            Text = "NLS（National Language Support）キー: 日本語キーボードにあるキーです。使っているキーボード（US配列など）に無いキーも、" +
-                   "出力としては割り当てられます（例: US配列のキーに「変換」を割り当てる）。",
+            Text = "NLS(National Language Support)キー: 日本語キーボードにあるキーです。使っているキーボード(US配列など)に無いキーも、" +
+                   "出力としては割り当てられます(例: US配列のキーに「変換」を割り当てる)。",
             TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(4, 4, 4, 8),
         });
         panel.Children.Add(KeyButtons(cat.Keycodes));
@@ -172,12 +172,12 @@ public partial class KeyAssignDialog : Window
         return Form(
             "MO(n): 押している間だけレイヤーnを有効にする\nTG(n): 押すたびにレイヤーnをON/OFFする\n" +
             "DF(n): 基本レイヤーをnに切り替える\nOSL(n): 次に押すキー1回だけレイヤーnにする\n" +
-            "TO(n): レイヤーnだけを有効にする（他のレイヤーはOFF。基本レイヤーはそのまま）\n" +
-            "TT(n): 押している間だけレイヤーnを有効にし、続けてタップする（既定5回。「タイミング...」で変更）とON/OFFを固定する\n" +
+            "TO(n): レイヤーnだけを有効にする(他のレイヤーはOFF。基本レイヤーはそのまま)\n" +
+            "TT(n): 押している間だけレイヤーnを有効にし、続けてタップする(既定5回。「タイミング...」で変更)とON/OFFを固定する\n" +
             "LM(n): 押している間、レイヤーnを有効にし、下で選んだ修飾キーも押す" +
-            "（例: レイヤーnに▽のままのキーを押すと Ctrl+そのキー になる）\n" +
-            "OSM: 下で選んだ修飾キーを、次に押すキー1回だけに掛ける（押したまま使えば普通の修飾キー。" +
-            "もう一度タップで取り消し。レイヤーは使わない）",
+            "(例: レイヤーnに▽のままのキーを押すと Ctrl+そのキー になる)\n" +
+            "OSM: 下で選んだ修飾キーを、次に押すキー1回だけに掛ける(押したまま使えば普通の修飾キー。" +
+            "もう一度タップで取り消し。レイヤーは使わない)",
             ("種類", func), ("レイヤー", layer),
             () =>
             {
@@ -200,7 +200,7 @@ public partial class KeyAssignDialog : Window
     {
         var mod = Combo(KeycodeTable.ModifierNames, "ModCombo");
         var tap = Id(new TextBox { Text = "KC_A", Width = 160, FontFamily = new FontFamily("Consolas") }, "TapKeyBox");
-        return Form("短く押すとタップのキー、長押し（または他のキーと同時押し）で修飾キーになる。",
+        return Form("短く押すとタップのキー、長押し(または他のキーと同時押し)で修飾キーになる。",
             ("修飾キー", mod), ("タップのキー", tap),
             () => $"MT({mod.SelectedItem},{tap.Text.Trim()})");
     }
@@ -210,7 +210,7 @@ public partial class KeyAssignDialog : Window
         var layer = NamedCombo(NamedChoice.Layers(_project), "LayerCombo");
         layer.SelectedIndex = Math.Min(1, KbdLayerClient.MaxLayers - 1);
         var tap = Id(new TextBox { Text = "KC_SPACE", Width = 160, FontFamily = new FontFamily("Consolas") }, "TapKeyBox");
-        return Form("短く押すとタップのキー、長押し（または他のキーと同時押し）でレイヤーを有効にする。",
+        return Form("短く押すとタップのキー、長押し(または他のキーと同時押し)でレイヤーを有効にする。",
             ("レイヤー", layer), ("タップのキー", tap),
             () => $"LT({Num(layer)},{tap.Text.Trim()})");
     }
@@ -226,7 +226,7 @@ public partial class KeyAssignDialog : Window
         };
         // 番号の横の「マクロ...」「タップダンス...」で、番号・名前・中身の一覧から選べる（選ぶと種類も合わせる）。ボタンの名前は種類に合わせて変わる。
         var pick = Id(new Button { Content = "マクロ...", Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(8, 1, 8, 1),
-                                   ToolTip = "一覧（番号・名前・中身）から選びます。" }, "MacroPickButton");
+                                   ToolTip = "一覧(番号・名前・中身)から選びます。" }, "MacroPickButton");
         kind.SelectionChanged += (_, _) => pick.Content = (string)kind.SelectedItem == "MACRO" ? "マクロ..." : "タップダンス...";
         pick.Click += (_, _) =>
         {
@@ -236,8 +236,8 @@ public partial class KeyAssignDialog : Window
             id.SelectedIndex = Math.Min(m.Id, id.Items.Count - 1);
         };
         var idRow = new ContentControl { Content = new StackPanel { Orientation = Orientation.Horizontal, Children = { id, pick } } };
-        return Form("MACRO(n): マクロnを実行する（中身は「マクロ...」で編集）\n" +
-                    "TAPDANCE(n): タップ回数・長押しで動作を変える（中身は「タップダンス...」で編集）",
+        return Form("MACRO(n): マクロnを実行する(中身は「マクロ...」で編集)\n" +
+                    "TAPDANCE(n): タップ回数・長押しで動作を変える(中身は「タップダンス...」で編集)",
             ("種類", kind), ("番号", idRow),
             () => $"{kind.SelectedItem}({Num(id)})");
     }
@@ -256,9 +256,9 @@ public partial class KeyAssignDialog : Window
         var panel = new StackPanel { Margin = new Thickness(4) };
         panel.Children.Add(new TextBlock
         {
-            Text = "HLP(Id) を割り当てたキーは、キー自体は何も出さず、トレイ（kasane-tray）が動作を実行します" +
-                   "（プログラムの起動・文字列の入力・マウス操作・レイヤーの操作など）。動作はこのキーボード用か、全キーボード共通です。\n" +
-                   "HLP は、トレイ（kasane-tray）が動いているときだけ働きます。",
+            Text = "HLP(Id) を割り当てたキーは、キー自体は何も出さず、トレイ(kasane-tray)が動作を実行します" +
+                   "(プログラムの起動・文字列の入力・マウス操作・レイヤーの操作など)。動作はこのキーボード用か、全キーボード共通です。\n" +
+                   "HLP は、トレイ(kasane-tray)が動いているときだけ働きます。",
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, 8),
         });
@@ -452,11 +452,11 @@ public partial class KeyAssignDialog : Window
             SyncModChecks(action);
             string? warn = null;
             if (ActionType.ReferencesLayer(action.Type) && action.Param1 >= _layerCount)
-                warn = $"レイヤー{action.Param1}はまだありません（レイヤーを追加してから適用してください）";
+                warn = $"レイヤー{action.Param1}はまだありません(レイヤーを追加してから適用してください)";
             else if (KeycodeCatalog.IsPowerKey(token))
                 warn = "注意: 電源キーです。押すとPCがスリープ・シャットダウンすることがあります";
             else if (action.Type == ActionType.Custom && !HelperIdTaken(action.Param2))
-                warn = $"HLP({action.Param2}) の動作がまだありません（「ヘルパー動作」で作ると、キーを押したときに動きます）";
+                warn = $"HLP({action.Param2}) の動作がまだありません(「ヘルパー動作」で作ると、キーを押したときに動きます)";
             TxtValidation.Foreground = warn == null ? Brushes.DarkGreen : Brushes.DarkOrange;
             TxtValidation.Text = warn ?? "OK: " + KeycodeCatalog.ShortName(token);
             BtnOk.IsEnabled = true;
@@ -479,7 +479,7 @@ public partial class KeyAssignDialog : Window
         // （元から同じキーだったときは聞かない）。
         if (KeycodeCatalog.IsPowerKey(token) && token != ResultToken &&
             MessageBox.Show(this,
-                $"「{KeycodeCatalog.ShortName(token).TrimStart('⚠')}」（{token}）は電源キーです。\n" +
+                $"「{KeycodeCatalog.ShortName(token).TrimStart('⚠')}」({token})は電源キーです。\n" +
                 "このキーを押すと、Windows の電源の設定によって、PCがスリープ・休止・シャットダウンすることがあります。\n\n" +
                 "割り当てますか？",
                 "電源キーの割り当て", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes)

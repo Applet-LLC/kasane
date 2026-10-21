@@ -13,16 +13,16 @@ public sealed class AppRuleEditorWindow : Window
 {
     private readonly TextBox _name = Box("RuleName", 320);
     private readonly CheckBox _enabled = new() { Name = "RuleEnabled", Content = "有効", Margin = new Thickness(0, 3, 0, 3) };
-    private readonly CheckBox _default = new() { Name = "RuleDefault", Content = "どの規則にも一致しなかったときに使う（既定の規則）", Margin = new Thickness(0, 3, 0, 3) };
+    private readonly CheckBox _default = new() { Name = "RuleDefault", Content = "どの規則にも一致しなかったときに使う(既定の規則)", Margin = new Thickness(0, 3, 0, 3) };
     private readonly TextBox _exe = Box("RuleExe", 320);
     private readonly TextBox _pathRegex = Box("RulePathRegex", 320);
     private readonly TextBox _titleRegex = Box("RuleTitleRegex", 320);
     private readonly TextBox _class = Box("RuleClass", 320);
     private readonly TextBox _nodokaClass = Box("RuleNodokaClass", 320);
     private readonly TextBox _nodokaTitle = Box("RuleNodokaTitle", 320);
-    private readonly CheckBox _nodokaOr = new() { Name = "RuleNodokaOr", Content = "のどかの条件は、どちらかが一致すればよい（OR。指定しなければ両方：AND）", Margin = new Thickness(0, 3, 0, 3) };
+    private readonly CheckBox _nodokaOr = new() { Name = "RuleNodokaOr", Content = "のどかの条件は、どちらかが一致すればよい(OR。指定しなければ両方：AND)", Margin = new Thickness(0, 3, 0, 3) };
     private readonly CheckBox[] _layers = new CheckBox[KbdLayerLayers];
-    private readonly CheckBox _mapOff = new() { Name = "RuleMapOff", Content = "このアプリが前面の間、このキーボードのリマップをOFFにする（ゲームなど）", Margin = new Thickness(0, 3, 0, 3) };
+    private readonly CheckBox _mapOff = new() { Name = "RuleMapOff", Content = "このアプリが前面の間、このキーボードのリマップをOFFにする(ゲームなど)", Margin = new Thickness(0, 3, 0, 3) };
     private readonly TextBlock _status = new() { Name = "RuleStatus", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) };
     private readonly StackPanel _matchPanel = new();
     private bool _loading = true;
@@ -43,19 +43,19 @@ public sealed class AppRuleEditorWindow : Window
         var panel = new StackPanel();
         panel.Children.Add(Help(
             "前面のウィンドウが条件に一致したとき、アプリ管理レイヤーを立てる、またはリマップをOFFにします。規則は上から順に見て、" +
-            "最初に一致したものを使います。条件は、指定した項目がすべて一致したときに一致です（空の項目は見ません）。" +
+            "最初に一致したものを使います。条件は、指定した項目がすべて一致したときに一致です(空の項目は見ません)。" +
             "正規表現は、大文字小文字を区別しない部分一致です。"));
 
         panel.Children.Add(Row("名前", _name));
         panel.Children.Add(_enabled);
         panel.Children.Add(_default);
 
-        _matchPanel.Children.Add(Row("Exe", _exe, "exe のファイル名（例 code.exe）。\\ を含めばフルパス"));
+        _matchPanel.Children.Add(Row("Exe", _exe, "exe のファイル名(例 code.exe)。\\ を含めばフルパス"));
         _matchPanel.Children.Add(Row("PathRegex", _pathRegex, "exe のフルパスの正規表現"));
         _matchPanel.Children.Add(Row("TitleRegex", _titleRegex, "ウィンドウのタイトルの正規表現"));
-        _matchPanel.Children.Add(Row("Class", _class, "ウィンドウのクラス名（完全一致）"));
-        _matchPanel.Children.Add(Row("NodokaClass", _nodokaClass, "のどかの window と同じ文字列（exeのフルパス:クラス:…:フォーカスのクラス）に対する正規表現"));
-        _matchPanel.Children.Add(Row("NodokaTitle", _nodokaTitle, "のどかの window と同じ文字列（exeのフルパス:タイトル:…）に対する正規表現"));
+        _matchPanel.Children.Add(Row("Class", _class, "ウィンドウのクラス名(完全一致)"));
+        _matchPanel.Children.Add(Row("NodokaClass", _nodokaClass, "のどかの window と同じ文字列(exeのフルパス:クラス:…:フォーカスのクラス)に対する正規表現"));
+        _matchPanel.Children.Add(Row("NodokaTitle", _nodokaTitle, "のどかの window と同じ文字列(exeのフルパス:タイトル:…)に対する正規表現"));
         _matchPanel.Children.Add(_nodokaOr);
         var pick = new Button { Name = "PickWindowButton", Content = "実行中のアプリから選ぶ...", Width = 190, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6, 0, 0) };
         pick.Click += (_, _) => PickWindow();
@@ -63,7 +63,7 @@ public sealed class AppRuleEditorWindow : Window
         panel.Children.Add(new GroupBox { Header = "条件", Content = _matchPanel, Margin = new Thickness(0, 8, 0, 0), Padding = new Thickness(8) });
 
         var actionPanel = new StackPanel();
-        actionPanel.Children.Add(new TextBlock { Text = "立てるアプリ管理レイヤー（キーボード側のレイヤーとOR。複数選べる）:", Margin = new Thickness(0, 0, 0, 4) });
+        actionPanel.Children.Add(new TextBlock { Text = "立てるアプリ管理レイヤー(キーボード側のレイヤーとOR。複数選べる):", Margin = new Thickness(0, 0, 0, 4) });
         var wrap = new WrapPanel();
         for (int i = 0; i < KbdLayerLayers; i++)
         {

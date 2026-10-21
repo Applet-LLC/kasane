@@ -81,7 +81,7 @@ public static class StepText
                     if (token.Length == 0) { errors.Add(at + $"{command} にキーコードがありません"); break; }
                     if (!SequenceCompiler.TryResolveKey(token, out _, out _))
                     {
-                        errors.Add(at + $"'{token}' はキーとして使えません（KC_A、LCTL(KC_C)、SC_E06A のような書き方）");
+                        errors.Add(at + $"'{token}' はキーとして使えません(KC_A、LCTL(KC_C)、SC_E06A のような書き方)");
                         break;
                     }
                     var step = new HelperStep();
@@ -105,7 +105,7 @@ public static class StepText
                     var parts = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                     if (parts.Length is < 1 or > 2 || !HelperMouseButtons.TryParse(parts[0], out _))
                     {
-                        errors.Add(at + "mouse は left / right / middle / x1 / x2 のどれかで書きます（例: mouse left、mouse left down）");
+                        errors.Add(at + "mouse は left / right / middle / x1 / x2 のどれかで書きます(例: mouse left、mouse left down)");
                         break;
                     }
                     string action = parts.Length == 2 ? parts[1].ToLowerInvariant() : "click";
@@ -123,7 +123,7 @@ public static class StepText
                     var parts = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                     if (parts.Length != 2 || !TryInt(parts[0], out int x) || !TryInt(parts[1], out int y))
                     {
-                        errors.Add(at + $"{command} は整数を2つ（x y）で書きます");
+                        errors.Add(at + $"{command} は整数を2つ(x y)で書きます");
                         break;
                     }
                     steps.Add(new HelperStep { MoveX = x, MoveY = y, Absolute = command == "moveto" });
@@ -135,7 +135,7 @@ public static class StepText
                     else steps.Add(command == "wheel" ? new HelperStep { Wheel = amount } : new HelperStep { HWheel = amount });
                     break;
                 default:
-                    errors.Add(at + $"'{command}' は命令ではありません（key / down / up / text / delay / mouse / move / moveto / wheel / hwheel）");
+                    errors.Add(at + $"'{command}' は命令ではありません(key / down / up / text / delay / mouse / move / moveto / wheel / hwheel)");
                     break;
             }
         }

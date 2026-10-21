@@ -31,7 +31,7 @@ public sealed class IdentifyWindow : Window
 
         _message = new TextBlock
         {
-            Text = $"設定したいキーボードで、どれかキーを1つ押してください（{TimeoutMs / 1000}秒以内）。\n押したキーはWindowsには送られません。",
+            Text = $"設定したいキーボードで、どれかキーを1つ押してください({TimeoutMs / 1000}秒以内)。\n押したキーはWindowsには送られません。",
             TextWrapping = TextWrapping.Wrap,
             FontSize = 14,
             Margin = new Thickness(16),

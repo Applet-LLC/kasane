@@ -27,7 +27,7 @@ public sealed class KeycodePickerWindow : Window
     public KeycodePickerWindow(bool allowMods, Action<string>? onAdd = null)
     {
         _onAdd = onAdd;
-        Title = onAdd == null ? "キーを選ぶ" : "キーを選ぶ（「追加」で続けて入れられます）";
+        Title = onAdd == null ? "キーを選ぶ" : "キーを選ぶ(「追加」で続けて入れられます)";
         Name = "KeycodePicker";
         Width = 1180;
         Height = 600;
@@ -77,7 +77,7 @@ public sealed class KeycodePickerWindow : Window
                 mods.Children.Add(cb);
             }
             var modBox = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
-            modBox.Children.Add(new TextBlock { Text = "修飾キー（チェックすると、Ctrl+C のようなショートカットとして送ります）:", Margin = new Thickness(0, 0, 0, 4) });
+            modBox.Children.Add(new TextBlock { Text = "修飾キー(チェックすると、Ctrl+C のようなショートカットとして送ります):", Margin = new Thickness(0, 0, 0, 4) });
             modBox.Children.Add(mods);
             DockPanel.SetDock(modBox, Dock.Bottom);
             root.Children.Add(modBox);

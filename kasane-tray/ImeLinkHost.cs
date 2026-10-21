@@ -175,12 +175,12 @@ public sealed class ImeLinkHost : IDisposable
             if (_siriusHook != null)
             {
                 _tsfSource.Attach(_siriusHook);
-                TrayLog.Write($"Sirius: フックを入れました（{mode}）");
+                TrayLog.Write($"Sirius: フックを入れました({mode})");
             }
             else
             {
                 _siriusFailed = true;
-                TrayLog.Write("Sirius: TSF は使えません（IMM32 だけで動きます）: " + error);
+                TrayLog.Write("Sirius: TSF は使えません(IMM32 だけで動きます): " + error);
             }
         }
         else if (!(mode.UsesTsf() && _enabled) && _siriusHook != null)

@@ -27,7 +27,7 @@ public sealed class WindowPickerWindow : Window
 
         var help = new TextBlock
         {
-            Text = "開いているウィンドウの一覧です。選ぶと、exe のファイル名が照合条件（Exe）に入ります。" +
+            Text = "開いているウィンドウの一覧です。選ぶと、exe のファイル名が照合条件(Exe)に入ります。" +
                    "管理者として動くアプリも、exe の名前は取れます。",
             TextWrapping = TextWrapping.Wrap,
             Foreground = AppTheme.Palette.SubText,

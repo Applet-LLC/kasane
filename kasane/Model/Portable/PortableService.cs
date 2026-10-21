@@ -52,13 +52,13 @@ public static class PortableService
             try { project = ProjectService.TryLoad(uniq, baseDirectory); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
             {
-                report.Warn($"{name}: project.json を読めないため、飛ばします（{ex.Message}）");
+                report.Warn($"{name}: project.json を読めないため、飛ばします({ex.Message})");
                 continue;
             }
             if (project == null) continue;
             project.UniqId = uniq;
             HelperConfig.TryLoad(HelperConfig.DevicePath(uniq, baseDirectory), out var helper, out string? helperError);
-            if (helperError != null) report.Warn($"{name}: helper.json を読めないため、ヘルパー設定は含めません（{helperError}）");
+            if (helperError != null) report.Warn($"{name}: helper.json を読めないため、ヘルパー設定は含めません({helperError})");
             list.Add(new StoredKeyboard(uniq, project, FindLayout(project.LayoutName, project.LayoutPath), helper));
         }
         return list;
@@ -152,7 +152,7 @@ public static class PortableService
             try { project = ProjectService.TryLoad(uniq, baseDirectory); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
             {
-                report.Error($"{tag}: project.json を読めないため、飛ばしました（{ex.Message}）");
+                report.Error($"{tag}: project.json を読めないため、飛ばしました({ex.Message})");
                 continue;
             }
             KeyboardLayout? layout = project != null ? FindLayout(project.LayoutName, project.LayoutPath) : null;
@@ -172,7 +172,7 @@ public static class PortableService
             bool helperReadable = HelperConfig.TryLoad(HelperConfig.DevicePath(uniq, baseDirectory), out var helper, out string? helperError);
             if (!helperReadable)
             {
-                report.Warn($"{tag}: helper.json を読めないため、ヘルパー設定は読み込みません（{helperError}）");
+                report.Warn($"{tag}: helper.json を読めないため、ヘルパー設定は読み込みません({helperError})");
                 helper = null;
             }
             var oo = Clone(o);
@@ -188,7 +188,7 @@ public static class PortableService
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                report.Error($"{tag}: 保存できませんでした（{ex.Message}）");
+                report.Error($"{tag}: 保存できませんでした({ex.Message})");
             }
         }
 
@@ -206,11 +206,11 @@ public static class PortableService
                     tray.Helper = HelperMerge.Merge(tray.Helper, null, file.Tray.Helper, ImportMode.Append, out _, report);
                 }
                 tray.Save(TrayPath(baseDirectory));
-                report.Info("トレイの設定（共通）を読み込みました");
+                report.Info("トレイの設定(共通)を読み込みました");
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                report.Error($"トレイの設定を保存できませんでした（{ex.Message}）");
+                report.Error($"トレイの設定を保存できませんでした({ex.Message})");
             }
         }
         return changed;
