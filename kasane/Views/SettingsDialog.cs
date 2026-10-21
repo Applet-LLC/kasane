@@ -141,8 +141,7 @@ public sealed class SettingsDialog : Window
         panel.Children.Add(new TextBlock { Text = "画面の色", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 12, 0, 4) });
         _colorModeBox = new ComboBox { Name = "ColorModeBox", Width = 160, ItemsSource = ColorModeLabels, SelectedIndex = (int)_trayConfig.ColorModeValue };
         Row(panel, "色のモード", _colorModeBox,
-            "ライトは、これまでの見た目です(既定)。ダークは、背景を暗くします。Windows の設定のモードには連動しません。" +
-            "OK で保存すると、すべての画面にすぐ反映されます。トレイとライセンス管理には、次に開いたときから反映されます。Windows が出すメッセージやファイル選択の画面は、色が変わりません。",
+            "各ダイアログの色のモードを、ライト(既定)あるいはダークに設定できます。",
             labelWidth: 120);
         return panel;
     }
@@ -163,8 +162,7 @@ public sealed class SettingsDialog : Window
         var panel = new StackPanel();
         panel.Children.Add(new TextBlock { Text = "デスクトップのアイコンの表示方法", FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
         panel.Children.Add(Help(
-            "トレイ(タスクトレイの kasane)の起動時と、ここを変えたときに、デスクトップのアイコンの表示方法を、ここで選んだものにします(番号は、のどかの def option DesktopListView と同じです)。" +
-            "「変えない」のときは何もしません。OK で保存すると、トレイが動いていれば数秒で反映されます。キーのリマップとは関係ありません。\n" +
+            "デスクトップのアイコンの表示方法を変更します。ここでの変更時と、kasane-trayの起動時に反映されます。\n" +
             "OSやデスクトップの状態によっては、選んだ表示方法にならないことがあります。"));
 
         _desktopKeep = new RadioButton { Name = "DesktopViewKeep", Content = "変えない(既定)", GroupName = "DesktopView", Margin = new Thickness(0, 2, 0, 2) };
@@ -410,7 +408,7 @@ public sealed class SettingsDialog : Window
         _imeSourceBox = new ComboBox { Name = "ImeSourceBox", Width = 360, ItemsSource = ImeSourceLabels, SelectedIndex = (int)_trayConfig.ImeSourceMode };
         Row(panel, "IME の状態の取得方法", _imeSourceBox,
             "既定の「IMM32 のみ」で、多くのアプリの IME の状態を取得できます。IMM32 で取得できないアプリ(TSF だけのアプリなど)を補いたいときだけ、TSF を選びます。" +
-            "TSF を選ぶと、全アプリに入る小さな DLL(sirius_hook)が読んだ値を使います。実験的な機能で、Explorer を開くのが遅く感じられることがあります。「IMM32 のみ」では、この DLL を入れません。" +
+            "TSF を選ぶと、DLL(sirius_hook)が読んだ値を使います。Explorer を開くのが遅く感じられることがあります。「IMM32 のみ」では、この DLL を使いません。" +
             "変更は、OK で保存すると、数秒でトレイに反映されます。",
             labelWidth: 170);
         return panel;
