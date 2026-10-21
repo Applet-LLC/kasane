@@ -170,13 +170,13 @@ public partial class KeyAssignDialog : Window
         var layer = NamedCombo(NamedChoice.Layers(_project), "LayerCombo");
         layer.SelectedIndex = Math.Min(1, KbdLayerClient.MaxLayers - 1);
         return Form(
-            "MO(n): 押している間だけレイヤーnを有効にする\nTG(n): 押すたびにレイヤーnをON/OFFする\n" +
-            "DF(n): 基本レイヤーをnに切り替える\nOSL(n): 次に押すキー1回だけレイヤーnにする\n" +
-            "TO(n): レイヤーnだけを有効にする(他のレイヤーはOFF。基本レイヤーはそのまま)\n" +
-            "TT(n): 押している間だけレイヤーnを有効にし、続けてタップする(既定5回。「タイミング...」で変更)とON/OFFを固定する\n" +
-            "LM(n): 押している間、レイヤーnを有効にし、下で選んだ修飾キーも押す" +
+            "MO (Momentary): 押している間だけレイヤーnを有効にする\nTG (Toggle): 押すたびにレイヤーnをON/OFFする\n" +
+            "DF (Default): 基本レイヤーをnに切り替える\nOSL (One-Shot Layer): 次に押すキー1回だけレイヤーnにする\n" +
+            "TO (To layer): レイヤーnだけを有効にする(他のレイヤーはOFF。基本レイヤーはそのまま)\n" +
+            "TT (Tap Toggle): 押している間だけレイヤーnを有効にし、続けてタップする(既定5回。「タイミング...」で変更)とON/OFFを固定する\n" +
+            "LM (Layer Mod): 押している間、レイヤーnを有効にし、下で選んだ修飾キーも押す" +
             "(例: レイヤーnに▽のままのキーを押すと Ctrl+そのキー になる)\n" +
-            "OSM: 下で選んだ修飾キーを、次に押すキー1回だけに掛ける(押したまま使えば普通の修飾キー。" +
+            "OSM (One-Shot Mod): 下で選んだ修飾キーを、次に押すキー1回だけに掛ける(押したまま使えば普通の修飾キー。" +
             "もう一度タップで取り消し。レイヤーは使わない)",
             ("種類", func), ("レイヤー", layer),
             () =>
@@ -256,9 +256,9 @@ public partial class KeyAssignDialog : Window
         var panel = new StackPanel { Margin = new Thickness(4) };
         panel.Children.Add(new TextBlock
         {
-            Text = "HLP(Id) を割り当てたキーは、キー自体は何も出さず、トレイ(kasane-tray)が動作を実行します" +
+            Text = "HLP (Helper) は、ヘルパー動作を呼ぶキーコードで、HLP(Id) の形で割り当てます。割り当てたキーは、キー自体は何も出さず、トレイ(kasane-tray)が動作を実行します" +
                    "(プログラムの起動・文字列の入力・マウス操作・レイヤーの操作など)。動作はこのキーボード用か、全キーボード共通です。\n" +
-                   "HLP は、トレイ(kasane-tray)が動いているときだけ働きます。",
+                   "トレイ(kasane-tray)が動いているときだけ働きます。",
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, 8),
         });
