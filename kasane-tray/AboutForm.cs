@@ -38,7 +38,7 @@ internal sealed class AboutForm : Form
         MinimizeBox = false;
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.CenterScreen;
-        ClientSize = new Size(460, 250);
+        ClientSize = new Size(640, 232); // 幅は、インストール先のフルパス（長い）が1行で収まる広さ。高さは、下で、最後の行に合わせて決め直す
         Icon = TrayIcons.Load();
 
         Controls.Add(new Label { Name = "AboutName", Text = AppInfo.DisplayName, Font = new Font(Font.FontFamily, 18f, FontStyle.Bold), AutoSize = true, Location = new Point(22, 16) });
@@ -48,17 +48,23 @@ internal sealed class AboutForm : Form
         Controls.Add(new TextBox
         {
             Name = "AboutPath", Text = AppInfo.ExePath, ReadOnly = true, BorderStyle = BorderStyle.None, BackColor = BackColor,
-            ForeColor = SystemColors.GrayText, Multiline = true, Location = new Point(24, 112), Size = new Size(412, 36), ScrollBars = ScrollBars.None,
+            ForeColor = SystemColors.GrayText, Multiline = true, Location = new Point(24, 112), Size = new Size(592, 36), ScrollBars = ScrollBars.None,
         });
         var link = new LinkLabel { Name = "AboutWebsite", Text = AppInfo.Website, AutoSize = true, Location = new Point(24, 160) };
         link.LinkClicked += (_, _) => OpenWebsite();
         Controls.Add(link);
-        Controls.Add(new Label { Name = "AboutCopyright", Text = AppInfo.Copyright, ForeColor = SystemColors.GrayText, AutoSize = true, Location = new Point(24, 184) });
+        var copyright = new Label { Name = "AboutCopyright", Text = AppInfo.Copyright, ForeColor = SystemColors.GrayText, AutoSize = true, Location = new Point(24, 184) };
+        Controls.Add(copyright);
 
-        var ok = new Button { Name = "AboutOk", Text = "OK", Size = new Size(80, 28), Location = new Point(356, 210) };
+        // OK ボタンは、右端に置き、下端を最後の行（Copyright）の下端にそろえる。高さは、文字の下が切れないよう、少し高くする。
+        const int okHeight = 32;
+        int bottom = copyright.Top + copyright.PreferredHeight;
+        var ok = new Button { Name = "AboutOk", Text = "OK", Size = new Size(80, okHeight), Location = new Point(640 - 24 - 80, bottom - okHeight) };
         ok.Click += (_, _) => Close(); // Show() で開く（非モーダル）ので、DialogResult では閉じない
         Controls.Add(ok);
         AcceptButton = ok;
+        ActiveControl = ok; // 最初に、パスの欄を選択状態にしない
+        ClientSize = new Size(640, bottom + 22);
         CancelButton = ok;
         TrayTheme.Apply(this); // 色のモード（ダークなら暗くする）
     }
