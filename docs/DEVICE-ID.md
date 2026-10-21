@@ -16,16 +16,16 @@ kasane のドライバ（kbdlayer.sys）が各キーボードに付けるIDを�
 | `InstanceKey` | DeviceInstanceId のハッシュ | 1台ごとに異なる。永続化スコープ「Instance」 |
 | `ModelKey` | HardwareId（先頭の1件）のハッシュ | 同型番で同じ値。永続化スコープ「Model」（既定） |
 
-どちらも **16bitのハッシュを上位16bitに置いた32bit値**（下位16bitは常に0）。`0xAC0C0000` なら、ハッシュは `0xAC0C`。
+どちらも、16bitのハッシュを上位16bitに置いた32bit値（下位16bitは常に0）。`0xAC0C0000` なら、ハッシュは `0xAC0C`。
 
-`DeviceId`（`KBDLAYER_TARGET.UniqId`、キー入力の `ExtraInformation` 上位16bit に載る値）は、**`InstanceKey`**（DeviceInstanceId のハッシュ）である。
-kasane のインストーラーは、以前は「デバイスインスタンスパス／ハードウェアID」を選ばせていたが、今は選ばせない（2026-10。
-設定を同型番で共有するかどうかは、別に `Binding`（Model / Instance / Global）で決めるため、`DeviceId` の側で選ぶ必要がないため）。
+`DeviceId`（`KBDLAYER_TARGET.UniqId`、キー入力の `ExtraInformation` 上位16bit に載る値）は、`InstanceKey`（DeviceInstanceId のハッシュ）である。
+kasane のインストーラーは、以前は「デバイスインスタンスパス／ハードウェアID」を選ばせていたが、2026-10 から選ばせていない。
+設定を同型番で共有するかどうかは `Binding`（Model / Instance / Global）で別に決めるので、`DeviceId` の側で選ぶ必要がなくなったためである。
 `InstanceKey` が取得できなかったときは、第5節のフォールバックで決まる。
 
-**互換のための隠し設定**: ドライバは、レジストリ `HKLM\SYSTEM\CurrentControlSet\Services\kbdlayer\Parameters\DeviceIdMode`（REG_DWORD）が `1` のとき、
+互換のための隠し設定。ドライバは、レジストリ `HKLM\SYSTEM\CurrentControlSet\Services\kbdlayer\Parameters\DeviceIdMode`（REG_DWORD）が `1` のとき、
 `DeviceId` に `ModelKey` を使う（`AddDevice` の時点にだけ読む）。値が無い・読めないときは 0（`InstanceKey`）。
-インストーラーも kasane の画面も、この値を書かず、表示もしない。古いバージョンで `1` を選んだ環境が残っている場合の挙動を変えないために、ドライバに残している。
+インストーラーも kasane の画面も、この値を書かず、表示もしない。古いバージョンで `1` を選んだ環境の挙動を変えないために、ドライバに残している。
 
 ## 2. ハッシュ関数（16bit FNV-1a）
 
@@ -40,7 +40,7 @@ hash = 0x9DC5                      // 初期値（32bit FNV の offset basis 0x8
 ```
 
 - 終端のNULは含めない。空文字列なら `0x9DC50000`。
-- 大文字・小文字を区別する（`A` と `a` は別のハッシュ）。**入力文字列の大文字小文字を、ドライバが見る形に合わせる必要がある**（次節）。
+- 大文字・小文字を区別する（`A` と `a` は別のハッシュ）。入力文字列の大文字小文字は、ドライバが見る形に合わせる必要がある（次節）。
 
 参照実装（Python）:
 
@@ -63,27 +63,27 @@ BMP外の文字（サロゲートペア）は、UTF-16 の各ユニットを順�
 
 | 文字列 | 取得元 | ハッシュ |
 |---|---|---|
-| DeviceInstanceId | `DEVPKEY_Device_InstanceId`（文字列型。空でない） | **InstanceKey** |
-| HardwareId の先頭の1件 | `DevicePropertyHardwareId`（MULTI_SZ）の最初の文字列 | **ModelKey** |
+| DeviceInstanceId | `DEVPKEY_Device_InstanceId`（文字列型。空でない） | InstanceKey |
+| HardwareId の先頭の1件 | `DevicePropertyHardwareId`（MULTI_SZ）の最初の文字列 | ModelKey |
 
 その後、`DeviceId = InstanceKey` とする（隠し設定 `DeviceIdMode = 1` のときだけ `ModelKey`。第1節）。
 
 ### 3.1 入力文字列の正確な形
 
-**加工はしない。** 正規化（文字の除去、大文字化）も、他のHardwareIdとの連結も無い。OSが返した文字列をそのままハッシュする。
+文字列は加工しない。正規化（文字の除去、大文字化）も、他のHardwareIdとの連結もせず、OSが返した文字列をそのままハッシュする。
 
-**HardwareId**: MULTI_SZ の先頭の1件だけ（NULまで）。2件目以降は使わない。先頭は最も具体的なIDで、改訂番号（`REV_xxxx`）を含む。
+HardwareId は、MULTI_SZ の先頭の1件だけ（NULまで）。2件目以降は使わない。先頭は最も具体的なIDで、改訂番号（`REV_xxxx`）を含む。
 例: `HID\VID_04FE&PID_0016&REV_0224&MI_00`。改訂番号が違えば、同じ製品でも ModelKey は変わる。
 
-**DeviceInstanceId**: `<バス>\<ハードウェアID>\<インスタンス部分>` の全体。**大文字小文字に注意:**
-カーネルが返す文字列は、前半（バス・VID/PID）が大文字、**後半（インスタンス部分）が小文字**になっている。
+DeviceInstanceId は、`<バス>\<ハードウェアID>\<インスタンス部分>` の全体。大文字小文字に注意が要る。
+カーネルが返す文字列は、前半（バス・VID/PID）が大文字、後半（インスタンス部分）が小文字になっている。
 
 ```
 HID\VID_04FE&PID_0016&MI_00\d&70295df&0&0000      ← ドライバが見る形（これをハッシュする）
 HID\VID_04FE&PID_0016&MI_00\D&70295DF&0&0000      ← Get-PnpDevice 等が返す形（そのままでは一致しない）
 ```
 
-ユーザーモードで正しい文字列を得る確実な方法は、**レジストリ `HKLM\SYSTEM\CurrentControlSet\Enum\<バス>\<ハードウェアID>\<インスタンス>` のキー名をそのまま連結する**こと。
+ユーザーモードで正しい文字列を得る確実な方法は、レジストリ `HKLM\SYSTEM\CurrentControlSet\Enum\<バス>\<ハードウェアID>\<インスタンス>` のキー名をそのまま連結することである。
 キー名はOSが保持している元の大文字小文字のまま見える（上の例なら `Enum\HID\VID_04FE&PID_0016&MI_00` の下に `d&70295df&0&0000`）。
 CM_Get_Device_ID や Get-PnpDevice の戻り値は、インスタンス部分が大文字になる場合がある。その場合は、最後の `\` より後ろを小文字にすれば、
 今回確認した5台では一致した。ただし USB のシリアル番号を持つデバイスは、インスタンス部分がシリアル番号そのもの（デバイスが報告する大文字小文字）になりうるので、
@@ -97,7 +97,7 @@ CM_Get_Device_ID や Get-PnpDevice の戻り値は、インスタンス部分が
 | 内蔵（PS/2 エミュレーション、ACPI） | `ACPI\VEN_LEN&DEV_0071`（機種による） | `ACPI\LEN0071\4&e940ebc&0` |
 
 `<generated>` 部分（`d&70295df&0&0000` や `c&117457ed&0&0000`）は、OSが接続位置から作る。
-**同じキーボードでも、別のUSBポートに挿すと InstanceKey が変わる**。同型番を2台挿せば ModelKey は同じ、InstanceKey は別になる。
+同じキーボードでも、別のUSBポートに挿すと InstanceKey が変わる。同型番を2台挿せば ModelKey は同じ、InstanceKey は別になる。
 
 ## 4. DeviceId の性質
 
@@ -105,18 +105,18 @@ CM_Get_Device_ID や Get-PnpDevice の戻り値は、インスタンス部分が
 |---|---|---|---|
 | InstanceKey | 別の値 | 変わる | 16bitなので、まれに別の1台と一致する |
 
-（隠し設定 `DeviceIdMode = 1` のときの ModelKey は、同型番2台で**同じ値**になり区別できず、ポートを変えても変わらない。）
+（隠し設定 `DeviceIdMode = 1` のときの ModelKey は、同型番2台で同じ値になって区別できず、ポートを変えても変わらない。）
 
 ポートを変えると `DeviceId`（= UniqId）が変わるので、`UniqId` を名前にしているユーザーごとの設定フォルダ
 （`%LOCALAPPDATA%\applet\kasane\<UniqId>\`）も別になり、設定が引き継がれない。エクスポート／インポートで移せる
 （`docs/SETTINGS-FILES.md`）。
 
-IDを1台に確定できる保証はない（16bitのハッシュ）。他のアプリは、IDが一致しても「同じキーボードとは限らない」前提で作ること。
+16bitのハッシュなので、IDで1台に確定できる保証はない。他のアプリは、IDが一致しても同じキーボードとは限らない前提で作ること。
 kasane 自身も、`DeviceId` は一意でない前提で設計されている（`kbdlayer_ioctl.h` の E-2 のコメント）。
 
 ## 5. フォールバック
 
-**通常は起きない。** 次のどれかのときだけ、`DeviceId` が本線で決まらず、フォールバックの列に進む。
+通常は起きない。次のどれかのときだけ、`DeviceId` が本線で決まらず、フォールバックの列に進む。
 
 | 条件 | 詳細 |
 |---|---|
@@ -124,7 +124,7 @@ kasane 自身も、`DeviceId` は一意でない前提で設計されている�
 | B. 隠し設定 `DeviceIdMode = 1` で ModelKey が 0 | HardwareId が取得できなかった（またはハッシュが `0x0000`） |
 | C. 隠し設定 `DeviceIdMode` が 0 でも 1 でもない | 例えば 2。どちらの分岐にも入らない（`InstanceKey` があっても使わない） |
 
-**InstanceKey が取れないとき、ModelKey には切り替わらない**。いきなり次のフォールバック列に進む。
+InstanceKey が取れないとき、ModelKey には切り替わらず、いきなり次のフォールバック列に進む。
 
 フォールバックは次の順に試し、最初に成功したものを `DeviceId` とする。
 いずれも結果は「正規化した文字列のハッシュ」で、結果の形は同じ（上位16bit）。
@@ -145,31 +145,31 @@ HardwareId や CompatibleId の文字列に対して、次を行う。
 | 順 | 名前 | 入力文字列 | 成功条件 |
 |---|---|---|---|
 | 1 | `TryContainerId` | `正規化(HardwareId先頭)` + `_` + `{ContainerId}` | ContainerId（GUID型）と HardwareId の両方が取れる |
-| 2 | `TryIoGetDeviceProperty`（= `TryQueryId`） | `IRP_MN_QUERY_ID(BusQueryInstanceID)` の戻り値。**インスタンス部分だけ**（`d&70295df&0&0000`）。加工しない | バスドライバが成功を返す |
+| 2 | `TryIoGetDeviceProperty`（= `TryQueryId`） | `IRP_MN_QUERY_ID(BusQueryInstanceID)` の戻り値。インスタンス部分だけ（`d&70295df&0&0000`）。加工しない | バスドライバが成功を返す |
 | 3 | `TryCompatibleIds` | `正規化(CompatibleIds)` の、正規化後に空でない最初の1件 | CompatibleIds が取れ、空でない |
 | 4 | `TryHardwareIdWithUniq` | `正規化(HardwareId先頭)` + `_` + `uniqNum`（10進、先頭0なし） | HardwareId が取れる |
 | 5 | `UseFixedValue` | （文字列なし）`DeviceId = 0xFFF20000 \| (uniqNum & 0xFFFF)` | 常に成功 |
 
 詳細:
 
-- **1 ContainerId**: GUID は `{%08X-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X}`（16進は大文字）の形。例: `HID\VID_04FE&PID_0016&REV_0224&MI_00_{F3422685-9A9A-11F1-A5C8-A0510B9EB6FE}`
+- 1 ContainerId: GUID は `{%08X-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X}`（16進は大文字）の形。例: `HID\VID_04FE&PID_0016&REV_0224&MI_00_{F3422685-9A9A-11F1-A5C8-A0510B9EB6FE}`
   （正規化で `HID\VID_04FE&PID_0016&REV_0224&MI_00` になり、`_` と GUID が続く）。
   内蔵キーボードの ContainerId は、全機器共通の `{00000000-0000-0000-FFFF-FFFFFFFFFFFF}` になるので、
   内蔵キーボードが複数ある（通常はない）と、同じ値になる。
   ContainerId は物理デバイス（箱）に対して1つなので、USB の1つの箱に複数のキーボードインターフェースがあっても、HardwareId が異なれば別の値になる。
-- **2 QUERY_ID**: 本線の InstanceKey とは**別の値**になる（本線は全体のパス、これはインスタンス部分だけ）。
+- 2 QUERY_ID: 本線の InstanceKey とは別の値になる（本線は全体のパス、これはインスタンス部分だけ）。
   バスドライバが返した文字列の大文字小文字のままハッシュするので、実際の文字列は、ドライバの出力（デバッグログ `fallback: TryQueryId succeeded`）で確認すること。
   今回の実機では、この経路は通っていないので未検証。
-- **4 uniqNum**: ドライバの読み込み以来の `AddDevice` の呼び出し回数（1から。IoCreateDevice に失敗した呼び出しも数える）。
-  **再起動やデバイスの列挙順で変わる**ので、再起動をまたいで安定しない。ライセンス無効のデバイスも数える。
-- **5 固定値**: `0xFFF2` を上位16bitに置くので、`ExtraInformation` に載る値（`DeviceId & 0xFFFF0000`）は、**全台が `0xFFF20000` で同じ**になる。
+- 4 uniqNum: ドライバの読み込み以来の `AddDevice` の呼び出し回数（1から。IoCreateDevice に失敗した呼び出しも数える）。
+  再起動やデバイスの列挙順で変わるので、再起動をまたいで安定しない。ライセンス無効のデバイスも数える。
+- 5 固定値: `0xFFF2` を上位16bitに置くので、`ExtraInformation` に載る値（`DeviceId & 0xFFFF0000`）は、全台が `0xFFF20000` で同じになる。
   下位16bit（uniqNum）は IOCTL の `UniqId` には残るが、キー入力には載らない。
 
 実際には、1の ContainerId か 2 の QUERY_ID のどちらかが成功することが多く、4と5まで進むのは、デバイスノードの情報がほとんど取れないときだけ。
 
 ## 6. ID が付かない場合
 
-- **ライセンスが無効**（`LicenseToken` が無い・署名が合わない）なら、`DeviceId = 0`。ID の計算自体を行わない
+- ライセンスが無効（`LicenseToken` が無い、または署名が合わない）なら、`DeviceId = 0`。ID の計算自体を行わない
   （上記の InstanceKey / ModelKey も 0）。キー入力は素通しで、`ExtraInformation` の上位16bitは書き込まれない。
 - `DeviceId = 0` は「未識別」を表す特別値。他のアプリも、上位16bitが0なら「kasane が識別していない入力」として扱うこと。
 
@@ -189,8 +189,8 @@ ExtraInformation = (元のExtraInformation & 0x0000FFFF) | (DeviceId & 0xFFFF000
 - kasane が合成して出すキー（マクロなど）にも、同じ `DeviceId` が載る。
 
 ### 7.2 算出して照合する
-（kasane の設定画面は、この方法で、各キーボードの UniqId に合う Windows のデバイスノードを探し、デバイスマネージャーの名前や製品名を表示している。`docs/ARCHITECTURE.md` の「キーボードの表示名」。）
 
+kasane の設定画面は、この方法で各キーボードの UniqId に合う Windows のデバイスノードを探し、デバイスマネージャーの名前や製品名を表示している（`docs/ARCHITECTURE.md` の「キーボードの表示名」）。
 
 各キーボードについて、次の手順でIDを求められる。
 
