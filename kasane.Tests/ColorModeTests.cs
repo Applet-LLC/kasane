@@ -53,3 +53,41 @@ public class ColorModeTests
         finally { File.Delete(path); }
     }
 }
+
+public class ColorModeStoreTests : IDisposable
+{
+    private readonly string _dir = Path.Combine(Path.GetTempPath(), "kasane-colorstore-" + Guid.NewGuid().ToString("N"));
+
+    public ColorModeStoreTests() => Directory.CreateDirectory(_dir);
+    public void Dispose() { try { Directory.Delete(_dir, true); } catch (IOException) { } }
+
+    private string Write(string json)
+    {
+        string path = Path.Combine(_dir, "tray.json");
+        File.WriteAllText(path, json);
+        return path;
+    }
+
+    [Fact]
+    public void Read_Dark() => Assert.Equal(ColorMode.Dark, ColorModeStore.Read(Write("{ \"ImeLink\": true, \"ColorMode\": \"Dark\" }")));
+
+    [Theory]
+    [InlineData("{ }")]
+    [InlineData("{ \"ColorMode\": 5 }")]       // 文字列ではない
+    [InlineData("{ \"ColorMode\": \"Purple\" }")]
+    [InlineData("[ 1, 2 ]")]                    // オブジェクトではない
+    [InlineData("not json")]
+    public void Read_FallsBackToLight_WhenMissingOrInvalid(string json) =>
+        Assert.Equal(ColorMode.Light, ColorModeStore.Read(Write(json)));
+
+    [Fact]
+    public void Read_MissingFile_IsLight() => Assert.Equal(ColorMode.Light, ColorModeStore.Read(Path.Combine(_dir, "none.json")));
+
+    [Fact]
+    public void Read_AgreesWithTrayConfig()
+    {
+        string path = Path.Combine(_dir, "tray.json");
+        new TrayConfig { ColorModeName = "Dark" }.Save(path);
+        Assert.Equal(TrayConfig.Load(path).ColorModeValue, ColorModeStore.Read(path));
+    }
+}

@@ -25,6 +25,13 @@
     <SolidColorBrush x:Key="Theme.Selection" Color="#2D5F9A" />
     <SolidColorBrush x:Key="Theme.Link" Color="#7DB4F2" />
     <SolidColorBrush x:Key="Theme.BannerBackground" Color="#4A4020" />
+    <!-- ライセンス管理（kasane-license）の画面の色。ライトの値は、ライセンス管理の App.xaml にある。 -->
+    <SolidColorBrush x:Key="Theme.LicenseMuted" Color="#A9ADB4" />
+    <SolidColorBrush x:Key="Theme.LicenseMuted2" Color="#9094A0" />
+    <SolidColorBrush x:Key="Theme.LicenseLine" Color="#5A5F66" />
+    <SolidColorBrush x:Key="Theme.LicenseLine2" Color="#4A4E55" />
+    <SolidColorBrush x:Key="Theme.LicenseReadOnly" Color="#2B2D30" />
+    <SolidColorBrush x:Key="Theme.LicenseError" Color="#FF6B6B" />
     <SolidColorBrush x:Key="Theme.BannerBorder" Color="#8A7A30" />
 
     <!-- WPF 既定のテンプレートが参照するシステムの色（テキストボックス・リストなどが、これで暗くなる） -->
@@ -51,12 +58,8 @@
     <Color x:Key="{x:Static SystemColors.HighlightColorKey}">#2D5F9A</Color>
 
     <!-- ===== ボタン ===== -->
-    <Style TargetType="Button">
-        <Setter Property="Padding" Value="10,3" />
-        <Setter Property="Margin" Value="2" />
-        <Setter Property="MinHeight" Value="26" />
-        <Setter Property="VerticalAlignment" Value="Center" />
-        <Setter Property="VerticalContentAlignment" Value="Center" />
+    <!-- ボタンとコンボボックスは、キー付き（余白などの寸法は、使う側が決める。kasane は AppTheme が足す。ライセンス管理は寸法を変えない）。 -->
+    <Style x:Key="Theme.Button" TargetType="Button">
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="Background" Value="{DynamicResource Theme.Control}" />
         <Setter Property="Foreground" Value="{DynamicResource Theme.Text}" />
@@ -199,11 +202,7 @@
             </Setter.Value>
         </Setter>
     </Style>
-    <Style TargetType="ComboBox">
-        <Setter Property="Margin" Value="2" />
-        <Setter Property="MinHeight" Value="26" />
-        <Setter Property="VerticalAlignment" Value="Center" />
-        <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Style x:Key="Theme.ComboBox" TargetType="ComboBox">
         <Setter Property="Foreground" Value="{DynamicResource Theme.Text}" />
         <Setter Property="Template">
             <Setter.Value>

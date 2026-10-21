@@ -1,0 +1,13 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!--
+      ライセンス管理の画面の色（ライト）。App.xaml の直下に書くと、あとから足されるダーク（kasane と共有の Dark.xaml）より優先されて、
+      ダークで色が変わらないので、マージした辞書に置く（あとから足した辞書が、同じキーを上書きする）。
+    -->
+    <SolidColorBrush x:Key="Theme.LicenseMuted" Color="#555555" />
+    <SolidColorBrush x:Key="Theme.LicenseMuted2" Color="#666666" />
+    <SolidColorBrush x:Key="Theme.LicenseLine" Color="#CCCCCC" />
+    <SolidColorBrush x:Key="Theme.LicenseLine2" Color="#DDDDDD" />
+    <SolidColorBrush x:Key="Theme.LicenseReadOnly" Color="#F2F2F2" />
+    <SolidColorBrush x:Key="Theme.LicenseError" Color="#CC0000" />
+</ResourceDictionary>

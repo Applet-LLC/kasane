@@ -36,7 +36,7 @@ public partial class App : System.Windows.Application
             args.Handled = true;
         };
         // 色のモード（ライト／ダーク）。最初の画面を作る前に適用する。
-        Kasane.Views.AppTheme.Initialize();
+        Kasane.Views.AppTheme.Initialize(Kasane.Model.ColorModeStore.Read());
         base.OnStartup(e);
     }
 }

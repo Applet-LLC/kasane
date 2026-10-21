@@ -90,13 +90,44 @@ public static class AppTheme
     /// <summary>モードが変わった（<see cref="Apply"/>）。</summary>
     public static event Action? Changed;
 
-    /// <summary>起動時に1回（最初の画面を作る前に）。保存されたモードを適用し、これから開く画面にも反映するよう登録する。</summary>
-    public static void Initialize()
+    private static ResourceDictionary? _implicitDictionary;
+    private static bool _kasaneMetrics = true;
+
+    /// <summary>
+    /// 起動時に1回（最初の画面を作る前に）。モード（<see cref="ColorModeStore.Read"/>）を適用し、これから開く画面にも反映するよう登録する。
+    /// kasane・ライセンス管理が共有する。<paramref name="kasaneMetrics"/>: kasane のボタン・コンボボックスの余白・高さ（App の Base.xaml と同じ）を、
+    /// ダークでも保つ（ライセンス管理は、寸法を変えない）。
+    /// </summary>
+    public static void Initialize(ColorMode mode, bool kasaneMetrics = true)
     {
         if (_initialized) return;
         _initialized = true;
+        _kasaneMetrics = kasaneMetrics;
         EventManager.RegisterClassHandler(typeof(Window), FrameworkElement.LoadedEvent, new RoutedEventHandler((s, _) => StyleWindow((Window)s)));
-        Apply(TrayConfig.Load().ColorModeValue);
+        Apply(mode);
+    }
+
+    // ダークのボタン・コンボボックスの暗黙のスタイル（Dark.xaml のキー付きスタイルに、寸法を足したもの）。
+    private static ResourceDictionary BuildImplicitStyles()
+    {
+        var button = new Style(typeof(Button), (Style)_darkDictionary!["Theme.Button"]);
+        var combo = new Style(typeof(ComboBox), (Style)_darkDictionary["Theme.ComboBox"]);
+        if (_kasaneMetrics)
+        {
+            button.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(10, 3, 10, 3)));
+            button.Setters.Add(new Setter(FrameworkElement.MarginProperty, new Thickness(2)));
+            button.Setters.Add(new Setter(FrameworkElement.MinHeightProperty, 26.0));
+            button.Setters.Add(new Setter(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center));
+            button.Setters.Add(new Setter(Control.VerticalContentAlignmentProperty, VerticalAlignment.Center));
+            combo.Setters.Add(new Setter(FrameworkElement.MarginProperty, new Thickness(2)));
+            combo.Setters.Add(new Setter(FrameworkElement.MinHeightProperty, 26.0));
+            combo.Setters.Add(new Setter(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center));
+            combo.Setters.Add(new Setter(Control.VerticalContentAlignmentProperty, VerticalAlignment.Center));
+        }
+        var d = new ResourceDictionary();
+        d[typeof(Button)] = button;
+        d[typeof(ComboBox)] = combo;
+        return d;
     }
 
     /// <summary>モードを切り替える。同じモードなら何もしない。</summary>
@@ -111,10 +142,13 @@ public static class AppTheme
         if (mode == ColorMode.Dark)
         {
             _darkDictionary ??= new ResourceDictionary { Source = new Uri("pack://application:,,,/Themes/Dark.xaml", UriKind.Absolute) };
+            _implicitDictionary ??= BuildImplicitStyles();
             if (!merged.Contains(_darkDictionary)) merged.Add(_darkDictionary);
+            if (!merged.Contains(_implicitDictionary)) merged.Add(_implicitDictionary); // 暗黙のスタイルは、キー付きのあとに
         }
         else if (_darkDictionary != null)
         {
+            if (_implicitDictionary != null) merged.Remove(_implicitDictionary);
             merged.Remove(_darkDictionary);
         }
 

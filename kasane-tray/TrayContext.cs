@@ -78,7 +78,7 @@ public sealed class TrayContext : ApplicationContext
         _aboutItem.Click += (_, _) => AboutForm.ShowSingle();
         _exitItem.Click += (_, _) => ExitTray();
         _menu.Items.AddRange(new ToolStripItem[] { _settingsItem, _pauseItem, _layerItem, _licenseItem, _aboutItem, new ToolStripSeparator(), _exitItem });
-        _menu.Opening += (_, _) => { RefreshState(); RebuildLayerMenu(); UpdateLicenseItem(); }; // 開く直前に、最新の状態にする
+        _menu.Opening += (_, _) => { RefreshState(); RebuildLayerMenu(); UpdateLicenseItem(); TrayTheme.Apply(_menu); }; // 開く直前に、最新の状態にする（色のモードも）
 
         _notifyIcon = new NotifyIcon
         {

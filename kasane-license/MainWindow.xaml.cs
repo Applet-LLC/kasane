@@ -13,7 +13,7 @@ public partial class MainWindow : Window
     // （appsettings.jsonのGumroad:ProductIdと同じ商品）のpermalink。
     private const string GumroadManageUrl = "https://applet.gumroad.com/l/crijiq";
 
-    private static readonly Brush OkBrush = Brushes.DarkGreen;
+    private static Brush OkBrush => Kasane.Views.AppTheme.Palette.OkText; // 暗いモードでは、明るい緑
     private static readonly Brush NgBrush = Brushes.Crimson;
     private static readonly Brush PendingBrush = Brushes.Gray;
 
@@ -247,7 +247,7 @@ public partial class MainWindow : Window
             else
             {
                 TxtStatus.Text = Strings.Format("Status_Active", status.DaysRemaining);
-                TxtStatus.Foreground = Brushes.Green;
+                TxtStatus.Foreground = Kasane.Views.AppTheme.Palette.OkText;
                 TxtExpiry.Text = Strings.Format("Status_NextRenewal", status.Expiry);
             }
             TxtUser.Text   = string.IsNullOrEmpty(status.User) ? string.Empty : Strings.Format("Status_User", status.User);
@@ -299,7 +299,7 @@ public partial class MainWindow : Window
     private void ShowMessage(string message, bool isError)
     {
         TxtMessage.Text       = message;
-        TxtMessage.Foreground = isError ? Brushes.Crimson : Brushes.DarkGreen;
+        TxtMessage.Foreground = isError ? Brushes.Crimson : Kasane.Views.AppTheme.Palette.OkText;
         TxtMessage.Visibility = string.IsNullOrEmpty(message)
             ? Visibility.Collapsed : Visibility.Visible;
     }

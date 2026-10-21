@@ -3,5 +3,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- 画面の色（ライト）。ダークのときは、Themes/Dark.xaml（kasane と共有）が、あとから足されて同じキーを上書きする。 -->
+                <ResourceDictionary Source="Themes/LicenseLight.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

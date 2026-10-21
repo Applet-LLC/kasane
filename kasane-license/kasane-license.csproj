@@ -21,6 +21,10 @@
 
   <ItemGroup>
     <Compile Include="..\kasane\Interop\SingleInstance.cs" Link="Shared\SingleInstance.cs" />
+    <!-- 色のモード（ライト／ダーク）は、kasane と同じものを使う（tray.json の ColorMode）。 -->
+    <Compile Include="..\kasane\Model\ColorMode.cs" Link="Shared\ColorMode.cs" />
+    <Compile Include="..\kasane\Views\AppTheme.cs" Link="Shared\AppTheme.cs" />
+    <Page Include="..\kasane\Themes\Dark.xaml" Link="Themes\Dark.xaml" />
   </ItemGroup>
 
   <ItemGroup>

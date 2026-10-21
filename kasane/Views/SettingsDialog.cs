@@ -142,7 +142,7 @@ public sealed class SettingsDialog : Window
         _colorModeBox = new ComboBox { Name = "ColorModeBox", Width = 160, ItemsSource = ColorModeLabels, SelectedIndex = (int)_trayConfig.ColorModeValue };
         Row(panel, "色のモード", _colorModeBox,
             "ライトは、これまでの見た目です（既定）。ダークは、背景を暗くします（Windows の設定のモードには、合わせていません）。" +
-            "OK で保存すると、すぐに全部の画面に効きます。Windows が出す確認の画面（メッセージ・ファイルを選ぶ画面）は、色が変わりません。",
+            "OK で保存すると、すぐに全部の画面に効きます。Windows が出す確認の画面（メッセージ・ファイルを選ぶ画面）は、色が変わりません。トレイとライセンス管理にも効きます（次に開いたときから）。",
             labelWidth: 120);
         return panel;
     }
