@@ -99,7 +99,7 @@ layer.sys」と設定ツールをインストールします。キーボード�
   それぞれのライセンスの全文（third-party フォルダ）です。
 
 使用許諾（License.*.rtf）、README、THIRD-PARTY-NOTICES.txt、third-party フォルダは、
-インストール先（C:\Program Filespplet\kasane）の直下にも入ります。
+インストール先（C:\Program Files\applet\kasane）の直下にも入ります。
 
 
 アンインストール
