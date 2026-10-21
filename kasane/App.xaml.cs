@@ -35,6 +35,8 @@ public partial class App : System.Windows.Application
                 MessageBoxButton.OK, MessageBoxImage.Error);
             args.Handled = true;
         };
+        // 表示言語（日本語／英語）。最初の画面を作る前に決める。
+        Kasane.Model.Loc.Initialize();
         // 色のモード（ライト／ダーク）。最初の画面を作る前に適用する。
         Kasane.Views.AppTheme.Initialize(Kasane.Model.ColorModeStore.Read());
         base.OnStartup(e);

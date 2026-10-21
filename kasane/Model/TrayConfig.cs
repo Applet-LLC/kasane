@@ -41,6 +41,17 @@ public sealed class TrayConfig
     [JsonIgnore]
     public ColorMode ColorModeValue => ColorModes.Parse(ColorModeName);
 
+    /// <summary>
+    /// 表示言語（<see cref="Model.UiLanguage"/> の名前。Auto / Japanese / English。2026-10-21）。既定は Auto（Windows の表示言語に合わせる）。
+    /// kasane・トレイ・ライセンス管理の文言に効く。変更は再起動後に効く。設定の「全般」タブで選ぶ。
+    /// </summary>
+    [JsonPropertyName("UiLanguage")]
+    public string UiLanguageName { get; set; } = nameof(UiLanguage.Auto);
+
+    /// <summary><see cref="UiLanguageName"/> を解釈したもの（保存はしない）。</summary>
+    [JsonIgnore]
+    public UiLanguage UiLanguageValue => UiLanguages.Parse(UiLanguageName);
+
     /// <summary>トレイのアイコンの右下に、今のレイヤー番号を重ねる（基底のレイヤーだけのときは重ねない）。既定はON。</summary>
     public bool ShowLayerOnIcon { get; set; } = true;
 

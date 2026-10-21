@@ -230,6 +230,8 @@ public sealed class TrayContext : ApplicationContext
         {
             if (_imeLink.ReloadConfig()) _helper.OnConfigChanged();
             var config = TrayConfig.Load();
+            // 表示言語が変わっていたら、新しい言語で起動し直す。
+            if (config.UiLanguageValue != Kasane.Model.Loc.Setting && RestartForLanguage()) return;
             _showLayer = config.ShowLayerOnIcon;
             _autoOffMode = config.RemapOnlyWhileTrayRuns;
             // 動いている間だけ有効にするモード: セッションが非アクティブなら OFF、アクティブなら（起動直後も）記録した分を ON に戻す。
@@ -310,6 +312,26 @@ public sealed class TrayContext : ApplicationContext
         }
         try { _autoOff.Shutdown(_autoOffMode); }
         catch (Exception ex) { TrayLog.Write("AutoOff.Shutdown: " + ex); }
+    }
+
+    private bool RestartForLanguage()
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = Environment.ProcessPath!,
+                Arguments = $"--wait-pid {Environment.ProcessId}",
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            TrayLog.Write("RestartForLanguage: " + ex);
+            return false;
+        }
+        ExitTray();
+        return true;
     }
 
     private void ExitTray()

@@ -695,6 +695,31 @@ public partial class MainWindow : Window
         var dlg = new SettingsDialog(_project, IsOnline ? _client : null, IsOnline ? SelectedDevice!.UniqId : 0, CanWrite) { Owner = this };
         if (tab != null) dlg.SelectTab(tab);
         if (dlg.ShowDialog() == true) MarkDirty();
+        if (dlg.LanguageChanged) OfferRestartForLanguage();
+    }
+
+    // 表示言語を変えたとき: kasane を再起動すると新しい言語で開く（トレイは、設定の変更を見つけて自分で再起動する）。
+    private void OfferRestartForLanguage()
+    {
+        var r = MessageBox.Show(this,
+            Loc.T("表示言語の変更は、再起動後に効きます。今すぐ kasane を再起動しますか？\n(トレイは、数秒後に自動で再起動します)",
+                  "The display language change takes effect after a restart. Restart kasane now?\n(The tray restarts automatically in a few seconds.)"),
+            DialogCaption, MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (r != MessageBoxResult.Yes || !PersistBeforeLeave()) return;
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = Environment.ProcessPath!,
+                Arguments = $"{Kasane.Interop.SingleInstance.WaitPidArgument} {Environment.ProcessId}",
+                UseShellExecute = true,
+            });
+            Application.Current.Shutdown();
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            SetStatus(Loc.T($"再起動できませんでした: {ex.Message}", $"Could not restart: {ex.Message}"));
+        }
     }
 
     // ------------------------------------------------------------------

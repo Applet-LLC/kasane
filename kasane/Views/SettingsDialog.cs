@@ -52,6 +52,9 @@ public sealed class SettingsDialog : Window
     private bool _globalNicolaLink; // 全キーボード共通の、NICOLAのIME連動（tray.json の ImeLink。OK のとき保存）
     private CheckBox _showLayerOnIcon = null!;
     private ComboBox _imeSourceBox = null!; // IME の状態の取得方法（tray.json の ImeSource）
+    private ComboBox _languageBox = null!;  // 表示言語（tray.json の UiLanguage）。変更は再起動後に効く。
+    /// <summary>表示言語を変えて保存した。呼び出し側が、再起動を案内する。</summary>
+    public bool LanguageChanged { get; private set; }
     private ComboBox _colorModeBox = null!;  // 色のモード（tray.json の ColorMode）。OK で保存して、すぐ全画面に効かせる
     private readonly TrayConfig _trayConfig = TrayConfig.Load();
     private TextBlock _nicolaSummary = null!;
@@ -137,8 +140,17 @@ public sealed class SettingsDialog : Window
         Row(panel, "色のモード", _colorModeBox,
             "各ダイアログの色のモードを、ライト(既定)あるいはダークに設定できます。",
             labelWidth: 120);
+
+        panel.Children.Add(new TextBlock { Text = Loc.T("表示言語", "Display language"), FontWeight = FontWeights.Bold, Margin = new Thickness(0, 12, 0, 4) });
+        _languageBox = new ComboBox { Name = "LanguageBox", Width = 200, ItemsSource = LanguageLabels, SelectedIndex = (int)_trayConfig.UiLanguageValue };
+        Row(panel, Loc.T("言語", "Language"), _languageBox,
+            Loc.T("kasane とトレイの表示言語を、自動認識(Windows の表示言語に合わせる)、日本語、英語から選びます。変更は、kasane とトレイの再起動後に効きます。",
+                  "Choose the display language of kasane and the tray: Auto (follows the Windows display language), Japanese, or English. The change takes effect after kasane and the tray restart."),
+            labelWidth: 120);
         return panel;
     }
+
+    private static readonly string[] LanguageLabels = { Loc.T("自動認識(既定)", "Auto (default)"), "日本語", "English" };
 
     private static readonly string[] ColorModeLabels = { "ライト(既定)", "ダーク" };
 
@@ -1159,7 +1171,9 @@ public sealed class SettingsDialog : Window
         string imeSource = ((ImeSourceMode)Math.Max(0, _imeSourceBox.SelectedIndex)).ToString();
         string colorMode = ((ColorMode)Math.Max(0, _colorModeBox.SelectedIndex)).ToString();
         bool colorChanged = colorMode != _trayConfig.ColorModeName;
-        if (colorChanged || imeSource != _trayConfig.ImeSource || imeLink != _trayConfig.ImeLink || showLayer != _trayConfig.ShowLayerOnIcon || remapOnlyWhileTray != _trayConfig.RemapOnlyWhileTrayRuns
+        string language = ((UiLanguage)Math.Max(0, _languageBox.SelectedIndex)).ToString();
+        bool languageChanged = language != _trayConfig.UiLanguageName;
+        if (languageChanged || colorChanged || imeSource != _trayConfig.ImeSource || imeLink != _trayConfig.ImeLink || showLayer != _trayConfig.ShowLayerOnIcon || remapOnlyWhileTray != _trayConfig.RemapOnlyWhileTrayRuns
             || desktopView != _trayConfig.DesktopViewMode)
         {
             try
@@ -1167,6 +1181,7 @@ public sealed class SettingsDialog : Window
                 _trayConfig.DesktopViewMode = desktopView;
                 _trayConfig.ImeSource = imeSource;
                 _trayConfig.ColorModeName = colorMode;
+                _trayConfig.UiLanguageName = language;
                 _trayConfig.ImeLink = imeLink;
                 _trayConfig.ShowLayerOnIcon = showLayer;
                 _trayConfig.RemapOnlyWhileTrayRuns = remapOnlyWhileTray;
@@ -1178,6 +1193,7 @@ public sealed class SettingsDialog : Window
                 return false;
             }
             if (colorChanged) AppTheme.Apply(_trayConfig.ColorModeValue); // 保存できたら、すぐ全画面に効かせる
+            if (languageChanged) LanguageChanged = true;
         }
         return true;
     }
