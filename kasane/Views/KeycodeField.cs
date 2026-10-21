@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using Kasane.Model;
 
 namespace Kasane.Views;
 
@@ -23,21 +24,22 @@ public static class KeycodeField
         var capture = new Button
         {
             Name = box.Name.Length > 0 ? box.Name + "Capture" : "",
-            Content = "押して入力",
+            Content = Loc.T("押して入力", "Press to enter"),
             Margin = new Thickness(6, 0, 0, 0),
             Padding = new Thickness(8, 1, 8, 1),
             Focusable = false, // キー操作でボタンが反応して、取り込んだキーが重ならないように
-            ToolTip = "このボタンを押したあと、入力したいキーを押します(Esc で取消)。Win キーや Alt+Tab は入力できないので「選ぶ...」を使ってください。",
+            ToolTip = Loc.T("このボタンを押したあと、入力したいキーを押します(Esc で取消)。Win キーや Alt+Tab は入力できないので「選ぶ...」を使ってください。",
+                            "After clicking this button, press the key you want to enter (Esc to cancel). The Win key and Alt+Tab cannot be entered, so use \"Pick...\" for those."),
         };
         KeycodeCapture? session = null;
         // 末尾に足していく欄（マクロ）は、取り込みを続けて、何個でも続けて入れられる（Esc かボタンをもう一度押すと終わる）。
         session = new KeycodeCapture(
             token => Put(token),
-            () => { capture.Content = "押して入力"; box.Focus(); }) { Continuous = append };
+            () => { capture.Content = Loc.T("押して入力", "Press to enter"); box.Focus(); }) { Continuous = append };
         capture.Click += (_, _) =>
         {
             if (session.IsActive) { session.Cancel(); return; }
-            capture.Content = append ? "キーを押す(Esc で終了)" : "キーを押してください…";
+            capture.Content = append ? Loc.T("キーを押す(Esc で終了)", "Press keys (Esc to finish)") : Loc.T("キーを押してください…", "Press a key...");
             session.Start();
         };
         box.Unloaded += (_, _) => session.Cancel();
@@ -49,7 +51,7 @@ public static class KeycodeField
         var pick = new Button
         {
             Name = box.Name.Length > 0 ? box.Name + "Pick" : "",
-            Content = "選ぶ...",
+            Content = Loc.T("選ぶ...", "Pick..."),
             Margin = new Thickness(4, 0, 0, 0),
             Padding = new Thickness(8, 1, 8, 1),
         };
@@ -77,10 +79,10 @@ public static class KeycodeField
             var macro = new Button
             {
                 Name = box.Name.Length > 0 ? box.Name + "Macro" : "",
-                Content = "マクロ...",
+                Content = Loc.T("マクロ...", "Macro..."),
                 Margin = new Thickness(4, 0, 0, 0),
                 Padding = new Thickness(8, 1, 8, 1),
-                ToolTip = "マクロの一覧(番号・名前・中身)から選んで、MACRO(n) を入れます。",
+                ToolTip = Loc.T("マクロの一覧(番号・名前・中身)から選んで、MACRO(n) を入れます。", "Pick from the macro list (number, name, content) to insert MACRO(n)."),
             };
             macro.Click += (_, _) =>
             {

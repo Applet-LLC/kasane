@@ -11,13 +11,20 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
     public List<TapDanceDef> Result { get; private set; } = new();
 
     public TapDanceEditorWindow(IEnumerable<TapDanceDef> tapDances, IReadOnlyDictionary<int, string>? names = null)
-        : base("タップダンス", KbdLayerClient.MaxTapDanceCount,
-            "タップダンスは、キーマップで TAPDANCE(n) を割り当てたキーを、何回続けてタップしたか・長押ししたかで動作を変えます。\n" +
-            "1回・2回・3回タップはキー(KC_*)、LCTL(KC_C) のような修飾付きキー、MACRO(n) のいずれか、" +
-            "長押しは KC_*、MT(MOD_LCTL,KC_NO) のような修飾キー、LT(1,KC_NO) のようなレイヤー(MT/LTのタップ側のキーは使われません)、" +
-            "LCTL(KC_C) のような修飾付きキー(押している間)、LM(1,MOD_LCTL)、MACRO(n)(長押しが決まったときに1回実行)のいずれかを指定します。" +
-            "空欄(または KC_NO)にした欄は「動作なし」で、そのタップ回数・長押しでは何も起きません。" +
-            "判定時間はタイミング設定の TapDanceTerm です。4つとも空にすると未使用になります。")
+        : base(Loc.T("タップダンス", "Tap dance"), KbdLayerClient.MaxTapDanceCount,
+            Loc.T(
+                "タップダンスは、キーマップで TAPDANCE(n) を割り当てたキーを、何回続けてタップしたか・長押ししたかで動作を変えます。\n" +
+                "1回・2回・3回タップはキー(KC_*)、LCTL(KC_C) のような修飾付きキー、MACRO(n) のいずれか、" +
+                "長押しは KC_*、MT(MOD_LCTL,KC_NO) のような修飾キー、LT(1,KC_NO) のようなレイヤー(MT/LTのタップ側のキーは使われません)、" +
+                "LCTL(KC_C) のような修飾付きキー(押している間)、LM(1,MOD_LCTL)、MACRO(n)(長押しが決まったときに1回実行)のいずれかを指定します。" +
+                "空欄(または KC_NO)にした欄は「動作なし」で、そのタップ回数・長押しでは何も起きません。" +
+                "判定時間はタイミング設定の TapDanceTerm です。4つとも空にすると未使用になります。",
+                "A tap dance changes the action depending on how many times in a row you tap a key assigned TAPDANCE(n) in the keymap, or whether you hold it.\n" +
+                "For 1, 2, and 3 taps, specify a key (KC_*), a key with modifiers such as LCTL(KC_C), or MACRO(n). " +
+                "For a hold, specify KC_*, a modifier key such as MT(MOD_LCTL,KC_NO), a layer such as LT(1,KC_NO) (the tap-side key of MT/LT is not used), " +
+                "a key with modifiers such as LCTL(KC_C) (while held), LM(1,MOD_LCTL), or MACRO(n) (runs once when the hold is recognized). " +
+                "A field left blank (or KC_NO) means “no action”: nothing happens for that tap count or hold. " +
+                "The timing is TapDanceTerm in the timing settings. If all four are blank, the tap dance is unused."))
     {
         foreach (var t in tapDances)
             if (t.Id >= 0 && t.Id < _defs.Length)
@@ -26,7 +33,7 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
     }
 
     protected override string Summary(int id) =>
-        _defs[id] is { } t ? $"{t.SingleTap} / 長押し {t.SingleHold} / {t.DoubleTap} / {t.TripleTap}" : "";
+        _defs[id] is { } t ? Loc.T($"{t.SingleTap} / 長押し {t.SingleHold} / {t.DoubleTap} / {t.TripleTap}", $"{t.SingleTap} / hold {t.SingleHold} / {t.DoubleTap} / {t.TripleTap}") : "";
 
     /// <summary>編集中の内容から、使われているタップダンスの一覧を作る（他の画面の「タップダンス...」の選択肢になる）。</summary>
     public IReadOnlyList<MacroInfo> Snapshot()
@@ -45,11 +52,11 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
     {
         if (_defs[id] == null)
         {
-            ShowValidation("中身が空のタップダンスは入れられません。", isError: true);
+            ShowValidation(Loc.T("中身が空のタップダンスは入れられません。", "An empty tap dance cannot be inserted."), isError: true);
             return;
         }
         bool ok = MacroInsert.TryInsert($"TAPDANCE({id})", out var reason);
-        ShowValidation(ok ? $"TAPDANCE({id}) を入れました。" : reason, isError: !ok);
+        ShowValidation(ok ? Loc.T($"TAPDANCE({id}) を入れました。", $"Inserted TAPDANCE({id}).") : reason, isError: !ok);
     }
 
     protected override void ShowDetail(int id)
@@ -79,19 +86,19 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
         }
         foreach (var b in new[] { single, hold, dbl, triple }) b.TextChanged += (_, _) => Changed();
 
-        Detail.Children.Add(Row("1回タップ", KeycodeField.Wrap(single, acceptsMacro: true)));
-        Detail.Children.Add(Row("長押し", KeycodeField.Wrap(hold, acceptsMacro: true)));
-        Detail.Children.Add(Row("2回タップ", KeycodeField.Wrap(dbl, acceptsMacro: true)));
-        Detail.Children.Add(Row("3回タップ", KeycodeField.Wrap(triple, acceptsMacro: true)));
+        Detail.Children.Add(Row(Loc.T("1回タップ", "Single tap"), KeycodeField.Wrap(single, acceptsMacro: true)));
+        Detail.Children.Add(Row(Loc.T("長押し", "Hold"), KeycodeField.Wrap(hold, acceptsMacro: true)));
+        Detail.Children.Add(Row(Loc.T("2回タップ", "Double tap"), KeycodeField.Wrap(dbl, acceptsMacro: true)));
+        Detail.Children.Add(Row(Loc.T("3回タップ", "Triple tap"), KeycodeField.Wrap(triple, acceptsMacro: true)));
 
         var insert = new System.Windows.Controls.Button
         {
             Name = "InsertTapDanceButton",
-            Content = $"キーの割り当て画面の入力欄に TAPDANCE({id}) を入れる",
+            Content = Loc.T($"キーの割り当て画面の入力欄に TAPDANCE({id}) を入れる", $"Insert TAPDANCE({id}) into the key assignment field"),
             Margin = new System.Windows.Thickness(110, 8, 0, 0),
             Padding = new System.Windows.Thickness(10, 3, 10, 3),
             HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
-            ToolTip = "キーの割り当て画面のキーコード欄を一度クリックしてから押します(一覧の行をダブルクリックでも同じ)。",
+            ToolTip = Loc.T("キーの割り当て画面のキーコード欄を一度クリックしてから押します(一覧の行をダブルクリックでも同じ)。", "Click the keycode field in the key assignment dialog once, then press this (double-clicking a row in the list does the same)."),
         };
         insert.Click += (_, _) => InsertIntoOtherWindow(id);
         Detail.Children.Add(insert);

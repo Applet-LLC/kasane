@@ -114,9 +114,9 @@ and the third-party folder are also placed directly in the installation folder
 
 Uninstallation
 --------------
-1. First open the kasane settings dialog and press "OFF（素通しに戻す）" (OFF:
-   return to pass-through). The keyboard remapping is disabled. (kasane is
-   displayed in Japanese only.)
+1. First open the kasane settings dialog and press "OFF (pass keys through)"
+   (shown as "OFF(素通しに戻す)" in Japanese). The keyboard remapping is
+   disabled.
 2. Remove "kasane Subscription" from "Apps & features" in Windows Settings
    (administrator rights are required).
 3. Restart your PC. The driver is in use by your keyboard, so its removal

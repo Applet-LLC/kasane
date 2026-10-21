@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using Kasane.Model;
 
 namespace Kasane.Views;
 
@@ -54,12 +55,12 @@ public abstract class IdListEditorWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         ShowInTaskbar = false;
 
-        var apply = new Button { Name = "ApplyButton", Content = "適用", Width = 90, Margin = new Thickness(0, 0, 24, 0) }; // OKとは少し間を空ける
-        apply.Click += (_, _) => { if (Commit()) ShowValidation("適用しました。", isError: false); };
+        var apply = new Button { Name = "ApplyButton", Content = Loc.T("適用", "Apply"), Width = 90, Margin = new Thickness(0, 0, 24, 0) }; // OKとは少し間を空ける
+        apply.Click += (_, _) => { if (Commit()) ShowValidation(Loc.T("適用しました。", "Applied."), isError: false); };
         var ok = new Button { Name = "OkButton", Content = "OK", IsDefault = true, Width = 90 };
         ok.Click += (_, _) => { if (Commit()) Close(); };
         // 非モーダルなので、IsCancel（ShowDialog 用）ではなく、自分で閉じる。Esc も同じ。
-        var cancel = new Button { Name = "CancelButton", Content = "キャンセル", Width = 90, Margin = new Thickness(6, 0, 0, 0) };
+        var cancel = new Button { Name = "CancelButton", Content = Loc.T("キャンセル", "Cancel"), Width = 90, Margin = new Thickness(6, 0, 0, 0) };
         cancel.Click += (_, _) => Close();
         PreviewKeyDown += (_, e) =>
         {
@@ -128,11 +129,12 @@ public abstract class IdListEditorWindow : Window
             Names[id] = string.IsNullOrWhiteSpace(box.Text) ? null : box.Text.Trim();
             RefreshItem(id);
         };
-        Detail.Children.Add(Row("名前(任意)", box));
+        Detail.Children.Add(Row(Loc.T("名前(任意)", "Name (optional)"), box));
         if (string.IsNullOrEmpty(Summary(id)))
             Detail.Children.Add(new TextBlock
             {
-                Text = "中身が空の番号は未使用です。名前だけ先に付けておけます(中身を入れるまで、キーボードには適用されません)。",
+                Text = Loc.T("中身が空の番号は未使用です。名前だけ先に付けておけます(中身を入れるまで、キーボードには適用されません)。",
+                             "A number with no content is unused. You can set a name ahead of time (it is not applied to the keyboard until you add content)."),
                 Foreground = AppTheme.Palette.SubText, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6),
             });
     }
@@ -141,7 +143,7 @@ public abstract class IdListEditorWindow : Window
     {
         var s = Summary(id);
         var name = Names[id];
-        string body = string.IsNullOrEmpty(s) ? "(未使用)" : s;
+        string body = string.IsNullOrEmpty(s) ? Loc.T("(未使用)", "(unused)") : s;
         return string.IsNullOrEmpty(name) ? $"{id,2}: {body}" : $"{id,2}: {name} — {body}";
     }
 

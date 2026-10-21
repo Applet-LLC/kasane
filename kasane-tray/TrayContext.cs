@@ -28,12 +28,12 @@ public sealed class TrayContext : ApplicationContext
     private DesktopViewApplier? _desktopView; // デスクトップのアイコンの表示方法を合わせている最中のもの（設定が無ければ null）
     private int? _desktopViewApplied;        // 最後に反映を始めた DesktopViewMode（設定が変わったかを見るため）
     private readonly ContextMenuStrip _menu = new();
-    private readonly ToolStripMenuItem _settingsItem = new("設定") { Name = "TraySettings" };
-    private readonly ToolStripMenuItem _pauseItem = new("一時停止") { Name = "TrayPause" };
-    private readonly ToolStripMenuItem _layerItem = new("レイヤー") { Name = "TrayLayers" };
-    private readonly ToolStripMenuItem _licenseItem = new("ライセンス") { Name = "TrayLicense" };
-    private readonly ToolStripMenuItem _aboutItem = new("バージョン情報") { Name = "TrayAbout" };
-    private readonly ToolStripMenuItem _exitItem = new("終了") { Name = "TrayExit" };
+    private readonly ToolStripMenuItem _settingsItem = new(Loc.T("設定", "Settings")) { Name = "TraySettings" };
+    private readonly ToolStripMenuItem _pauseItem = new(Loc.T("一時停止", "Pause")) { Name = "TrayPause" };
+    private readonly ToolStripMenuItem _layerItem = new(Loc.T("レイヤー", "Layers")) { Name = "TrayLayers" };
+    private readonly ToolStripMenuItem _licenseItem = new(Loc.T("ライセンス", "License")) { Name = "TrayLicense" };
+    private readonly ToolStripMenuItem _aboutItem = new(Loc.T("バージョン情報", "About")) { Name = "TrayAbout" };
+    private readonly ToolStripMenuItem _exitItem = new(Loc.T("終了", "Exit")) { Name = "TrayExit" };
     private readonly System.Windows.Forms.Timer _timer = new() { Interval = PollIntervalMs };
 
     private readonly Icon _normalIcon;
@@ -74,7 +74,7 @@ public sealed class TrayContext : ApplicationContext
         _settingsItem.Font = new Font(_settingsItem.Font, FontStyle.Bold);
         _settingsItem.Click += (_, _) => OpenEditor();
         _pauseItem.Click += (_, _) => TogglePause();
-        _licenseItem.Click += (_, _) => Notify(AppLauncher.OpenOrActivate(AppLauncher.FindLicense(), "ライセンス管理"));
+        _licenseItem.Click += (_, _) => Notify(AppLauncher.OpenOrActivate(AppLauncher.FindLicense(), Loc.T("ライセンス管理", "License manager")));
         _aboutItem.Click += (_, _) => AboutForm.ShowSingle();
         _exitItem.Click += (_, _) => ExitTray();
         _menu.Items.AddRange(new ToolStripItem[] { _settingsItem, _pauseItem, _layerItem, _licenseItem, _aboutItem, new ToolStripSeparator(), _exitItem });
@@ -163,8 +163,8 @@ public sealed class TrayContext : ApplicationContext
             var target = keyboards.Count == 1 ? _layerItem : new ToolStripMenuItem(kb.Label) { Name = "TrayLayers_" + kb.UniqId.ToString("X8") };
             foreach (var item in kb.Items)
             {
-                var entry = new ToolStripMenuItem($"レイヤー {item.Layer}") { Name = $"TrayLayer_{kb.UniqId:X8}_{item.Layer}", Checked = item.Checked, CheckOnClick = false, Enabled = item.Enabled };
-                if (!item.Enabled) entry.ToolTipText = "キーボードのレイヤー切り替え、IME連動、アプリ別レイヤーのいずれかで有効になっているので、ここからは切れません。";
+                var entry = new ToolStripMenuItem(Loc.T($"レイヤー {item.Layer}", $"Layer {item.Layer}")) { Name = $"TrayLayer_{kb.UniqId:X8}_{item.Layer}", Checked = item.Checked, CheckOnClick = false, Enabled = item.Enabled };
+                if (!item.Enabled) entry.ToolTipText = Loc.T("キーボードのレイヤー切り替え、IME連動、アプリ別レイヤーのいずれかで有効になっているので、ここからは切れません。", "This layer is active through a keyboard layer switch, IME link, or a per-app layer, so it cannot be turned off here.");
                 uint uniq = kb.UniqId;
                 int layer = item.Layer;
                 entry.Click += (_, _) =>
@@ -183,7 +183,7 @@ public sealed class TrayContext : ApplicationContext
     {
         bool exists = AppLauncher.FindLicense() != null;
         _licenseItem.Enabled = exists;
-        _licenseItem.ToolTipText = exists ? "" : "ライセンス管理(kasane-license.exe)が見つかりません";
+        _licenseItem.ToolTipText = exists ? "" : Loc.T("ライセンス管理(kasane-license.exe)が見つかりません", "License manager (kasane-license.exe) not found");
     }
 
     private void OpenEditor()
@@ -191,7 +191,7 @@ public sealed class TrayContext : ApplicationContext
         // 起動中（ウィンドウが出るまで）に押し直されても、2つ目を起動しない。
         if (StartingNotice.IsShowing) return;
         Notify(AppLauncher.OpenOrActivate(AppLauncher.FindEditor(), AppInfo.DisplayName,
-            started => StartingNotice.ShowFor(started, $"{AppInfo.DisplayName} の設定画面を準備しています…")));
+            started => StartingNotice.ShowFor(started, Loc.T($"{AppInfo.DisplayName} の設定画面を準備しています…", $"Starting {AppInfo.DisplayName} Settings…"))));
     }
 
     /// <summary>失敗の理由があれば、バルーンで知らせる。</summary>
@@ -209,7 +209,7 @@ public sealed class TrayContext : ApplicationContext
         catch (Exception ex)
         {
             TrayLog.Write("TogglePause: " + ex);
-            Notify($"一時停止・再開に失敗しました: {ex.Message}");
+            Notify(Loc.T($"一時停止・再開に失敗しました: {ex.Message}", $"Could not pause or resume: {ex.Message}"));
         }
     }
 
@@ -276,14 +276,14 @@ public sealed class TrayContext : ApplicationContext
 
         (Icon icon, string text) = snapshot.Status switch
         {
-            TrayStatus.Paused => (_pausedIcon, $"{AppInfo.NameWithVersion} - 一時停止中"),
-            TrayStatus.DriverUnavailable => (_unavailableIcon, $"{AppInfo.NameWithVersion} - ドライバに接続できません"),
-            _ when snapshot.ActiveCount == 0 => (_normalIcon, $"{AppInfo.NameWithVersion} - リマップ中のキーボードはありません"),
-            _ => (_normalIcon, $"{AppInfo.NameWithVersion} - 動作中({snapshot.ActiveCount}台)"),
+            TrayStatus.Paused => (_pausedIcon, Loc.T($"{AppInfo.NameWithVersion} - 一時停止中", $"{AppInfo.NameWithVersion} - Paused")),
+            TrayStatus.DriverUnavailable => (_unavailableIcon, Loc.T($"{AppInfo.NameWithVersion} - ドライバに接続できません", $"{AppInfo.NameWithVersion} - Cannot connect to the driver")),
+            _ when snapshot.ActiveCount == 0 => (_normalIcon, Loc.T($"{AppInfo.NameWithVersion} - リマップ中のキーボードはありません", $"{AppInfo.NameWithVersion} - No keyboards are being remapped")),
+            _ => (_normalIcon, Loc.T($"{AppInfo.NameWithVersion} - 動作中({snapshot.ActiveCount}台)", $"{AppInfo.NameWithVersion} - Running ({snapshot.ActiveCount})")),
         };
         var ime = _imeLink.Status;
         if (snapshot.Status == TrayStatus.Running && ime.HasNicola)
-            text += ime.NicolaOn ? "・NICOLA 入力中" : "・NICOLA 待機(IME連動)";
+            text += ime.NicolaOn ? Loc.T("・NICOLA 入力中", " / NICOLA on") : Loc.T("・NICOLA 待機(IME連動)", " / NICOLA standby (IME link)");
         if (snapshot.Status == TrayStatus.Running && snapshot.ActiveCount > 0 && _showLayer && _layerBadge != null)
         {
             icon = BadgeIcon(_layerBadge);

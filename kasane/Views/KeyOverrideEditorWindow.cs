@@ -13,14 +13,22 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
     public List<KeyOverrideDef> Result { get; private set; } = new();
 
     public KeyOverrideEditorWindow(IEnumerable<KeyOverrideDef> keyOverrides, IReadOnlyDictionary<int, string>? names = null)
-        : base("キー置換", KbdLayerClient.MaxKeyOverrideCount,
+        : base(Loc.T("キー置換", "Key Override"), KbdLayerClient.MaxKeyOverrideCount,
+            Loc.T(
             "キー置換は、指定した修飾キーを押しながら指定したキーを押したときに、代わりに別のキーを送ります。\n" +
             "例: 修飾キー MOD_LSFT、キー KC_BSPACE、置き換え先 KC_DELETE → Shift+BS で Delete。" +
             "置き換えている間、条件の修飾キーは一時的に離されます(置き換え先に LSFT(KC_X) のように書けば、その修飾キーは掛かります)。\n" +
             "置き換え先に MACRO(n) と書くと、キーを押したときにマクロnを1回実行します。実行の間だけ条件の修飾キーを離し、" +
             "終わったときに、まだ押していれば戻します(マクロの出力に Ctrl などが掛かりません)。マクロの機能が ON のときだけ動きます。\n" +
             "修飾キーは MOD_LCTL|MOD_LSFT のように複数書けて、全部押されているときに置き換えます(左右は区別しません)。" +
-            "キーは、レイヤーで切り替えた後に出るキーです。3つとも空にすると未使用になります。")
+            "キーは、レイヤーで切り替えた後に出るキーです。3つとも空にすると未使用になります。",
+            "A key override sends a different key instead when you press the specified key while holding the specified modifier keys.\n" +
+            "Example: modifier MOD_LSFT, key KC_BSPACE, replacement KC_DELETE -> Shift+BS sends Delete. " +
+            "While the replacement is sent, the modifier keys in the condition are temporarily released (write the replacement like LSFT(KC_X) to apply a modifier).\n" +
+            "If you write MACRO(n) as the replacement, pressing the key runs macro n once. The condition's modifier keys are released only while it runs, " +
+            "and restored afterwards if they are still held (so Ctrl and the like are not applied to the macro's output). This works only while the macro feature is ON.\n" +
+            "You can write several modifiers, like MOD_LCTL|MOD_LSFT; the override applies when all of them are held (left and right are not distinguished). " +
+            "The key is the key produced after layer switching. If all three fields are empty, the override is unused."))
     {
         foreach (var k in keyOverrides)
             if (k.Id >= 0 && k.Id < _defs.Length)
@@ -29,7 +37,7 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
     }
 
     protected override string Summary(int id) =>
-        _defs[id] is { } k ? $"{k.Mods} + {k.Key} → {k.Replacement}" + (k.RepeatMacro ? "(繰り返す)" : "") : "";
+        _defs[id] is { } k ? $"{k.Mods} + {k.Key} → {k.Replacement}" + (k.RepeatMacro ? Loc.T("(繰り返す)", " (repeat)") : "") : "";
 
     private static bool IsMacro(string replacement) => replacement.Trim().StartsWith("MACRO(", StringComparison.OrdinalIgnoreCase);
 
@@ -42,7 +50,7 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
         var repeat = new CheckBox
         {
             Name = "RepeatMacroCheck",
-            Content = "キーを押し続けたとき(オートリピート)も、マクロを繰り返す",
+            Content = Loc.T("キーを押し続けたとき(オートリピート)も、マクロを繰り返す", "Repeat the macro while the key is held (auto-repeat)"),
             IsChecked = d?.RepeatMacro ?? false,
             Margin = new Thickness(0, 6, 0, 0),
         };
@@ -68,9 +76,9 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
         foreach (var b in new[] { mods, key, replacement }) b.TextChanged += (_, _) => Changed();
         repeat.Click += (_, _) => Changed();
 
-        Detail.Children.Add(Row("修飾キー", mods));
-        Detail.Children.Add(Row("キー", KeycodeField.Wrap(key, allowMods: false)));
-        Detail.Children.Add(Row("置き換え先", KeycodeField.Wrap(replacement, acceptsMacro: true)));
+        Detail.Children.Add(Row(Loc.T("修飾キー", "Modifiers"), mods));
+        Detail.Children.Add(Row(Loc.T("キー", "Key"), KeycodeField.Wrap(key, allowMods: false)));
+        Detail.Children.Add(Row(Loc.T("置き換え先", "Replace with"), KeycodeField.Wrap(replacement, acceptsMacro: true)));
         Detail.Children.Add(repeat);
         repeat.Visibility = IsMacro(replacement.Text) ? Visibility.Visible : Visibility.Collapsed;
     }

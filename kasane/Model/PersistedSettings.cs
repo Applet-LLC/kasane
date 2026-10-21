@@ -66,7 +66,7 @@ public sealed class PersistedSettings
             ms.Position = (long)id * MacroEntryBytes;
             if (!macros.TryGetValue(id, out var steps) || steps.Count == 0) continue;
             if (steps.Count > KbdLayerClient.MaxMacroSteps)
-                throw new InvalidOperationException($"マクロ{id}のステップ数 {steps.Count} が上限 {KbdLayerClient.MaxMacroSteps} を超えています");
+                throw new InvalidOperationException(Loc.T($"マクロ{id}のステップ数 {steps.Count} が上限 {KbdLayerClient.MaxMacroSteps} を超えています", $"Macro {id} has {steps.Count} steps, which exceeds the limit of {KbdLayerClient.MaxMacroSteps}"));
             w.Write((uint)steps.Count);
             foreach (var s in steps)
             {
@@ -87,7 +87,7 @@ public sealed class PersistedSettings
         foreach (var (id, e) in combos)
         {
             if (e == null) continue;
-            if (id < 0 || id >= KbdLayerClient.MaxComboCount) throw new InvalidOperationException($"コンボの番号 {id} が範囲外です");
+            if (id < 0 || id >= KbdLayerClient.MaxComboCount) throw new InvalidOperationException(Loc.T($"コンボの番号 {id} が範囲外です", $"Combo number {id} is out of range"));
             ms.Position = (long)id * ComboEntryBytes;
             w.Write(1u);
             w.Write(e.ScanCode1);
@@ -106,7 +106,7 @@ public sealed class PersistedSettings
         foreach (var (id, e) in tapDances)
         {
             if (e == null) continue;
-            if (id < 0 || id >= KbdLayerClient.MaxTapDanceCount) throw new InvalidOperationException($"タップダンスの番号 {id} が範囲外です");
+            if (id < 0 || id >= KbdLayerClient.MaxTapDanceCount) throw new InvalidOperationException(Loc.T($"タップダンスの番号 {id} が範囲外です", $"Tap dance number {id} is out of range"));
             ms.Position = (long)id * TapDanceEntryBytes;
             w.Write(1u);
             WriteAction(w, e.SingleTap);
@@ -126,7 +126,7 @@ public sealed class PersistedSettings
         foreach (var (id, e) in keyOverrides)
         {
             if (e == null) continue;
-            if (id < 0 || id >= KbdLayerClient.MaxKeyOverrideCount) throw new InvalidOperationException($"キー置換の番号 {id} が範囲外です");
+            if (id < 0 || id >= KbdLayerClient.MaxKeyOverrideCount) throw new InvalidOperationException(Loc.T($"キー置換の番号 {id} が範囲外です", $"Key override number {id} is out of range"));
             ms.Position = (long)id * KeyOverrideEntryBytes;
             w.Write(1u);
             w.Write(e.TriggerMods);
@@ -141,10 +141,10 @@ public sealed class PersistedSettings
     public static List<(string Name, object Value, RegistryValueKind Kind)> BuildValues(DriverSettings s)
     {
         if (s.TapHoldMode > TapHoldModes.TapPreferred)
-            throw new InvalidOperationException($"タップホールドの判定方式 {s.TapHoldMode} が範囲外です");
+            throw new InvalidOperationException(Loc.T($"タップホールドの判定方式 {s.TapHoldMode} が範囲外です", $"Tap-hold mode {s.TapHoldMode} is out of range"));
         uint toggle = s.TappingToggle != 0 ? s.TappingToggle : KbdLayerClient.DefaultTappingToggle;
         if (toggle > KbdLayerClient.MaxTappingToggle)
-            throw new InvalidOperationException($"TTの回数 {toggle} が上限 {KbdLayerClient.MaxTappingToggle} を超えています");
+            throw new InvalidOperationException(Loc.T($"TTの回数 {toggle} が上限 {KbdLayerClient.MaxTappingToggle} を超えています", $"TT tap count {toggle} exceeds the limit of {KbdLayerClient.MaxTappingToggle}"));
 
         var values = new List<(string, object, RegistryValueKind)>();
         void Dword(string name, uint v) => values.Add((name, unchecked((int)v), RegistryValueKind.DWord));
@@ -164,7 +164,7 @@ public sealed class PersistedSettings
         if (s.KeyOverrides.Values.Any(k => k != null)) Binary("KeyOverrides", SerializeKeyOverrides(s.KeyOverrides));
         if (s.Features is uint f)
         {
-            if ((f & ~KbdLayerClient.FeatureAll) != 0) throw new InvalidOperationException($"機能のON/OFFの値 0x{f:X} に未知のビットがあります");
+            if ((f & ~KbdLayerClient.FeatureAll) != 0) throw new InvalidOperationException(Loc.T($"機能のON/OFFの値 0x{f:X} に未知のビットがあります", $"The feature on/off value 0x{f:X} has unknown bits"));
             Dword("EnabledFeatures", f & FeatureAllV1); // 旧ドライバ向けの値（3機能のビットだけ）
             Dword("EnabledFeaturesEx", f);
         }
@@ -218,7 +218,7 @@ public sealed class PersistedSettings
         }
 
         using var key = _hive.CreateSubKey($@"{_layerMapsPath}\{name}", writable: true)
-                        ?? throw new IOException($"レジストリキー {name} を作れません");
+                        ?? throw new IOException(Loc.T($"レジストリキー {name} を作れません", $"Cannot create registry key {name}"));
         foreach (var n in key.GetValueNames()) key.DeleteValue(n);
         foreach (var (n, v, kind) in values) key.SetValue(n, v, kind);
         return backedUp;
@@ -248,7 +248,7 @@ public sealed class PersistedSettings
         using var src = _hive.OpenSubKey($@"{_layerMapsPath}\{from}");
         if (src == null) return;
         using var dst = _hive.CreateSubKey($@"{_layerMapsPath}\{to}", writable: true)
-                        ?? throw new IOException($"レジストリキー {to} を作れません");
+                        ?? throw new IOException(Loc.T($"レジストリキー {to} を作れません", $"Cannot create registry key {to}"));
         foreach (var n in dst.GetValueNames()) dst.DeleteValue(n);
         foreach (var n in src.GetValueNames())
             dst.SetValue(n, src.GetValue(n, null, RegistryValueOptions.DoNotExpandEnvironmentNames)!, src.GetValueKind(n));

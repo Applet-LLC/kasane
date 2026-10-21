@@ -33,12 +33,12 @@ public static class KeyMarks
             if (action.Type == ActionType.Macro)
             {
                 marks.Append('M');
-                tip.Add(Describe("マクロ", action.Param1, project.MacroNames));
+                tip.Add(Describe(Loc.T("マクロ", "Macro"), action.Param1, project.MacroNames));
             }
             else if (action.Type == ActionType.TapDance)
             {
                 marks.Append('D');
-                tip.Add(Describe("タップダンス", action.Param1, project.TapDanceNames));
+                tip.Add(Describe(Loc.T("タップダンス", "Tap dance"), action.Param1, project.TapDanceNames));
             }
         }
 
@@ -46,15 +46,17 @@ public static class KeyMarks
         {
             if (c.Slot1 != slot.Index && c.Slot2 != slot.Index) continue;
             int otherIndex = c.Slot1 == slot.Index ? c.Slot2 : c.Slot1;
-            string other = layout.Slots.FirstOrDefault(s => s.Index == otherIndex)?.Description ?? $"キー{otherIndex}";
-            tip.Add($"{Describe("コンボ", c.Id, project.ComboNames)}: {other} と同時に押す → {c.Output}");
+            string other = layout.Slots.FirstOrDefault(s => s.Index == otherIndex)?.Description ?? Loc.T($"キー{otherIndex}", $"Key {otherIndex}");
+            string combo = Describe(Loc.T("コンボ", "Combo"), c.Id, project.ComboNames);
+            tip.Add(Loc.T($"{combo}: {other} と同時に押す → {c.Output}", $"{combo}: press together with {other} → {c.Output}"));
         }
         if (project.Combos.Any(c => c.Slot1 == slot.Index || c.Slot2 == slot.Index)) marks.Append('C');
 
         foreach (var k in project.KeyOverrides)
         {
             if (!string.Equals(k.Key?.Trim(), token, StringComparison.OrdinalIgnoreCase)) continue;
-            tip.Add($"{Describe("キー置換", k.Id, project.KeyOverrideNames)}: {k.Mods.Replace(" ", "")} を押しながら → {k.Replacement}");
+            string ko = Describe(Loc.T("キー置換", "Key override"), k.Id, project.KeyOverrideNames);
+            tip.Add(Loc.T($"{ko}: {k.Mods.Replace(" ", "")} を押しながら → {k.Replacement}", $"{ko}: while holding {k.Mods.Replace(" ", "")} → {k.Replacement}"));
         }
         if (project.KeyOverrides.Any(k => string.Equals(k.Key?.Trim(), token, StringComparison.OrdinalIgnoreCase))) marks.Append('R');
 
@@ -77,11 +79,15 @@ public static class KeyMarks
     }
 
     private static string Describe(string kind, int id, Dictionary<int, string>? names) =>
-        names != null && names.TryGetValue(id, out var n) && !string.IsNullOrWhiteSpace(n) ? $"{kind}{id}「{n}」" : $"{kind}{id}";
+        names != null && names.TryGetValue(id, out var n) && !string.IsNullOrWhiteSpace(n)
+            ? Loc.T($"{kind}{id}「{n}」", $"{kind} {id} \"{n}\"")
+            : Loc.T($"{kind}{id}", $"{kind} {id}");
 
     /// <summary>ボタンの表示。定義が無ければ「マクロ...」、あれば「マクロ(2)...」、機能がOFFなら「マクロ(2・OFF)...」。</summary>
     public static string ButtonText(string name, int count, bool featureOn) =>
-        count == 0 ? $"{name}..." : featureOn ? $"{name}({count})..." : $"{name}({count}・OFF)...";
+        count == 0 ? $"{name}..."
+        : featureOn ? Loc.T($"{name}({count})...", $"{name} ({count})...")
+        : Loc.T($"{name}({count}・OFF)...", $"{name} ({count}, OFF)...");
 
     /// <summary>機能のON/OFF（<see cref="KeymapProject.EnabledFeatures"/> が null なら、GUIでは管理しない＝すべて有効とみなす）。</summary>
     public static bool FeatureOn(KeymapProject project, uint feature) =>

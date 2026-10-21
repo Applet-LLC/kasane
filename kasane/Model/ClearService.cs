@@ -29,20 +29,23 @@ public sealed class ClearOptions
         Timing = true, Features = true, Nicola = true, Helper = true, Measured = true,
     };
 
+    /// <summary>「ヘルパー設定」の表示名（Names() に入る名前と同じ）。</summary>
+    public static string HelperName => Loc.T("ヘルパー設定", "Helper settings");
+
     /// <summary>確認画面・報告に出す、消す項目の名前。</summary>
     public List<string> Names()
     {
         var n = new List<string>();
-        if (Layers) n.Add("レイヤー(キー割り当て)");
-        if (Macros) n.Add("マクロ");
-        if (Combos) n.Add("コンボ");
-        if (TapDances) n.Add("タップダンス");
-        if (KeyOverrides) n.Add("キー置換");
-        if (Timing) n.Add("タイミング");
-        if (Features) n.Add("機能のON/OFF");
+        if (Layers) n.Add(Loc.T("レイヤー(キー割り当て)", "Layers (key assignments)"));
+        if (Macros) n.Add(Loc.T("マクロ", "Macros"));
+        if (Combos) n.Add(Loc.T("コンボ", "Combos"));
+        if (TapDances) n.Add(Loc.T("タップダンス", "Tap dances"));
+        if (KeyOverrides) n.Add(Loc.T("キー置換", "Key overrides"));
+        if (Timing) n.Add(Loc.T("タイミング", "Timing"));
+        if (Features) n.Add(Loc.T("機能のON/OFF", "Feature ON/OFF"));
         if (Nicola) n.Add("NICOLA");
-        if (Helper) n.Add("ヘルパー設定");
-        if (Measured) n.Add("実測したスキャンコード");
+        if (Helper) n.Add(HelperName);
+        if (Measured) n.Add(Loc.T("実測したスキャンコード", "Measured scan codes"));
         return n;
     }
 }
@@ -58,7 +61,7 @@ public static class ClearService
     {
         if (o.Layers)
         {
-            if (layout == null) throw new ArgumentNullException(nameof(layout), "レイヤーを消すには、レイアウトが要ります");
+            if (layout == null) throw new ArgumentNullException(nameof(layout), Loc.T("レイヤーを消すには、レイアウトが要ります", "A layout is required to clear layers"));
             project.Layers = new List<List<string>> { ProjectService.DefaultLayer(layout, 0) };
             project.LayerNames = null;
         }
@@ -95,7 +98,7 @@ public static class ClearService
         {
             client.SetEnabled(uniqId, false);
             client.ClearLayerMap(uniqId);
-            report.Info($"{tag}: ドライバのレイヤーマップを消しました(OFF)");
+            report.Info(Loc.T($"{tag}: ドライバのレイヤーマップを消しました(OFF)", $"{tag}: Cleared the driver layer map (OFF)"));
         }
         if (o.Macros)
         {
@@ -106,7 +109,7 @@ public static class ClearService
                 client.SetMacro(uniqId, m, new List<MacroStep>());
                 n++;
             }
-            report.Info($"{tag}: ドライバのマクロを消しました({n}件)");
+            report.Info(Loc.T($"{tag}: ドライバのマクロを消しました({n}件)", $"{tag}: Cleared driver macros ({n})"));
         }
         if (o.Combos)
         {
@@ -117,7 +120,7 @@ public static class ClearService
                 client.SetCombo(uniqId, c, null);
                 n++;
             }
-            report.Info($"{tag}: ドライバのコンボを消しました({n}件)");
+            report.Info(Loc.T($"{tag}: ドライバのコンボを消しました({n}件)", $"{tag}: Cleared driver combos ({n})"));
         }
         if (o.TapDances)
         {
@@ -128,7 +131,7 @@ public static class ClearService
                 client.SetTapDance(uniqId, t, null);
                 n++;
             }
-            report.Info($"{tag}: ドライバのタップダンスを消しました({n}件)");
+            report.Info(Loc.T($"{tag}: ドライバのタップダンスを消しました({n}件)", $"{tag}: Cleared driver tap dances ({n})"));
         }
         if (o.KeyOverrides)
         {
@@ -141,28 +144,28 @@ public static class ClearService
                     client.SetKeyOverride(uniqId, k, null);
                     n++;
                 }
-                report.Info($"{tag}: ドライバのキー置換を消しました({n}件)");
+                report.Info(Loc.T($"{tag}: ドライバのキー置換を消しました({n}件)", $"{tag}: Cleared driver key overrides ({n})"));
             }
             catch (KbdLayerException)
             {
-                report.Info($"{tag}: このドライバはキー置換に対応していないため、飛ばしました");
+                report.Info(Loc.T($"{tag}: このドライバはキー置換に対応していないため、飛ばしました", $"{tag}: Skipped because this driver does not support key overrides"));
             }
         }
         if (o.Timing)
         {
             client.SetConfig(uniqId, 0, 0, 0, 0, 0, 0);
-            report.Info($"{tag}: ドライバのタイミングを既定に戻しました");
+            report.Info(Loc.T($"{tag}: ドライバのタイミングを既定に戻しました", $"{tag}: Reset driver timing to defaults"));
         }
         if (o.Features)
         {
             try { client.SetFeatures(uniqId, KbdLayerClient.FeatureAll); }
             catch (KbdLayerException) { /* 機能別ON/OFFより前のドライバ。全機能が有効なので、送れなくても結果は同じ */ }
-            report.Info($"{tag}: ドライバの機能のON/OFFを、すべて有効に戻しました");
+            report.Info(Loc.T($"{tag}: ドライバの機能のON/OFFを、すべて有効に戻しました", $"{tag}: Reset driver feature ON/OFF to all enabled"));
         }
         if (o.Nicola)
         {
             if (client.GetNicola(uniqId).Length > 0) client.SetNicola(uniqId, Array.Empty<byte>());
-            report.Info($"{tag}: ドライバのNICOLAを消しました");
+            report.Info(Loc.T($"{tag}: ドライバのNICOLAを消しました", $"{tag}: Cleared driver NICOLA settings"));
         }
     }
 
@@ -175,11 +178,11 @@ public static class ClearService
                                    string? baseDirectory, PortableReport report)
     {
         var cleared = new List<uint>();
-        if (!o.Any) { report.Warn("消す項目が選ばれていません"); return cleared; }
+        if (!o.Any) { report.Warn(Loc.T("消す項目が選ばれていません", "No items are selected to clear")); return cleared; }
         try { PortableService.BackupAll(baseDirectory, report, "before-clear"); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            report.Error($"今の設定をバックアップできなかったため、クリアを中止しました: {ex.Message}");
+            report.Error(Loc.T($"今の設定をバックアップできなかったため、クリアを中止しました: {ex.Message}", $"Clearing was canceled because the current settings could not be backed up: {ex.Message}"));
             return cleared;
         }
 
@@ -200,30 +203,30 @@ public static class ClearService
                 if (project != null)
                 {
                     var layout = PortableService.FindLayout(project.LayoutName, project.LayoutPath);
-                    if (layout == null && o.Layers) report.Warn($"{tag}: レイアウト「{project.LayoutName}」が見つからないため、レイヤーは画面の設定から消せませんでした");
+                    if (layout == null && o.Layers) report.Warn(Loc.T($"{tag}: レイアウト「{project.LayoutName}」が見つからないため、レイヤーは画面の設定から消せませんでした", $"{tag}: Layout “{project.LayoutName}” was not found, so layers could not be cleared from the app settings"));
                     else
                     {
                         ResetProject(project, layout, o);
                         if (o.Nicola && driverCleared) project.ClearNicola = false;
                         ProjectService.Save(project, baseDirectory);
-                        report.Info($"{tag}: 画面の設定(project.json)の " + string.Join("・", o.Names().Where(n => n != "ヘルパー設定")) + " を初期状態にしました");
+                        report.Info(Loc.T($"{tag}: 画面の設定(project.json)の " + string.Join("・", o.Names().Where(n => n != ClearOptions.HelperName)) + " を初期状態にしました", $"{tag}: Reset " + string.Join(", ", o.Names().Where(n => n != ClearOptions.HelperName)) + " in the app settings (project.json)"));
                     }
                 }
 
                 if (o.Helper)
                 {
                     string helperPath = HelperConfig.DevicePath(uniq, baseDirectory);
-                    if (File.Exists(helperPath)) { File.Delete(helperPath); report.Info($"{tag}: ヘルパー設定(helper.json)を消しました"); }
+                    if (File.Exists(helperPath)) { File.Delete(helperPath); report.Info(Loc.T($"{tag}: ヘルパー設定(helper.json)を消しました", $"{tag}: Deleted helper settings (helper.json)")); }
                 }
                 cleared.Add(uniq);
             }
             catch (KbdLayerException ex)
             {
-                report.Error($"{tag}: ドライバの設定を消せませんでした({ex.Message})。途中まで消えている可能性があります");
+                report.Error(Loc.T($"{tag}: ドライバの設定を消せませんでした({ex.Message})。途中まで消えている可能性があります", $"{tag}: Could not clear the driver settings ({ex.Message}). Some may already have been cleared"));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
             {
-                report.Error($"{tag}: 保存できませんでした({ex.Message})");
+                report.Error(Loc.T($"{tag}: 保存できませんでした({ex.Message})", $"{tag}: Could not save ({ex.Message})"));
             }
         }
 
@@ -237,12 +240,12 @@ public static class ClearService
                 {
                     tray.Helper = null;
                     tray.Save(trayPath);
-                    report.Info("トレイの共通のヘルパー設定(tray.json の Helper)を消しました");
+                    report.Info(Loc.T("トレイの共通のヘルパー設定(tray.json の Helper)を消しました", "Cleared the tray's shared helper settings (Helper in tray.json)"));
                 }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                report.Error($"tray.json に書けませんでした({ex.Message})");
+                report.Error(Loc.T($"tray.json に書けませんでした({ex.Message})", $"Could not write tray.json ({ex.Message})"));
             }
         }
         return cleared;

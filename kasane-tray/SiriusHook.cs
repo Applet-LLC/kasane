@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Loc = Kasane.Model.Loc;
 
 namespace Kasane.Tray;
 
@@ -117,7 +118,7 @@ internal sealed class SiriusHook : IDisposable
     {
         dllPath ??= DefaultPath;
         error = "";
-        if (!File.Exists(dllPath)) { error = $"{DllName} がありません"; return null; }
+        if (!File.Exists(dllPath)) { error = Loc.T($"{DllName} がありません", $"{DllName} not found"); return null; }
 
         IntPtr module = IntPtr.Zero;
         try
@@ -130,7 +131,7 @@ internal sealed class SiriusHook : IDisposable
             getLayout(out var native);
             if (SiriusLayout.From(native) is not { } layout)
             {
-                error = $"{DllName} の共有メモリの形が分かりません(版 {native.Version}、大きさ {native.CbSize})";
+                error = Loc.T($"{DllName} の共有メモリの形が分かりません(版 {native.Version}、大きさ {native.CbSize})", $"The shared memory layout of {DllName} is not recognized (version {native.Version}, size {native.CbSize})");
                 NativeLibrary.Free(module);
                 return null;
             }
@@ -139,7 +140,7 @@ internal sealed class SiriusHook : IDisposable
             IntPtr memory = setup(messageId);
             if (memory == IntPtr.Zero)
             {
-                error = "SiriusSetupHook が失敗しました(フックを入れられません)";
+                error = Loc.T("SiriusSetupHook が失敗しました(フックを入れられません)", "SiriusSetupHook failed (the hook could not be installed)");
                 NativeLibrary.Free(module);
                 return null;
             }
@@ -148,7 +149,7 @@ internal sealed class SiriusHook : IDisposable
         catch (Exception ex) when (ex is DllNotFoundException or BadImageFormatException or EntryPointNotFoundException
                                        or ArgumentException or MarshalDirectiveException or InvalidOperationException)
         {
-            error = $"{DllName} を読み込めません: {ex.Message}";
+            error = Loc.T($"{DllName} を読み込めません: {ex.Message}", $"Cannot load {DllName}: {ex.Message}");
             if (module != IntPtr.Zero) NativeLibrary.Free(module);
             return null;
         }

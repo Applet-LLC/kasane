@@ -93,7 +93,7 @@ public sealed class KeyHookService : IDisposable
     {
         _physKeys = ReadPhysicalKeys();
         _hook = NativeMethods.SetWindowsHookExW(NativeMethods.WH_KEYBOARD_LL, _proc, NativeMethods.GetModuleHandleW(null), 0);
-        if (_hook == IntPtr.Zero) TrayLog.Write("KeyHook: SetWindowsHookEx に失敗 (" + Marshal.GetLastWin32Error() + ")");
+        if (_hook == IntPtr.Zero) TrayLog.Write(Loc.T("KeyHook: SetWindowsHookEx に失敗 (" + Marshal.GetLastWin32Error() + ")", "KeyHook: SetWindowsHookEx failed (" + Marshal.GetLastWin32Error() + ")"));
     }
 
     private void Uninstall()

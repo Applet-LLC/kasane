@@ -16,7 +16,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
-            <TextBlock Text="キーコード:" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <TextBlock x:Name="TxtTokenLabel" Text="キーコード:" VerticalAlignment="Center" Margin="0,0,6,0" />
             <TextBox x:Name="TxtToken" Grid.Column="1" FontFamily="Consolas" FontSize="14" TextChanged="TxtToken_TextChanged" />
             <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="8,0,0,0">
                 <Button x:Name="BtnCapture" Content="押して入力" Focusable="False" Click="BtnCapture_Click"
@@ -30,7 +30,7 @@
         <!-- 修飾キー。チェックすると、選んだキーが LCTL(KC_C) のような修飾付きキー（ショートカット）になる。
              レイヤー操作の LM でも、ここで選んだ修飾キーを使う。 -->
         <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
-            <TextBlock Text="修飾キー(チェックすると、選んだキーを Ctrl+C のようなショートカットとして送ります。LM でもここで選びます):"
+            <TextBlock x:Name="TxtModHint" Text="修飾キー(チェックすると、選んだキーを Ctrl+C のようなショートカットとして送ります。LM でもここで選びます):"
                        TextWrapping="Wrap" Margin="0,0,0,4" />
             <WrapPanel x:Name="ModPanel" />
         </StackPanel>

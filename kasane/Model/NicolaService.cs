@@ -58,12 +58,12 @@ public static class NicolaService
         {
             doc = JsonDocument.Parse(json, new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip });
         }
-        catch (JsonException ex) { throw new InvalidDataException($"JSONとして読めません: {ex.Message}"); }
+        catch (JsonException ex) { throw new InvalidDataException(Loc.T($"JSONとして読めません: {ex.Message}", $"Can't read as JSON: {ex.Message}")); }
 
         using (doc)
         {
             var root = doc.RootElement;
-            if (root.ValueKind != JsonValueKind.Object) throw new InvalidDataException("nicola.json の最上位がオブジェクトではありません");
+            if (root.ValueKind != JsonValueKind.Object) throw new InvalidDataException(Loc.T("nicola.json の最上位がオブジェクトではありません", "The top level of nicola.json is not an object"));
 
             string Str(string name, string def) =>
                 root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString()! : def;
@@ -93,16 +93,18 @@ public static class NicolaService
             {
                 if (!root.TryGetProperty(region, out var keys)) continue;
                 if (keys.ValueKind != JsonValueKind.Object)
-                    throw new InvalidDataException($"\"{region}\" は \"KC_x\": [単独, 同じ側の親指, 反対側の親指] のオブジェクトにしてください");
+                    throw new InvalidDataException(Loc.T($"\"{region}\" は \"KC_x\": [単独, 同じ側の親指, 反対側の親指] のオブジェクトにしてください",
+                        $"\"{region}\" must be an object of \"KC_x\": [alone, same-side thumb, opposite-side thumb]"));
                 foreach (var kv in keys.EnumerateObject())
                 {
                     if (kv.Value.ValueKind != JsonValueKind.Array || kv.Value.GetArrayLength() is 0 or > 3)
-                        throw new InvalidDataException($"\"{kv.Name}\": 1〜3個の文字列の配列 [単独, 同じ側の親指, 反対側の親指] にしてください");
+                        throw new InvalidDataException(Loc.T($"\"{kv.Name}\": 1〜3個の文字列の配列 [単独, 同じ側の親指, 反対側の親指] にしてください",
+                            $"\"{kv.Name}\": must be an array of 1 to 3 strings [alone, same-side thumb, opposite-side thumb]"));
                     var planes = new string[3] { "", "", "" };
                     int i = 0;
                     foreach (var p in kv.Value.EnumerateArray())
                     {
-                        if (p.ValueKind != JsonValueKind.String) throw new InvalidDataException($"\"{kv.Name}\": 配列の中身は文字列にしてください");
+                        if (p.ValueKind != JsonValueKind.String) throw new InvalidDataException(Loc.T($"\"{kv.Name}\": 配列の中身は文字列にしてください", $"\"{kv.Name}\": array elements must be strings"));
                         planes[i++] = p.GetString()!;
                     }
                     def.Keys.Add(new NicolaKeyDef
@@ -200,68 +202,71 @@ public static class NicolaService
         bool jisKana;
         if (def.Output == "romaji") jisKana = false;
         else if (def.Output == "jis-kana") jisKana = true;
-        else { errors.Add($"NICOLA: 出力の形式は romaji か jis-kana にしてください({def.Output})"); return null; }
+        else { errors.Add(Loc.T($"NICOLA: 出力の形式は romaji か jis-kana にしてください({def.Output})", $"NICOLA: the output format must be romaji or jis-kana ({def.Output})")); return null; }
 
         uint overlapPct = (uint)Math.Max(0, Math.Round(def.OverlapRatio * 100.0, MidpointRounding.AwayFromZero));
         if (def.Layer < 0 || def.Layer >= KbdLayerClient.MaxLayers)
-            errors.Add($"NICOLA: レイヤーは0〜{KbdLayerClient.MaxLayers - 1}にしてください");
+            errors.Add(Loc.T($"NICOLA: レイヤーは0〜{KbdLayerClient.MaxLayers - 1}にしてください", $"NICOLA: the layer must be 0 to {KbdLayerClient.MaxLayers - 1}"));
         if (def.SimulTermMs == 0 || def.SimulTermMs > 1000 || overlapPct == 0 || overlapPct > 1000 || def.MinOverlapMs > 1000)
-            errors.Add("NICOLA: 同時打鍵の判定時間は1〜1000ms、重なりの比率は0.01〜10、最小の重なりは0〜1000msにしてください");
+            errors.Add(Loc.T("NICOLA: 同時打鍵の判定時間は1〜1000ms、重なりの比率は0.01〜10、最小の重なりは0〜1000msにしてください",
+                "NICOLA: the simultaneous-press window must be 1 to 1000 ms, the overlap ratio 0.01 to 10, and the minimum overlap 0 to 1000 ms"));
 
         ushort Key(string label, string token, bool allowEmpty)
         {
             token = token.Trim();
             if (token.Length == 0 || token == "KC_NO")
             {
-                if (!allowEmpty) errors.Add($"NICOLA: {label}のキーを指定してください");
+                if (!allowEmpty) errors.Add(Loc.T($"NICOLA: {label}のキーを指定してください", $"NICOLA: specify a key for {label}"));
                 return 0;
             }
             if (!KeycodeTable.TryResolve(token, out var a) || a.Type != ActionType.Key)
             {
-                errors.Add($"NICOLA: {label}「{token}」は単純なキー(KC_*)にしてください");
+                errors.Add(Loc.T($"NICOLA: {label}「{token}」は単純なキー(KC_*)にしてください", $"NICOLA: {label} \"{token}\" must be a simple key (KC_*)"));
                 return 0;
             }
             return a.Param2;
         }
-        ushort thumbL = Key("親指左", def.ThumbLeft, false);
-        ushort thumbR = Key("親指右", def.ThumbRight, false);
-        ushort thumbLTap = Key("親指左の単独打鍵", def.ThumbLeftTap, true);
-        ushort thumbRTap = Key("親指右の単独打鍵", def.ThumbRightTap, true);
-        ushort onEnter = Key("有効になったときのキー", def.OnEnter, true);
-        ushort onExit = Key("無効になったときのキー", def.OnExit, true);
-        if (thumbL != 0 && thumbL == thumbR) errors.Add("NICOLA: 親指左と親指右は別のキーにしてください");
+        ushort thumbL = Key(Loc.T("親指左", "left thumb"), def.ThumbLeft, false);
+        ushort thumbR = Key(Loc.T("親指右", "right thumb"), def.ThumbRight, false);
+        ushort thumbLTap = Key(Loc.T("親指左の単独打鍵", "left thumb tap"), def.ThumbLeftTap, true);
+        ushort thumbRTap = Key(Loc.T("親指右の単独打鍵", "right thumb tap"), def.ThumbRightTap, true);
+        ushort onEnter = Key(Loc.T("有効になったときのキー", "key on enable"), def.OnEnter, true);
+        ushort onExit = Key(Loc.T("無効になったときのキー", "key on disable"), def.OnExit, true);
+        if (thumbL != 0 && thumbL == thumbR) errors.Add(Loc.T("NICOLA: 親指左と親指右は別のキーにしてください", "NICOLA: the left thumb and right thumb must be different keys"));
 
         // CLIと同じく、左手側のキー → 右手側のキーの順に並べる（ドライバは並びに依存しないが、blobを揃える）。
         var ordered = def.Keys.Where(k => !k.RightHand).Concat(def.Keys.Where(k => k.RightHand)).ToList();
         var entries = new List<(ushort Source, List<(ushort, bool)>[] Planes)>();
         foreach (var k in ordered)
         {
-            ushort source = Key("文字キー", k.Key, false);
+            ushort source = Key(Loc.T("文字キー", "character key"), k.Key, false);
             if (source == 0) continue;
-            if (source == thumbL || source == thumbR) { errors.Add($"NICOLA: 「{k.Key}」は親指キーにも使われています"); continue; }
-            if (entries.Any(e => e.Source == source)) { errors.Add($"NICOLA: 「{k.Key}」が2回以上定義されています"); continue; }
+            if (source == thumbL || source == thumbR) { errors.Add(Loc.T($"NICOLA: 「{k.Key}」は親指キーにも使われています", $"NICOLA: \"{k.Key}\" is also used as a thumb key")); continue; }
+            if (entries.Any(e => e.Source == source)) { errors.Add(Loc.T($"NICOLA: 「{k.Key}」が2回以上定義されています", $"NICOLA: \"{k.Key}\" is defined more than once")); continue; }
 
             var planes = new List<(ushort, bool)>[3] { new(), new(), new() };
-            foreach (var (plane, text, name) in new[] { (PlaneNone, k.Single, "単独"), (PlaneThumbLeft, k.ThumbLeft, "親指左"), (PlaneThumbRight, k.ThumbRight, "親指右") })
+            foreach (var (plane, text, name) in new[] { (PlaneNone, k.Single, Loc.T("単独", "alone")), (PlaneThumbLeft, k.ThumbLeft, Loc.T("親指左", "left thumb")), (PlaneThumbRight, k.ThumbRight, Loc.T("親指右", "right thumb")) })
             {
                 if (string.IsNullOrEmpty(text)) continue;
                 var steps = new List<(ushort, bool)>();
                 if (!NicolaKana.TextToSteps(text, jisKana, steps, out var bad))
                 {
-                    warnings.Add($"NICOLA: {k.Key}の{name}「{bad}」は{(jisKana ? "JISかな" : "ローマ字")}入力では打てないため、空にしました");
+                    warnings.Add(Loc.T($"NICOLA: {k.Key}の{name}「{bad}」は{(jisKana ? "JISかな" : "ローマ字")}入力では打てないため、空にしました",
+                        $"NICOLA: {k.Key} ({name}) \"{bad}\" can't be typed with {(jisKana ? "JIS kana" : "romaji")} input, so it was left empty"));
                     continue;
                 }
                 if (steps.Count > KbdLayerClient.NicolaMaxSteps)
                 {
-                    errors.Add($"NICOLA: {k.Key}の{name}「{text}」は送出に{steps.Count}ステップ必要です(最大{KbdLayerClient.NicolaMaxSteps})");
+                    errors.Add(Loc.T($"NICOLA: {k.Key}の{name}「{text}」は送出に{steps.Count}ステップ必要です(最大{KbdLayerClient.NicolaMaxSteps})",
+                        $"NICOLA: {k.Key} ({name}) \"{text}\" needs {steps.Count} steps to send (maximum {KbdLayerClient.NicolaMaxSteps})"));
                     continue;
                 }
                 planes[plane] = steps;
             }
             entries.Add((source, planes));
         }
-        if (entries.Count == 0 && errors.Count == before) errors.Add("NICOLA: 文字キーがありません");
-        if (entries.Count > KbdLayerClient.NicolaMaxKeys) errors.Add($"NICOLA: 文字キーが多すぎます(最大{KbdLayerClient.NicolaMaxKeys})");
+        if (entries.Count == 0 && errors.Count == before) errors.Add(Loc.T("NICOLA: 文字キーがありません", "NICOLA: there are no character keys"));
+        if (entries.Count > KbdLayerClient.NicolaMaxKeys) errors.Add(Loc.T($"NICOLA: 文字キーが多すぎます(最大{KbdLayerClient.NicolaMaxKeys})", $"NICOLA: too many character keys (maximum {KbdLayerClient.NicolaMaxKeys})"));
         if (errors.Count > before) return null;
 
         using var ms = new MemoryStream();
@@ -305,7 +310,7 @@ public static class NicolaService
     /// <summary>ドライバに入っている blob の要約（GET_NICOLA の結果の表示用）。</summary>
     public static string DescribeBlob(byte[] blob)
     {
-        if (blob.Length < KbdLayerClient.NicolaHeaderSize) return "未設定";
+        if (blob.Length < KbdLayerClient.NicolaHeaderSize) return Loc.T("未設定", "Not set");
         uint enabled = BitConverter.ToUInt32(blob, 4);
         uint layer = BitConverter.ToUInt32(blob, 8);
         ushort thumbL = BitConverter.ToUInt16(blob, 12);
@@ -313,7 +318,9 @@ public static class NicolaService
         uint simul = BitConverter.ToUInt32(blob, 24);
         uint keyCount = BitConverter.ToUInt32(blob, 40);
         string Name(ushort sc) => KeycodeTable.NameForScanCode(sc) ?? $"0x{sc:X4}";
-        return $"設定あり({(enabled != 0 ? "有効" : "無効")}、レイヤー{layer}、文字キー{keyCount}個、" +
-               $"親指 {Name(thumbL)} / {Name(thumbR)}、判定時間 {simul}ms)";
+        return Loc.T($"設定あり({(enabled != 0 ? "有効" : "無効")}、レイヤー{layer}、文字キー{keyCount}個、" +
+                     $"親指 {Name(thumbL)} / {Name(thumbR)}、判定時間 {simul}ms)",
+                     $"Configured ({(enabled != 0 ? "enabled" : "disabled")}, layer {layer}, {keyCount} character keys, " +
+                     $"thumbs {Name(thumbL)} / {Name(thumbR)}, window {simul} ms)");
     }
 }

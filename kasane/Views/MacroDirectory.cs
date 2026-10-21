@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using Kasane.Model;
 
 namespace Kasane.Views;
 
@@ -11,8 +12,8 @@ public sealed record MacroInfo(int Id, string? Name, string Content, string Kind
 {
     public override string ToString() =>
         string.IsNullOrWhiteSpace(Name)
-            ? $"{Id,3}: {(Content.Length == 0 ? "(未使用)" : Content)}"
-            : $"{Id,3}: {Name} — {(Content.Length == 0 ? "(未使用)" : Content)}";
+            ? $"{Id,3}: {(Content.Length == 0 ? Loc.T("(未使用)", "(unused)") : Content)}"
+            : $"{Id,3}: {Name} — {(Content.Length == 0 ? Loc.T("(未使用)", "(unused)") : Content)}";
 
     public string Token => $"{Kind}({Id})";
 }
@@ -59,12 +60,14 @@ public static class MacroInsert
     {
         if (_box == null || _put == null || !_box.IsLoaded)
         {
-            reason = "入れ先の入力欄がありません。他の画面(コンボ・タップダンス・キー置換・キーの割り当て)で、入れたい欄を一度クリックしてから、もう一度試してください。";
+            reason = Loc.T("入れ先の入力欄がありません。他の画面(コンボ・タップダンス・キー置換・キーの割り当て)で、入れたい欄を一度クリックしてから、もう一度試してください。",
+                "There is no input field to insert into. In another screen (Combos, Tap dance, Key override, Key assignment), click the field you want to insert into once, then try again.");
             return false;
         }
         if (token.StartsWith("TAPDANCE(", StringComparison.Ordinal) && !_acceptsTapDance)
         {
-            reason = "TAPDANCE(n) を入れられるのは、キーの割り当て画面のキーコード欄だけです。そこをクリックしてから、もう一度試してください。";
+            reason = Loc.T("TAPDANCE(n) を入れられるのは、キーの割り当て画面のキーコード欄だけです。そこをクリックしてから、もう一度試してください。",
+                "TAPDANCE(n) can only be inserted into the keycode field of the Key assignment screen. Click it, then try again.");
             return false;
         }
         _put(token);

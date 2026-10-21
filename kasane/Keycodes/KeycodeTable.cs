@@ -295,7 +295,7 @@ public static class KeycodeTable
         action = default;
         error = null;
         token = token.Trim();
-        if (token.Length == 0) { error = "キーコードが空です"; return false; }
+        if (token.Length == 0) { error = Kasane.Model.Loc.T("キーコードが空です", "The keycode is empty"); return false; }
 
         if (token is "KC_TRNS" or "_______" or "KC_TRANSPARENT") { action = KeyAction.Transparent; return true; }
         if (token is "KC_NO" or "XXXXXXX") { action = KeyAction.None; return true; }
@@ -325,7 +325,8 @@ public static class KeycodeTable
                     if (!ParseLayer(parts[0], out var layer, out error)) return false;
                     if (!TryParseModMask(parts[1], out var mask))
                     {
-                        error = $"LMの修飾キー「{parts[1]}」は MOD_LCTL や MOD_LCTL|MOD_LSFT の形で指定してください";
+                        error = Kasane.Model.Loc.T($"LMの修飾キー「{parts[1]}」は MOD_LCTL や MOD_LCTL|MOD_LSFT の形で指定してください",
+                                                   $"The modifier \"{parts[1]}\" for LM must be given as MOD_LCTL or MOD_LCTL|MOD_LSFT");
                         return false;
                     }
                     action = new KeyAction(ActionType.LayerMod, layer, mask);
@@ -335,7 +336,8 @@ public static class KeycodeTable
                 {
                     if (!TryParseModMask(parts[0], out var mask))
                     {
-                        error = $"OSMの修飾キー「{parts[0]}」は MOD_LSFT や MOD_LCTL|MOD_LSFT の形で指定してください";
+                        error = Kasane.Model.Loc.T($"OSMの修飾キー「{parts[0]}」は MOD_LSFT や MOD_LCTL|MOD_LSFT の形で指定してください",
+                                                   $"The modifier \"{parts[0]}\" for OSM must be given as MOD_LSFT or MOD_LCTL|MOD_LSFT");
                         return false;
                     }
                     action = new KeyAction(ActionType.OneShotMod, mask, 0);
@@ -359,7 +361,7 @@ public static class KeycodeTable
                 case "MT" when parts.Length == 2:
                 {
                     int bit = Array.IndexOf(ModifierNames, parts[0]);
-                    if (bit < 0) { error = $"修飾キー「{parts[0]}」は MOD_LCTL 等で指定してください"; return false; }
+                    if (bit < 0) { error = Kasane.Model.Loc.T($"修飾キー「{parts[0]}」は MOD_LCTL 等で指定してください", $"The modifier \"{parts[0]}\" must be given as MOD_LCTL or similar"); return false; }
                     if (!ParseTapKey(parts[1], out var tapSc, out error)) return false;
                     action = new KeyAction(ActionType.ModTap, (byte)bit, tapSc);
                     return true;
@@ -373,13 +375,13 @@ public static class KeycodeTable
                 }
                 case "MACRO" when parts.Length == 1:
                 {
-                    if (!ParseId(parts[0], Interop.KbdLayerClient.MaxMacroCount, "マクロ", out var id, out error)) return false;
+                    if (!ParseId(parts[0], Interop.KbdLayerClient.MaxMacroCount, Kasane.Model.Loc.T("マクロ", "macro"), out var id, out error)) return false;
                     action = new KeyAction(ActionType.Macro, id, 0);
                     return true;
                 }
                 case "TAPDANCE" when parts.Length == 1:
                 {
-                    if (!ParseId(parts[0], Interop.KbdLayerClient.MaxTapDanceCount, "タップダンス", out var id, out error)) return false;
+                    if (!ParseId(parts[0], Interop.KbdLayerClient.MaxTapDanceCount, Kasane.Model.Loc.T("タップダンス", "tap dance"), out var id, out error)) return false;
                     action = new KeyAction(ActionType.TapDance, id, 0);
                     return true;
                 }
@@ -388,7 +390,8 @@ public static class KeycodeTable
                     // ヘルパー動作（CUSTOM）: キーは出さず、押下・解放をトレイへ知らせる。
                     if (!TryParseHelperId(parts[0], out var helperId))
                     {
-                        error = $"ヘルパー動作の番号「{parts[0]}」は0〜65535(10進、または0x付きの16進)で指定してください";
+                        error = Kasane.Model.Loc.T($"ヘルパー動作の番号「{parts[0]}」は0〜65535(10進、または0x付きの16進)で指定してください",
+                                                   $"The helper action number \"{parts[0]}\" must be 0 to 65535 (decimal, or hexadecimal with a 0x prefix)");
                         return false;
                     }
                     action = new KeyAction(ActionType.Custom, 0, helperId);
@@ -397,7 +400,7 @@ public static class KeycodeTable
             }
         }
 
-        error = $"「{token}」は認識できないキーコードです";
+        error = Kasane.Model.Loc.T($"「{token}」は認識できないキーコードです", $"\"{token}\" is not a recognized keycode");
         return false;
     }
 
@@ -418,7 +421,8 @@ public static class KeycodeTable
         error = null;
         if (!byte.TryParse(s, out layer) || layer >= Interop.KbdLayerClient.MaxLayers)
         {
-            error = $"レイヤー番号「{s}」は0〜{Interop.KbdLayerClient.MaxLayers - 1}で指定してください";
+            error = Kasane.Model.Loc.T($"レイヤー番号「{s}」は0〜{Interop.KbdLayerClient.MaxLayers - 1}で指定してください",
+                                       $"The layer number \"{s}\" must be 0 to {Interop.KbdLayerClient.MaxLayers - 1}");
             return false;
         }
         return true;
@@ -429,7 +433,7 @@ public static class KeycodeTable
         error = null;
         if (!byte.TryParse(s, out id) || id >= max)
         {
-            error = $"{what}番号「{s}」は0〜{max - 1}で指定してください";
+            error = Kasane.Model.Loc.T($"{what}番号「{s}」は0〜{max - 1}で指定してください", $"The {what} number \"{s}\" must be 0 to {max - 1}");
             return false;
         }
         return true;
@@ -440,7 +444,7 @@ public static class KeycodeTable
         error = null;
         if (!TryResolveBaseKey(s, out tapSc))
         {
-            error = $"タップ時のキー「{s}」は単純なキーコード(KC_*)で指定してください";
+            error = Kasane.Model.Loc.T($"タップ時のキー「{s}」は単純なキーコード(KC_*)で指定してください", $"The tap key \"{s}\" must be a simple keycode (KC_*)");
             return false;
         }
         return true;

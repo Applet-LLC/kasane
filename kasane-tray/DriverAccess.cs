@@ -10,7 +10,7 @@ namespace Kasane.Tray;
 public sealed class KbdLayerDriverAccess : IDriverAccess
 {
     private static KbdLayerClient Open() =>
-        KbdLayerClient.TryOpen(out var error) ?? throw new InvalidOperationException(error ?? "ドライバに接続できません");
+        KbdLayerClient.TryOpen(out var error) ?? throw new InvalidOperationException(error ?? Kasane.Model.Loc.T("ドライバに接続できません", "Can't connect to the driver"));
 
     public List<DeviceInfo> ListDevices()
     {

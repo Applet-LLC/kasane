@@ -66,15 +66,15 @@ public sealed class Win32ImeSource : IImeSource
         process = "";
         threadId = 0;
         foreground = GetForegroundWindow();
-        if (foreground == IntPtr.Zero) { if (wantDetail) detail = "前面のウィンドウがありません"; return false; }
+        if (foreground == IntPtr.Zero) { if (wantDetail) detail = Kasane.Model.Loc.T("前面のウィンドウがありません", "There is no foreground window"); return false; }
 
         threadId = GetWindowThreadProcessId(foreground, out uint pid);
         cls = ClassOf(foreground);
-        if (pid == _ownPid) { if (wantDetail) detail = $"前面はトレイ自身({cls})なので見ません"; return false; }
+        if (pid == _ownPid) { if (wantDetail) detail = Kasane.Model.Loc.T($"前面はトレイ自身({cls})なので見ません", $"The foreground is the tray itself ({cls}), so it is not checked"); return false; }
         process = ProcessNameCached(pid);
         if (IsShellWindow(cls, process))
         {
-            if (wantDetail) detail = $"前面はシェルのウィンドウ({cls}、{process})なので見ません";
+            if (wantDetail) detail = Kasane.Model.Loc.T($"前面はシェルのウィンドウ({cls}、{process})なので見ません", $"The foreground is a shell window ({cls}, {process}), so it is not checked");
             return false;
         }
         return true;
@@ -83,7 +83,7 @@ public sealed class Win32ImeSource : IImeSource
     /// <summary>ウィンドウを持つプロセスの名前（ログ用。IME 連動のスレッドから呼ぶ）。ウィンドウが無ければ「なし」。</summary>
     internal string ProcessLabelOfWindow(IntPtr hwnd)
     {
-        if (hwnd == IntPtr.Zero || GetWindowThreadProcessId(hwnd, out uint pid) == 0) return "なし";
+        if (hwnd == IntPtr.Zero || GetWindowThreadProcessId(hwnd, out uint pid) == 0) return Kasane.Model.Loc.T("なし", "none");
         return ProcessNameCached(pid);
     }
 
@@ -106,11 +106,11 @@ public sealed class Win32ImeSource : IImeSource
         if (GetGUIThreadInfo(threadId, ref info) && info.hwndFocus != IntPtr.Zero) target = info.hwndFocus;
 
         IntPtr imeWindow = ImmGetDefaultIMEWnd(target);
-        if (imeWindow == IntPtr.Zero) { if (wantDetail) detail = $"{process}({cls}): IMEのウィンドウがありません"; return ImeState.Unknown; }
+        if (imeWindow == IntPtr.Zero) { if (wantDetail) detail = Kasane.Model.Loc.T($"{process}({cls}): IMEのウィンドウがありません", $"{process} ({cls}): no IME window"); return ImeState.Unknown; }
 
         if (!Query(imeWindow, IMC_GETOPENSTATUS, out long open))
         {
-            if (wantDetail) detail = $"{process}({cls}): IMEのON/OFFを問い合わせられません(管理者として動いている・応答しない等)";
+            if (wantDetail) detail = Kasane.Model.Loc.T($"{process}({cls}): IMEのON/OFFを問い合わせられません(管理者として動いている・応答しない等)", $"{process} ({cls}): can't query IME ON/OFF (running as administrator, not responding, etc.)");
             return ImeState.Unknown;
         }
         if (open == 0)
@@ -121,13 +121,13 @@ public sealed class Win32ImeSource : IImeSource
         }
         if (!Query(imeWindow, IMC_GETCONVERSIONMODE, out long mode))
         {
-            if (wantDetail) detail = $"{process}({cls}): IMEの変換モードを問い合わせられません";
+            if (wantDetail) detail = Kasane.Model.Loc.T($"{process}({cls}): IMEの変換モードを問い合わせられません", $"{process} ({cls}): can't query the IME conversion mode");
             return ImeState.Unknown;
         }
 
         var state = new ImeState(true, open != 0, (uint)mode);
         if (wantDetail)
-            detail = $"{process}({cls}): IME {(state.Open ? "ON" : "OFF")}、変換モード 0x{state.ConversionMode:X}、かな入力 {(state.IsKanaInput ? "はい" : "いいえ")}";
+            detail = Kasane.Model.Loc.T($"{process}({cls}): IME {(state.Open ? "ON" : "OFF")}、変換モード 0x{state.ConversionMode:X}、かな入力 {(state.IsKanaInput ? "はい" : "いいえ")}", $"{process} ({cls}): IME {(state.Open ? "ON" : "OFF")}, conversion mode 0x{state.ConversionMode:X}, kana input {(state.IsKanaInput ? "yes" : "no")}");
         return state;
     }
 

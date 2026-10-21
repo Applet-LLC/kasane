@@ -31,7 +31,7 @@ public partial class App : System.Windows.Application
 
         DispatcherUnhandledException += (_, args) =>
         {
-            MessageBox.Show(args.Exception.ToString(), $"{Kasane.Model.AppInfo.DisplayName} - エラー",
+            MessageBox.Show(args.Exception.ToString(), Kasane.Model.Loc.T($"{Kasane.Model.AppInfo.DisplayName} - エラー", $"{Kasane.Model.AppInfo.DisplayName} - Error"),
                 MessageBoxButton.OK, MessageBoxImage.Error);
             args.Handled = true;
         };

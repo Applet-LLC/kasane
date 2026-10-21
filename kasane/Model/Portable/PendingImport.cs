@@ -29,12 +29,12 @@ public static class PendingImport
 
         if (!PortableIO.TryRead(path, out var file, out string? error))
         {
-            report.Error($"{FileName} を読めないため、取り込みません({error})");
+            report.Error(Loc.T($"{FileName} を読めないため、取り込みません({error})", $"Not importing {FileName}: it could not be read ({error})"));
             return new Result(true, 0, false);
         }
         if (file!.ParsedScope == PortableScope.Layer)
         {
-            report.Error($"{FileName} は、レイヤー1枚だけのファイルのため、取り込めません");
+            report.Error(Loc.T($"{FileName} は、レイヤー1枚だけのファイルのため、取り込めません", $"Can't import {FileName}: it contains only a single layer"));
             return new Result(true, 0, false);
         }
 
@@ -59,7 +59,8 @@ public static class PendingImport
         };
         var options = new ImportOptions { Mode = ImportMode.Replace, Helper = true, MeasuredScanCodes = false };
         var changed = PortableService.ImportAll(target, unset, options, baseDirectory, report, resolveLayout);
-        report.Info($"{FileName} から、キーボード{changed.Count}台" + (trayUnset ? "とトレイの設定" : "") + "を取り込みました(設定が無かったものだけ)");
+        report.Info(Loc.T($"{FileName} から、キーボード{changed.Count}台" + (trayUnset ? "とトレイの設定" : "") + "を取り込みました(設定が無かったものだけ)",
+            $"Imported {changed.Count} keyboard(s)" + (trayUnset ? " and the tray settings" : "") + $" from {FileName} (only those that had no settings)"));
         return new Result(true, changed.Count, trayUnset);
     }
 

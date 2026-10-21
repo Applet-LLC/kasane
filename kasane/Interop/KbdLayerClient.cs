@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 using Kasane.Keycodes;
+using Loc = Kasane.Model.Loc;
 
 namespace Kasane.Interop;
 
@@ -58,7 +59,7 @@ public sealed class KbdLayerException : Exception
 {
     public int Win32Error { get; }
     public KbdLayerException(string operation, int win32Error)
-        : base($"{operation} に失敗しました: {new Win32Exception(win32Error).Message} (エラー {win32Error})")
+        : base(Loc.T($"{operation} に失敗しました: {new Win32Exception(win32Error).Message} (エラー {win32Error})", $"{operation} failed: {new Win32Exception(win32Error).Message} (error {win32Error})"))
     {
         Win32Error = win32Error;
     }
@@ -199,7 +200,7 @@ public sealed partial class KbdLayerClient : IDisposable
 
     public List<DeviceInfo> ListDevices()
     {
-        var data = Ioctl("デバイス一覧の取得", IOCTL_LIST_DEVICES, null, 4 + 64 * DeviceInfoSize);
+        var data = Ioctl(Loc.T("デバイス一覧の取得", "Getting the device list"), IOCTL_LIST_DEVICES, null, 4 + 64 * DeviceInfoSize);
         using var r = new BinaryReader(new MemoryStream(data));
         uint count = r.ReadUInt32();
         var list = new List<DeviceInfo>();
@@ -219,13 +220,13 @@ public sealed partial class KbdLayerClient : IDisposable
     /// <summary>レイヤーマップのblob（KBDLAYER_MAP_HEADER + entries）。未設定なら空配列。</summary>
     public byte[] GetLayerMap(uint uniqId)
     {
-        var data = Ioctl("レイヤーマップの取得", IOCTL_GET_LAYERMAP, BitConverter.GetBytes(uniqId), 4 + MaxMapBlobBytes);
+        var data = Ioctl(Loc.T("レイヤーマップの取得", "Getting the layer map"), IOCTL_GET_LAYERMAP, BitConverter.GetBytes(uniqId), 4 + MaxMapBlobBytes);
         uint len = BitConverter.ToUInt32(data, 0);
         return data[4..(4 + (int)len)];
     }
 
     public void SetLayerMap(uint uniqId, byte[] blob) =>
-        Ioctl("レイヤーマップの書き込み", IOCTL_SET_LAYERMAP, Build(w =>
+        Ioctl(Loc.T("レイヤーマップの書き込み", "Writing the layer map"), IOCTL_SET_LAYERMAP, Build(w =>
         {
             w.Write(uniqId);
             w.Write((uint)blob.Length);
@@ -233,10 +234,10 @@ public sealed partial class KbdLayerClient : IDisposable
         }), 0);
 
     public void ClearLayerMap(uint uniqId) =>
-        Ioctl("レイヤーマップの消去", IOCTL_CLEAR_LAYERMAP, BitConverter.GetBytes(uniqId), 0);
+        Ioctl(Loc.T("レイヤーマップの消去", "Clearing the layer map"), IOCTL_CLEAR_LAYERMAP, BitConverter.GetBytes(uniqId), 0);
 
     public void SetEnabled(uint uniqId, bool enabled) =>
-        Ioctl(enabled ? "有効化(ON)" : "無効化(OFF)", IOCTL_SET_LAYERMAP_ENABLED, Build(w =>
+        Ioctl(enabled ? Loc.T("有効化(ON)", "Enabling (ON)") : Loc.T("無効化(OFF)", "Disabling (OFF)"), IOCTL_SET_LAYERMAP_ENABLED, Build(w =>
         {
             w.Write(uniqId);
             w.Write(enabled ? 1u : 0u);
@@ -252,7 +253,7 @@ public sealed partial class KbdLayerClient : IDisposable
     /// </summary>
     public ushort? CaptureNextKey(uint uniqId, uint timeoutMs, bool allowFakeShift = false)
     {
-        var data = Ioctl("キーの取得", IOCTL_CAPTURE_NEXT_KEY, BuildCaptureRequest(uniqId, timeoutMs, allowFakeShift), 4);
+        var data = Ioctl(Loc.T("キーの取得", "Capturing a key"), IOCTL_CAPTURE_NEXT_KEY, BuildCaptureRequest(uniqId, timeoutMs, allowFakeShift), 4);
         ushort sc = BitConverter.ToUInt16(data, 0);
         bool timedOut = BitConverter.ToUInt16(data, 2) != 0;
         return timedOut ? null : sc;
@@ -273,7 +274,7 @@ public sealed partial class KbdLayerClient : IDisposable
     /// </summary>
     public void SetConfig(uint uniqId, uint tapTermMs, uint comboTermMs, uint tapDanceTermMs,
                           uint tapHoldMode = TapHoldModes.HoldOnOtherKey, uint quickTapTermMs = 0, uint tappingToggle = 0) =>
-        Ioctl("タイミング設定の書き込み", IOCTL_SET_CONFIG, Build(w =>
+        Ioctl(Loc.T("タイミング設定の書き込み", "Writing the timing settings"), IOCTL_SET_CONFIG, Build(w =>
         {
             w.Write(uniqId);
             w.Write(tapTermMs);
@@ -287,7 +288,7 @@ public sealed partial class KbdLayerClient : IDisposable
     /// <summary>古いドライバは先頭の3項目だけを返す。そのときは追加した項目を既定値にする（HasTapHoldOptions=false）。</summary>
     public DriverConfig GetConfig(uint uniqId)
     {
-        var data = Ioctl("タイミング設定の取得", IOCTL_GET_CONFIG, BitConverter.GetBytes(uniqId), 24);
+        var data = Ioctl(Loc.T("タイミング設定の取得", "Getting the timing settings"), IOCTL_GET_CONFIG, BitConverter.GetBytes(uniqId), 24);
         uint U(int offset) => BitConverter.ToUInt32(data, offset);
         if (data.Length >= 24)
             return new DriverConfig(U(0), U(4), U(8), U(12), U(16), U(20), HasTapHoldOptions: true);
@@ -300,7 +301,7 @@ public sealed partial class KbdLayerClient : IDisposable
 
     /// <summary>stepsが空ならそのマクロIDをクリアする。</summary>
     public void SetMacro(uint uniqId, int macroId, IReadOnlyList<MacroStep> steps) =>
-        Ioctl($"マクロ{macroId}の書き込み", IOCTL_SET_MACRO, Build(w =>
+        Ioctl(Loc.T($"マクロ{macroId}の書き込み", $"Writing macro {macroId}"), IOCTL_SET_MACRO, Build(w =>
         {
             w.Write(uniqId);
             w.Write((uint)macroId);
@@ -315,7 +316,7 @@ public sealed partial class KbdLayerClient : IDisposable
 
     public List<MacroStep> GetMacro(uint uniqId, int macroId)
     {
-        var data = Ioctl($"マクロ{macroId}の取得", IOCTL_GET_MACRO, Build(w =>
+        var data = Ioctl(Loc.T($"マクロ{macroId}の取得", $"Getting macro {macroId}"), IOCTL_GET_MACRO, Build(w =>
         {
             w.Write(uniqId);
             w.Write((uint)macroId);
@@ -335,7 +336,7 @@ public sealed partial class KbdLayerClient : IDisposable
 
     /// <summary>entry=null はそのコンボIDのクリア（Output.Type=NONEがクリアの合図）。</summary>
     public void SetCombo(uint uniqId, int comboId, ComboEntry? entry) =>
-        Ioctl($"コンボ{comboId}の書き込み", IOCTL_SET_COMBO, Build(w =>
+        Ioctl(Loc.T($"コンボ{comboId}の書き込み", $"Writing combo {comboId}"), IOCTL_SET_COMBO, Build(w =>
         {
             w.Write(uniqId);
             w.Write((uint)comboId);
@@ -347,7 +348,7 @@ public sealed partial class KbdLayerClient : IDisposable
 
     public ComboEntry? GetCombo(uint uniqId, int comboId)
     {
-        var data = Ioctl($"コンボ{comboId}の取得", IOCTL_GET_COMBO, Build(w =>
+        var data = Ioctl(Loc.T($"コンボ{comboId}の取得", $"Getting combo {comboId}"), IOCTL_GET_COMBO, Build(w =>
         {
             w.Write(uniqId);
             w.Write((uint)comboId);
@@ -360,7 +361,7 @@ public sealed partial class KbdLayerClient : IDisposable
 
     /// <summary>entry=null はそのIDのクリア（Replacement.Type=NONEがクリアの合図）。</summary>
     public void SetKeyOverride(uint uniqId, int id, KeyOverrideEntry? entry) =>
-        Ioctl($"キー置換{id}の書き込み", IOCTL_SET_KEY_OVERRIDE, Build(w =>
+        Ioctl(Loc.T($"キー置換{id}の書き込み", $"Writing key override {id}"), IOCTL_SET_KEY_OVERRIDE, Build(w =>
         {
             w.Write(uniqId);
             w.Write((uint)id);
@@ -372,7 +373,7 @@ public sealed partial class KbdLayerClient : IDisposable
 
     public KeyOverrideEntry? GetKeyOverride(uint uniqId, int id)
     {
-        var data = Ioctl($"キー置換{id}の取得", IOCTL_GET_KEY_OVERRIDE, Build(w =>
+        var data = Ioctl(Loc.T($"キー置換{id}の取得", $"Getting key override {id}"), IOCTL_GET_KEY_OVERRIDE, Build(w =>
         {
             w.Write(uniqId);
             w.Write((uint)id);
@@ -388,7 +389,7 @@ public sealed partial class KbdLayerClient : IDisposable
 
     /// <summary>entry=null はそのタップダンスIDのクリア（SingleTap.Type=NONEがクリアの合図）。</summary>
     public void SetTapDance(uint uniqId, int tapDanceId, TapDanceEntry? entry) =>
-        Ioctl($"タップダンス{tapDanceId}の書き込み", IOCTL_SET_TAPDANCE, Build(w =>
+        Ioctl(Loc.T($"タップダンス{tapDanceId}の書き込み", $"Writing tap dance {tapDanceId}"), IOCTL_SET_TAPDANCE, Build(w =>
         {
             w.Write(uniqId);
             w.Write((uint)tapDanceId);
@@ -400,7 +401,7 @@ public sealed partial class KbdLayerClient : IDisposable
 
     public TapDanceEntry? GetTapDance(uint uniqId, int tapDanceId)
     {
-        var data = Ioctl($"タップダンス{tapDanceId}の取得", IOCTL_GET_TAPDANCE, Build(w =>
+        var data = Ioctl(Loc.T($"タップダンス{tapDanceId}の取得", $"Getting tap dance {tapDanceId}"), IOCTL_GET_TAPDANCE, Build(w =>
         {
             w.Write(uniqId);
             w.Write((uint)tapDanceId);
@@ -428,7 +429,7 @@ public sealed partial class KbdLayerClient : IDisposable
     }
 
     public LayerState GetLayerState(uint uniqId) =>
-        ParseLayerState(Ioctl("レイヤー状態の取得", IOCTL_GET_LAYER_STATE, BitConverter.GetBytes(uniqId), LayerStateSize));
+        ParseLayerState(Ioctl(Loc.T("レイヤー状態の取得", "Getting the layer state"), IOCTL_GET_LAYER_STATE, BitConverter.GetBytes(uniqId), LayerStateSize));
 
     /// <summary>
     /// アプリ管理レイヤーの操作（読み取り側のIOCTLなので昇格は要らない）。最後に呼んだハンドルが所有者になり、
@@ -436,7 +437,7 @@ public sealed partial class KbdLayerClient : IDisposable
     /// </summary>
     public LayerState SetLayerState(uint uniqId, uint op, uint layer, uint mask = 0, uint flags = 0)
     {
-        var data = Ioctl("アプリ管理レイヤーの変更", IOCTL_SET_LAYER_STATE, Build(w =>
+        var data = Ioctl(Loc.T("アプリ管理レイヤーの変更", "Changing the app-managed layer"), IOCTL_SET_LAYER_STATE, Build(w =>
         {
             w.Write(uniqId);
             w.Write(op);
@@ -456,11 +457,11 @@ public sealed partial class KbdLayerClient : IDisposable
     public const uint FeatureAll = FeatureMacro | FeatureCombo | FeatureTapDance | FeatureKeyOverride;
 
     public uint GetFeatures(uint uniqId) =>
-        BitConverter.ToUInt32(Ioctl("機能のON/OFFの取得", IOCTL_GET_FEATURES, BitConverter.GetBytes(uniqId), 4), 0);
+        BitConverter.ToUInt32(Ioctl(Loc.T("機能のON/OFFの取得", "Getting the feature ON/OFF state"), IOCTL_GET_FEATURES, BitConverter.GetBytes(uniqId), 4), 0);
 
     /// <summary>未知のビットを含むとドライバに拒否される（Key Override以前のドライバにFeatureKeyOverrideを送った場合も）。</summary>
     public void SetFeatures(uint uniqId, uint features) =>
-        Ioctl("機能のON/OFFの書き込み", IOCTL_SET_FEATURES, Build(w =>
+        Ioctl(Loc.T("機能のON/OFFの書き込み", "Writing the feature ON/OFF state"), IOCTL_SET_FEATURES, Build(w =>
         {
             w.Write(uniqId);
             w.Write(features);
@@ -474,14 +475,14 @@ public sealed partial class KbdLayerClient : IDisposable
 
     public DeviceScope GetDeviceScope(uint uniqId)
     {
-        var data = Ioctl("共有範囲の取得", IOCTL_GET_DEVICE_SCOPE, BitConverter.GetBytes(uniqId), 12);
+        var data = Ioctl(Loc.T("共有範囲の取得", "Getting the sharing scope"), IOCTL_GET_DEVICE_SCOPE, BitConverter.GetBytes(uniqId), 12);
         return new DeviceScope(BitConverter.ToUInt32(data, 0), BitConverter.ToUInt32(data, 4), BitConverter.ToUInt32(data, 8));
     }
 
     /// <summary>Model→Instanceでは、ドライバが今の設定をこの1台用にコピーしてから切り替える。</summary>
     public DeviceScope SetDeviceScope(uint uniqId, uint binding)
     {
-        var data = Ioctl("共有範囲の変更", IOCTL_SET_DEVICE_SCOPE, Build(w =>
+        var data = Ioctl(Loc.T("共有範囲の変更", "Changing the sharing scope"), IOCTL_SET_DEVICE_SCOPE, Build(w =>
         {
             w.Write(uniqId);
             w.Write(binding);
@@ -501,7 +502,7 @@ public sealed partial class KbdLayerClient : IDisposable
     /// <summary>物理スキャンコード（Enc16）の組み合わせ。</summary>
     public List<ushort> GetEmergencyRelease()
     {
-        var data = Ioctl("緊急解除の組み合わせの取得", IOCTL_GET_EMERGENCY_RELEASE, null, EmergencyConfigSize);
+        var data = Ioctl(Loc.T("緊急解除の組み合わせの取得", "Getting the emergency release combination"), IOCTL_GET_EMERGENCY_RELEASE, null, EmergencyConfigSize);
         int count = (int)Math.Min(BitConverter.ToUInt32(data, 0), (uint)EmergencyMaxKeys);
         var keys = new List<ushort>();
         for (int i = 0; i < count; i++) keys.Add(BitConverter.ToUInt16(data, 4 + i * 2));
@@ -510,7 +511,7 @@ public sealed partial class KbdLayerClient : IDisposable
 
     /// <summary>2〜6個の異なるキー。条件を満たさなければドライバが拒否し、設定は変わらない。</summary>
     public void SetEmergencyRelease(IReadOnlyList<ushort> scanCodes) =>
-        Ioctl("緊急解除の組み合わせの書き込み", IOCTL_SET_EMERGENCY_RELEASE, Build(w =>
+        Ioctl(Loc.T("緊急解除の組み合わせの書き込み", "Writing the emergency release combination"), IOCTL_SET_EMERGENCY_RELEASE, Build(w =>
         {
             w.Write((uint)scanCodes.Count);
             for (int i = 0; i < EmergencyMaxKeys; i++) w.Write(i < scanCodes.Count ? scanCodes[i] : (ushort)0);
@@ -526,7 +527,7 @@ public sealed partial class KbdLayerClient : IDisposable
 
     public I8042Config GetI8042Config()
     {
-        var data = Ioctl("i8042prt設定の取得", IOCTL_GET_I8042_CONFIG, null, I8042ConfigSize);
+        var data = Ioctl(Loc.T("i8042prt設定の取得", "Getting the i8042prt settings"), IOCTL_GET_I8042_CONFIG, null, I8042ConfigSize);
         bool enabled = BitConverter.ToUInt32(data, 0) != 0;
         int count = (int)Math.Min(BitConverter.ToUInt32(data, 4), (uint)I8042MaxProfiles);
         var list = new List<I8042Profile>();
@@ -553,8 +554,8 @@ public sealed partial class KbdLayerClient : IDisposable
     public void SetI8042Config(I8042Config config)
     {
         if (config.Profiles.Count > I8042MaxProfiles)
-            throw new ArgumentException($"プロファイルは{I8042MaxProfiles}個までです。", nameof(config));
-        Ioctl("i8042prt設定の書き込み", IOCTL_SET_I8042_CONFIG, Build(w =>
+            throw new ArgumentException(Loc.T($"プロファイルは{I8042MaxProfiles}個までです。", $"A maximum of {I8042MaxProfiles} profiles is allowed."), nameof(config));
+        Ioctl(Loc.T("i8042prt設定の書き込み", "Writing the i8042prt settings"), IOCTL_SET_I8042_CONFIG, Build(w =>
         {
             w.Write(config.Enabled ? 1u : 0u);
             w.Write((uint)config.Profiles.Count);
@@ -595,14 +596,14 @@ public sealed partial class KbdLayerClient : IDisposable
     /// <summary>未設定なら空配列。</summary>
     public byte[] GetNicola(uint uniqId)
     {
-        var data = Ioctl("NICOLAの設定の取得", IOCTL_GET_NICOLA, BitConverter.GetBytes(uniqId), 4 + MaxNicolaBlobBytes);
+        var data = Ioctl(Loc.T("NICOLAの設定の取得", "Getting the NICOLA settings"), IOCTL_GET_NICOLA, BitConverter.GetBytes(uniqId), 4 + MaxNicolaBlobBytes);
         uint len = BitConverter.ToUInt32(data, 0);
         return data[4..(4 + (int)len)];
     }
 
     /// <summary>blobが空なら設定の消去。</summary>
     public void SetNicola(uint uniqId, byte[] blob) =>
-        Ioctl(blob.Length == 0 ? "NICOLAの設定の消去" : "NICOLAの設定の書き込み", IOCTL_SET_NICOLA, Build(w =>
+        Ioctl(blob.Length == 0 ? Loc.T("NICOLAの設定の消去", "Clearing the NICOLA settings") : Loc.T("NICOLAの設定の書き込み", "Writing the NICOLA settings"), IOCTL_SET_NICOLA, Build(w =>
         {
             w.Write(uniqId);
             w.Write((uint)blob.Length);
@@ -614,7 +615,7 @@ public sealed partial class KbdLayerClient : IDisposable
     /// 入力を捨てるためこれを使わないが、同じIOCTLセットを揃えておく。
     /// </summary>
     public void SetCaptureSuppress(uint uniqId, bool enable) =>
-        Ioctl("入力抑止の切り替え", IOCTL_SET_CAPTURE_SUPPRESS, Build(w =>
+        Ioctl(Loc.T("入力抑止の切り替え", "Switching input suppression"), IOCTL_SET_CAPTURE_SUPPRESS, Build(w =>
         {
             w.Write(uniqId);
             w.Write(enable ? 1u : 0u);

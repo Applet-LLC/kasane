@@ -132,21 +132,21 @@ public static class PortableIO
         try
         {
             var f = JsonSerializer.Deserialize<PortableFile>(json, Options);
-            if (f == null) { error = "中身が空です"; return false; }
+            if (f == null) { error = Loc.T("中身が空です", "The file is empty"); return false; }
             if (!string.Equals(f.Format, PortableFile.FormatName, StringComparison.Ordinal))
             {
-                error = "kasane の設定ファイルではありません(Format が kasane-export ではありません)";
+                error = Loc.T("kasane の設定ファイルではありません(Format が kasane-export ではありません)", "This is not a kasane settings file (Format is not kasane-export)");
                 return false;
             }
             if (f.Version > PortableFile.CurrentVersion)
             {
-                error = $"新しい版(Version {f.Version})のファイルです。この版の kasane は Version {PortableFile.CurrentVersion} まで読めます";
+                error = Loc.T($"新しい版(Version {f.Version})のファイルです。この版の kasane は Version {PortableFile.CurrentVersion} まで読めます", $"This file is from a newer version (Version {f.Version}). This version of kasane can read up to Version {PortableFile.CurrentVersion}");
                 return false;
             }
-            if (f.ParsedScope == null) { error = $"Scope「{f.Scope}」は All / Keyboard / Layer のいずれかにしてください"; return false; }
+            if (f.ParsedScope == null) { error = Loc.T($"Scope「{f.Scope}」は All / Keyboard / Layer のいずれかにしてください", $"Scope \"{f.Scope}\" must be one of All / Keyboard / Layer"); return false; }
             f.Keyboards ??= new();
-            if (f.Keyboards.Count == 0) { error = "キーボードの設定が入っていません"; return false; }
-            if (f.Keyboards.Any(k => k == null)) { error = "Keyboards に空の項目があります"; return false; }
+            if (f.Keyboards.Count == 0) { error = Loc.T("キーボードの設定が入っていません", "The file contains no keyboard settings"); return false; }
+            if (f.Keyboards.Any(k => k == null)) { error = Loc.T("Keyboards に空の項目があります", "Keyboards contains an empty entry"); return false; }
             file = f;
             return true;
         }
@@ -154,8 +154,8 @@ public static class PortableIO
         {
             // .NET のメッセージは英語なので、場所だけを日本語で添える。
             error = ex.LineNumber is long line
-                ? $"JSON として読めません({line + 1}行目付近)。kasane が書き出したファイルを選んでください"
-                : "JSON として読めません。kasane が書き出したファイルを選んでください";
+                ? Loc.T($"JSON として読めません({line + 1}行目付近)。kasane が書き出したファイルを選んでください", $"Cannot read this as JSON (near line {line + 1}). Choose a file exported by kasane")
+                : Loc.T("JSON として読めません。kasane が書き出したファイルを選んでください", "Cannot read this as JSON. Choose a file exported by kasane");
             return false;
         }
     }
@@ -206,5 +206,5 @@ public sealed class PortableReport
     public int WarningCount => Lines.Count(l => l.Level == ReportLevel.Warning);
 
     public override string ToString() => string.Join("\n", Lines.Select(l =>
-        (l.Level switch { ReportLevel.Error => "エラー: ", ReportLevel.Warning => "注意: ", _ => "" }) + l.Text));
+        (l.Level switch { ReportLevel.Error => Loc.T("エラー: ", "Error: "), ReportLevel.Warning => Loc.T("注意: ", "Note: "), _ => "" }) + l.Text));
 }

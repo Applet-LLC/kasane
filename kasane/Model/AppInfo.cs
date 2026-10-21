@@ -9,7 +9,7 @@ namespace Kasane.Model;
 /// </summary>
 public static class AppInfo
 {
-    public const string DisplayName = "かさね";
+    public static string DisplayName => Loc.T("かさね", "kasane");
     public const string Publisher = "Applet LLC";
     public const string Copyright = "Copyright 2026 Applet LLC";
     public const string Website = "https://appletllc.com/";

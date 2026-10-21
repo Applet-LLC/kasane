@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Kasane.Keycodes;
+using Loc = Kasane.Model.Loc;
 
 namespace Kasane.Layout;
 
@@ -83,7 +84,7 @@ public static class KleImporter
     private static List<WalkedKey> Walk(JsonNode? root, out bool rotation)
     {
         rotation = false;
-        if (root is not JsonArray rows) throw new FormatException("KLE の JSON は、行の配列である必要があります(Raw data のまま)。");
+        if (root is not JsonArray rows) throw new FormatException(Loc.T("KLE の JSON は、行の配列である必要があります(Raw data のまま)。", "The KLE JSON must be an array of rows (use the Raw data as is)."));
         var keys = new List<WalkedKey>();
         double cy = 0;
         int align = 4;
@@ -128,12 +129,12 @@ public static class KleImporter
     {
         JsonNode? root;
         try { root = JsonNode.Parse(json); }
-        catch (JsonException ex) { throw new FormatException("JSON として読めません: " + ex.Message, ex); }
+        catch (JsonException ex) { throw new FormatException(Loc.T(("JSON として読めません: " + ex.Message), ("Cannot read it as JSON: " + ex.Message)), ex); }
         var keys = Walk(root, out bool rotation);
         var warnings = new List<string>();
-        if (rotation) warnings.Add("回転したキー(r / rx / ry)があります。kasane は回転に対応しないので、取り込めません(KLE で回転を外してください)。");
-        if (keys.Count == 0) warnings.Add("キーがありません。");
-        if (keys.Count > KbdLayerLimits.MaxSlots) warnings.Add($"キーが {keys.Count} 個あります。上限は {KbdLayerLimits.MaxSlots} 個です。");
+        if (rotation) warnings.Add(Loc.T("回転したキー(r / rx / ry)があります。kasane は回転に対応しないので、取り込めません(KLE で回転を外してください)。", "The layout has rotated keys (r / rx / ry). kasane does not support rotation, so it cannot be imported (remove the rotation in KLE)."));
+        if (keys.Count == 0) warnings.Add(Loc.T("キーがありません。", "There are no keys."));
+        if (keys.Count > KbdLayerLimits.MaxSlots) warnings.Add(Loc.T($"キーが {keys.Count} 個あります。上限は {KbdLayerLimits.MaxSlots} 個です。", $"The layout has {keys.Count} keys. The limit is {KbdLayerLimits.MaxSlots}."));
 
         var views = keys.Select(k => new KeyView(k)).ToList();
         bool isJis = views.Any(v => v.Legends.Any(l => IsJisLegend(l.Text)));
@@ -147,9 +148,9 @@ public static class KleImporter
         }
 
         foreach (var g in results.Where(r => r.Keycode != null).GroupBy(r => r.Keycode!).Where(g => g.Count() > 1))
-            warnings.Add($"{g.Key} が {g.Count()} 個のキーに割り当てられています(スロット {string.Join("、", g.Select(r => "#" + (r.Slot + 1)))})。");
+            warnings.Add(Loc.T($"{g.Key} が {g.Count()} 個のキーに割り当てられています(スロット {string.Join("、", g.Select(r => "#" + (r.Slot + 1)))})。", $"{g.Key} is assigned to {g.Count()} keys (slots {string.Join(", ", g.Select(r => "#" + (r.Slot + 1)))})."));
         int unassigned = results.Count(r => r.Status == KleKeyStatus.Unassigned);
-        if (unassigned > 0) warnings.Add($"キーコードが決まらなかったキーが {unassigned} 個あります。画面で選んでください(選ばなくても保存できます)。");
+        if (unassigned > 0) warnings.Add(Loc.T($"キーコードが決まらなかったキーが {unassigned} 個あります。画面で選んでください(選ばなくても保存できます)。", $"{unassigned} keys have no key code yet. Choose them on this screen (you can also save without choosing)."));
 
         return new KleImportResult { Keys = results, Warnings = warnings, HasRotation = rotation, IsJis = isJis };
     }
@@ -162,11 +163,11 @@ public static class KleImporter
     {
         JsonNode? root = JsonNode.Parse(json);
         var keys = Walk(root, out bool rotation);
-        if (rotation) throw new FormatException("回転したキーがあるので、取り込めません。");
+        if (rotation) throw new FormatException(Loc.T("回転したキーがあるので、取り込めません。", "The layout has rotated keys, so it cannot be imported."));
         foreach (var k in keys)
         {
             if (!keycodes.TryGetValue(k.Slot, out var kc) || string.IsNullOrWhiteSpace(kc)) continue;
-            if (!KeycodeTable.TryResolveBaseKey(kc, out _)) throw new FormatException($"スロット #{k.Slot + 1} のキーコード「{kc}」が分かりません。");
+            if (!KeycodeTable.TryResolveBaseKey(kc, out _)) throw new FormatException(Loc.T($"スロット #{k.Slot + 1} のキーコード「{kc}」が分かりません。", $"Unknown key code \"{kc}\" in slot #{k.Slot + 1}."));
             var parts = k.Raw.Split('\n').ToList();
             while (parts.Count <= KeycodeIndex) parts.Add("");
             parts[KeycodeIndex] = kc;
@@ -270,10 +271,10 @@ public static class KleImporter
 
     private static (string? Kc, KleKeyStatus Status, string Note) Resolve(KeyView v, Context ctx)
     {
-        string note = v.FrontText != null ? $"前面の凡例「{v.FrontText}」は、キーコードで置き換わります。" : "";
-        if (v.Existing != null) return (v.Existing, KleKeyStatus.Confirmed, "ファイルに書かれていたキーコード");
+        string note = v.FrontText != null ? Loc.T($"前面の凡例「{v.FrontText}」は、キーコードで置き換わります。", $"The front legend \"{v.FrontText}\" will be replaced by the key code.") : "";
+        if (v.Existing != null) return (v.Existing, KleKeyStatus.Confirmed, Loc.T("ファイルに書かれていたキーコード", "Key code written in the file"));
 
-        if (ctx.InNumPad(v) && ResolveNumPad(v) is { } kp) return (kp, KleKeyStatus.Inferred, Join("テンキー", note));
+        if (ctx.InNumPad(v) && ResolveNumPad(v) is { } kp) return (kp, KleKeyStatus.Inferred, Join(Loc.T("テンキー", "Numpad"), note));
 
         foreach (var l in v.Legends)
         {
@@ -281,11 +282,11 @@ public static class KleImporter
         }
         foreach (var l in v.Legends)
         {
-            if (ResolveSymbol(l.Text, ctx.IsJis) is { } sym) return (sym, KleKeyStatus.Inferred, Join(ctx.IsJis ? "記号(日本語配列として)" : "記号(US 配列として)", note));
+            if (ResolveSymbol(l.Text, ctx.IsJis) is { } sym) return (sym, KleKeyStatus.Inferred, Join(ctx.IsJis ? Loc.T("記号(日本語配列として)", "Symbol (as a Japanese layout)") : Loc.T("記号(US 配列として)", "Symbol (as a US layout)"), note));
         }
         if (IsSpaceLike(v))
-            return ("KC_SPACE", KleKeyStatus.Inferred, Join("凡例の無い幅の広いキー(スペースバーとして)", note));
-        return (null, KleKeyStatus.Unassigned, Join("ラベルから決まりませんでした", note));
+            return ("KC_SPACE", KleKeyStatus.Inferred, Join(Loc.T("凡例の無い幅の広いキー(スペースバーとして)", "Wide key with no legend (treated as the space bar)"), note));
+        return (null, KleKeyStatus.Unassigned, Join(Loc.T("ラベルから決まりませんでした", "Could not be determined from the label"), note));
     }
 
     private static string Join(string a, string b) => a.Length == 0 ? b : b.Length == 0 ? a : a + " " + b;
@@ -294,7 +295,7 @@ public static class KleImporter
     {
         string n = Norm(text);
         if (n.Length == 1 && char.IsAsciiLetter(n[0])) return ($"KC_{char.ToUpperInvariant(n[0])}", KleKeyStatus.Confirmed, "");
-        if (n.Length == 1 && char.IsAsciiDigit(n[0])) return ($"KC_{n[0]}", KleKeyStatus.Confirmed, "最上段の数字");
+        if (n.Length == 1 && char.IsAsciiDigit(n[0])) return ($"KC_{n[0]}", KleKeyStatus.Confirmed, Loc.T("最上段の数字", "Number row digit"));
         var fm = Regex.Match(n, @"^f(\d{1,2})$");
         if (fm.Success && int.Parse(fm.Groups[1].Value) is >= 1 and <= 24) return ($"KC_F{fm.Groups[1].Value}", KleKeyStatus.Confirmed, "");
 
@@ -311,7 +312,7 @@ public static class KleImporter
             if (side != null) return (side == "L" ? left : right, KleKeyStatus.Confirmed, "");
         }
         if (FamilyOf(n) is int fam)
-            return (ctx.IsLeftSide(v, fam) ? Modifiers[fam].Left : Modifiers[fam].Right, KleKeyStatus.Inferred, "左右は、キーの位置から決めました");
+            return (ctx.IsLeftSide(v, fam) ? Modifiers[fam].Left : Modifiers[fam].Right, KleKeyStatus.Inferred, Loc.T("左右は、キーの位置から決めました", "Left/right decided from the key position"));
         if (n is "altgr") return ("KC_RALT", KleKeyStatus.Confirmed, "");
         return null;
     }

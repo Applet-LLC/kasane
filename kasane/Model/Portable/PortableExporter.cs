@@ -73,7 +73,7 @@ public static class PortableExporter
         {
             if (!TryComboKeys(p, layout, c, out var k1, out var k2))
             {
-                report.Warn($"コンボ{c.Id}: メンバーのスキャンコードが分からないため書き出せませんでした");
+                report.Warn(Loc.T($"コンボ{c.Id}: メンバーのスキャンコードが分からないため書き出せませんでした", $"Combo {c.Id}: could not export because a member's scan code is unknown"));
                 continue;
             }
             kb.Combos.Add(new PortableCombo { Id = c.Id, Key1 = ScName(k1), Key2 = ScName(k2), Output = c.Output });
@@ -129,9 +129,9 @@ public static class PortableExporter
         kb.TapDanceNames = CopyNames(p.TapDanceNames, kb.TapDances.Select(t => t.Id));
 
         foreach (int id in tdIds.Where(i => kb.TapDances.All(t => t.Id != i)))
-            report.Warn($"TAPDANCE({id}) の中身が未設定のため、書き出していません");
+            report.Warn(Loc.T($"TAPDANCE({id}) の中身が未設定のため、書き出していません", $"TAPDANCE({id}) is not exported because it has no content"));
         foreach (int id in macroIds.Where(i => kb.Macros.All(m => m.Id != i)))
-            report.Warn($"MACRO({id}) の中身が未設定のため、書き出していません");
+            report.Warn(Loc.T($"MACRO({id}) の中身が未設定のため、書き出していません", $"MACRO({id}) is not exported because it has no content"));
 
         if (helperIds.Count > 0)
         {
@@ -139,7 +139,7 @@ public static class PortableExporter
             foreach (int id in helperIds)
             {
                 var a = deviceHelper?.Actions.FirstOrDefault(x => x.Id == id) ?? globalHelper?.Actions.FirstOrDefault(x => x.Id == id);
-                if (a == null) { report.Warn($"HLP({id}) のヘルパー動作が見つからないため、書き出していません"); continue; }
+                if (a == null) { report.Warn(Loc.T($"HLP({id}) のヘルパー動作が見つからないため、書き出していません", $"HLP({id}) is not exported because its helper action was not found")); continue; }
                 h.Actions.Add(CloneHelper(new HelperConfig { Actions = { a } }).Actions[0]);
             }
             if (h.Actions.Count > 0) kb.Helper = h;
@@ -167,12 +167,12 @@ public static class PortableExporter
             var sc = ProjectService.EffectiveScanCode(p, slot);
             if (sc is not ushort v)
             {
-                if (!transparent) report.Warn($"レイヤー{layer} {slot.Description}: スキャンコードが分からないため書き出せませんでした");
+                if (!transparent) report.Warn(Loc.T($"レイヤー{layer} {slot.Description}: スキャンコードが分からないため書き出せませんでした", $"Layer {layer} {slot.Description}: could not export because the scan code is unknown"));
                 continue;
             }
             if (!seen.Add(v))
             {
-                report.Warn($"レイヤー{layer} {slot.Description}: 同じスキャンコード {ScName(v)} のキーが他にあるため、書き出しません");
+                report.Warn(Loc.T($"レイヤー{layer} {slot.Description}: 同じスキャンコード {ScName(v)} のキーが他にあるため、書き出しません", $"Layer {layer} {slot.Description}: not exported because another key has the same scan code {ScName(v)}"));
                 continue;
             }
             pl.Keys[ScName(v)] = token;

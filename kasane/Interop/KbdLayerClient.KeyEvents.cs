@@ -1,4 +1,5 @@
 using System.IO;
+using Loc = Kasane.Model.Loc;
 namespace Kasane.Interop;
 
 /// <summary>KBDLAYER_KEY_EVENT（生の物理キーの押下・解放）。ScanCode は Enc16（拡張キーは 0xE0xx、Pause は 0xE11D）。</summary>
@@ -30,13 +31,13 @@ public sealed partial class KbdLayerClient
     public KeyEventBatch WaitKeyEvent(uint lastSeq)
     {
         var input = Build(w => { w.Write(lastSeq); w.Write(0u); });
-        var data = Ioctl("キーイベントの待機", IOCTL_WAIT_KEY_EVENT, input, KeyOutputHeaderSize + KeyEventSize * KeyEventsPerCall);
+        var data = Ioctl(Loc.T("キーイベントの待機", "Waiting for key events"), IOCTL_WAIT_KEY_EVENT, input, KeyOutputHeaderSize + KeyEventSize * KeyEventsPerCall);
         return ParseKeyEvents(data);
     }
 
     public static KeyEventBatch ParseKeyEvents(byte[] data)
     {
-        if (data.Length < KeyOutputHeaderSize) throw new InvalidDataException("キーイベントの応答が短すぎます");
+        if (data.Length < KeyOutputHeaderSize) throw new InvalidDataException(Loc.T("キーイベントの応答が短すぎます", "The key event response is too short"));
         using var r = new BinaryReader(new MemoryStream(data));
         uint seq = r.ReadUInt32();
         uint count = r.ReadUInt32();

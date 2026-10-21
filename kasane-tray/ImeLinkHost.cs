@@ -175,12 +175,12 @@ public sealed class ImeLinkHost : IDisposable
             if (_siriusHook != null)
             {
                 _tsfSource.Attach(_siriusHook);
-                TrayLog.Write($"Sirius: フックを入れました({mode})");
+                TrayLog.Write(Loc.T($"Sirius: フックを入れました({mode})", $"Sirius: hook installed ({mode})"));
             }
             else
             {
                 _siriusFailed = true;
-                TrayLog.Write("Sirius: TSF は使えません(IMM32 だけで動きます): " + error);
+                TrayLog.Write(Loc.T("Sirius: TSF は使えません(IMM32 だけで動きます): ", "Sirius: TSF is unavailable (running on IMM32 only): ") + error);
             }
         }
         else if (!(mode.UsesTsf() && _enabled) && _siriusHook != null)
@@ -197,7 +197,7 @@ public sealed class ImeLinkHost : IDisposable
         _siriusHook = null;
         _tsfSource.Detach();
         hook.Dispose();
-        TrayLog.Write("Sirius: フックを外しました");
+        TrayLog.Write(Loc.T("Sirius: フックを外しました", "Sirius: hook removed"));
     }
 
     /// <summary>一時停止中か（トレイのタイマーから伝える）。一時停止中は、前面のアプリの規則を止める。</summary>

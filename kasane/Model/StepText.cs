@@ -69,7 +69,7 @@ public static class StepText
             int space = line.IndexOf(' ');
             string command = (space < 0 ? line : line[..space]).ToLowerInvariant();
             string arg = space < 0 ? "" : line[(space + 1)..];
-            string at = $"{lineNo}行目: ";
+            string at = Loc.T($"{lineNo}行目: ", $"Line {lineNo}: ");
 
             switch (command)
             {
@@ -78,10 +78,10 @@ public static class StepText
                 case "up":
                 {
                     string token = arg.Trim();
-                    if (token.Length == 0) { errors.Add(at + $"{command} にキーコードがありません"); break; }
+                    if (token.Length == 0) { errors.Add(at + Loc.T($"{command} にキーコードがありません", $"{command} has no key code")); break; }
                     if (!SequenceCompiler.TryResolveKey(token, out _, out _))
                     {
-                        errors.Add(at + $"'{token}' はキーとして使えません(KC_A、LCTL(KC_C)、SC_E06A のような書き方)");
+                        errors.Add(at + Loc.T($"'{token}' はキーとして使えません(KC_A、LCTL(KC_C)、SC_E06A のような書き方)", $"'{token}' can't be used as a key (write it like KC_A, LCTL(KC_C), or SC_E06A)"));
                         break;
                     }
                     var step = new HelperStep();
@@ -92,12 +92,12 @@ public static class StepText
                     break;
                 }
                 case "text":
-                    if (arg.Length == 0) errors.Add(at + "text に文字列がありません");
+                    if (arg.Length == 0) errors.Add(at + Loc.T("text に文字列がありません", "text has no string"));
                     else steps.Add(new HelperStep { Text = UnescapeText(arg) });
                     break;
                 case "delay":
                     if (!TryInt(arg, out int ms) || ms < 0 || ms > SequenceCompiler.MaxDelayMs)
-                        errors.Add(at + $"delay は 0〜{SequenceCompiler.MaxDelayMs} のミリ秒で書きます");
+                        errors.Add(at + Loc.T($"delay は 0〜{SequenceCompiler.MaxDelayMs} のミリ秒で書きます", $"delay must be 0 to {SequenceCompiler.MaxDelayMs} milliseconds"));
                     else steps.Add(new HelperStep { DelayMs = ms });
                     break;
                 case "mouse":
@@ -105,13 +105,13 @@ public static class StepText
                     var parts = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                     if (parts.Length is < 1 or > 2 || !HelperMouseButtons.TryParse(parts[0], out _))
                     {
-                        errors.Add(at + "mouse は left / right / middle / x1 / x2 のどれかで書きます(例: mouse left、mouse left down)");
+                        errors.Add(at + Loc.T("mouse は left / right / middle / x1 / x2 のどれかで書きます(例: mouse left、mouse left down)", "mouse takes one of left / right / middle / x1 / x2 (for example: mouse left, mouse left down)"));
                         break;
                     }
                     string action = parts.Length == 2 ? parts[1].ToLowerInvariant() : "click";
                     if (action is not ("click" or "down" or "up"))
                     {
-                        errors.Add(at + "mouse の後ろは click / down / up のどれかです");
+                        errors.Add(at + Loc.T("mouse の後ろは click / down / up のどれかです", "After mouse, write one of click / down / up"));
                         break;
                     }
                     steps.Add(new HelperStep { Mouse = parts[0].ToLowerInvariant(), MouseAction = action == "click" ? null : action });
@@ -123,7 +123,7 @@ public static class StepText
                     var parts = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                     if (parts.Length != 2 || !TryInt(parts[0], out int x) || !TryInt(parts[1], out int y))
                     {
-                        errors.Add(at + $"{command} は整数を2つ(x y)で書きます");
+                        errors.Add(at + Loc.T($"{command} は整数を2つ(x y)で書きます", $"{command} takes two integers (x y)"));
                         break;
                     }
                     steps.Add(new HelperStep { MoveX = x, MoveY = y, Absolute = command == "moveto" });
@@ -131,11 +131,11 @@ public static class StepText
                 }
                 case "wheel":
                 case "hwheel":
-                    if (!TryInt(arg, out int amount) || amount == 0) errors.Add(at + $"{command} は 0 以外の整数で書きます");
+                    if (!TryInt(arg, out int amount) || amount == 0) errors.Add(at + Loc.T($"{command} は 0 以外の整数で書きます", $"{command} takes a non-zero integer"));
                     else steps.Add(command == "wheel" ? new HelperStep { Wheel = amount } : new HelperStep { HWheel = amount });
                     break;
                 default:
-                    errors.Add(at + $"'{command}' は命令ではありません(key / down / up / text / delay / mouse / move / moveto / wheel / hwheel)");
+                    errors.Add(at + Loc.T($"'{command}' は命令ではありません(key / down / up / text / delay / mouse / move / moveto / wheel / hwheel)", $"'{command}' is not a command (key / down / up / text / delay / mouse / move / moveto / wheel / hwheel)"));
                     break;
             }
         }

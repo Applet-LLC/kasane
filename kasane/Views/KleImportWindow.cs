@@ -6,6 +6,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using Kasane.Keycodes;
 using Kasane.Layout;
+using Loc = Kasane.Model.Loc;
 
 namespace Kasane.Views;
 
@@ -37,11 +38,11 @@ public sealed class KleImportWindow : Window
         public KleKeyStatus Status => Keycode.Length == 0 ? KleKeyStatus.Unassigned
             : Keycode == (Source.Keycode ?? "") ? Source.Status : KleKeyStatus.Confirmed;
         public bool EditedByUser => Keycode != (Source.Keycode ?? "");
-        public string StatusText => EditedByUser ? (Keycode.Length == 0 ? "未割り当て(手で消した)" : "手で指定") : Status switch
+        public string StatusText => EditedByUser ? (Keycode.Length == 0 ? Loc.T("未割り当て(手で消した)", "Unassigned (cleared by hand)") : Loc.T("手で指定", "Set by hand")) : Status switch
         {
-            KleKeyStatus.Confirmed => "確定",
-            KleKeyStatus.Inferred => "推定",
-            _ => "未割り当て",
+            KleKeyStatus.Confirmed => Loc.T("確定", "Confirmed"),
+            KleKeyStatus.Inferred => Loc.T("推定", "Inferred"),
+            _ => Loc.T("未割り当て", "Unassigned"),
         };
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -54,8 +55,8 @@ public sealed class KleImportWindow : Window
     private readonly DataGrid _grid = new() { Name = "KleKeyGrid", AutoGenerateColumns = false, CanUserAddRows = false, SelectionMode = DataGridSelectionMode.Single, HeadersVisibility = DataGridHeadersVisibility.Column, MinWidth = 330 };
     private readonly TextBlock _summary = new() { Name = "KleSummary", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 2) };
     private readonly TextBlock _warnings = new() { Name = "KleWarnings", TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DarkOrange, Margin = new Thickness(0, 0, 0, 4) };
-    private readonly Button _pick = new() { Name = "KlePickKeycodeButton", Content = "一覧から選ぶ...", Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(8, 2, 8, 2) };
-    private readonly Button _save = new() { Name = "KleSaveButton", Content = "保存して使う", IsDefault = true, Width = 120, IsEnabled = false };
+    private readonly Button _pick = new() { Name = "KlePickKeycodeButton", Content = Loc.T("一覧から選ぶ...", "Choose from list..."), Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(8, 2, 8, 2) };
+    private readonly Button _save = new() { Name = "KleSaveButton", Content = Loc.T("保存して使う", "Save and use"), IsDefault = true, Width = 120, IsEnabled = false };
 
     private readonly Dictionary<int, Button> _keyBoxes = new();
     private List<Row> _rows = new();
@@ -68,33 +69,36 @@ public sealed class KleImportWindow : Window
 
     public KleImportWindow()
     {
-        Title = "KLE の配列を取り込む";
+        Title = Loc.T("KLE の配列を取り込む", "Import a KLE layout");
         Width = 1120;
         Height = 680;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         ShowInTaskbar = false;
 
-        var choose = new Button { Name = "KleChooseFileButton", Content = "ファイルを選ぶ...", Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(6, 0, 0, 0) };
+        var choose = new Button { Name = "KleChooseFileButton", Content = Loc.T("ファイルを選ぶ...", "Choose file..."), Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(6, 0, 0, 0) };
         choose.Click += (_, _) => ChooseFile();
-        var load = new Button { Name = "KleLoadButton", Content = "読み込む", Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(6, 0, 0, 0) };
+        var load = new Button { Name = "KleLoadButton", Content = Loc.T("読み込む", "Load"), Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(6, 0, 0, 0) };
         load.Click += (_, _) => LoadFromBox();
         _file.KeyDown += (_, e) => { if (e.Key == Key.Enter) LoadFromBox(); };
         var fileRow = new StackPanel { Orientation = Orientation.Horizontal };
-        fileRow.Children.Add(new TextBlock { Text = "ファイル:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
+        fileRow.Children.Add(new TextBlock { Text = Loc.T("ファイル:", "File:"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
         fileRow.Children.Add(_file);
         fileRow.Children.Add(choose);
         fileRow.Children.Add(load);
 
         _name.TextChanged += (_, _) => UpdateSave();
         var nameRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
-        nameRow.Children.Add(new TextBlock { Text = "名前:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
+        nameRow.Children.Add(new TextBlock { Text = Loc.T("名前:", "Name:"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
         nameRow.Children.Add(_name);
-        nameRow.Children.Add(new TextBlock { Text = "(英数字とハイフン。レイアウトの一覧にこの名前で出ます)", Foreground = AppTheme.Palette.SubText, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) });
+        nameRow.Children.Add(new TextBlock { Text = Loc.T("(英数字とハイフン。レイアウトの一覧にこの名前で出ます)", "(Letters, digits, and hyphens. It appears under this name in the layout list.)"), Foreground = AppTheme.Palette.SubText, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) });
 
         var help = new TextBlock
         {
-            Text = "keyboard-layout-editor.com で作った配列の JSON(Raw data)を読み込みます。各キーの既定のキーコードは、ラベルと位置から推定します。" +
-                   "黄色は推定、赤は未割り当て(選ばなくても保存できますが、キャリブレーションが要ります)です。キーコードは、一覧で書き換えるか、「一覧から選ぶ」で選べます。",
+            Text = Loc.T(
+                ("keyboard-layout-editor.com で作った配列の JSON(Raw data)を読み込みます。各キーの既定のキーコードは、ラベルと位置から推定します。" +
+                 "黄色は推定、赤は未割り当て(選ばなくても保存できますが、キャリブレーションが要ります)です。キーコードは、一覧で書き換えるか、「一覧から選ぶ」で選べます。"),
+                ("Loads the JSON (Raw data) of a layout made on keyboard-layout-editor.com. The default keycode of each key is inferred from its label and position. " +
+                 "Yellow means inferred and red means unassigned (you can save without choosing one, but Calibration is needed). Edit a keycode in the list, or choose one with \"Choose from list\".")),
             TextWrapping = TextWrapping.Wrap,
             Foreground = AppTheme.Palette.SubText,
             Margin = new Thickness(0, 0, 0, 6),
@@ -108,10 +112,10 @@ public sealed class KleImportWindow : Window
         top.Children.Add(_warnings);
 
         _grid.Columns.Add(new DataGridTextColumn { Header = "#", Binding = new System.Windows.Data.Binding(nameof(Row.Number)), IsReadOnly = true, Width = 44 });
-        _grid.Columns.Add(new DataGridTextColumn { Header = "ラベル", Binding = new System.Windows.Data.Binding(nameof(Row.Label)), IsReadOnly = true, Width = 110 });
-        _grid.Columns.Add(new DataGridTextColumn { Header = "キーコード", Binding = new System.Windows.Data.Binding(nameof(Row.Keycode)) { Mode = System.Windows.Data.BindingMode.TwoWay, UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.LostFocus }, Width = 130 });
-        _grid.Columns.Add(new DataGridTextColumn { Header = "状態", Binding = new System.Windows.Data.Binding(nameof(Row.StatusText)), IsReadOnly = true, Width = 90 });
-        _grid.Columns.Add(new DataGridTextColumn { Header = "メモ", Binding = new System.Windows.Data.Binding(nameof(Row.Note)), IsReadOnly = true, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+        _grid.Columns.Add(new DataGridTextColumn { Header = Loc.T("ラベル", "Label"), Binding = new System.Windows.Data.Binding(nameof(Row.Label)), IsReadOnly = true, Width = 110 });
+        _grid.Columns.Add(new DataGridTextColumn { Header = Loc.T("キーコード", "Keycode"), Binding = new System.Windows.Data.Binding(nameof(Row.Keycode)) { Mode = System.Windows.Data.BindingMode.TwoWay, UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.LostFocus }, Width = 130 });
+        _grid.Columns.Add(new DataGridTextColumn { Header = Loc.T("状態", "Status"), Binding = new System.Windows.Data.Binding(nameof(Row.StatusText)), IsReadOnly = true, Width = 90 });
+        _grid.Columns.Add(new DataGridTextColumn { Header = Loc.T("メモ", "Note"), Binding = new System.Windows.Data.Binding(nameof(Row.Note)), IsReadOnly = true, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
         _grid.LoadingRow += (_, e) => ColorRow(e.Row);
         _grid.CellEditEnding += Grid_CellEditEnding;
         _grid.SelectionChanged += (_, _) => HighlightSelected();
@@ -135,7 +139,7 @@ public sealed class KleImportWindow : Window
         _save.Click += (_, _) => Save();
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
         buttons.Children.Add(_save);
-        buttons.Children.Add(new Button { Name = "KleCancelButton", Content = "キャンセル", IsCancel = true, Width = 90, Margin = new Thickness(6, 0, 0, 0) });
+        buttons.Children.Add(new Button { Name = "KleCancelButton", Content = Loc.T("キャンセル", "Cancel"), IsCancel = true, Width = 90, Margin = new Thickness(6, 0, 0, 0) });
 
         var root = new DockPanel { Margin = new Thickness(10) };
         DockPanel.SetDock(top, Dock.Top);
@@ -158,7 +162,7 @@ public sealed class KleImportWindow : Window
         }
         catch (Exception ex) when (ex is FormatException or IOException or UnauthorizedAccessException)
         {
-            MessageBox.Show(this, $"読み込めませんでした: {ex.Message}", Title);
+            MessageBox.Show(this, Loc.T($"読み込めませんでした: {ex.Message}", $"Could not load: {ex.Message}"), Title);
             return false;
         }
         _json = json;
@@ -189,13 +193,13 @@ public sealed class KleImportWindow : Window
     private void LoadFromBox()
     {
         string path = _file.Text.Trim().Trim('"');
-        if (path.Length == 0) { MessageBox.Show(this, "ファイルを選ぶか、パスを書いてください。", Title); return; }
+        if (path.Length == 0) { MessageBox.Show(this, Loc.T("ファイルを選ぶか、パスを書いてください。", "Choose a file or enter a path."), Title); return; }
         LoadFile(path);
     }
 
     private void ChooseFile()
     {
-        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "KLE JSON (*.json)|*.json", Title = "KLE の配列(JSON)を開く", InitialDirectory = DialogDefaults.DataFolder, ClientGuid = DialogDefaults.Kle };
+        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "KLE JSON (*.json)|*.json", Title = Loc.T("KLE の配列(JSON)を開く", "Open a KLE layout (JSON)"), InitialDirectory = DialogDefaults.DataFolder, ClientGuid = DialogDefaults.Kle };
         if (dlg.ShowDialog(this) == true) LoadFile(dlg.FileName);
     }
 
@@ -289,8 +293,8 @@ public sealed class KleImportWindow : Window
         int confirmed = _rows.Count(r => r.Status == KleKeyStatus.Confirmed);
         int inferred = _rows.Count(r => r.Status == KleKeyStatus.Inferred);
         int unassigned = _rows.Count(r => r.Status == KleKeyStatus.Unassigned);
-        _summary.Text = total == 0 ? "" : $"{total} キー: 確定 {confirmed}、推定 {inferred}、未割り当て {unassigned}"
-            + (_result is { IsJis: true } ? "(日本語配列として読みました)" : "");
+        _summary.Text = total == 0 ? "" : Loc.T($"{total} キー: 確定 {confirmed}、推定 {inferred}、未割り当て {unassigned}", $"{total} keys: {confirmed} confirmed, {inferred} inferred, {unassigned} unassigned")
+            + (_result is { IsJis: true } ? Loc.T("(日本語配列として読みました)", " (read as a Japanese layout)") : "");
     }
 
     // ---- キーコードの編集 ----
@@ -301,7 +305,7 @@ public sealed class KleImportWindow : Window
         string text = tb.Text.Trim();
         if (text.Length > 0 && !KeycodeTable.TryResolveBaseKey(text, out _))
         {
-            MessageBox.Show(this, $"「{text}」はキーコードではありません。KC_A、KC_F1、KC_LSHIFT、SC_E06A のような、1 つのキーの名前を書いてください。", Title);
+            MessageBox.Show(this, Loc.T($"「{text}」はキーコードではありません。KC_A、KC_F1、KC_LSHIFT、SC_E06A のような、1 つのキーの名前を書いてください。", $"\"{text}\" is not a keycode. Enter the name of a single key, such as KC_A, KC_F1, KC_LSHIFT, or SC_E06A."), Title);
             tb.Text = row.Keycode; // 元に戻す
             return;
         }
@@ -311,13 +315,13 @@ public sealed class KleImportWindow : Window
 
     private void PickKeycode()
     {
-        if (_grid.SelectedItem is not Row row) { MessageBox.Show(this, "一覧のキーを選んでから押してください。", Title); return; }
+        if (_grid.SelectedItem is not Row row) { MessageBox.Show(this, Loc.T("一覧のキーを選んでから押してください。", "Select a key in the list first."), Title); return; }
         var slot = new KeySlot { Index = row.Slot, RawLabel = row.Label, X = row.Source.X, Y = row.Source.Y, W = row.Source.W, H = row.Source.H };
         var dlg = new KeyAssignDialog(slot, 0, row.Keycode.Length > 0 ? row.Keycode : "KC_NO", 1) { Owner = this };
         if (dlg.ShowDialog() != true) return;
         if (!KeycodeTable.TryResolveBaseKey(dlg.ResultToken, out _))
         {
-            MessageBox.Show(this, $"「{dlg.ResultToken}」は、1 つのキーの名前ではありません。レイアウトの既定には、キーの名前(KC_A など)を選んでください。", Title);
+            MessageBox.Show(this, Loc.T($"「{dlg.ResultToken}」は、1 つのキーの名前ではありません。レイアウトの既定には、キーの名前(KC_A など)を選んでください。", $"\"{dlg.ResultToken}\" is not the name of a single key. Choose a key name (such as KC_A) for the layout default."), Title);
             return;
         }
         row.Keycode = dlg.ResultToken;
@@ -333,15 +337,15 @@ public sealed class KleImportWindow : Window
     {
         string name = _name.Text.Trim();
         if (_result is not { CanSave: true }) return;
-        if (!KleImporter.IsValidName(name)) { MessageBox.Show(this, "名前は、英数字とハイフンで、32 文字までにしてください。", Title); return; }
+        if (!KleImporter.IsValidName(name)) { MessageBox.Show(this, Loc.T("名前は、英数字とハイフンで、32 文字までにしてください。", "The name must be letters, digits, and hyphens, up to 32 characters."), Title); return; }
         if (LayoutFolders.IsBundledName(name))
         {
-            MessageBox.Show(this, $"「{name}」は、同梱のレイアウトの名前です。別の名前にしてください。", Title);
+            MessageBox.Show(this, Loc.T($"「{name}」は、同梱のレイアウトの名前です。別の名前にしてください。", $"\"{name}\" is the name of a bundled layout. Use a different name."), Title);
             return;
         }
         string path = LayoutFolders.UserFilePath(name);
         if (File.Exists(path) &&
-            MessageBox.Show(this, $"「{name}」は、すでにあります。上書きしますか。", Title, MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK)
+            MessageBox.Show(this, Loc.T($"「{name}」は、すでにあります。上書きしますか。", $"\"{name}\" already exists. Overwrite it?"), Title, MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK)
             return;
 
         try
@@ -357,7 +361,7 @@ public sealed class KleImportWindow : Window
         }
         catch (Exception ex) when (ex is FormatException or IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
         {
-            MessageBox.Show(this, $"保存できませんでした: {ex.Message}", Title);
+            MessageBox.Show(this, Loc.T($"保存できませんでした: {ex.Message}", $"Could not save: {ex.Message}"), Title);
             return;
         }
         SavedPath = path;

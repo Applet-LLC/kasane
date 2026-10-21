@@ -13,8 +13,9 @@ namespace Kasane.Views;
 public partial class MainWindow : Window
 {
     /// <summary>ドライバに接続できないときに選べる、編集・エクスポート専用の仮想デバイス。</summary>
-    private static readonly DeviceInfo OfflineDevice =
-        new(0, false, false, 0, "(ドライバ未接続: 編集とエクスポートのみ)");
+    private static DeviceInfo? _offlineDevice;
+    private static DeviceInfo OfflineDevice => _offlineDevice ??=
+        new(0, false, false, 0, Loc.T("(ドライバ未接続: 編集とエクスポートのみ)", "(Driver not connected: edit and export only)"));
 
     private KbdLayerClient? _client;
     /// <summary>Windows 上のキーボード名（UniqId → FriendlyName・ShellFriendlyName）。一覧を更新するときに取り直す。</summary>
@@ -94,7 +95,7 @@ public partial class MainWindow : Window
 
         _client = KbdLayerClient.TryOpen(out var error);
         if (_client == null)
-            SetStatus($"ドライバに接続できません({error})。編集とエクスポートのみ行えます。");
+            SetStatus(Loc.T($"ドライバに接続できません({error})。編集とエクスポートのみ行えます。", $"Cannot connect to the driver ({error}). Only editing and export are available."));
         if (IsReadOnly)
         {
             ReadOnlyBanner.Visibility = Visibility.Visible;
@@ -122,7 +123,7 @@ public partial class MainWindow : Window
         catch (System.ComponentModel.Win32Exception ex)
         {
             // ERROR_CANCELLED(1223): UACのダイアログで「いいえ」を選んだ。閲覧専用のまま続ける。
-            if (ex.NativeErrorCode != 1223) SetStatus($"管理者として起動できませんでした: {ex.Message}");
+            if (ex.NativeErrorCode != 1223) SetStatus(Loc.T($"管理者として起動できませんでした: {ex.Message}", $"Could not start as administrator: {ex.Message}"));
             return;
         }
         Close();
@@ -153,13 +154,13 @@ public partial class MainWindow : Window
     private void BtnRenameKeyboard_Click(object sender, RoutedEventArgs e)
     {
         if (_project == null || SelectedDevice is not { UniqId: not 0 } device) return;
-        var dlg = new TextPromptWindow("キーボードの名前", "このキーボードの名前(空にすると、名前を消します):", _project.KeyboardName ?? "", "KeyboardNameBox") { Owner = this };
+        var dlg = new TextPromptWindow(Loc.T("キーボードの名前", "Keyboard name"), Loc.T("このキーボードの名前(空にすると、名前を消します):", "Name for this keyboard (leave empty to remove the name):"), _project.KeyboardName ?? "", "KeyboardNameBox") { Owner = this };
         if (dlg.ShowDialog() != true) return;
         string name = dlg.Value.Trim();
         _project.KeyboardName = name.Length == 0 ? null : name;
         MarkDirty();
         RefreshDeviceStatusOnly();
-        SetStatus(name.Length == 0 ? "キーボードの名前を消しました。" : $"キーボードの名前を「{name}」にしました。");
+        SetStatus(name.Length == 0 ? Loc.T("キーボードの名前を消しました。", "Removed the keyboard name.") : Loc.T($"キーボードの名前を「{name}」にしました。", $"Set the keyboard name to \"{name}\"."));
     }
 
     private void BtnRefreshDevices_Click(object sender, RoutedEventArgs e)
@@ -184,17 +185,17 @@ public partial class MainWindow : Window
 
     private void BtnIdentify_Click(object sender, RoutedEventArgs e)
     {
-        if (_client == null) { SetStatus("ドライバに接続できないため、キーボードを特定できません。"); return; }
-        if (IsReadOnly) { SetStatus("キーボードの特定には管理者権限が必要です(「管理者として再起動」を押してください)。"); return; }
+        if (_client == null) { SetStatus(Loc.T("ドライバに接続できないため、キーボードを特定できません。", "Cannot identify the keyboard because the driver is not connected.")); return; }
+        if (IsReadOnly) { SetStatus(Loc.T("キーボードの特定には管理者権限が必要です(「管理者として再起動」を押してください)。", "Identifying a keyboard requires administrator rights (click \"Restart as administrator\").")); return; }
         var devices = ((IEnumerable<DeviceInfo>)CmbDevice.ItemsSource).Where(d => d.UniqId != 0).ToList();
-        if (devices.Count == 0) { SetStatus("ドライバが認識しているキーボードがありません。"); return; }
+        if (devices.Count == 0) { SetStatus(Loc.T("ドライバが認識しているキーボードがありません。", "The driver does not recognize any keyboards.")); return; }
         var dlg = new IdentifyWindow(devices) { Owner = this };
         if (dlg.ShowDialog() == true && dlg.FoundUniqId is uint id)
         {
             var device = devices.First(d => d.UniqId == id);
             if (!Equals(CmbDevice.SelectedItem, device))
                 CmbDevice.SelectedItem = device; // SelectionChangedで読み込まれる
-            SetStatus($"押されたキーボード: {device.DisplayName}");
+            SetStatus(Loc.T($"押されたキーボード: {device.DisplayName}", $"Keyboard pressed: {device.DisplayName}"));
         }
     }
 
@@ -211,7 +212,7 @@ public partial class MainWindow : Window
         KeymapProject? project = null;
         bool blocked = false;
         try { project = ProjectService.TryLoad(device.UniqId); }
-        catch (Exception ex) { warnings.Add($"保存済みの設定を読めませんでした: {ex.Message}"); blocked = File.Exists(ProjectService.ProjectPath(device.UniqId)); }
+        catch (Exception ex) { warnings.Add(Loc.T($"保存済みの設定を読めませんでした: {ex.Message}", $"Could not read the saved settings: {ex.Message}")); blocked = File.Exists(ProjectService.ProjectPath(device.UniqId)); }
 
         KeyboardLayout? layout = null;
         if (project != null)
@@ -220,38 +221,41 @@ public partial class MainWindow : Window
             if (file != null) layout = KeyboardLayout.Load(file);
             else
             {
-                warnings.Add($"レイアウト「{project.LayoutName}」が見つからないため、既定のレイアウトで開きます(保存済みの設定は使いません。自動では保存しません)");
+                warnings.Add(Loc.T($"レイアウト「{project.LayoutName}」が見つからないため、既定のレイアウトで開きます(保存済みの設定は使いません。自動では保存しません)",
+                                   $"Layout \"{project.LayoutName}\" was not found, so the default layout is open (the saved settings are not used and will not be saved automatically)"));
                 blocked = true;
             }
         }
         if (layout == null)
         {
             layout = LoadBundledLayout(GuessDefaultLayoutName());
-            if (layout == null) { SetStatus("Layouts フォルダにレイアウトがありません。"); return; }
+            if (layout == null) { SetStatus(Loc.T("Layouts フォルダにレイアウトがありません。", "There are no layouts in the Layouts folder.")); return; }
             project = null;
         }
 
-        string source = "保存済みの設定";
+        string source = Loc.T("保存済みの設定", "saved settings");
         if (project == null && IsOnline)
         {
             try
             {
                 project = ProjectService.ImportFromDriver(_client!, device, layout, true, warnings);
-                if (project != null) { source = "ドライバの現在の設定"; _unapplied.Remove(device.UniqId); }
+                if (project != null) { source = Loc.T("ドライバの現在の設定", "current driver settings"); _unapplied.Remove(device.UniqId); }
             }
             catch (KbdLayerException ex) { warnings.Add(ex.Message); }
         }
         if (project == null)
         {
             project = ProjectService.CreateDefault(device.UniqId, device.HardwareId, layout, true);
-            source = "新規(全キーそのまま)";
+            source = Loc.T("新規(全キーそのまま)", "new (all keys unchanged)");
         }
 
         ProjectService.NormalizeShape(project, layout);
         SetProject(project, layout, dirty: false);
         _autoSaveBlocked = blocked;
-        SetStatus($"{device.DisplayName}: {source}を読み込みました。" +
-                  (warnings.Count > 0 ? " 注意: " + string.Join(" / ", warnings) : ""));
+        SetStatus(Loc.T($"{device.DisplayName}: {source}を読み込みました。" +
+                  (warnings.Count > 0 ? " 注意: " + string.Join(" / ", warnings) : ""),
+                  $"{device.DisplayName}: Loaded {source}." +
+                  (warnings.Count > 0 ? " Note: " + string.Join(" / ", warnings) : "")));
     }
 
     private static string GuessDefaultLayoutName() =>
@@ -311,13 +315,14 @@ public partial class MainWindow : Window
         _suppressEvents = false;
 
         try { ChangeLayout(KeyboardLayout.Load(import.SavedPath), bundled: true); }
-        catch (Exception ex) { MessageBox.Show(this, $"読み込めませんでした: {ex.Message}", DialogCaption); }
+        catch (Exception ex) { MessageBox.Show(this, Loc.T($"読み込めませんでした: {ex.Message}", $"Could not load: {ex.Message}"), DialogCaption); }
     }
 
     private void ChangeLayout(KeyboardLayout layout, bool bundled)
     {
         var r = MessageBox.Show(this,
-            "レイアウトを変えると、キーの割り当て・実測値・コンボはリセットされます(マクロ・タップダンス・キー置換と、設定ダイアログの内容は残ります)。続けますか？",
+            Loc.T("レイアウトを変えると、キーの割り当て・実測値・コンボはリセットされます(マクロ・タップダンス・キー置換と、設定ダイアログの内容は残ります)。続けますか？",
+                  "Changing the layout resets key assignments, measured values, and combos (macros, tap dances, key overrides, and the Settings dialog contents are kept). Continue?"),
             DialogCaption, MessageBoxButton.OKCancel, MessageBoxImage.Question);
         if (r != MessageBoxResult.OK)
         {
@@ -345,7 +350,7 @@ public partial class MainWindow : Window
         p.Nicola = _project.Nicola;
         p.ClearNicola = _project.ClearNicola;
         SetProject(p, layout, dirty: true);
-        SetStatus($"レイアウトを {layout.Name} に変更しました({layout.Slots.Count}キー)。");
+        SetStatus(Loc.T($"レイアウトを {layout.Name} に変更しました({layout.Slots.Count}キー)。", $"Changed the layout to {layout.Name} ({layout.Slots.Count} keys)."));
     }
 
     // ------------------------------------------------------------------
@@ -363,7 +368,7 @@ public partial class MainWindow : Window
             {
                 Content = name == null ? $" {i} " : $" {i}: {name} ",
                 Padding = new Thickness(10, 3, 10, 3),
-                ToolTip = "左: 選択、右: メニュー",
+                ToolTip = Loc.T("左: 選択、右: メニュー", "Left: select, right: menu"),
             });
         }
         LstLayers.SelectedIndex = Math.Min(_layer, _project.Layers.Count - 1);
@@ -382,7 +387,7 @@ public partial class MainWindow : Window
         if (_project == null || _layout == null) return;
         if (_project.Layers.Count >= KbdLayerClient.MaxLayers)
         {
-            SetStatus($"レイヤーは{KbdLayerClient.MaxLayers}個までです。");
+            SetStatus(Loc.T($"レイヤーは{KbdLayerClient.MaxLayers}個までです。", $"You can have at most {KbdLayerClient.MaxLayers} layers."));
             return;
         }
         _project.Layers.Add(ProjectService.DefaultLayer(_layout, _project.Layers.Count));
@@ -390,14 +395,15 @@ public partial class MainWindow : Window
         MarkDirty();
         RefreshLayerList();
         RenderKeyboard();
-        SetStatus($"レイヤー{_layer}を追加しました(全キー透過)。レイヤー0のどれかのキーを MO({_layer}) 等にすると切り替えられます。");
+        SetStatus(Loc.T($"レイヤー{_layer}を追加しました(全キー透過)。レイヤー0のどれかのキーを MO({_layer}) 等にすると切り替えられます。",
+                        $"Added layer {_layer} (all keys transparent). Set a key on layer 0 to MO({_layer}) or similar to switch to it."));
     }
 
     private void BtnRemoveLayer_Click(object sender, RoutedEventArgs e)
     {
         if (_project == null || _project.Layers.Count <= 1) return;
         int last = _project.Layers.Count - 1;
-        if (MessageBox.Show(this, $"レイヤー{last}を削除しますか？", DialogCaption, MessageBoxButton.OKCancel) != MessageBoxResult.OK) return;
+        if (MessageBox.Show(this, Loc.T($"レイヤー{last}を削除しますか？", $"Delete layer {last}?"), DialogCaption, MessageBoxButton.OKCancel) != MessageBoxResult.OK) return;
         _project.Layers.RemoveAt(last);
         ProjectService.NormalizeLayerNames(_project); // 消したレイヤーの名前も捨てる
         _layer = Math.Min(_layer, last - 1);
@@ -405,7 +411,8 @@ public partial class MainWindow : Window
         RefreshLayerList();
         RenderKeyboard();
         if (_project.Layers.Any(l => l.Any(t => ReferencesLayer(t, last))))
-            SetStatus($"注意: まだレイヤー{last}を参照するキー(MO({last})等)が残っています。適用時にエラーになるので変更してください。");
+            SetStatus(Loc.T($"注意: まだレイヤー{last}を参照するキー(MO({last})等)が残っています。適用時にエラーになるので変更してください。",
+                            $"Note: some keys (such as MO({last})) still refer to layer {last}. Applying will fail, so change them."));
     }
 
     private static bool ReferencesLayer(string token, int layer) =>
@@ -445,11 +452,11 @@ public partial class MainWindow : Window
         if (sc == null) { border = UnknownBorder; thickness = 2; }
         else if (ProjectService.IsMeasuredDifferent(project, slot)) { border = MeasuredBorder; thickness = 2; }
 
-        string scText = sc == null ? "不明(要実測)"
-            : $"0x{sc:X4}" + (project.MeasuredScanCodes.ContainsKey(slot.Index) ? "(実測)" : "(既定)");
+        string scText = sc == null ? Loc.T("不明(要実測)", "unknown (needs measuring)")
+            : $"0x{sc:X4}" + (project.MeasuredScanCodes.ContainsKey(slot.Index) ? Loc.T("(実測)", " (measured)") : Loc.T("(既定)", " (default)"));
         string tip = $"{slot.Description}\n{ProjectService.LayerLabel(_project!, _layer)}: {token}";
         if (ProjectService.TargetNameNote(project, action) is { } targetNote) tip += $"\n→ {targetNote}"; // 指す先のレイヤー・マクロ・タップダンスの名前
-        tip += $"\nスキャンコード: {scText}";
+        tip += $"\n{Loc.T("スキャンコード", "Scan code")}: {scText}";
 
         // 変更していないキーは刻印をそのまま出す（キーコード名はUS配列基準なので、JIS配列では
         // 刻印と食い違うキーがある）。変更したキーだけ、割り当てたキーコードの短い名前を出す。
@@ -513,7 +520,7 @@ public partial class MainWindow : Window
             defs.TryGetValue(i, out var def);
             string? name = _project.TapDanceNames != null && _project.TapDanceNames.TryGetValue(i, out var n) ? n : null;
             if (def == null && string.IsNullOrWhiteSpace(name)) continue;
-            string content = def == null ? "" : $"{def.SingleTap} / 長押し {def.SingleHold} / {def.DoubleTap} / {def.TripleTap}";
+            string content = def == null ? "" : Loc.T($"{def.SingleTap} / 長押し {def.SingleHold} / {def.DoubleTap} / {def.TripleTap}", $"{def.SingleTap} / hold {def.SingleHold} / {def.DoubleTap} / {def.TripleTap}");
             list.Add(new MacroInfo(i, name, content, "TAPDANCE"));
         }
         return list;
@@ -543,7 +550,7 @@ public partial class MainWindow : Window
 
         var clearMeasured = new MenuItem
         {
-            Header = "実測値を消して既定のスキャンコードに戻す",
+            Header = Loc.T("実測値を消して既定のスキャンコードに戻す", "Clear measured value and restore default scan code"),
             IsEnabled = _project.MeasuredScanCodes.ContainsKey(slot.Index),
         };
         clearMeasured.Click += (_, _) =>
@@ -556,7 +563,7 @@ public partial class MainWindow : Window
 
         menu.Items.Add(new Separator());
         string resetTo = _layer == 0 ? slot.DefaultKeycode ?? "KC_TRNS" : "KC_TRNS";
-        var reset = new MenuItem { Header = $"このレイヤーの割り当てを戻す({resetTo})" };
+        var reset = new MenuItem { Header = Loc.T($"このレイヤーの割り当てを戻す({resetTo})", $"Reset assignment on this layer ({resetTo})") };
         reset.Click += (_, _) =>
         {
             _project.Layers[_layer][slot.Index] = resetTo;
@@ -585,7 +592,8 @@ public partial class MainWindow : Window
         MarkDirty();
         RenderKeyboard();
         int differs = dlg.Results.Count(r => r.Value != _layout.Slots[r.Key].DefaultScanCode);
-        SetStatus($"{dlg.Results.Count}キーを実測しました(既定と異なる値: {differs}キー)。適用すると反映されます。");
+        SetStatus(Loc.T($"{dlg.Results.Count}キーを実測しました(既定と異なる値: {differs}キー)。適用すると反映されます。",
+                        $"Measured {dlg.Results.Count} keys ({differs} differ from the default). Apply to take effect."));
     }
     // ------------------------------------------------------------------
     // マクロ・コンボ・タップダンス・キー置換の編集画面
@@ -641,7 +649,8 @@ public partial class MainWindow : Window
         BtnAddLayer.IsEnabled = free;
         BtnRemoveLayer.IsEnabled = free;
         BtnImportExport.IsEnabled = free;
-        if (!free) SetStatus("編集画面(マクロ・コンボ・タップダンス・キー置換・キーの割り当て)を開いている間は、キーボードやレイアウトの切り替え、インポート、レイヤーの追加・削除はできません。");
+        if (!free) SetStatus(Loc.T("編集画面(マクロ・コンボ・タップダンス・キー置換・キーの割り当て)を開いている間は、キーボードやレイアウトの切り替え、インポート、レイヤーの追加・削除はできません。",
+                                   "While an editor (macros, combos, tap dances, key overrides, key assignment) is open, you cannot switch keyboards or layouts, import, or add or delete layers."));
     }
 
     private void BtnMacros_Click(object sender, RoutedEventArgs e)
@@ -739,7 +748,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, $"保存できませんでした: {ex.Message}", DialogCaption, MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(this, Loc.T($"保存できませんでした: {ex.Message}", $"Could not save: {ex.Message}"), DialogCaption, MessageBoxButton.OK, MessageBoxImage.Error);
             return false;
         }
     }
@@ -750,31 +759,33 @@ public partial class MainWindow : Window
     {
         if (_project == null) return;
         int layer = _layer;
-        var dlg = new TextPromptWindow($"レイヤー{layer}の名前", $"レイヤー{layer}の名前(空にすると、名前を消します):",
+        var dlg = new TextPromptWindow(Loc.T($"レイヤー{layer}の名前", $"Layer {layer} name"), Loc.T($"レイヤー{layer}の名前(空にすると、名前を消します):", $"Name for layer {layer} (leave empty to remove the name):"),
             ProjectService.LayerName(_project, layer) ?? "", "LayerNameBox") { Owner = this };
         if (dlg.ShowDialog() != true) return;
         ProjectService.SetLayerName(_project, layer, dlg.Value);
         MarkDirty();
         RefreshLayerList();
         RenderKeyboard();
-        SetStatus(ProjectService.LayerName(_project, layer) is { } n ? $"レイヤー{layer}の名前を「{n}」にしました。" : $"レイヤー{layer}の名前を消しました。");
+        SetStatus(ProjectService.LayerName(_project, layer) is { } n
+            ? Loc.T($"レイヤー{layer}の名前を「{n}」にしました。", $"Set the name of layer {layer} to \"{n}\".")
+            : Loc.T($"レイヤー{layer}の名前を消しました。", $"Removed the name of layer {layer}."));
     }
 
     private ContextMenu BuildLayerMenu()
     {
         var menu = new ContextMenu();
-        var rename = new MenuItem { Name = "MenuRenameLayer", Header = "このレイヤーに名前を付ける..." };
+        var rename = new MenuItem { Name = "MenuRenameLayer", Header = Loc.T("このレイヤーに名前を付ける...", "Name this layer...") };
         rename.Click += (_, _) => RenameLayer();
         menu.Opened += (_, _) =>
         {
             rename.IsEnabled = _project != null;
-            rename.Header = _project != null ? $"レイヤー{_layer}に名前を付ける..." : "このレイヤーに名前を付ける...";
+            rename.Header = _project != null ? Loc.T($"レイヤー{_layer}に名前を付ける...", $"Name layer {_layer}...") : Loc.T("このレイヤーに名前を付ける...", "Name this layer...");
         };
         menu.Items.Add(rename);
         menu.Items.Add(new Separator());
-        var export = new MenuItem { Name = "MenuExportLayer", Header = "このレイヤーをエクスポート..." };
+        var export = new MenuItem { Name = "MenuExportLayer", Header = Loc.T("このレイヤーをエクスポート...", "Export this layer...") };
         export.Click += (_, _) => OpenImportExport(ImportExportWindow.StartTab.Export, Kasane.Model.Portable.PortableScope.Layer);
-        var import = new MenuItem { Name = "MenuImportLayer", Header = "レイヤーをインポート..." };
+        var import = new MenuItem { Name = "MenuImportLayer", Header = Loc.T("レイヤーをインポート...", "Import layer...") };
         import.Click += (_, _) => OpenImportExport(ImportExportWindow.StartTab.Import, Kasane.Model.Portable.PortableScope.Layer);
         menu.Items.Add(export);
         menu.Items.Add(import);
@@ -799,7 +810,9 @@ public partial class MainWindow : Window
             SetProject(dlg.ClearedProject, _layout, dirty: false);
             if (!dlg.ClearedDriver && uniq != 0) _unapplied.Add(uniq); // ドライバの設定は残っている
             RefreshDeviceStatusOnly();
-            SetStatus(dlg.ClearedDriver ? "クリアしました(ドライバの設定も消しました)。" : "クリアしました(画面の設定だけ。ドライバの設定は残っています)。");
+            SetStatus(dlg.ClearedDriver
+                ? Loc.T("クリアしました(ドライバの設定も消しました)。", "Cleared (the driver settings were also removed).")
+                : Loc.T("クリアしました(画面の設定だけ。ドライバの設定は残っています)。", "Cleared (on-screen settings only; the driver settings remain)."));
             return;
         }
         if (dlg.Cleared) RefreshDeviceStatusOnly();
@@ -807,7 +820,7 @@ public partial class MainWindow : Window
         {
             ProjectService.NormalizeShape(dlg.ResultProject, _layout);
             SetProject(dlg.ResultProject, _layout, dirty: true);
-            SetStatus("読み込みました(まだ保存・適用していません)。");
+            SetStatus(Loc.T("読み込みました(まだ保存・適用していません)。", "Imported (not saved or applied yet)."));
         }
         else if (dlg.CurrentChangedOnDisk)
         {
@@ -818,7 +831,7 @@ public partial class MainWindow : Window
             {
                 ProjectService.NormalizeShape(reloaded, layout);
                 SetProject(reloaded, layout, dirty: true);
-                SetStatus("全体一括で読み込みました(まだ「キーボードに適用」していません)。");
+                SetStatus(Loc.T("全体一括で読み込みました(まだ「キーボードに適用」していません)。", "Imported everything at once (not yet applied to the keyboard)."));
             }
         }
     }
@@ -832,17 +845,19 @@ public partial class MainWindow : Window
             SaveProject();
             _unapplied.Remove(_project.UniqId);
             RefreshDeviceStatusOnly();
-            SetStatus("適用しました(ON)。設定はドライバに保存され、再起動後も有効です。" +
-                      (warnings.Count > 0 ? " 注意: " + string.Join(" / ", warnings) : ""));
+            SetStatus(Loc.T("適用しました(ON)。設定はドライバに保存され、再起動後も有効です。" +
+                      (warnings.Count > 0 ? " 注意: " + string.Join(" / ", warnings) : ""),
+                      "Applied (ON). The settings are stored in the driver and stay in effect after a restart." +
+                      (warnings.Count > 0 ? " Note: " + string.Join(" / ", warnings) : "")));
         }
         catch (InvalidOperationException ex)
         {
-            MessageBox.Show(this, ex.Message, "適用できません(何も変更していません)", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(this, ex.Message, Loc.T("適用できません(何も変更していません)", "Cannot apply (nothing was changed)"), MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         catch (KbdLayerException ex)
         {
-            MessageBox.Show(this, ex.Message + "\n\n途中まで反映された可能性があります。もう一度適用してください。",
-                "適用に失敗しました", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(this, ex.Message + Loc.T("\n\n途中まで反映された可能性があります。もう一度適用してください。", "\n\nThe settings may have been applied only partway. Apply again."),
+                Loc.T("適用に失敗しました", "Apply failed"), MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -853,7 +868,7 @@ public partial class MainWindow : Window
         {
             _client!.SetEnabled(SelectedDevice!.UniqId, false);
             RefreshDeviceStatusOnly();
-            SetStatus("OFFにしました(キーボードは本来の動作に戻りました。設定はドライバに残っています)。");
+            SetStatus(Loc.T("OFFにしました(キーボードは本来の動作に戻りました。設定はドライバに残っています)。", "Turned OFF (the keyboard is back to its normal behavior; the settings remain in the driver)."));
         }
         catch (KbdLayerException ex) { SetStatus(ex.Message); }
     }
@@ -900,7 +915,7 @@ public partial class MainWindow : Window
     private ContextMenu BuildMainMenu()
     {
         var menu = new ContextMenu();
-        var about = new MenuItem { Name = "MenuAbout", Header = "バージョン情報..." };
+        var about = new MenuItem { Name = "MenuAbout", Header = Loc.T("バージョン情報...", "About...") };
         about.Click += (_, _) => OpenSettings(SettingsDialog.AboutTab);
         menu.Opened += (_, _) => about.IsEnabled = _project != null;
         menu.Items.Add(about);
@@ -920,22 +935,22 @@ public partial class MainWindow : Window
     private void UpdateDefinitionButtons()
     {
         var p = _project;
-        BtnMacros.Content = KeyMarks.ButtonText("マクロ", p?.Macros.Count ?? 0, p == null || KeyMarks.FeatureOn(p, KbdLayerClient.FeatureMacro));
-        BtnCombos.Content = KeyMarks.ButtonText("コンボ", p?.Combos.Count ?? 0, p == null || KeyMarks.FeatureOn(p, KbdLayerClient.FeatureCombo));
-        BtnTapDances.Content = KeyMarks.ButtonText("タップダンス", p?.TapDances.Count ?? 0, p == null || KeyMarks.FeatureOn(p, KbdLayerClient.FeatureTapDance));
-        BtnKeyOverrides.Content = KeyMarks.ButtonText("キー置換", p?.KeyOverrides.Count ?? 0, p == null || KeyMarks.FeatureOn(p, KbdLayerClient.FeatureKeyOverride));
+        BtnMacros.Content = KeyMarks.ButtonText(Loc.T("マクロ", "Macros"), p?.Macros.Count ?? 0, p == null || KeyMarks.FeatureOn(p, KbdLayerClient.FeatureMacro));
+        BtnCombos.Content = KeyMarks.ButtonText(Loc.T("コンボ", "Combos"), p?.Combos.Count ?? 0, p == null || KeyMarks.FeatureOn(p, KbdLayerClient.FeatureCombo));
+        BtnTapDances.Content = KeyMarks.ButtonText(Loc.T("タップダンス", "Tap dances"), p?.TapDances.Count ?? 0, p == null || KeyMarks.FeatureOn(p, KbdLayerClient.FeatureTapDance));
+        BtnKeyOverrides.Content = KeyMarks.ButtonText(Loc.T("キー置換", "Key overrides"), p?.KeyOverrides.Count ?? 0, p == null || KeyMarks.FeatureOn(p, KbdLayerClient.FeatureKeyOverride));
     }
 
     // ドライバの状態（今リマップが効いているか・画面の変更を適用したか）。タイトルバーに出す。
     private string DriverStateText()
     {
-        if (_client == null) return "ドライバ: 接続できません(編集とエクスポートのみ)";
-        if (SelectedDevice is not { UniqId: not 0 } d) return "ドライバ: このキーボードは接続していません(編集のみ)";
-        string state = !d.HasLayerMap ? "設定なし(素通し)"
-            : d.Enabled ? "ON(リマップ中)"
-            : "OFF(素通し、設定はドライバに残っています)";
-        string applied = _unapplied.Contains(d.UniqId) ? "　画面の変更は未適用" : "";
-        return $"ドライバ: {state}{applied}";
+        if (_client == null) return Loc.T("ドライバ: 接続できません(編集とエクスポートのみ)", "Driver: not connected (edit and export only)");
+        if (SelectedDevice is not { UniqId: not 0 } d) return Loc.T("ドライバ: このキーボードは接続していません(編集のみ)", "Driver: this keyboard is not connected (edit only)");
+        string state = !d.HasLayerMap ? Loc.T("設定なし(素通し)", "no settings (pass-through)")
+            : d.Enabled ? Loc.T("ON(リマップ中)", "ON (remapping)")
+            : Loc.T("OFF(素通し、設定はドライバに残っています)", "OFF (pass-through; settings remain in the driver)");
+        string applied = _unapplied.Contains(d.UniqId) ? Loc.T("　画面の変更は未適用", "  Changes not applied") : "";
+        return Loc.T($"ドライバ: {state}{applied}", $"Driver: {state}{applied}");
     }
 
     private void SetStatus(string text) => TxtStatus.Text = text;
@@ -951,9 +966,12 @@ public partial class MainWindow : Window
         if (_autoSaveBlocked)
         {
             var r = MessageBox.Show(this,
-                "このキーボードの保存済みの設定は、読めない、またはレイアウトが見つからないため、使わずに開いています。\n" +
+                Loc.T("このキーボードの保存済みの設定は、読めない、またはレイアウトが見つからないため、使わずに開いています。\n" +
                 "保存すると、保存済みの設定がこの内容で置き換わります。保存しますか？\n\n" +
                 "はい: 保存する　／　いいえ: 保存しない(変更を捨てる)　／　キャンセル: 戻る",
+                "The saved settings for this keyboard could not be read or their layout was not found, so they were not used.\n" +
+                "If you save, the saved settings will be replaced with the current contents. Save?\n\n" +
+                "Yes: save / No: do not save (discard changes) / Cancel: go back"),
                 DialogCaption, MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
             if (r == MessageBoxResult.Cancel) return false;
             if (r == MessageBoxResult.No) { _dirty = false; _unapplied.Remove(_project?.UniqId ?? 0); UpdateTitle(); return true; }
@@ -965,7 +983,8 @@ public partial class MainWindow : Window
     {
         // 編集画面が開いていれば、閉じると「適用」していない内容が捨てられることを確かめる。
         if ((_editors.Count > 0 || _keyAssign != null) &&
-            MessageBox.Show(this, "編集画面が開いています。閉じると、「適用」していない編集内容は捨てられます。\n閉じますか？",
+            MessageBox.Show(this, Loc.T("編集画面が開いています。閉じると、「適用」していない編集内容は捨てられます。\n閉じますか？",
+                "An editor is open. If you close, edits you have not applied will be discarded.\nClose?"),
                 DialogCaption, MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK)
         {
             e.Cancel = true;
@@ -983,13 +1002,18 @@ public partial class MainWindow : Window
         {
             case UnappliedPrompt.WarnNotApplied:
                 return MessageBox.Show(this,
-                    "設定は保存されましたが、キーボードに反映されていません。\n" +
+                    Loc.T("設定は保存されましたが、キーボードに反映されていません。\n" +
                     "必要に応じて、管理者権限で kasane を起動し、「キーボードに適用(ON)」で反映してください。\n\n" +
-                    "このまま閉じますか？", DialogCaption, MessageBoxButton.OKCancel, MessageBoxImage.Information) == MessageBoxResult.OK;
+                    "このまま閉じますか？",
+                    "The settings were saved but have not been applied to the keyboard.\n" +
+                    "If needed, start kasane as administrator and click \"Apply to keyboard (ON)\".\n\n" +
+                    "Close anyway?"), DialogCaption, MessageBoxButton.OKCancel, MessageBoxImage.Information) == MessageBoxResult.OK;
             case UnappliedPrompt.AskApply:
                 var r = MessageBox.Show(this,
-                    $"キーボードに反映していない設定が{targets.Count}台分あります。反映しますか？\n\n" +
+                    Loc.T($"キーボードに反映していない設定が{targets.Count}台分あります。反映しますか？\n\n" +
                     "はい: 反映して閉じる　／　いいえ: 反映せずに閉じる(設定は保存済み)　／　キャンセル: 戻る",
+                    $"Settings for {targets.Count} keyboard(s) have not been applied. Apply them now?\n\n" +
+                    "Yes: apply and close / No: close without applying (settings are saved) / Cancel: go back"),
                     DialogCaption, MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
                 if (r == MessageBoxResult.Cancel) return false;
                 if (r == MessageBoxResult.No) return true;
@@ -998,7 +1022,7 @@ public partial class MainWindow : Window
                     string? error = ApplySavedProject(id);
                     if (error != null)
                     {
-                        MessageBox.Show(this, $"{id:X8}: {error}\n\n閉じずに戻ります。", "適用できません", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        MessageBox.Show(this, Loc.T($"{id:X8}: {error}\n\n閉じずに戻ります。", $"{id:X8}: {error}\n\nGoing back without closing."), Loc.T("適用できません", "Cannot apply"), MessageBoxButton.OK, MessageBoxImage.Warning);
                         return false;
                     }
                     _unapplied.Remove(id);
@@ -1015,10 +1039,10 @@ public partial class MainWindow : Window
         try
         {
             var project = ProjectService.TryLoad(uniqId);
-            if (project == null) return "保存済みの設定が見つかりません";
+            if (project == null) return Loc.T("保存済みの設定が見つかりません", "The saved settings were not found");
             var file = ProjectService.FindLayoutFile(project);
             var layout = file != null ? KeyboardLayout.Load(file) : null;
-            if (layout == null) return $"レイアウト「{project.LayoutName}」が見つかりません";
+            if (layout == null) return Loc.T($"レイアウト「{project.LayoutName}」が見つかりません", $"Layout \"{project.LayoutName}\" was not found");
             ProjectService.NormalizeShape(project, layout);
             ProjectService.Apply(_client!, project, layout);
             return null;

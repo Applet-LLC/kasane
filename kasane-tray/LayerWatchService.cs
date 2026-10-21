@@ -177,7 +177,7 @@ public sealed class LayerWatchService : IDisposable
             catch (KbdLayerException ex) when (ex.Win32Error == KbdLayerClient.ErrorInvalidFunction)
             {
                 _owner._unsupported = true;
-                _owner._log("LayerWatch: このドライバは WAIT_LAYER_CHANGE に対応していません(レイヤー表示は使えません)");
+                _owner._log(Kasane.Model.Loc.T("LayerWatch: このドライバは WAIT_LAYER_CHANGE に対応していません(レイヤー表示は使えません)", "LayerWatch: this driver does not support WAIT_LAYER_CHANGE (layer display is unavailable)"));
             }
             catch (KbdLayerException ex) when (ex.Win32Error is ErrorOperationAborted or KbdLayerClient.ErrorDeviceRemoved or KbdLayerClient.ErrorNoSystemResources)
             {
@@ -202,7 +202,7 @@ public sealed class KbdLayerWatchSource : ILayerWatchSource
     public IReadOnlyList<uint> ListKeyboards()
     {
         using var client = KbdLayerClient.TryOpen(out string? error)
-            ?? throw new InvalidOperationException(error ?? "ドライバを開けません");
+            ?? throw new InvalidOperationException(error ?? Kasane.Model.Loc.T("ドライバを開けません", "Can't open the driver"));
         return client.ListDevices().Where(d => d.UniqId != 0 && d.HasLayerMap).Select(d => d.UniqId).ToList();
     }
 

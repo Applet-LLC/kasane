@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Loc = Kasane.Model.Loc;
 
 namespace Kasane.Tray;
 
@@ -66,14 +67,16 @@ internal sealed class TsfSiriusImeSource : IImeSource, IImeSourceDiagnostics
     public string DescribeLast() => _reason switch
     {
         TsfReason.Ok => "",
-        TsfReason.NotAttached => "TSF: フックを入れていません",
-        TsfReason.NoTarget => "TSF: 前面が対象外のウィンドウです",
-        TsfReason.NotHooked => "TSF: DLL がフックの設置を報告していません",
+        TsfReason.NotAttached => Loc.T("TSF: フックを入れていません", "TSF: the hook is not installed"),
+        TsfReason.NoTarget => Loc.T("TSF: 前面が対象外のウィンドウです", "TSF: the foreground window is not a target"),
+        TsfReason.NotHooked => Loc.T("TSF: DLL がフックの設置を報告していません", "TSF: the DLL has not reported that the hook is installed"),
         TsfReason.OpenCloseUnsupported =>
-            $"TSF: 前面のアプリの OpenClose が読めていません(共有メモリの最後のフォーカス窓: {_foreground.ProcessLabelOfWindow((IntPtr)_lastFocusHwnd)}、前面: {_foreground.ProcessLabelOfWindow(_lastForeground)})",
+            Loc.T($"TSF: 前面のアプリの OpenClose が読めていません(共有メモリの最後のフォーカス窓: {_foreground.ProcessLabelOfWindow((IntPtr)_lastFocusHwnd)}、前面: {_foreground.ProcessLabelOfWindow(_lastForeground)})",
+                  $"TSF: cannot read OpenClose of the foreground app (last focus window in shared memory: {_foreground.ProcessLabelOfWindow((IntPtr)_lastFocusHwnd)}, foreground: {_foreground.ProcessLabelOfWindow(_lastForeground)})"),
         TsfReason.FocusNotForeground =>
-            $"TSF: 共有メモリの値は前面のアプリのものではありません(最後のフォーカス窓: {_foreground.ProcessLabelOfWindow((IntPtr)_lastFocusHwnd)}、前面: {_foreground.ProcessLabelOfWindow(_lastForeground)})",
-        TsfReason.ConversionUnsupported => "TSF: ON ですが、変換モードが読めていません",
+            Loc.T($"TSF: 共有メモリの値は前面のアプリのものではありません(最後のフォーカス窓: {_foreground.ProcessLabelOfWindow((IntPtr)_lastFocusHwnd)}、前面: {_foreground.ProcessLabelOfWindow(_lastForeground)})",
+                  $"TSF: the shared memory value does not belong to the foreground app (last focus window: {_foreground.ProcessLabelOfWindow((IntPtr)_lastFocusHwnd)}, foreground: {_foreground.ProcessLabelOfWindow(_lastForeground)})"),
+        TsfReason.ConversionUnsupported => Loc.T("TSF: ON ですが、変換モードが読めていません", "TSF: the IME is on, but the conversion mode cannot be read"),
         _ => "",
     };
 

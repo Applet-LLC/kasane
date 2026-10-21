@@ -13,23 +13,27 @@ namespace Kasane.Views;
 /// </summary>
 public sealed class NicolaEditorWindow : Window
 {
-    private static readonly string[] OutputLabels = { "ローマ字入力のIME(romaji)", "JISかな入力のIME(jis-kana)" };
+    private static string[] OutputLabels => new[]
+    {
+        Loc.T("ローマ字入力のIME(romaji)", "IME with romaji input (romaji)"),
+        Loc.T("JISかな入力のIME(jis-kana)", "IME with JIS kana input (jis-kana)"),
+    };
 
     private readonly NicolaDef _def;
     private readonly ListBox _list = new() { Name = "KeyList", Width = 380, Margin = new Thickness(0, 0, 10, 0), FontFamily = new FontFamily("Consolas, Meiryo UI") };
     private readonly TextBlock _validation = new() { Name = "ValidationText", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) };
 
     private readonly ComboBox _output = new() { Name = "OutputBox", Width = 260, ItemsSource = OutputLabels };
-    private readonly CheckBox _enabled = new() { Name = "EnabledCheck", Content = "判定する(OFFにすると、設定はキーボードに残したまま、親指シフトをしません)", VerticalAlignment = VerticalAlignment.Center };
+    private readonly CheckBox _enabled = new() { Name = "EnabledCheck", Content = Loc.T("判定する(OFFにすると、設定はキーボードに残したまま、親指シフトをしません)", "Enable detection (when OFF, the settings stay on the keyboard but thumb shifting is not performed)"), VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBox _layer = Box("LayerBox", 60);
     private readonly TextBox _thumbLeft = Box("ThumbLeftBox", 110), _thumbRight = Box("ThumbRightBox", 110);
     private readonly TextBox _thumbLeftTap = Box("ThumbLeftTapBox", 110), _thumbRightTap = Box("ThumbRightTapBox", 110);
     private readonly TextBox _onEnter = Box("OnEnterBox", 110), _onExit = Box("OnExitBox", 110);
     private readonly TextBox _simulTerm = Box("SimulTermBox", 60), _overlapRatio = Box("OverlapRatioBox", 60), _minOverlap = Box("MinOverlapBox", 60);
-    private readonly CheckBox _continuous = new() { Name = "ContinuousShiftCheck", Content = "連続シフト(親指キーを押している間の文字キーを常にシフトする)", VerticalAlignment = VerticalAlignment.Center };
+    private readonly CheckBox _continuous = new() { Name = "ContinuousShiftCheck", Content = Loc.T("連続シフト(親指キーを押している間の文字キーを常にシフトする)", "Continuous shift (always shift character keys while a thumb key is held)"), VerticalAlignment = VerticalAlignment.Center };
 
     private readonly TextBox _key = Box("KeyBox", 140);
-    private readonly ComboBox _hand = new() { Name = "HandBox", Width = 140, ItemsSource = new[] { "左手側", "右手側" } };
+    private readonly ComboBox _hand = new() { Name = "HandBox", Width = 140, ItemsSource = new[] { Loc.T("左手側", "Left hand"), Loc.T("右手側", "Right hand") } };
     private readonly TextBox _single = Box("SingleBox", 80), _kanaLeft = Box("ThumbLeftKanaBox", 80), _kanaRight = Box("ThumbRightKanaBox", 80);
     private bool _loading;
 
@@ -38,7 +42,7 @@ public sealed class NicolaEditorWindow : Window
     public NicolaEditorWindow(NicolaDef def)
     {
         _def = def.Clone();
-        Title = "NICOLAの表";
+        Title = Loc.T("NICOLAの表", "NICOLA table");
         Width = 1000;
         Height = 760;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -48,31 +52,36 @@ public sealed class NicolaEditorWindow : Window
         var header = new StackPanel();
         header.Children.Add(new TextBlock
         {
-            Text = "キーは KC_* で指定します(親指キーの例: KC_MHEN 無変換 / KC_HENK 変換 / KC_SPC)。単独打鍵の欄を空にすると、親指キーを単独で押しても何も送りません。" +
+            Text = Loc.T("キーは KC_* で指定します(親指キーの例: KC_MHEN 無変換 / KC_HENK 変換 / KC_SPC)。単独打鍵の欄を空にすると、親指キーを単独で押しても何も送りません。" +
                    "有効・無効のときのキーは、判定が有効・無効になったときに1回押すキーです(IMEのオン・オフ等。空 = なし)。",
+                   "Specify keys as KC_* (thumb key examples: KC_MHEN Muhenkan / KC_HENK Henkan / KC_SPC). If you leave a solo-press field empty, pressing that thumb key alone sends nothing. " +
+                   "The keys for enabled / disabled are pressed once when detection becomes enabled / disabled (for example to turn the IME on or off; empty = none)."),
             TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 6),
         });
-        header.Children.Add(Line(("出力の形式", _output), ("レイヤー", _layer)));
+        header.Children.Add(Line((Loc.T("出力の形式", "Output format"), _output), (Loc.T("レイヤー", "Layer"), _layer)));
         header.Children.Add(Line(("", _enabled)));
-        header.Children.Add(Line(("親指左", _thumbLeft), ("単独打鍵", _thumbLeftTap), ("親指右", _thumbRight), ("単独打鍵", _thumbRightTap)));
-        header.Children.Add(Line(("有効のとき", _onEnter), ("無効のとき", _onExit)));
-        header.Children.Add(Line(("判定時間(ms)", _simulTerm), ("重なりの比率", _overlapRatio), ("最小の重なり(ms)", _minOverlap)));
+        header.Children.Add(Line((Loc.T("親指左", "Left thumb"), _thumbLeft), (Loc.T("単独打鍵", "Solo press"), _thumbLeftTap), (Loc.T("親指右", "Right thumb"), _thumbRight), (Loc.T("単独打鍵", "Solo press"), _thumbRightTap)));
+        header.Children.Add(Line((Loc.T("有効のとき", "When enabled"), _onEnter), (Loc.T("無効のとき", "When disabled"), _onExit)));
+        header.Children.Add(Line((Loc.T("判定時間(ms)", "Detection time (ms)"), _simulTerm), (Loc.T("重なりの比率", "Overlap ratio"), _overlapRatio), (Loc.T("最小の重なり(ms)", "Min overlap (ms)"), _minOverlap)));
         header.Children.Add(Line(("", _continuous)));
-        var headerBox = new GroupBox { Header = "全体", Content = header, Padding = new Thickness(6), Margin = new Thickness(0, 0, 0, 8) };
+        var headerBox = new GroupBox { Header = Loc.T("全体", "Overall"), Content = header, Padding = new Thickness(6), Margin = new Thickness(0, 0, 0, 8) };
 
         // --- 文字キー ---
         var detail = new StackPanel();
         detail.Children.Add(new TextBlock
         {
-            Text = "選んだ文字キーを、単独で・親指左と同時に・親指右と同時に押したときに出す「かな」を1文字ずつ入れます" +
+            Text = Loc.T("選んだ文字キーを、単独で・親指左と同時に・親指右と同時に押したときに出す「かな」を1文字ずつ入れます" +
                    "(空 = 何も出さない)。濁音(が等)・小書き(ぁ等)・ー。、・，．゛゜ も使えます。" +
                    "左手側・右手側は、nicola.json の \"left\" / \"right\" のどちらに書くかです。",
+                   "Enter one kana for each case: the selected character key pressed alone, together with the left thumb key, or together with the right thumb key " +
+                   "(empty = output nothing). Voiced marks (が etc.), small kana (ぁ etc.), and ー。、・，．゛゜ can also be used. " +
+                   "Left hand / Right hand is which of \"left\" / \"right\" in nicola.json the key is written under."),
             TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 6),
         });
-        detail.Children.Add(Line(("文字キー", _key), ("", _hand)));
-        detail.Children.Add(Line(("単独", _single), ("親指左", _kanaLeft), ("親指右", _kanaRight)));
-        var add = new Button { Name = "AddKeyButton", Content = "文字キーを追加", Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(0, 8, 6, 0) };
-        var remove = new Button { Name = "RemoveKeyButton", Content = "選んだ文字キーを削除", Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(0, 8, 6, 0) };
+        detail.Children.Add(Line((Loc.T("文字キー", "Character key"), _key), ("", _hand)));
+        detail.Children.Add(Line((Loc.T("単独", "Solo"), _single), (Loc.T("親指左", "Left thumb"), _kanaLeft), (Loc.T("親指右", "Right thumb"), _kanaRight)));
+        var add = new Button { Name = "AddKeyButton", Content = Loc.T("文字キーを追加", "Add character key"), Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(0, 8, 6, 0) };
+        var remove = new Button { Name = "RemoveKeyButton", Content = Loc.T("選んだ文字キーを削除", "Delete selected key"), Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(0, 8, 6, 0) };
         var keyButtons = new StackPanel { Orientation = Orientation.Horizontal };
         keyButtons.Children.Add(add);
         keyButtons.Children.Add(remove);
@@ -86,7 +95,7 @@ public sealed class NicolaEditorWindow : Window
         };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
         buttons.Children.Add(ok);
-        buttons.Children.Add(new Button { Name = "CancelButton", Content = "キャンセル", IsCancel = true, Width = 90 });
+        buttons.Children.Add(new Button { Name = "CancelButton", Content = Loc.T("キャンセル", "Cancel"), IsCancel = true, Width = 90 });
 
         var root = new DockPanel { Margin = new Thickness(10) };
         DockPanel.SetDock(headerBox, Dock.Top);
@@ -154,8 +163,9 @@ public sealed class NicolaEditorWindow : Window
     private static string ItemText(NicolaKeyDef k)
     {
         static string S(string s) => string.IsNullOrEmpty(s) ? "－" : s;
-        string key = k.Key.Length > 0 ? k.Key : "(未指定)";
-        return $"{key,-9}{(k.RightHand ? "右" : "左")}  単独 {S(k.Single)}  左 {S(k.ThumbLeft)}  右 {S(k.ThumbRight)}";
+        string key = k.Key.Length > 0 ? k.Key : Loc.T("(未指定)", "(not set)");
+        return Loc.T($"{key,-9}{(k.RightHand ? "右" : "左")}  単独 {S(k.Single)}  左 {S(k.ThumbLeft)}  右 {S(k.ThumbRight)}",
+                     $"{key,-9}{(k.RightHand ? "R" : "L")}  Solo {S(k.Single)}  L {S(k.ThumbLeft)}  R {S(k.ThumbRight)}");
     }
 
     private void LoadHeader()
@@ -218,13 +228,13 @@ public sealed class NicolaEditorWindow : Window
         _def.OnEnter = _onEnter.Text.Trim();
         _def.OnExit = _onExit.Text.Trim();
         if (int.TryParse(_layer.Text, out var layer)) _def.Layer = layer;
-        else errors.Add("レイヤーは整数で入力してください");
+        else errors.Add(Loc.T("レイヤーは整数で入力してください", "Enter the layer as an integer"));
         if (uint.TryParse(_simulTerm.Text, out var simul)) _def.SimulTermMs = simul;
-        else errors.Add("判定時間は整数(ms)で入力してください");
+        else errors.Add(Loc.T("判定時間は整数(ms)で入力してください", "Enter the detection time as an integer (ms)"));
         if (double.TryParse(_overlapRatio.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var ratio)) _def.OverlapRatio = ratio;
-        else errors.Add("重なりの比率は数値(例: 1.0)で入力してください");
+        else errors.Add(Loc.T("重なりの比率は数値(例: 1.0)で入力してください", "Enter the overlap ratio as a number (for example 1.0)"));
         if (uint.TryParse(_minOverlap.Text, out var minOverlap)) _def.MinOverlapMs = minOverlap;
-        else errors.Add("最小の重なりは整数(ms)で入力してください");
+        else errors.Add(Loc.T("最小の重なりは整数(ms)で入力してください", "Enter the minimum overlap as an integer (ms)"));
 
         var warnings = new List<string>();
         if (errors.Count == 0) NicolaService.BuildBlob(_def, warnings, errors);
@@ -235,7 +245,7 @@ public sealed class NicolaEditorWindow : Window
             return false;
         }
         _validation.Foreground = warnings.Count > 0 ? Brushes.DarkOrange : Brushes.DarkGreen;
-        _validation.Text = warnings.Count > 0 ? "注意(OKは押せます):\n" + string.Join("\n", warnings) : "OK";
+        _validation.Text = warnings.Count > 0 ? Loc.T("注意(OKは押せます):\n", "Note (you can still click OK):\n") + string.Join("\n", warnings) : "OK";
         return true;
     }
 }
