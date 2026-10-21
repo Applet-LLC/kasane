@@ -11,7 +11,7 @@ namespace Kasane.Views;
 /// </summary>
 internal sealed class AppRulesTab : HelperTabBase
 {
-    private readonly ListBox _rules = ListBoxOf("RulesList", 300);
+    private readonly ListBox _rules = ListBoxOf("RulesList", 230);
     private readonly Button _add, _edit, _copy, _delete, _up, _down, _toggle;
 
     public AppRulesTab(HelperSettingsModel model, Window owner)
