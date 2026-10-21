@@ -687,7 +687,7 @@ public sealed class SettingsDialog : Window
         // 管理者で、ドライバに接続していないと、「同時押しを試す」は低レベルキーフックで見る。その制限は、画面を開く前に、このタブで分かるようにする。
         if (!writable)
         {
-            var limit = Help("「同時押しを試す」は、低レベルキーフックで確認しているため、選択しているキーボードレイアウトに依存して、正常に取れないキーが存在します。その場合には、管理者権限モードでやり直してください。");
+            var limit = Help("「同時押しを試す」は、管理者権限モードで実施してください。");
             limit.Name = "EmergencyHookLimitNote";
             limit.Foreground = Brushes.Firebrick;
             panel.Children.Add(limit);

@@ -44,7 +44,7 @@ public sealed class ImportExportWindow : Window
     private readonly CheckBox _exHelper = new() { Name = "ExportHelperCheck", Content = "ヘルパー設定（動作・トリガー・アプリ別レイヤー）を含める", IsChecked = true, Margin = new Thickness(0, 8, 0, 0) };
     private readonly CheckBox _exMeasured = new() { Name = "ExportMeasuredCheck", Content = "実測したスキャンコードを含める（同じキーボードへのバックアップ用）", Margin = new Thickness(0, 2, 0, 0) };
     private readonly RadioButton _exFormatKasane = new() { Name = "ExportFormatKasane", Content = "kasane の設定ファイル（*.kasane.json。レイヤー・マクロ・コンボなどすべて）", GroupName = "ExFormat", IsChecked = true, Margin = new Thickness(0, 2, 0, 2) };
-    private readonly RadioButton _exFormatKeymapTool = new() { Name = "ExportFormatKeymapTool", Content = "KeymapTool 用 JSON（keymap.json と profile.json。レイヤーと較正だけを書き出し、マクロやコンボなどは含みません）", GroupName = "ExFormat", Margin = new Thickness(0, 2, 0, 2) };
+    private readonly RadioButton _exFormatKeymapTool = new() { Name = "ExportFormatKeymapTool", Content = "KeymapTool 用 JSON（keymap.json と profile.json。レイヤーとキャリブレーションだけを書き出し、マクロやコンボなどは含みません）", GroupName = "ExFormat", Margin = new Thickness(0, 2, 0, 2) };
     private readonly TextBox _exReport = ReportBox("ExportReport");
     private readonly Button _exOpen = new() { Name = "ExportOpenFolderButton", Content = "出力先をエクスプローラーで開く", Width = 190, Margin = new Thickness(8, 10, 0, 0) };
     private readonly TextBlock _exDest = new()
