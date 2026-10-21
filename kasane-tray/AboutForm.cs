@@ -81,6 +81,7 @@ internal sealed class AboutForm : Form
         Controls.Add(layout);
         AcceptButton = ok;
         CancelButton = ok;
-        ActiveControl = ok; // 最初に、パスの欄を選択状態にしない        TrayTheme.Apply(this); // 色のモード（ダークなら暗くする）
+        ActiveControl = ok; // 最初に、パスの欄を選択状態にしない
+        TrayTheme.Apply(this); // 色のモード（ダークなら暗くする）
     }
 }
