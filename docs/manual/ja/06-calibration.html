@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6. キャリブレーション - kasane マニュアル</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane マニュアル</a>
+<ol>
+<li><a href="index.html">はじめに</a></li>
+<li><a href="01-install.html">1. インストール</a></li>
+<li><a href="02-uninstall.html">2. アンインストール</a></li>
+<li><a href="03-license.html">3. ライセンスの認証</a></li>
+<li><a href="04-tray.html">4. トレイ</a></li>
+<li><a href="05-editor-basics.html">5. エディタの基本画面</a></li>
+<li class="current"><a href="06-calibration.html">6. キャリブレーション</a></li>
+<li><a href="07-emergency.html">7. 緊急解除</a></li>
+<li><a href="08-key-assign.html">8. キーの割り当て</a></li>
+<li><a href="09-advanced.html">9. マクロ・コンボ・タップダンス・キー置換</a></li>
+<li><a href="10-ime-nicola.html">10. IME連動とNICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a></li>
+<li><a href="12-settings.html">12. 設定ダイアログ</a></li>
+<li><a href="13-import-export.html">13. インポート／エクスポート</a></li>
+<li><a href="14-backup-migrate.html">14. バックアップと移行</a></li>
+<li><a href="15-reference.html">15. 付録</a></li>
+</ol>
+
+</nav>
+<main>
+<h1 id="section">6. キャリブレーション</h1>
+<p>キャリブレーションは、キー図の上のキーが、実際のどのキーかを、キーを押して確かめる作業です。</p>
+<p>標準的な JIS や US のキーボードでは、キー図のどのキーが実際のどのキーかは、レイアウトから自動で決まります。そのため、キャリブレーションは通常は要りません。次のような場合に行います。</p>
+<ul>
+<li>キー図に、赤い枠のキー（どのキーか分からないキー）があり、そのキーを変更したい</li>
+<li>設定したのに、違うキーが入れ替わる</li>
+</ul>
+<h2 id="section-1">開く</h2>
+<p>エディタの画面下の <strong>キャリブレーション...</strong> を押します。</p>
+<p><img src="../img/ja/calib-main.png" alt="キャリブレーションの画面" /></p>
+<p>画面の上の <strong>モード</strong> で、次の 3 つから選びます。最初は「入力確認」です。</p>
+<table>
+<thead>
+<tr>
+<th>モード</th>
+<th>管理者権限</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>入力確認</td>
+<td>要らない（管理者のほうが正確）</td>
+<td>キーを押して、キー図の対応するキーが光るかを確かめる</td>
+</tr>
+<tr>
+<td>個別キーのキャリブレーション</td>
+<td>必要</td>
+<td>実測したいキーを選んで、実際に押して測る</td>
+</tr>
+<tr>
+<td>全体のキャリブレーション</td>
+<td>必要</td>
+<td>示されたキーを、順番に押して測る</td>
+</tr>
+</tbody>
+</table>
+<p>画面が前面にある間は、押したキーは Windows には送られません。Enter や Win キーを押しても、何も起きません。操作はマウスで行ってください。別のウィンドウをクリックすると一時停止し、キーは普段どおりに戻ります。</p>
+<h2 id="section-2">入力確認</h2>
+<p>キーボードのキーを押すと、キー図の対応するキーが橙色になり、離すと戻ります。一度押したキーには ✓ が付きます。</p>
+<p>全部のキーを一通り押して、✓ が付かないキーや、押したキーと違うキーが光るキーがあれば、キャリブレーションが必要です。<strong>確認済みをリセット</strong> で、✓ を消せます。</p>
+<h3 id="section-3">管理者のとき</h3>
+<p>キーを、ドライバから直接受け取ります。画面には、その旨が出ます。リマップで置き換える前の物理キーが見えます。右 Shift や、カタカナひらがな、英数、半角/全角のキーの押下と解放も、確実に届きます。選んでいるキーボードの入力だけを見ます。</p>
+<p><img src="../img/ja/calib-main-admin.png" alt="管理者のときの入力確認" /></p>
+<h3 id="section-4">管理者でないとき</h3>
+<p>画面に「管理者権限モードで実施してください。」と出ます。この場合は、Windows のキー入力（低レベルキーフック）で確認するため、次の制限があります。</p>
+<ul>
+<li>確認できるのは、リマップで置き換えた後のキーです。置き換えている場合は、先に <strong>OFF(素通しに戻す)</strong> を押してください。</li>
+<li>どのキーボードの入力かは区別できません。</li>
+<li>右 Shift が拡張キー（E0 付き）として見えるため、扱えません。</li>
+<li>一部のキーで、解放が届かず、押したままに見えることがあります。</li>
+</ul>
+<p><img src="../img/ja/calib-main.png" alt="管理者でないときの入力確認" /></p>
+<h2 id="section-5">個別キーのキャリブレーション</h2>
+<ol>
+<li>キー図の、実測したいキーをクリックします。黄色になります。</li>
+<li>キーボードの、対応するキーを押します。</li>
+<li>続けて、別のキーも実測できます。</li>
+<li>終わったら <strong>実測値を保存して閉じる</strong> を押します。</li>
+</ol>
+<p><img src="../img/ja/calib-single.png" alt="個別キーのキャリブレーション" /></p>
+<p>キー図の上のキーを右クリックして、<strong>このキーを実測する...</strong> を選んでも、同じことができます。</p>
+<h2 id="section-6">全体のキャリブレーション</h2>
+<p>黄色で示されたキーを、順番に押します。</p>
+<p><img src="../img/ja/calib-all.png" alt="全体のキャリブレーション" /></p>
+<table>
+<thead>
+<tr>
+<th>ボタン</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1つ戻る</strong></td>
+<td>直前のキーに戻る</td>
+</tr>
+<tr>
+<td><strong>このキーを飛ばす</strong></td>
+<td>そのキーボードにないキーを飛ばす</td>
+</tr>
+<tr>
+<td><strong>実測値を保存して閉じる</strong></td>
+<td>実測した値を保存して閉じる</td>
+</tr>
+<tr>
+<td><strong>閉じる(実測値は保存しない)</strong></td>
+<td>何も実測していないとき（入力確認だけのとき）に使う</td>
+</tr>
+</tbody>
+</table>
+<h2 id="section-7">実測した値を消す</h2>
+<p>実測値を消して、既定のスキャンコードに戻すには、キー図の上のキーを右クリックして、<strong>実測値を消して既定のスキャンコードに戻す</strong> を選びます。</p>
+<h2 id="section-8">結果の反映</h2>
+<p>実測した値が標準と違うキーは、キー図の上で橙色の枠になります。結果は、<strong>キーボードに適用(ON)</strong> を押したときに反映されます。</p>
+<blockquote>
+<p>実測した値は、別の機器には持ち越されません。キーボードを買い替えたときは、やり直してください（<a href="14-backup-migrate.html">14. バックアップと移行</a>）。</p>
+</blockquote>
+<h2 id="section-9">既知の制限</h2>
+<p>右 Shift を <code>E0 36</code> で出すキーボードは、キャリブレーションで扱えない場合があります。実機では確認できていません（<code>docs/KNOWN-ISSUES.md</code>）。</p>
+
+<div class="pager"><a href="05-editor-basics.html">← 5. エディタの基本画面</a><a href="07-emergency.html">7. 緊急解除 →</a></div>
+</main>
+</div>
+</body>
+</html>

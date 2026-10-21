@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>9. マクロ・コンボ・タップダンス・キー置換 - kasane マニュアル</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane マニュアル</a>
+<ol>
+<li><a href="index.html">はじめに</a></li>
+<li><a href="01-install.html">1. インストール</a></li>
+<li><a href="02-uninstall.html">2. アンインストール</a></li>
+<li><a href="03-license.html">3. ライセンスの認証</a></li>
+<li><a href="04-tray.html">4. トレイ</a></li>
+<li><a href="05-editor-basics.html">5. エディタの基本画面</a></li>
+<li><a href="06-calibration.html">6. キャリブレーション</a></li>
+<li><a href="07-emergency.html">7. 緊急解除</a></li>
+<li><a href="08-key-assign.html">8. キーの割り当て</a></li>
+<li class="current"><a href="09-advanced.html">9. マクロ・コンボ・タップダンス・キー置換</a></li>
+<li><a href="10-ime-nicola.html">10. IME連動とNICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a></li>
+<li><a href="12-settings.html">12. 設定ダイアログ</a></li>
+<li><a href="13-import-export.html">13. インポート／エクスポート</a></li>
+<li><a href="14-backup-migrate.html">14. バックアップと移行</a></li>
+<li><a href="15-reference.html">15. 付録</a></li>
+</ol>
+
+</nav>
+<main>
+<h1 id="section">9. マクロ・コンボ・タップダンス・キー置換</h1>
+<p>エディタの画面下の <strong>マクロ...</strong>、<strong>コンボ...</strong>、<strong>タップダンス...</strong>、<strong>キー置換...</strong> で、複雑な動作を作ります。この 4 つの動作は、ドライバが処理するので、トレイが動いていなくても効きます。</p>
+<table>
+<thead>
+<tr>
+<th>機能</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>マクロ</td>
+<td>キーの列を順に打つ。最大 128 個（0〜127）。1 つのマクロは 64 ステップまで</td>
+</tr>
+<tr>
+<td>コンボ</td>
+<td>2 つのキーの同時押しで、別のキーを出す。最大 16 個</td>
+</tr>
+<tr>
+<td>タップダンス</td>
+<td>タップの回数や長押しで、動作を変える。最大 16 個（0〜15）</td>
+</tr>
+<tr>
+<td>キー置換</td>
+<td>修飾キーとキーの組み合わせを、別のキーに置き換える</td>
+</tr>
+</tbody>
+</table>
+<p>設定ダイアログの「機能」タブで、使わない機能を OFF にできます（<a href="12-settings.html">12. 設定ダイアログ</a>）。OFF にしても、定義の中身は消えません。</p>
+<h2 id="section-1">編集画面の共通の操作</h2>
+<p>4 つの編集画面は、すべて同時に開いたまま使えます。画面は少しずつずらして開きます。同じ画面をもう一度開こうとすると、開いている画面が前に出ます。</p>
+<p>画面の下のボタンは、左から次のとおりです。</p>
+<table>
+<thead>
+<tr>
+<th>ボタン</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>適用</strong></td>
+<td>画面を閉じずに、プロジェクトへ反映する</td>
+</tr>
+<tr>
+<td><strong>OK</strong></td>
+<td>反映して閉じる</td>
+</tr>
+<tr>
+<td><strong>キャンセル</strong></td>
+<td>反映せずに閉じる。Esc も同じ</td>
+</tr>
+</tbody>
+</table>
+<p><strong>適用</strong> も <strong>OK</strong> も押さずに閉じると、その画面の編集内容は捨てられます。変更をキーボードに送るには、そのあとエディタで <strong>キーボードに適用(ON)</strong> を押します。</p>
+<p>左の一覧には、<code>番号: 名前 — 中身</code> の形で定義が並びます。右側の先頭の <strong>名前（任意）</strong> 欄に、わかりやすい名前を付けられます。名前は、画面の表示とエクスポートのファイルだけに使われ、動作には関係しません。中身が空の番号にも、名前だけ付けておけます。名前だけの番号は未使用のままで、中身を入れるまで、キーボードには適用されません。</p>
+<h2 id="section-2">マクロ</h2>
+<p><strong>マクロ...</strong> で、順に打つキーの列を作ります。作ったマクロは、キーに <code>MACRO(n)</code> を割り当てて動かします。</p>
+<p><img src="../img/ja/macro-editor.png" alt="マクロの編集" /></p>
+<ul>
+<li>マクロの中身の欄には、キーコードを、スペースで区切って並べます（例: <code>KC_H KC_I</code>）。<code>LCTL(KC_C)</code> のように、修飾キー付きのキーも書けます。</li>
+<li><strong>押して入力</strong> は、取り込みを続けます。押したキーが、前のキーの後ろに空白をあけて足されます。Esc か、ボタンをもう一度押すと終わります。</li>
+<li><strong>選ぶ...</strong> は、<strong>追加</strong> で欄の末尾に足します。画面を開いたまま続けて選べます。<strong>閉じる</strong> で終わります。</li>
+</ul>
+<h3 id="macron">MACRO(n) を入れる</h3>
+<p><code>MACRO(n)</code> は、番号を打たなくても入れられます。</p>
+<ul>
+<li><code>MACRO(n)</code> を書ける入力欄（コンボの「送るキー」、タップダンスの各タップと長押し、キー置換の置き換え先）の右にある <strong>マクロ...</strong> を押すと、「番号: 名前 — 中身」の一覧が出ます。選ぶと <code>MACRO(n)</code> が入ります。</li>
+<li>マクロの画面を開いたままにして、ほかの画面の入れたい入力欄を一度クリックし、マクロの画面の一覧の行をダブルクリックする方法もあります。<strong>他の画面の入力欄に MACRO(n) を入れる</strong> のボタンでも同じです。最後にクリックした入力欄に入ります。</li>
+</ul>
+<h2 id="section-3">コンボ</h2>
+<p><strong>コンボ...</strong> で、2 つのキーの同時押しに、別のキーを割り当てます。</p>
+<p><img src="../img/ja/combo-editor.png" alt="コンボの編集" /></p>
+<ul>
+<li><strong>キー-1</strong> と <strong>キー-2</strong> は、一覧から選びます。同時押しの対象は、2 つのキーだけです。</li>
+<li><strong>送るキー</strong> には、普通のキーのほか、<code>LCTL(KC_Z)</code> のような修飾キー付きのキー（押している間）や、<code>MACRO(n)</code>（成立したときに 1 回）も指定できます。</li>
+<li>コンボの対象のキーには、キー図で C の印が付きます。</li>
+<li>同時押しと見なす時間は、設定ダイアログの「タイミング」タブで変えられます。</li>
+</ul>
+<h2 id="section-4">タップダンス</h2>
+<p><strong>タップダンス...</strong> で、<strong>1回タップ</strong>、<strong>長押し</strong>、<strong>2回タップ</strong>、<strong>3回タップ</strong> に、それぞれ別の動作を割り当てます。各欄の右に、<strong>押して入力</strong>、<strong>選ぶ...</strong>、<strong>マクロ...</strong> のボタンがあります。作ったタップダンスは、キーに <code>TAPDANCE(n)</code> を割り当てて動かします。</p>
+<p><img src="../img/ja/tapdance-editor.png" alt="タップダンスの編集" /></p>
+<ul>
+<li>1 回、2 回、3 回のタップには、普通のキーのほか、<code>LCTL(KC_C)</code> のような修飾キー付きのキーや、<code>MACRO(n)</code> も指定できます。</li>
+<li>長押しには、<code>MT</code>、<code>LT</code> のほか、修飾キー付きのキー（押している間）、<code>LM(1,MOD_LCTL)</code>、<code>MACRO(n)</code>（長押しが決まったときに 1 回）も指定できます。</li>
+<li>空欄にした欄は「動作なし」です。そのタップ回数や長押しでは、何も起きません。</li>
+<li>タップダンスの画面でも、一覧の行のダブルクリック（または <strong>キーの割り当て画面の入力欄に TAPDANCE(n) を入れる</strong> のボタン）で、キー割り当ての画面のキーコード欄に <code>TAPDANCE(n)</code> が入ります。<code>TAPDANCE(n)</code> は、キーに割り当てる動作なので、入れ先は、キー割り当ての画面のキーコード欄だけです。</li>
+</ul>
+<h2 id="section-5">キー置換</h2>
+<p><strong>キー置換...</strong> で、修飾キーとキーの組み合わせを、別のキーに置き換えます。<strong>修飾キー</strong>、<strong>キー</strong>、<strong>置き換え先</strong> の 3 つを入れます。修飾キーは、<code>MOD_LCTL|MOD_LSFT</code> のように複数書けます。全部が押されているときに置き換わります（左右は区別しません）。</p>
+<p><img src="../img/ja/keyoverride-editor.png" alt="キー置換の編集" /></p>
+<table>
+<thead>
+<tr>
+<th>例</th>
+<th>設定</th>
+<th>結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Shift+BS を Delete にする</td>
+<td>修飾キー <code>MOD_LSFT</code>、キー <code>KC_BSPACE</code>、置き換え先 <code>KC_DELETE</code></td>
+<td>Shift+BS が Delete になる</td>
+</tr>
+<tr>
+<td>US 配列の刻印のキーボードを、JIS 設定の Windows で使う</td>
+<td>修飾キー <code>MOD_LSFT</code>、キー <code>KC_2</code>、置き換え先 <code>KC_LBRC</code></td>
+<td>Shift+2 が @ になる</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>置き換えている間、条件の修飾キーは、一時的に離されます。</li>
+<li>置き換え先には、<code>MACRO(n)</code> も指定できます。</li>
+</ul>
+<h3 id="ctrlf1">例: Ctrl+F1 でマクロを出す</h3>
+<p>ドライバが処理するので、トレイが動いていなくても効きます。</p>
+<ol>
+<li><strong>マクロ...</strong> で、出したい内容のマクロを作ります（例: マクロ 0）。</li>
+<li><strong>設定...</strong> の「機能」タブで、マクロとキー置換が ON になっていることを確かめます。</li>
+<li><strong>キー置換...</strong> を開き、修飾キーに <code>MOD_LCTL</code>、キーに <code>KC_F1</code>、置き換え先に <code>MACRO(0)</code> を指定して、<strong>OK</strong> を押します。</li>
+<li><strong>キーボードに適用(ON)</strong> を押します。</li>
+<li>Ctrl+F1 を押すと、マクロ 0 が 1 回実行されます。Ctrl+F1 自体は、アプリに届きません。</li>
+</ol>
+<p>実行の間だけ、押している Ctrl が OS から離され、終わったときにまだ押していれば、戻されます。マクロの出力に Ctrl が掛からないためです。マクロの中で Ctrl を使いたいときは、マクロの中身に <code>LCTL(KC_C)</code> のように書きます。</p>
+<p>Alt や Win を条件にしたときは、メニューやスタートが開かないよう、間に Ctrl のタップが入ります。</p>
+<p>キーを押し続けたときは、既定ではマクロを繰り返しません。繰り返したいときは、置き換え先が <code>MACRO(n)</code> のときに出る <strong>オートリピートも、マクロを繰り返す</strong> にチェックを付けます。</p>
+<p>マクロの機能が OFF のときは、この置き換えは働かず、Ctrl+F1 が、そのまま届きます。</p>
+<blockquote>
+<p>文字列や待ち、マウス操作を含む手順を、同じように Ctrl+F1 で出したいときは、ヘルパー動作のトリガーを使います（<a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a>）。ただし、トレイが動いている必要があります。</p>
+</blockquote>
+
+<div class="pager"><a href="08-key-assign.html">← 8. キーの割り当て</a><a href="10-ime-nicola.html">10. IME連動とNICOLA →</a></div>
+</main>
+</div>
+</body>
+</html>

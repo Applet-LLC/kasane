@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>13. インポート／エクスポート - kasane マニュアル</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane マニュアル</a>
+<ol>
+<li><a href="index.html">はじめに</a></li>
+<li><a href="01-install.html">1. インストール</a></li>
+<li><a href="02-uninstall.html">2. アンインストール</a></li>
+<li><a href="03-license.html">3. ライセンスの認証</a></li>
+<li><a href="04-tray.html">4. トレイ</a></li>
+<li><a href="05-editor-basics.html">5. エディタの基本画面</a></li>
+<li><a href="06-calibration.html">6. キャリブレーション</a></li>
+<li><a href="07-emergency.html">7. 緊急解除</a></li>
+<li><a href="08-key-assign.html">8. キーの割り当て</a></li>
+<li><a href="09-advanced.html">9. マクロ・コンボ・タップダンス・キー置換</a></li>
+<li><a href="10-ime-nicola.html">10. IME連動とNICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a></li>
+<li><a href="12-settings.html">12. 設定ダイアログ</a></li>
+<li class="current"><a href="13-import-export.html">13. インポート／エクスポート</a></li>
+<li><a href="14-backup-migrate.html">14. バックアップと移行</a></li>
+<li><a href="15-reference.html">15. 付録</a></li>
+</ol>
+
+</nav>
+<main>
+<h1 id="section">13. インポート／エクスポート</h1>
+<p>エディタの画面下の <strong>インポート／エクスポート...</strong> で、設定をファイル（<code>*.kasane.json</code>）に書き出したり、読み込んだりできます。バックアップ、別のキーボードや別のパソコンへの移行、設定の初期化に使います。</p>
+<p><img src="../img/ja/impexp-export.png" alt="インポート／エクスポート" /></p>
+<p>画面には、<strong>エクスポート</strong>、<strong>インポート</strong>、<strong>クリア</strong> の 3 つのタブがあります。</p>
+<h2 id="section-1">エクスポート</h2>
+<p>設定をファイルに書き出します。範囲を選びます。</p>
+<table>
+<thead>
+<tr>
+<th>範囲</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>全体一括</td>
+<td>すべてのキーボードとトレイの設定</td>
+</tr>
+<tr>
+<td>このキーボード</td>
+<td>選んでいるキーボード 1 台の設定</td>
+</tr>
+<tr>
+<td>レイヤー1枚</td>
+<td>1 つのレイヤー。そのレイヤーが使うマクロ、タップダンス、ヘルパー動作も一緒に入る</td>
+</tr>
+</tbody>
+</table>
+<p>レイヤーの一覧を右クリックして、<strong>このレイヤーをエクスポート...</strong> を選んでも、開けます。</p>
+<p>キーはスキャンコードで書かれるので、レイアウトの違うキーボードにも読み込めます。実測値は、バックアップのとき（同じ機器へ戻すとき）だけ含まれます。</p>
+<p><strong>書き出す...</strong> でファイルを保存します。<strong>ヘルパー設定（動作・トリガー・アプリ別レイヤー）を含める</strong> と、<strong>実測したスキャンコードを含める（同じキーボードへのバックアップ用）</strong> のチェックボックスで、含めるものを選べます。</p>
+<p><strong>出力先をエクスプローラーで開く</strong> は、いつでも使えます。ボタンの右に、現在の出力先が表示されます。書き出したあとは、そのファイルを選んで開きます（KeymapTool 用 JSON のときはフォルダ）。書き出す前は、設定の保存先のフォルダを開きます。</p>
+<h3 id="keymaptool-json">KeymapTool 用 JSON</h3>
+<p>範囲に <strong>このキーボード</strong> を選ぶと、形式で <strong>KeymapTool 用 JSON</strong> を選べます。<code>keymap.json</code> と <code>profile.json</code> を、選んだフォルダに書き出します。コマンド版の <code>KeymapTool --apply-simple</code> に渡す入力ファイルです。コマンドで管理したいときだけ、この形式を使います。</p>
+<p>マクロ、コンボ、タップダンス、キー置換は含まれません（<code>KeymapTool</code> の <code>--set-macro</code> などで、別に設定します）。バックアップや、ほかのパソコンへの受け渡しには、既定の <code>*.kasane.json</code> を使ってください。</p>
+<h2 id="section-2">インポート</h2>
+<p>書き出したファイルを読み込みます。</p>
+<p><img src="../img/ja/impexp-import.png" alt="インポート" /></p>
+<ol>
+<li><strong>インポート</strong> タブの <strong>ファイルを選ぶ...</strong> で、ファイルを選びます。</li>
+<li><strong>読み込む項目</strong>（レイヤー、マクロ、コンボなど）を選びます。実測したスキャンコードは、同じレイアウトのときだけ読み込めます。</li>
+<li>ファイルの中のキーボードを、接続中のキーボードに対応づけます。自動で割り当てられます。合わないときは、画面で選びます（<a href="14-backup-migrate.html">14. バックアップと移行</a>）。</li>
+<li>読み込み方を <strong>置き換え</strong> か <strong>追加</strong> から選びます。
+<ul>
+<li>置き換え: 選んだ項目を、ファイルの内容に置き換えます。</li>
+<li>追加: 今の設定を残して、ファイルの内容を足します。番号が重なるマクロなどは、付け直されます。</li>
+</ul>
+</li>
+<li><strong>確認(変更しない)</strong> を押すと、何も変えずに、読み込んだときの結果を確かめられます。問題がなければ、<strong>読み込む</strong> を押します。</li>
+</ol>
+<p>読み込んだ内容は、編集中の状態に入るだけです。<strong>キーボードに適用(ON)</strong> は、そのあとで押します。保存は自動です（ヘルパー設定だけは、すぐに保存されます）。</p>
+<p>今のレイアウトにないキーは、読み込まれずに、画面に出ます。</p>
+<p>全体一括の読み込みの前には、今の設定が、設定フォルダの <code>backup</code> に自動でバックアップされます。</p>
+<h2 id="section-3">のどかの設定を取り込む</h2>
+<p>のどか（nodoka4）の設定ファイル（<code>.nodoka</code>）を、kasane の設定に変換して取り込めます。</p>
+<p><img src="../img/ja/nodoka-import.png" alt="のどかの設定を取り込む" /></p>
+<ol>
+<li><strong>インポート</strong> タブの <strong>のどかの設定を取り込む...</strong> を押します。</li>
+<li>のどかの設定の一覧（★が、今使っているもの）から選ぶか、<strong>ファイルを選ぶ...</strong> で <code>.nodoka</code> を指定します。のどかの <code>-D</code> にあたるシンボル（<code>USE109</code> など）は、一覧から選ぶと入ります。直してもかまいません。</li>
+<li><strong>変換する</strong> を押します。結果が「変換できた」「近似した」「変換できない」に分かれて、<code>ファイル名:行</code> つきで出ます。<strong>表示</strong> で切り替えられます。</li>
+<li><strong>この内容で取り込む</strong> を押すと、インポート画面に戻ります。ほかのインポートと同じように、項目と行き先を選んで取り込みます。のどかの設定は、<strong>追加</strong> が既定です。「置き換え」にすると、のどかにない項目も消えます。</li>
+</ol>
+<p><img src="../img/ja/nodoka-result.png" alt="変換の結果" /></p>
+<p><code>include</code> されているファイルも読み込まれます。文字コードは、BOM（UTF-16、UTF-8）、UTF-8、CP932 の順に判定されます。</p>
+<h3 id="section-4">変換のしかた</h3>
+<p>のどかの設定は「キー × 修飾キーの状態 × キーマップ」の表で、kasane は「レイヤーごとの、キー → 動作」の表です。そこで、次のように平らにします。</p>
+<table>
+<thead>
+<tr>
+<th>のどか</th>
+<th>kasane</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>key *X = *Y</code>（Global）</td>
+<td>レイヤー 0: X → Y</td>
+</tr>
+<tr>
+<td><code>key C-X = Home</code></td>
+<td>キー置換（Ctrl、X → Home）</td>
+</tr>
+<tr>
+<td>右辺が複数のキー</td>
+<td>マクロ（押したときに順に打つ。64 ステップまで）。長いもの、待ちや文字列を含むものは、ヘルパーの手順</td>
+</tr>
+<tr>
+<td><code>mod M0 = !Up</code> と <code>key M0-Left = …</code></td>
+<td>Up に <code>MO(レイヤー)</code>、そのレイヤーに Left の割り当て</td>
+</tr>
+<tr>
+<td><code>mod M0 = !!Space</code></td>
+<td><code>LT(レイヤー, Space)</code></td>
+</tr>
+<tr>
+<td><code>mod shift += !!Space</code>（SandS）</td>
+<td><code>MT(MOD_LSFT, KC_SPC)</code></td>
+</tr>
+<tr>
+<td><code>&amp;Toggle(Lock0)</code></td>
+<td><code>TG(レイヤー)</code></td>
+</tr>
+<tr>
+<td><code>&amp;Prefix(km)</code></td>
+<td><code>OSL(レイヤー)</code></td>
+</tr>
+<tr>
+<td><code>&amp;EditNextModifier(M-)</code></td>
+<td><code>OSM(MOD_LALT)</code></td>
+</tr>
+<tr>
+<td><code>&amp;ShellExecute</code>、<code>&amp;SendText</code>、<code>&amp;Wait</code>、<code>&amp;MouseMove</code>、<code>&amp;MouseWheel</code></td>
+<td>ヘルパーの動作を <code>HLP(n)</code> にする</td>
+</tr>
+<tr>
+<td><code>combo A B = X</code>（2 キー）</td>
+<td>コンボ</td>
+</tr>
+<tr>
+<td><code>taphold X tap=A hold=LShift</code></td>
+<td><code>MT(MOD_LSFT, A)</code></td>
+</tr>
+<tr>
+<td><code>tapdance X tap1= tap2= tap3=</code></td>
+<td>タップダンス</td>
+</tr>
+<tr>
+<td><code>window W /class/</code></td>
+<td>W 用のレイヤーと、アプリ別レイヤーの規則</td>
+</tr>
+<tr>
+<td><code>def option UnitID = …</code></td>
+<td>そのキーボード向けの設定として別に作る</td>
+</tr>
+</tbody>
+</table>
+<p>レイヤーは、Global がレイヤー 0、ほかは、割り当てに出てきた順に 1、2、… と振ります。16 枚を超えたものは、変換されず、報告に出ます。追加で取り込むと、今のレイヤーに、同じ番号で重なります。今のレイヤー 1 以降を使っているときは、先に退避するか、行き先を確かめてください。</p>
+<h3 id="section-5">変換できないもの</h3>
+<p>次のものは、変換されず、<code>ファイル名:行</code> つきで報告されます。その行だけが無かったことになり、ほかの行は変換されます。</p>
+<ul>
+<li>条件: <code>IL-</code>（IME オン）、<code>IC-</code>（変換中）、<code>NL-</code>、<code>CL-</code>、<code>SL-</code>、<code>KL-</code>、<code>MAX-</code>、<code>MIN-</code>、<code>DP-</code>（2 回押し）、<code>U-</code>、<code>D-</code>、<code>R-</code>、<code>T-</code>（タッチパッド）、<code>K0-</code></li>
+<li>関数: <code>&amp;Window*</code>、<code>&amp;Clipboard*</code>、<code>&amp;Emacs*</code>、<code>&amp;PostMessage</code>、<code>&amp;SendPostMessage</code>、<code>&amp;SetForegroundWindow</code>、<code>&amp;LoadSetting</code>、<code>&amp;HelpMessage</code>、<code>&amp;Repeat</code>、<code>&amp;MouseHook</code>、<code>&amp;SetIme*</code> など</li>
+<li>マウスやゲームパッドの疑似キー（<code>LButton</code>、<code>GP_*</code> など）を、左辺や右辺に使うもの</li>
+<li>3 キー以上の combo、Global 以外の combo、taphold、tapdance、<code>event</code></li>
+<li>修飾キーを押しながらの「複数キーの列」と「レイヤーの操作」</li>
+</ul>
+<h3 id="section-6">近似（のどかと少し違う動き）</h3>
+<ul>
+<li>「修飾キーを押していないときだけ」という条件は、kasane では見分けません。</li>
+<li>複数のキーの列は、最後のキーを押している間だけ押し続ける、という動きにはなりません。</li>
+<li>「!」の付かない <code>mod M0 = X</code> は、のどかではキー自体の動作も残りますが、kasane ではレイヤーキーとして働きます。</li>
+<li><code>&amp;Prefix</code> は <code>OSL</code>（次の 1 キーだけ）です。</li>
+<li>修飾キーを押しながらのヘルパー動作は、キーフックのトリガーです。アプリには届かず、トレイが動いている必要があります。</li>
+</ul>
+<p>詳しくは、<code>docs/IMPORT-NODOKA.md</code> にあります。</p>
+<h2 id="section-7">クリア</h2>
+<p>選んだ項目だけを、初期状態に戻します。選ばなかった項目は残ります。</p>
+<p><img src="../img/ja/impexp-clear.png" alt="クリア" /></p>
+<table>
+<thead>
+<tr>
+<th>選ぶもの</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>項目</td>
+<td>レイヤー、マクロ、コンボ、タップダンス、キー置換、タイミング、機能の ON と OFF、NICOLA、ヘルパー設定、実測したスキャンコード。<strong>すべて選ぶ(全初期化)</strong> と <strong>すべて外す</strong> のボタンもある</td>
+</tr>
+<tr>
+<td>対象</td>
+<td><strong>このキーボード</strong>、<strong>接続中のすべてのキーボード</strong>、<strong>選んだキーボード</strong>（一覧にチェックを付ける）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>項目を選んだら、<strong>クリアする...</strong> を押します。</li>
+<li>管理者として動かしているときは、ドライバに保存された設定も同時に消します。閲覧専用のときは、画面の設定だけです。</li>
+<li>「同じ型番で共有」のキーボードは、ドライバの設定を消すと、同じ型番のキーボードすべてに効きます。確認の画面に出ます。</li>
+<li>実行の前に、今の設定が、設定フォルダの <code>backup</code> に自動でバックアップされます（<code>before-clear-…kasane.json</code>）。インポートで戻せます。ドライバにだけ入っていて、画面に出ていない設定は、バックアップに入りません。</li>
+<li><strong>ヘルパー設定</strong> を消すと、キーボードごとの <code>helper.json</code> が消えます。<strong>接続中のすべてのキーボード</strong> を対象にしたときは、トレイの共通のヘルパー設定も消えます。</li>
+</ul>
+<h2 id="section-8">取り込み前のバックアップから戻す</h2>
+<p>インポートやクリアの前に作られたバックアップは、設定フォルダの <code>backup</code> にあります。エクスポートしたファイルと同じ形式なので、<strong>インポート</strong> で読み込めば戻せます。</p>
+
+<div class="pager"><a href="12-settings.html">← 12. 設定ダイアログ</a><a href="14-backup-migrate.html">14. バックアップと移行 →</a></div>
+</main>
+</div>
+</body>
+</html>

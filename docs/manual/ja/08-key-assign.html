@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8. キーの割り当て - kasane マニュアル</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane マニュアル</a>
+<ol>
+<li><a href="index.html">はじめに</a></li>
+<li><a href="01-install.html">1. インストール</a></li>
+<li><a href="02-uninstall.html">2. アンインストール</a></li>
+<li><a href="03-license.html">3. ライセンスの認証</a></li>
+<li><a href="04-tray.html">4. トレイ</a></li>
+<li><a href="05-editor-basics.html">5. エディタの基本画面</a></li>
+<li><a href="06-calibration.html">6. キャリブレーション</a></li>
+<li><a href="07-emergency.html">7. 緊急解除</a></li>
+<li class="current"><a href="08-key-assign.html">8. キーの割り当て</a></li>
+<li><a href="09-advanced.html">9. マクロ・コンボ・タップダンス・キー置換</a></li>
+<li><a href="10-ime-nicola.html">10. IME連動とNICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a></li>
+<li><a href="12-settings.html">12. 設定ダイアログ</a></li>
+<li><a href="13-import-export.html">13. インポート／エクスポート</a></li>
+<li><a href="14-backup-migrate.html">14. バックアップと移行</a></li>
+<li><a href="15-reference.html">15. 付録</a></li>
+</ol>
+
+</nav>
+<main>
+<h1 id="section">8. キーの割り当て</h1>
+<p>エディタのキー図でキーをクリックすると、「キーの割り当て」の画面が開きます。ここで、そのキーに割り当てる動作を選びます。</p>
+<p><img src="../img/ja/assign-main.png" alt="キーの割り当て" /></p>
+<p>画面は、次の部分でできています。</p>
+<table>
+<thead>
+<tr>
+<th>部分</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>左の一覧</td>
+<td>動作のカテゴリ</td>
+</tr>
+<tr>
+<td>右の領域</td>
+<td>選んだカテゴリのキー、または設定の欄。上の見出しに、割り当てるキーとレイヤー（例: <code>#1 Esc (KC_ESC) ／ レイヤー0</code>）が出る</td>
+</tr>
+<tr>
+<td>修飾キーのチェックボックス</td>
+<td>左右の Ctrl、Shift、Alt、Win。チェックを付けてからキーを選ぶと、ショートカットになる</td>
+</tr>
+<tr>
+<td>キーコード欄</td>
+<td>選んだ動作の名前（Consolas の文字）。直接書き換えられる</td>
+</tr>
+<tr>
+<td><strong>押して入力</strong></td>
+<td>次に押したキーのキーコードを入れる（Esc で取消）</td>
+</tr>
+<tr>
+<td>メッセージ欄</td>
+<td>入力が正しいかどうかの表示（例: <code>OK: Esc</code>）</td>
+</tr>
+<tr>
+<td><strong>OK</strong>、<strong>キャンセル</strong></td>
+<td>割り当てて閉じる、割り当てずに閉じる</td>
+</tr>
+</tbody>
+</table>
+<p>別のキーをクリックすると、開いている画面が前面に出ます。キーの割り当ての画面は、マクロなどの編集画面を開いたまま使えます。</p>
+<h2 id="section-1">カテゴリ</h2>
+<table>
+<thead>
+<tr>
+<th>カテゴリ</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>基本</td>
+<td>透過（<code>KC_TRNS</code>、▽）、何もしない（<code>KC_NO</code>）</td>
+</tr>
+<tr>
+<td>英字、数字</td>
+<td>A〜Z、0〜9</td>
+</tr>
+<tr>
+<td>記号・編集</td>
+<td>Esc、Tab、Enter、BS、Space、Caps、記号のキー</td>
+</tr>
+<tr>
+<td>ファンクション</td>
+<td>F1〜F24</td>
+</tr>
+<tr>
+<td>修飾キー</td>
+<td>左右の Ctrl、Shift、Alt、Win、アプリケーションキー</td>
+</tr>
+<tr>
+<td>ナビゲーション</td>
+<td>PrintScreen、Pause、Insert、Home、End、PgUp、PgDn、矢印、Delete</td>
+</tr>
+<tr>
+<td>テンキー</td>
+<td>NumLock、テンキーの数字と記号</td>
+</tr>
+<tr>
+<td>NLS</td>
+<td>半角/全角、ろ、かな、¥、変換、無変換（日本語キーボードのキー）</td>
+</tr>
+<tr>
+<td>メディア・システム</td>
+<td>音量、再生、電卓、ブラウザーのキー、メール、スリープ、電源</td>
+</tr>
+<tr>
+<td>レイヤー操作</td>
+<td><code>MO</code>、<code>TG</code>、<code>DF</code>、<code>OSL</code>、<code>TO</code>、<code>TT</code>、<code>LM</code>、<code>OSM</code></td>
+</tr>
+<tr>
+<td>Mod-Tap (MT)</td>
+<td>短く押すとキー、長押しすると修飾キー</td>
+</tr>
+<tr>
+<td>Layer-Tap (LT)</td>
+<td>短く押すとキー、長押しするとレイヤー</td>
+</tr>
+<tr>
+<td>マクロ / タップダンス</td>
+<td><code>MACRO(n)</code>、<code>TAPDANCE(n)</code></td>
+</tr>
+<tr>
+<td>ヘルパー動作</td>
+<td><code>HLP(id)</code></td>
+</tr>
+<tr>
+<td>画面のキーボード</td>
+<td>画面上のキー図から選ぶ</td>
+</tr>
+</tbody>
+</table>
+<p>F13〜F24 や、NLS のキー、ブラウザーのキーなど、使っているキーボードに物理キーがないものも、出力としては割り当てられます。たとえば、US 配列のキーに「変換」を割り当てられます。</p>
+<p>一覧にないキーは、キーコード欄に <code>SC_XXXX</code> と直接書けます。<code>XXXX</code> は 16 進 4 桁のスキャンコードです（上位 2 桁は <code>00</code>、<code>E0</code>、<code>E1</code> のいずれか。下位 2 桁は <code>00</code> 以外）。たとえば、ブラウザーの「戻る」は <code>SC_E06A</code> です。</p>
+<h3 id="section-2">電源キー</h3>
+<p>スリープ、電源、ウェイクアップのキーは、割り当てるときに確認が出ます。押すとパソコンがスリープやシャットダウンすることがあるためです。キートップにも ⚠ が付きます。</p>
+<p><img src="../img/ja/assign-power.png" alt="電源キーの確認" /></p>
+<h2 id="section-3">修飾キーを付けたキー（ショートカット）</h2>
+<p>画面の下の修飾キーのチェックボックスにチェックを付けてから、キーを選びます。たとえば、左 Ctrl にチェックを付けて <code>C</code> を選ぶと、<code>LCTL(KC_C)</code>（Ctrl+C）になります。キー図の上では <code>^C</code> のように表示されます。</p>
+<p>キーコード欄に、<code>LCTL(LSFT(KC_T))</code> のように直接書いてもかまいません。</p>
+<p>押したまま次のキーを押しても、足した修飾キーは次のキーには掛かりません。たとえば、「!」を打つキーの直後の「a」は、「a」のままです。</p>
+<h2 id="section-4">押して入力</h2>
+<p><strong>押して入力</strong> を押したあとに、入力したいキーを押すと、そのキーのキーコードが入ります。Esc で取り消せます。</p>
+<p>左右の修飾キーや、テンキーの Enter、日本語のキー（無変換、変換など）は、区別して入ります。Win キーや Alt+Tab のように、Windows が先に処理するキーは取れません。その場合は、<strong>画面のキーボード</strong> か一覧から選んでください。</p>
+<h2 id="section-5">画面のキーボードから選ぶ</h2>
+<p>左の一覧の末尾の <strong>画面のキーボード</strong> を選ぶと、画面上のキー図から選べます。修飾キーにチェックを付けると、<code>LCTL(KC_C)</code> のような形になります。</p>
+<p><img src="../img/ja/assign-softkeyboard.png" alt="画面のキーボード" /></p>
+<h2 id="section-6">レイヤー操作</h2>
+<p><strong>レイヤー操作</strong> を選ぶと、<strong>種類</strong> と <strong>レイヤー</strong> を選ぶ欄が出ます。選んだら、<strong>キーコード欄に入れる</strong> を押すと、<code>MO(1)</code> のような形でキーコード欄に入ります。</p>
+<p><img src="../img/ja/assign-layer.png" alt="レイヤー操作" /></p>
+<table>
+<thead>
+<tr>
+<th>動作</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MO(n)</code></td>
+<td>押している間だけ、レイヤー n を有効にする</td>
+</tr>
+<tr>
+<td><code>TG(n)</code></td>
+<td>押すたびに、レイヤー n の有効と無効を切り替える</td>
+</tr>
+<tr>
+<td><code>DF(n)</code></td>
+<td>基本になるレイヤーを n に切り替える</td>
+</tr>
+<tr>
+<td><code>OSL(n)</code></td>
+<td>次に押すキー 1 回だけ、レイヤー n にする</td>
+</tr>
+<tr>
+<td><code>TO(n)</code></td>
+<td>レイヤー n だけを有効にする（ほかのレイヤーは無効）</td>
+</tr>
+<tr>
+<td><code>TT(n)</code></td>
+<td>押している間はレイヤー n。続けて何回かタップすると、有効のまま固定する</td>
+</tr>
+<tr>
+<td><code>LM(n,mod)</code></td>
+<td>押している間、レイヤー n を有効にして、修飾キーも押した状態にする</td>
+</tr>
+<tr>
+<td><code>OSM(mod)</code></td>
+<td>次に押すキー 1 回だけ、修飾キーを掛ける</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><code>LM</code>、<code>OSM</code> の修飾キーは、画面下のチェックボックスで選びます。</li>
+<li><code>TT(n)</code> の固定に必要なタップ回数は、既定で 5 回です。回数は、設定ダイアログの「タイミング」タブで変えられます（<a href="12-settings.html">12. 設定ダイアログ</a>）。</li>
+<li><code>OSM</code> は、そのキーを短く押して離すと、次に押すキー 1 回だけに修飾キーが掛かります。たとえば、Shift の <code>OSM</code> のあとに <code>a</code> で、「A」になります。待っている間にもう一度タップすると、取り消されます。押したまま使えば、普通の修飾キーです。</li>
+<li><code>LM(1,MOD_LCTL)</code> を押したまま、レイヤー 1 で ▽ のままの <code>C</code> を押すと、Ctrl+C になります。</li>
+</ul>
+<h3 id="section-7">レイヤーを追加する</h3>
+<p>エディタの <strong>＋ 追加</strong> でレイヤーを増やします。レイヤー 1 以降は、最初はすべてのキーが ▽（透過）です。▽ は、下のレイヤーと同じ動作を使う、という意味です。</p>
+<h2 id="mod-tap-layer-tap">Mod-Tap と Layer-Tap</h2>
+<p>短く押したときと、長押ししたときで、動作を変えます。左の一覧の <strong>Mod-Tap (MT)</strong> と <strong>Layer-Tap (LT)</strong> で設定します。</p>
+<table>
+<thead>
+<tr>
+<th>動作</th>
+<th>短く押す</th>
+<th>長押し</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mod-Tap（<code>MT(mod,kc)</code>）</td>
+<td><code>kc</code></td>
+<td>修飾キー（<code>mod</code>）</td>
+</tr>
+<tr>
+<td>Layer-Tap（<code>LT(n,kc)</code>）</td>
+<td><code>kc</code></td>
+<td>レイヤー n を有効にする</td>
+</tr>
+</tbody>
+</table>
+<p><img src="../img/ja/assign-modtap.png" alt="Mod-Tap" /></p>
+<ul>
+<li>押している間に別のキーを押すと、長押しとして扱われます。そのキーは、切り替わった後のレイヤーの割り当てで入力されます。たとえば、<code>LT(1,KC_SPC)</code> を押しながら <code>J</code> を押すと、レイヤー 1 の <code>J</code> の位置のキーになります。</li>
+<li>短く押した直後に、もう一度押し続けると、短く押したときのキーのリピートになります。スペースの連打や長押しができます。</li>
+<li>判定の時間や方式は、設定ダイアログの「タイミング」タブで変えられます。速く打つと、Mod-Tap が意図せず長押しになるときは、判定方式を変えてみてください。</li>
+</ul>
+<h2 id="section-8">マクロ、タップダンス、ヘルパー動作</h2>
+<ul>
+<li><strong>マクロ / タップダンス</strong>: <code>MACRO(n)</code> と <code>TAPDANCE(n)</code> を割り当てます。種類を選び、番号を入れます。番号の横の <strong>マクロ...</strong>（種類が <code>TAPDANCE</code> のときは <strong>タップダンス...</strong>）を押すと、一覧から選べます。中身の作り方は、<a href="09-advanced.html">9. マクロ・コンボ・タップダンス・キー置換</a>を見てください。</li>
+<li><strong>ヘルパー動作</strong>: キーを押すと、トレイがプログラムの起動などを実行します。<strong>選んだ動作を割り当てる</strong> で割り当てるか、<strong>新しい動作...</strong> で作ります。詳しくは、<a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a>を見てください。</li>
+</ul>
+<h2 id="section-9">キーワード一覧</h2>
+<p>割り当ての欄や、マクロ、コンボなどに書く短い名前の一覧です。多くは QMK Firmware と同じ名前です。<code>n</code> はレイヤー番号、<code>kc</code> はキーコードです。</p>
+<table>
+<thead>
+<tr>
+<th>キーワード</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MO(n)</code>、<code>TG(n)</code>、<code>DF(n)</code>、<code>OSL(n)</code>、<code>TO(n)</code>、<code>TT(n)</code></td>
+<td>レイヤーの操作（上の表）</td>
+</tr>
+<tr>
+<td><code>LM(n,mod)</code></td>
+<td>押している間、レイヤー n を有効にして、修飾キーも押した状態にする</td>
+</tr>
+<tr>
+<td><code>OSM(mod)</code></td>
+<td>次に押すキー 1 回だけ、修飾キーを掛ける</td>
+</tr>
+<tr>
+<td><code>MT(mod,kc)</code></td>
+<td>短く押すと <code>kc</code>、長押しすると修飾キー</td>
+</tr>
+<tr>
+<td><code>LT(n,kc)</code></td>
+<td>短く押すと <code>kc</code>、長押しするとレイヤー n</td>
+</tr>
+<tr>
+<td><code>MACRO(n)</code></td>
+<td>マクロ n を実行する。キー置換、コンボ、タップダンスの出力にも使える</td>
+</tr>
+<tr>
+<td><code>TAPDANCE(n)</code></td>
+<td>タップの回数や長押しで動作を変える、タップダンス n を実行する</td>
+</tr>
+<tr>
+<td><code>HLP(id)</code></td>
+<td>キー自体は何も出さず、トレイが動作を実行する（kasane 独自）</td>
+</tr>
+<tr>
+<td><code>LCTL(kc)</code>、<code>LSFT(kc)</code>、<code>LALT(kc)</code>、<code>LGUI(kc)</code></td>
+<td>左の修飾キーを押しながら <code>kc</code> を押す。右は <code>RCTL</code> などで同様</td>
+</tr>
+<tr>
+<td><code>MOD_LCTL</code>、<code>MOD_LSFT</code>、<code>MOD_LALT</code>、<code>MOD_LGUI</code></td>
+<td>修飾キーの名前（<code>LM</code>、<code>MT</code>、<code>OSM</code>、キー置換の条件で使う）。右は <code>MOD_RCTL</code> など</td>
+</tr>
+<tr>
+<td><code>KC_xxx</code></td>
+<td>普通のキー（<code>KC_A</code>、<code>KC_F1</code>、<code>KC_ENTER</code> など）</td>
+</tr>
+<tr>
+<td><code>KC_TRNS</code></td>
+<td>透過（▽）。下のレイヤーの割り当てを使う</td>
+</tr>
+<tr>
+<td><code>KC_NO</code></td>
+<td>何もしないキー</td>
+</tr>
+<tr>
+<td><code>SC_xxxx</code></td>
+<td>スキャンコードを 16 進数で直接指定する（名前のないキー用）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="f13">例: F13 やブラウザーの「戻る」を割り当てる</h2>
+<ol>
+<li>割り当てたいキーをクリックします。</li>
+<li>左の一覧から <strong>ファンクション</strong> を選び、<code>F13</code> を押します。ブラウザーの「戻る」なら、<strong>メディア・システム</strong> から選びます。</li>
+<li><strong>OK</strong> を押して、<strong>キーボードに適用(ON)</strong> を押します。</li>
+</ol>
+<p>F13〜F24 は、ほかのツールや、ヘルパー動作のトリガーに使うと便利です。ただし、F24 は kasane が内部で使うことがあります（<a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a>）。</p>
+
+<div class="pager"><a href="07-emergency.html">← 7. 緊急解除</a><a href="09-advanced.html">9. マクロ・コンボ・タップダンス・キー置換 →</a></div>
+</main>
+</div>
+</body>
+</html>

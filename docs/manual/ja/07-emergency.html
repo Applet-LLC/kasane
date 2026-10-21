@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7. 緊急解除 - kasane マニュアル</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane マニュアル</a>
+<ol>
+<li><a href="index.html">はじめに</a></li>
+<li><a href="01-install.html">1. インストール</a></li>
+<li><a href="02-uninstall.html">2. アンインストール</a></li>
+<li><a href="03-license.html">3. ライセンスの認証</a></li>
+<li><a href="04-tray.html">4. トレイ</a></li>
+<li><a href="05-editor-basics.html">5. エディタの基本画面</a></li>
+<li><a href="06-calibration.html">6. キャリブレーション</a></li>
+<li class="current"><a href="07-emergency.html">7. 緊急解除</a></li>
+<li><a href="08-key-assign.html">8. キーの割り当て</a></li>
+<li><a href="09-advanced.html">9. マクロ・コンボ・タップダンス・キー置換</a></li>
+<li><a href="10-ime-nicola.html">10. IME連動とNICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a></li>
+<li><a href="12-settings.html">12. 設定ダイアログ</a></li>
+<li><a href="13-import-export.html">13. インポート／エクスポート</a></li>
+<li><a href="14-backup-migrate.html">14. バックアップと移行</a></li>
+<li><a href="15-reference.html">15. 付録</a></li>
+</ol>
+
+</nav>
+<main>
+<h1 id="section">7. 緊急解除</h1>
+<p>設定を誤って、キーボードから入力できなくなったときの、緊急用の手段です。決めておいた組み合わせのキーを、同時に 3 秒間押し続けると、接続中のすべてのキーボードが OFF（素通し）になります。</p>
+<p>既定の組み合わせは、左右の Ctrl と左右の Shift（4 つのキー）です。</p>
+<p>解除したあとは、エディタで設定を直し、<strong>キーボードに適用(ON)</strong> を押すと、リマップが戻ります。</p>
+<h2 id="section-1">組み合わせを変える</h2>
+<p>エディタの <strong>設定...</strong> を開き、<strong>緊急解除</strong> タブを選びます。管理者として起動していないときは、閲覧専用モードのため、欄とボタンは押せません。</p>
+<p><img src="../img/ja/emergency-tab-admin.png" alt="緊急解除のタブ（管理者として開いたとき）" /></p>
+<ul>
+<li>組み合わせは、<strong>キー-1</strong> から <strong>キー-6</strong> の欄に入れる、2〜6 個のキーで決めます。組み合わせのキーは、すべて同じキーボードにある必要があります。</li>
+<li>各欄の <strong>押して入力</strong> を押すと、次に押したキーが入ります。<strong>選ぶ...</strong> で、画面上のキーボードや一覧から選ぶこともできます。キー名を手で書く必要はありません。</li>
+<li><strong>クリア</strong> で、全部の欄を空にします。</li>
+<li><strong>既定(左右Ctrl＋左右Shift)にする</strong> で、既定の組み合わせを入れます。</li>
+<li>入れた組み合わせは、別のタブに移るとき、または <strong>OK</strong> を押したときに反映されます。欄が全部空なら、変更しません。</li>
+<li>キーが 1 個だけ、同じキーの重複、単純なキー以外が入っているときは、エラーになり、タブを移れません。</li>
+</ul>
+<p>組み合わせは、ドライバ全体で 1 つです。</p>
+<h2 id="section-2">同時押しを試す</h2>
+<p><strong>同時押しを試す...</strong> を押すと、「緊急解除の組み合わせを試す」の画面が開きます。そのキーボードが、組み合わせのキーを同時に検出できるかを確かめられます。</p>
+<p><img src="../img/ja/emergency-check-admin.png" alt="同時押しを試す（管理者として開いたとき）" /></p>
+<p>組み合わせのキーが、画面に並びます。それらをすべて押すと、押しているキーが緑になります。全部が緑になったら、成功です。<strong>閉じる</strong> で終わります。この画面を開いている間、押したキーはほかのアプリに届きません。3 秒たつと、実際に解除が働いてしまうので、緑になったらすぐに離してください。</p>
+<h3 id="section-3">管理者のとき</h3>
+<p>キーを、ドライバから直接受け取るので、正確に確かめられます。</p>
+<h3 id="section-4">管理者でないとき</h3>
+<p>低レベルキーフックで確認するため、選んでいるキーボードレイアウトによっては、正常に取れないキーがあります。タブと確認の画面に、その旨と「管理者権限モードでやり直してください」と出ます。</p>
+<p><img src="../img/ja/emergency-check.png" alt="管理者でないときの表示" /></p>
+<p>管理者でないときは、タブの欄とボタンも押せません。</p>
+<p><img src="../img/ja/emergency-tab.png" alt="管理者でないときの緊急解除のタブ" /></p>
+<h2 id="section-5">4 つのキーを同時に押せないキーボード</h2>
+<p>キーボードによっては、4 つのキーを同時に押せません。これは各キーボードの同時押しの上限で、kasane の問題ではありません。4 つとも押せるキーボードもあります。</p>
+<p>4 つ押せないキーボードを使うときは、押せる数の組み合わせ（例: 左 Ctrl、左 Shift、右 Ctrl の 3 つ）に変えてください。</p>
+<h2 id="section-6">実際に解除が働いたとき</h2>
+<p>接続中のすべてのキーボードが OFF になります。エディタを開き、タイトルバーのドライバの状態が OFF になっていることを確かめてください。設定は、ドライバに残っています。</p>
+
+<div class="pager"><a href="06-calibration.html">← 6. キャリブレーション</a><a href="08-key-assign.html">8. キーの割り当て →</a></div>
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>11. ヘルパー動作とアプリ別レイヤー - kasane マニュアル</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane マニュアル</a>
+<ol>
+<li><a href="index.html">はじめに</a></li>
+<li><a href="01-install.html">1. インストール</a></li>
+<li><a href="02-uninstall.html">2. アンインストール</a></li>
+<li><a href="03-license.html">3. ライセンスの認証</a></li>
+<li><a href="04-tray.html">4. トレイ</a></li>
+<li><a href="05-editor-basics.html">5. エディタの基本画面</a></li>
+<li><a href="06-calibration.html">6. キャリブレーション</a></li>
+<li><a href="07-emergency.html">7. 緊急解除</a></li>
+<li><a href="08-key-assign.html">8. キーの割り当て</a></li>
+<li><a href="09-advanced.html">9. マクロ・コンボ・タップダンス・キー置換</a></li>
+<li><a href="10-ime-nicola.html">10. IME連動とNICOLA</a></li>
+<li class="current"><a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a></li>
+<li><a href="12-settings.html">12. 設定ダイアログ</a></li>
+<li><a href="13-import-export.html">13. インポート／エクスポート</a></li>
+<li><a href="14-backup-migrate.html">14. バックアップと移行</a></li>
+<li><a href="15-reference.html">15. 付録</a></li>
+</ol>
+
+</nav>
+<main>
+<h1 id="section">11. ヘルパー動作とアプリ別レイヤー</h1>
+<p>トレイの kasane が、キーボードの外の動作を、キーで動かします。</p>
+<ul>
+<li>ヘルパー動作: プログラムの起動、URL やファイルを開く、文字列の入力（日本語も可）、キー入力の列、マウス操作、レイヤーの操作、一時停止の切り替え</li>
+<li>アプリ別レイヤー: 前面のアプリに合わせて、レイヤーを立てる、またはそのキーボードのリマップを OFF にする（ゲームなど）</li>
+</ul>
+<p>どちらも、トレイが動いている必要があります。設定の保存に管理者権限は要りません。設定ダイアログの <strong>OK</strong> で保存すると、トレイが数秒で読み直します。</p>
+<p>設定の細かい仕様は、<code>docs/HELPER.md</code> にあります。</p>
+<h2 id="section-1">ヘルパー動作の使い方は 2 通り</h2>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>内容</th>
+<th>キーボードへの適用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>動作を <code>HLP(Id)</code> でキーに割り当てる</td>
+<td>キーを押すと、キー自体は何も出さず、トレイが動作を実行する</td>
+<td>要る</td>
+</tr>
+<tr>
+<td>トリガーを作る</td>
+<td>F13〜F24 などのキー（と修飾キーの組み合わせ）を、トレイが監視して実行する</td>
+<td>要らない</td>
+</tr>
+</tbody>
+</table>
+<p>トレイが止まっているときは、<code>HLP(Id)</code> のキーは何も出しません。トリガーのキーは、普通のキーとして通ります。</p>
+<h2 id="section-2">例: キーでメモ帳を起動する</h2>
+<ol>
+<li>エディタで、メモ帳を起動させたいキーをクリックします。</li>
+<li>開いた画面の左の一覧から <strong>ヘルパー動作</strong> を選び、<strong>新しい動作...</strong> を押します。</li>
+<li>種類を <strong>プログラムを起動する (Launch)</strong> にして、パスに <code>notepad.exe</code> を入れ、名前を付けて <strong>OK</strong> を押します。キーに <code>HLP(1)</code> のようなコードが入ります。</li>
+<li>キーの割り当ての画面も <strong>OK</strong> で閉じ、<strong>キーボードに適用(ON)</strong> を押します。</li>
+<li>そのキーを押すと、何も入力されずに、メモ帳が起動します。</li>
+</ol>
+<p><img src="../img/ja/helper-assign.png" alt="ヘルパー動作の割り当て" /></p>
+<p>エディタの画面下の <strong>ヘルパー...</strong> を押すと、設定ダイアログが、「ヘルパー動作」タブを開いた状態で開きます。</p>
+<h2 id="section-3">「ヘルパー動作」タブ</h2>
+<p>動作とトリガーを、一覧で管理します。対象は <strong>このキーボード</strong> と <strong>全キーボード共通</strong> から選びます。</p>
+<p><img src="../img/ja/helper-tab.png" alt="ヘルパー動作のタブ" /></p>
+<table>
+<thead>
+<tr>
+<th>範囲</th>
+<th>保存先</th>
+<th>使う場面</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>このキーボード</td>
+<td>設定フォルダの <code>&lt;UniqId&gt;\helper.json</code></td>
+<td>そのキーボードだけで動かす</td>
+</tr>
+<tr>
+<td>全キーボード共通</td>
+<td>設定フォルダの <code>tray.json</code></td>
+<td>どのキーボードでも動かす</td>
+</tr>
+</tbody>
+</table>
+<p>動作を探すときは、キーボードごとの設定が先、共通の設定が後です。</p>
+<h3 id="section-4">動作の種類</h3>
+<table>
+<thead>
+<tr>
+<th>種類</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>プログラムを起動する (Launch)</td>
+<td>プログラムを起動する。管理者への昇格はしない</td>
+</tr>
+<tr>
+<td>URL・ファイルを開く (Open)</td>
+<td>URL、ファイル、フォルダを、関連付けられたアプリで開く</td>
+</tr>
+<tr>
+<td>操作の手順 (Sequence)</td>
+<td>キー、文字列、待ち、マウス、ホイールの手順を、順に実行する</td>
+</tr>
+<tr>
+<td>文字列を入力する (Text)</td>
+<td>設定した文字列を、そのまま入力する。いま入力できる場所の、現在の位置に追記される。改行は Enter、タブは Tab として送る。最大 900 文字</td>
+</tr>
+<tr>
+<td>アプリ管理レイヤーの操作 (AppLayer)</td>
+<td>アプリ管理レイヤーを、入れる、切る、切り替える、押している間だけ入れる</td>
+</tr>
+<tr>
+<td>一時停止・再開 (PauseToggle)</td>
+<td>トレイの一時停止と再開を切り替える</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sequence">手順（Sequence）の書き方</h3>
+<p>手順は、1 行に 1 つずつ書きます。<code>#</code> で始まる行は無視されます。</p>
+<pre><code>key LCTL(KC_C)       キーを押して離す
+down KC_A            キーを押す
+up KC_A              キーを離す
+text こんにちは\n     文字列を打つ（\n は Enter、\t は Tab）
+delay 50             待つ（ミリ秒、0〜10000）
+mouse left           ボタンをクリック（left、right、middle、x1、x2）
+move 10 -5           マウスを今の位置から動かす
+moveto 100 200       マウスを画面の座標へ動かす
+wheel -120           縦ホイール（120 で 1 ノッチ）
+hwheel 120           横ホイール
+</code></pre>
+<p><img src="../img/ja/helper-sequence.png" alt="操作の手順の編集" /></p>
+<p>欄の上のボタンで、行を挿入できます（カーソルのある行の次に入ります）。</p>
+<table>
+<thead>
+<tr>
+<th>ボタン</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>キーを押して挿入</strong></td>
+<td>命令（<code>key</code>、<code>down</code>、<code>up</code>）を選び、このボタンを押してから入れたいキーを押す。Esc で取消。Win キーや Alt+Tab は取れない</td>
+</tr>
+<tr>
+<td><strong>選んで挿入...</strong></td>
+<td>画面のキーボードや一覧から、キーを選ぶ</td>
+</tr>
+<tr>
+<td><strong>マウス操作を挿入 ▾</strong></td>
+<td>ボタンのクリック、押す、離す、移動、ホイールの定型の行を選ぶ。数値は、挿入後に書き換える</td>
+</tr>
+</tbody>
+</table>
+<p>手順は最大 2000 件です。待ちは、1 回で 10 秒まで、1 つの動作の合計で 60 秒までです。マウスのボタンを押している間だけ押す（ドラッグ）には、手順に <code>mouse left down</code>、離したときの手順に <code>mouse left up</code> を書きます。</p>
+<h2 id="ctrlf1">例: Ctrl+F1 で文字列を出す（トリガー）</h2>
+<p>「修飾キー＋キー」で、決めた手順を出します。適用は要りません。</p>
+<ol>
+<li>エディタの画面下の <strong>設定...</strong> を開き、<strong>ヘルパー動作</strong> タブの <strong>トリガー</strong> の <strong>追加...</strong> を押します。</li>
+<li>キーに <code>KC_F1</code>、修飾キーに <strong>Ctrl</strong> を指定します。</li>
+<li>種類を <strong>操作の手順 (Sequence)</strong> にして、手順に出したい内容を書きます（例: <code>text こんにちは</code>）。<strong>OK</strong> を押します。</li>
+<li>Ctrl+F1 を押すと、手順が実行されます。Ctrl+F1 自体は、アプリに届きません。</li>
+</ol>
+<p><img src="../img/ja/helper-trigger.png" alt="トリガーの編集" /></p>
+<p>実行の間は、押している Ctrl が OS から隠されます。出力に Ctrl が掛からず、Ctrl+A のような別のショートカットになりません。実行が終わったとき、Ctrl をまだ押していれば、押した状態に戻されます。</p>
+<p>手順の中で Ctrl を使いたいときは、手順に <code>key LCTL(KC_C)</code> のように書きます。押している修飾キーを隠さずに送りたいときは、トリガーの編集画面の <strong>実行中も、押している修飾キー（Ctrl など）を送る</strong> にチェックを付けます。</p>
+<h3 id="section-5">トリガーの注意</h3>
+<ul>
+<li>トリガーが 1 つでもあると、トレイがキーボードフックを使います。一致したキーは、アプリに届かなくなります。</li>
+<li>修飾キーは、押している分と過不足なく一致したときだけ一致します。左右は区別しません。</li>
+<li>Alt や Win を使うと、単独で離したときに、メニューやスタートが開くことがあります。操作の手順で修飾キーを隠したり戻したりするときは、間に F24 の入力を入れて防ぎます。それ以外の動作では、Shift と Ctrl の組み合わせがおすすめです。</li>
+<li>Win を含むトリガーで F16 を選ぶと、環境によっては、スライドしてシャットダウンの画面が出ることがあります。Win を使うときは、F13〜F15 や F17〜F24 など、別のキーを選んでください。</li>
+<li>トリガーの修飾キーに Alt または Win を含む手順は、実行の前と後に、F24 を 1 回ずつ押して離す入力をアプリに送ります。F24 にショートカットを割り当てているアプリやツールがあると、それが動いてしまいます。Ctrl と Shift だけのトリガーでは、F24 は使いません。使いたくないときは、トリガーに Alt と Win を含めないか、<strong>実行中も、押している修飾キー（Ctrl など）を送る</strong> にチェックを付けます。</li>
+</ul>
+<h2 id="section-6">一時停止と再開をキーで行う</h2>
+<p>トレイのメニューの <strong>一時停止</strong> と同じ動作を、キー 1 つで行えます。</p>
+<ol>
+<li><strong>設定...</strong> の <strong>ヘルパー動作</strong> タブで、種類を「一時停止・再開 (PauseToggle)」にして動作を作ります。</li>
+<li>トリガーに、F13 などのキーを結び付けます。</li>
+</ol>
+<p>トリガーは、一時停止中も動くので、同じキーで再開できます。<code>HLP(Id)</code> でキーに割り当てた場合は、一時停止中にキーボードのリマップが止まるので、同じキーでは再開できません。</p>
+<p>一時停止中は、一時停止の切り替えだけが動きます。</p>
+<h2 id="section-7">アプリ別レイヤー</h2>
+<p>前面のアプリに応じて、アプリ管理レイヤーを自動で立てます。または、そのキーボードのリマップを OFF（素通し）にします（ゲームなど）。設定ダイアログの <strong>アプリ別レイヤー</strong> タブで設定します。</p>
+<p><img src="../img/ja/apprules-tab.png" alt="アプリ別レイヤーのタブ" /></p>
+<h3 id="section-8">例: 特定のアプリでだけレイヤーを変える</h3>
+<ol>
+<li><strong>設定...</strong> の <strong>アプリ別レイヤー</strong> タブを開きます。</li>
+<li>対象（このキーボード、または全キーボード共通）を選び、<strong>追加...</strong> を押します。</li>
+<li><strong>実行中のアプリから選ぶ...</strong> で、対象のアプリのウィンドウを選びます。exe の名前が入ります。</li>
+<li>立てるレイヤー（0〜15）にチェックを付けます。ゲームなどでリマップを止めたいときは、<strong>リマップをOFFにする</strong> にチェックを付けます。<strong>OK</strong> を押します。</li>
+<li>設定ダイアログも <strong>OK</strong> で閉じると、保存されます。そのアプリが前面のときだけ、レイヤーが立ちます。</li>
+</ol>
+<p><img src="../img/ja/apprules-editor.png" alt="前面のアプリの規則" /></p>
+<p><img src="../img/ja/apprules-picker.png" alt="実行中のアプリから選ぶ" /></p>
+<p>規則は、上から順に見て、最初に一致したものを使います。<strong>上へ</strong>、<strong>下へ</strong> で順番を変えられます。どれにも一致しないときは、「既定」の規則を使います。</p>
+<table>
+<thead>
+<tr>
+<th>条件</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>exe</td>
+<td>exe のファイル名（<code>code.exe</code>）。<code>\</code> を含むときは、フルパスで比べる</td>
+</tr>
+<tr>
+<td>パス、タイトル</td>
+<td>exe のフルパス、ウィンドウのタイトルの正規表現（部分一致）</td>
+</tr>
+<tr>
+<td>クラス</td>
+<td>ウィンドウのクラス名</td>
+</tr>
+<tr>
+<td>のどかと同じ照合</td>
+<td>のどかの <code>window</code> と同じ文字列で照合する</td>
+</tr>
+</tbody>
+</table>
+<p>指定した条件は、すべて一致したときに一致します。条件を 1 つも指定していない規則は、使われません。立てたレイヤーは、IME 連動など、ほかのレイヤーとは別に重なります。</p>
+<p>トレイが落ちても、リマップを OFF にしたキーボードは、次の起動で ON に戻ります。一時停止中は、この OFF の切り替えは行われません。</p>
+<h2 id="section-9">動く条件と制約</h2>
+<ul>
+<li>管理者として動くウィンドウが前面のとき: ログオン時に自動起動する <code>kasane-tray.exe</code> は、UI アクセスの権限で動くので、キー入力も、送る入力も届きます。次の場合は届きません。
+<ul>
+<li>UI アクセスのない版（<code>kasane-tray-nua.exe</code>）や、開発用のビルドを使っている場合</li>
+<li>UAC の確認画面などの、セキュアデスクトップが前面の場合</li>
+<li>トレイを、エクスプローラー（ログオン時の自動起動、スタートメニュー、ダブルクリック）以外のプログラム（コマンドプロンプトなど）から起動した場合。エラーは出ませんが、UI アクセスなしで動きます。エクスプローラーから起動するか、ログオンし直してください。</li>
+</ul>
+</li>
+<li>署名が信頼されないか、<code>Program Files</code> の外に置かれたトレイは、エクスプローラーから起動したときに、失敗して何も出ません。署名済みのインストーラーで入れたときは起こりません。その場合は、同じフォルダの <code>kasane-tray-nua.exe</code> を起動してください。</li>
+<li>ロック画面、ユーザーの切り替え、別のセッションがアクティブなときは、動作を実行しません。</li>
+<li>マウスの相対移動（<code>move</code>）は、Windows のポインター加速を受けます。位置を決めたいときは <code>moveto</code> を使います。</li>
+<li>5 秒より前の <code>HLP(Id)</code> の押下は捨てられます。トレイが止まっていた間のキーが、あとでまとめて動かないようにするためです。</li>
+</ul>
+<h2 id="section-10">動かないとき</h2>
+<ol>
+<li>トレイが動いているかを、通知領域のアイコンで確かめます。</li>
+<li><code>HLP(Id)</code> の <code>Id</code> に対応する動作があるかを確かめます。キーの割り当て画面が、注意を出します。</li>
+<li><code>HLP(Id)</code> のキーは、<strong>キーボードに適用(ON)</strong> を押したかを確かめます。</li>
+<li>設定フォルダの <code>tray.log</code> に、読み込みの失敗が出ていないかを確かめます。</li>
+</ol>
+
+<div class="pager"><a href="10-ime-nicola.html">← 10. IME連動とNICOLA</a><a href="12-settings.html">12. 設定ダイアログ →</a></div>
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3. ライセンスの認証 - kasane マニュアル</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane マニュアル</a>
+<ol>
+<li><a href="index.html">はじめに</a></li>
+<li><a href="01-install.html">1. インストール</a></li>
+<li><a href="02-uninstall.html">2. アンインストール</a></li>
+<li class="current"><a href="03-license.html">3. ライセンスの認証</a></li>
+<li><a href="04-tray.html">4. トレイ</a></li>
+<li><a href="05-editor-basics.html">5. エディタの基本画面</a></li>
+<li><a href="06-calibration.html">6. キャリブレーション</a></li>
+<li><a href="07-emergency.html">7. 緊急解除</a></li>
+<li><a href="08-key-assign.html">8. キーの割り当て</a></li>
+<li><a href="09-advanced.html">9. マクロ・コンボ・タップダンス・キー置換</a></li>
+<li><a href="10-ime-nicola.html">10. IME連動とNICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a></li>
+<li><a href="12-settings.html">12. 設定ダイアログ</a></li>
+<li><a href="13-import-export.html">13. インポート／エクスポート</a></li>
+<li><a href="14-backup-migrate.html">14. バックアップと移行</a></li>
+<li><a href="15-reference.html">15. 付録</a></li>
+</ol>
+
+</nav>
+<main>
+<h1 id="section">3. ライセンスの認証</h1>
+<p>kasane は、Gumroad のサブスクリプションに応じて機能が提供されます。インストールのあとは、License Manager でライセンスキーを入力し、アクティベートします。</p>
+<h2 id="license-manager">License Manager を開く</h2>
+<ul>
+<li>インストール後の再起動で、ログインすると一度だけ自動で開きます。</li>
+<li>後から開くときは、スタートメニューの <code>applet</code> フォルダにある <strong>kasane License Manager</strong> を選ぶか、トレイのアイコンを右クリックして <strong>ライセンス</strong> を選びます。</li>
+</ul>
+<p>右上のリストで、表示言語を日本語と English から選べます。</p>
+<h2 id="section-1">ライセンスキーを入力する</h2>
+<p>ライセンスキーは、Gumroad で購入したときのメールか、Gumroad のライブラリで確認できます。</p>
+<p><img src="../img/ja/license-input.png" alt="ライセンスキーの入力" /></p>
+<ol>
+<li><strong>ライセンスキー</strong> の欄に、キーを貼り付けるか入力します。</li>
+<li><strong>アクティベート</strong> を押します。</li>
+<li>成功すると、キーの欄が読み取り専用の表示（途中を伏せたキー）に変わり、状態が「有効」になります。</li>
+</ol>
+<p><img src="../img/ja/license-activated.png" alt="アクティベートが済んだ状態" /></p>
+<p>購入していない場合は、画面の <strong>Gumroad で購入する</strong> のリンクから購入ページを開けます。</p>
+<p>アクティベートのあと、もう一度再起動するか、キーボードを接続し直すと、リマップが使えるようになります。</p>
+<h2 id="section-2">画面の見方</h2>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>状態</td>
+<td>有効（残り日数）、無効化された、サービス未起動、確認できません、未アクティベートのいずれか</td>
+</tr>
+<tr>
+<td>有効期限、次回の自動更新日</td>
+<td>サブスクリプションの期限と、次に自動で再確認する日</td>
+</tr>
+<tr>
+<td>ユーザー名</td>
+<td>ライセンスに登録された名前</td>
+</tr>
+<tr>
+<td><strong>ライセンスを再確認</strong></td>
+<td>Gumroad に問い合わせて、状態を取り直す</td>
+</tr>
+<tr>
+<td>接続の診断</td>
+<td>ライセンスサービスへの接続と、Gumroad への接続の結果</td>
+</tr>
+</tbody>
+</table>
+<p><img src="../img/ja/license-diagnostics.png" alt="接続の診断" /></p>
+<p>ライセンスサービスは、約 24 時間ごとに Gumroad へ接続して、サブスクリプションが有効かどうかを確認します。直近の確認結果を使うので、ネットワークに接続できなくても、最大 7 日間はオフラインのまま使えます。</p>
+<h2 id="section-3">試用版</h2>
+<p>キーを入れなくても、試用版として 6 日間使えます。画面には残り日数と期限が表示されます。試用の期限が過ぎると、試用が終了したことが表示され、リマップは使えなくなります。</p>
+<p>試用版は、Gumroad の無料のトライアル商品に照合して成立します。1 つのトライアルにつき、5 台までです。</p>
+<p><img src="../img/ja/license-trial.png" alt="試用版の表示" /></p>
+<h2 id="section-4">ライセンスが無効になったとき</h2>
+<p>サブスクリプションが無効になると、レイヤーのリマップの機能が使えなくなります。キーボードの基本的な入力は、そのまま使えます。</p>
+<h2 id="section-5">エラーが出たとき</h2>
+<p>画面の赤字のメッセージで、原因が分かります。</p>
+<table>
+<thead>
+<tr>
+<th>メッセージの種類</th>
+<th>原因と対処</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>無効なキー</td>
+<td>キーを入力し間違えているか、別の商品のキーです。Gumroad のライブラリで確かめます</td>
+</tr>
+<tr>
+<td>ネットワーク、タイムアウト</td>
+<td>インターネットに接続できません。接続を確かめて、<strong>ライセンスを再確認</strong> を押します</td>
+</tr>
+<tr>
+<td>サーバーエラー、解析エラー</td>
+<td>Gumroad 側の一時的な問題の可能性があります。しばらくしてから、もう一度試します</td>
+</tr>
+<tr>
+<td>サービス未起動</td>
+<td>ライセンスサービス（<code>kasaneLicenseSvc</code>）が動いていません。再起動するか、Windows のサービスの画面で起動します</td>
+</tr>
+</tbody>
+</table>
+<p><img src="../img/ja/license-error.png" alt="エラーの表示" /></p>
+<p>ログは <code>%ProgramData%\kbdlayer-license</code> の <code>debug.log</code> と <code>gui-debug.log</code> にあります。</p>
+<h2 id="section-6">台数の上限</h2>
+<p>1 つのライセンスキーで、アクティベートできる台数に上限があります（現在は 100 台）。使用許諾では、1 台のパソコンに対してのみ有効とされています。詳しくは、同梱の使用許諾（<code>License.ja-JP.rtf</code>）を確認してください。</p>
+
+<div class="pager"><a href="02-uninstall.html">← 2. アンインストール</a><a href="04-tray.html">4. トレイ →</a></div>
+</main>
+</div>
+</body>
+</html>
