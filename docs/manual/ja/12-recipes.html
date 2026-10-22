@@ -234,7 +234,8 @@
 </blockquote>
 <h3 id="shiftcaps-lock-caps-lock">Shift+Caps Lock で、本来の Caps Lock にする</h3>
 <p>Shift+Caps Lock を、本来の Caps Lock にしたいときは、キー置換を足します。ただし、キー置換が働くのは、キーに、普通のキー（<code>KC_*</code>）が割り当てられているときだけです。<code>LALT(KC_ZKHK)</code> のような、修飾付きのキーが割り当てられているキーには、使えません。</p>
-<p>JIS 配列のキーボードなど、半角/全角キーを単独で押して、IME のオンとオフを切り替えられるときは、次のようにします。</p>
+<p>この制限を解決するには、IME 側の設定で、半角/全角キーだけで、IME のオンとオフが切り替わるようにしてください。そのうえで、次の手順で、Caps Lock に、修飾キーなしの <code>KC_ZKHK</code> を割り当てます。</p>
+<p>JIS 配列のキーボードなど、半角/全角キーを単独で押して、IME のオンとオフを切り替えられるときは、そのまま、次のようにします。</p>
 <ol>
 <li>Caps Lock に、修飾キーなしの <code>KC_ZKHK</code> を割り当てます。</li>
 </ol>
