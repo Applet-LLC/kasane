@@ -1,5 +1,10 @@
 using KasaneLicenseSvc;
 
+// 未処理例外でプロセスが落ちたとき、WER の Report.wer には .NET の例外内容が残らないため、
+// debug.log に全文を書き残す。
+AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+    DebugTrace.Log($"UnhandledException (terminating={e.IsTerminating}): {e.ExceptionObject}");
+
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.AddWindowsService(options =>
