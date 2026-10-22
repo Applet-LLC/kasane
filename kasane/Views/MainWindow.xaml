@@ -27,7 +27,8 @@
                     ToolTip="このキーボードに、わかりやすい名前を付けます(設定画面の表示だけに使います)" />
             <Button x:Name="BtnIdentify" Content="押して特定..." Click="BtnIdentify_Click"
                     ToolTip="キーを1つ押して、どのキーボードかを選びます" />
-            <Button x:Name="BtnRefreshDevices" Content="一覧を更新" Click="BtnRefreshDevices_Click" />
+            <Button x:Name="BtnRefreshDevices" Content="一覧を更新" Click="BtnRefreshDevices_Click"
+                    ToolTip="接続中のキーボードの一覧を、ドライバから読み直します(キーボードをつなぎ直したあとなどに使います)" />
             <TextBlock x:Name="TxtLayoutLabel" Text="レイアウト:" VerticalAlignment="Center" Margin="20,0,4,0" />
             <ComboBox x:Name="CmbLayout" Width="110" SelectionChanged="CmbLayout_SelectionChanged" />
             <Button x:Name="BtnAddKle" Content="KLEから追加..." Click="BtnLoadKle_Click"
