@@ -21,18 +21,23 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
             "置き換え先に MACRO(n) と書くと、キーを押したときにマクロnを1回実行します。実行の間だけ条件の修飾キーを離し、" +
             "終わったときに、まだ押していれば戻します(マクロの出力に Ctrl などが掛かりません)。マクロの機能が ON のときだけ動きます。\n" +
             "修飾キーは MOD_LCTL|MOD_LSFT のように複数書けて、全部押されているときに置き換えます(左右は区別しません)。" +
-            "キーは、レイヤーで切り替えた後に出るキーです。3つとも空にすると未使用になります。",
+            "キーは、レイヤーで切り替えた後に出るキーです。3つとも空にすると未使用になります。\n" +
+            "「無効にする」にチェックを付けると、書いた内容を残したまま、キーボードには適用されません。",
             "A key override sends a different key instead when you press the specified key while holding the specified modifier keys.\n" +
             "Example: modifier MOD_LSFT, key KC_BSPACE, replacement KC_DELETE -> Shift+BS sends Delete. " +
             "While the replacement is sent, the modifier keys in the condition are temporarily released (write the replacement like LSFT(KC_X) to apply a modifier).\n" +
             "If you write MACRO(n) as the replacement, pressing the key runs macro n once. The condition's modifier keys are released only while it runs, " +
             "and restored afterwards if they are still held (so Ctrl and the like are not applied to the macro's output). This works only while the macro feature is ON.\n" +
             "You can write several modifiers, like MOD_LCTL|MOD_LSFT; the override applies when all of them are held (left and right are not distinguished). " +
-            "The key is the key produced after layer switching. If all three fields are empty, the override is unused."))
+            "The key is the key produced after layer switching. If all three fields are empty, the override is unused.\n" +
+            "If you check \"Disable\", the content is kept but not applied to the keyboard."))
     {
         foreach (var k in keyOverrides)
             if (k.Id >= 0 && k.Id < _defs.Length)
+            {
                 _defs[k.Id] = new KeyOverrideDef { Id = k.Id, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement, RepeatMacro = k.RepeatMacro };
+                LoadDisabled(k.Id, k.Disabled);
+            }
         LoadNames(names);
     }
 
@@ -83,13 +88,21 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
         repeat.Visibility = IsMacro(replacement.Text) ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    protected override void OnItemEnabled(int id)
+    {
+        var errors = new List<string>();
+        if (_defs[id] is { } k) ProjectService.KeyOverrideToEntry(k, errors);
+        ShowValidation(errors.Count == 0 ? "OK" : string.Join("\n", errors), errors.Count > 0);
+    }
+
     protected override bool ValidateAll(out string error)
     {
         var errors = new List<string>();
-        foreach (var k in _defs.Where(k => k != null)) ProjectService.KeyOverrideToEntry(k!, errors);
+        // 無効のものは、検証しない。
+        foreach (var k in _defs.Where(k => k != null && !Disabled[k.Id])) ProjectService.KeyOverrideToEntry(k!, errors);
         error = string.Join("\n", errors);
         if (errors.Count > 0) return false;
-        Result = _defs.Where(k => k != null).Select(k => k!).ToList();
+        Result = _defs.Where(k => k != null).Select(k => { k!.Disabled = Disabled[k.Id]; return k; }).ToList();
         return true;
     }
 }

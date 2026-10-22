@@ -5,6 +5,9 @@ public sealed class MacroDef
     public int Id { get; set; }
     /// <summary>順にタップ（押下+解放）するキーコード（KC_*のみ）。</summary>
     public List<string> Keys { get; set; } = new();
+    /// <summary>無効にする（定義は残すが、キーボードへ適用しない）。false のときはファイルに書かない。</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Disabled { get; set; }
 }
 
 public sealed class ComboDef
@@ -15,6 +18,9 @@ public sealed class ComboDef
     public int Slot2 { get; set; }
     /// <summary>同時押しで送るキー（KC_*のみ）。</summary>
     public string Output { get; set; } = "";
+    /// <summary>無効にする（定義は残すが、キーボードへ適用しない）。false のときはファイルに書かない。</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Disabled { get; set; }
 }
 
 public sealed class TapDanceDef
@@ -24,6 +30,9 @@ public sealed class TapDanceDef
     public string SingleHold { get; set; } = "";
     public string DoubleTap { get; set; } = "";
     public string TripleTap { get; set; } = "";
+    /// <summary>無効にする（定義は残すが、キーボードへ適用しない）。false のときはファイルに書かない。</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Disabled { get; set; }
 }
 
 /// <summary>Key Override（キー置換）: Mods を押しながら Key を押すと Replacement を送る。</summary>
@@ -39,6 +48,9 @@ public sealed class KeyOverrideDef
     /// <summary>置き換え先が MACRO(n) のとき、キーを押し続けたときのオートリピートでマクロを繰り返す（既定はオフ）。</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public bool RepeatMacro { get; set; }
+    /// <summary>無効にする（定義は残すが、キーボードへ適用しない）。false のときはファイルに書かない。</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Disabled { get; set; }
 }
 
 /// <summary>

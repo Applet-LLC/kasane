@@ -280,8 +280,15 @@ public static class ProjectService
     /// <summary>存在しないレイヤーへの切り替え（エラー）と、中身の無いマクロ/タップダンスの参照（警告）を調べる。</summary>
     private static void CheckReferences(KeymapProject project, KeyboardLayout layout, List<string> warnings, List<string> errors)
     {
-        var macroIds = project.Macros.Where(m => m.Keys.Count > 0).Select(m => m.Id).ToHashSet();
-        var tapDanceIds = project.TapDances.Select(t => t.Id).ToHashSet();
+        var macroIds = project.Macros.Where(m => m.Keys.Count > 0 && !m.Disabled).Select(m => m.Id).ToHashSet();
+        var tapDanceIds = project.TapDances.Where(t => !t.Disabled).Select(t => t.Id).ToHashSet();
+        // 無効にした定義（あるが、適用しない）。参照している側には、「未設定」と別の警告を出す。
+        var disabledMacroIds = project.Macros.Where(m => m.Keys.Count > 0 && m.Disabled).Select(m => m.Id).ToHashSet();
+        var disabledTapDanceIds = project.TapDances.Where(t => t.Disabled).Select(t => t.Id).ToHashSet();
+        string NothingSet(string token, int id, HashSet<int> disabled, string prefix, string jaTail, string enTail) =>
+            disabled.Contains(id)
+                ? Loc.T($"{prefix}{token} は無効にしてあります({jaTail})", $"{prefix}{token} is disabled ({enTail})")
+                : Loc.T($"{prefix}{token} の中身が未設定です({jaTail})", $"{prefix}{token} has nothing set ({enTail})");
         for (int L = 0; L < project.Layers.Count; L++)
         {
             foreach (var slot in layout.Slots)
@@ -296,24 +303,30 @@ public static class ProjectService
                 if (layerRef && a.Param1 >= project.Layers.Count)
                     errors.Add(Loc.T($"レイヤー{L} {slot.Description}: {token} のレイヤー{a.Param1}がありません(レイヤーを追加してください)", $"Layer {L} {slot.Description}: {token} refers to layer {a.Param1}, which does not exist (add the layer)"));
                 else if (a.Type == ActionType.Macro && !macroIds.Contains(a.Param1))
-                    warnings.Add(Loc.T($"{token} の中身が未設定です(押しても何も起きません)", $"{token} has nothing set (pressing it does nothing)"));
+                    warnings.Add(NothingSet(token, a.Param1, disabledMacroIds, "", "押しても何も起きません", "pressing it does nothing"));
                 else if (a.Type == ActionType.TapDance && !tapDanceIds.Contains(a.Param1))
-                    warnings.Add(Loc.T($"{token} の中身が未設定です(押しても何も起きません)", $"{token} has nothing set (pressing it does nothing)"));
+                    warnings.Add(NothingSet(token, a.Param1, disabledTapDanceIds, "", "押しても何も起きません", "pressing it does nothing"));
             }
         }
         // タップダンス（タップ側・長押し）とコンボの出力から参照しているマクロ。
-        foreach (var td in project.TapDances)
+        foreach (var td in project.TapDances.Where(t => !t.Disabled))
         {
             foreach (var token in new[] { td.SingleTap, td.SingleHold, td.DoubleTap, td.TripleTap })
             {
                 if (KeycodeTable.TryResolve(token, out var a) && a.Type == ActionType.Macro && !macroIds.Contains(a.Param1))
-                    warnings.Add(Loc.T($"タップダンス{td.Id}: {token} の中身が未設定です(そこでは何も起きません)", $"Tap dance {td.Id}: {token} has nothing set (nothing happens there)"));
+                    warnings.Add(NothingSet(token, a.Param1, disabledMacroIds, Loc.T($"タップダンス{td.Id}: ", $"Tap dance {td.Id}: "), "そこでは何も起きません", "nothing happens there"));
             }
         }
-        foreach (var combo in project.Combos)
+        foreach (var combo in project.Combos.Where(c => !c.Disabled))
         {
             if (KeycodeTable.TryResolve(combo.Output, out var a) && a.Type == ActionType.Macro && !macroIds.Contains(a.Param1))
-                warnings.Add(Loc.T($"コンボ{combo.Id}: {combo.Output} の中身が未設定です(成立しても何も起きません)", $"Combo {combo.Id}: {combo.Output} has nothing set (nothing happens when the combo fires)"));
+                warnings.Add(NothingSet(combo.Output, a.Param1, disabledMacroIds, Loc.T($"コンボ{combo.Id}: ", $"Combo {combo.Id}: "), "成立しても何も起きません", "nothing happens when the combo fires"));
+        }
+        // キー置換の置き換え先が、無効にしたマクロのとき（中身が未設定のマクロは、今までどおり警告しない）。
+        foreach (var ko in project.KeyOverrides.Where(k => !k.Disabled))
+        {
+            if (KeycodeTable.TryResolve(ko.Replacement, out var a) && a.Type == ActionType.Macro && disabledMacroIds.Contains(a.Param1))
+                warnings.Add(NothingSet(ko.Replacement, a.Param1, disabledMacroIds, Loc.T($"キー置換{ko.Id}: ", $"Key override {ko.Id}: "), "そこでは何も起きません", "nothing happens there"));
         }
     }
 
@@ -464,10 +477,11 @@ public static class ProjectService
 
         CheckReferences(project, layout, warnings, errors);
 
-        var macroSteps = project.Macros.ToDictionary(m => m.Id, m => MacroSteps(m, errors));
-        var combos = project.Combos.ToDictionary(c => c.Id, c => ComboToEntry(project, layout, c, errors));
-        var tapDances = project.TapDances.ToDictionary(t => t.Id, t => TapDanceToEntry(t, errors));
-        var keyOverrides = project.KeyOverrides.ToDictionary(k => k.Id, k => KeyOverrideToEntry(k, errors));
+        // 無効にした定義は、検証も適用もしない（ドライバ側に残っていれば、Apply が消す）。
+        var macroSteps = project.Macros.Where(m => !m.Disabled).ToDictionary(m => m.Id, m => MacroSteps(m, errors));
+        var combos = project.Combos.Where(c => !c.Disabled).ToDictionary(c => c.Id, c => ComboToEntry(project, layout, c, errors));
+        var tapDances = project.TapDances.Where(t => !t.Disabled).ToDictionary(t => t.Id, t => TapDanceToEntry(t, errors));
+        var keyOverrides = project.KeyOverrides.Where(k => !k.Disabled).ToDictionary(k => k.Id, k => KeyOverrideToEntry(k, errors));
 
         byte[]? nicolaBlob = null;
         if (project.Nicola != null)

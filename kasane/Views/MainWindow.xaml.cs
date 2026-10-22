@@ -522,7 +522,7 @@ public partial class MainWindow : Window
             string? name = _project.TapDanceNames != null && _project.TapDanceNames.TryGetValue(i, out var n) ? n : null;
             if (def == null && string.IsNullOrWhiteSpace(name)) continue;
             string content = def == null ? "" : Loc.T($"{def.SingleTap} / 長押し {def.SingleHold} / {def.DoubleTap} / {def.TripleTap}", $"{def.SingleTap} / hold {def.SingleHold} / {def.DoubleTap} / {def.TripleTap}");
-            list.Add(new MacroInfo(i, name, content, "TAPDANCE"));
+            list.Add(new MacroInfo(i, name, content, "TAPDANCE", def?.Disabled ?? false));
         }
         return list;
     }
@@ -535,11 +535,12 @@ public partial class MainWindow : Window
         if (_project == null) return list;
         var contents = new Dictionary<int, string>();
         foreach (var d in _project.Macros) contents[d.Id] = string.Join(" ", d.Keys);
+        var disabledMacros = _project.Macros.Where(d => d.Disabled).Select(d => d.Id).ToHashSet();
         for (int i = 0; i < KbdLayerClient.MaxMacroCount; i++)
         {
             contents.TryGetValue(i, out var content);
             string? name = _project.MacroNames != null && _project.MacroNames.TryGetValue(i, out var n) ? n : null;
-            if (!string.IsNullOrEmpty(content) || !string.IsNullOrWhiteSpace(name)) list.Add(new MacroInfo(i, name, content ?? ""));
+            if (!string.IsNullOrEmpty(content) || !string.IsNullOrWhiteSpace(name)) list.Add(new MacroInfo(i, name, content ?? "", "MACRO", disabledMacros.Contains(i)));
         }
         return list;
     }
@@ -945,10 +946,10 @@ public partial class MainWindow : Window
     private void UpdateDefinitionButtons()
     {
         var p = _project;
-        BtnMacros.Content = KeyMarks.ButtonText(Loc.T("マクロ", "Macros"), p?.Macros.Count ?? 0, p == null || KeyMarks.FeatureOn(p, KbdLayerClient.FeatureMacro));
-        BtnCombos.Content = KeyMarks.ButtonText(Loc.T("コンボ", "Combos"), p?.Combos.Count ?? 0, p == null || KeyMarks.FeatureOn(p, KbdLayerClient.FeatureCombo));
-        BtnTapDances.Content = KeyMarks.ButtonText(Loc.T("タップダンス", "Tap dances"), p?.TapDances.Count ?? 0, p == null || KeyMarks.FeatureOn(p, KbdLayerClient.FeatureTapDance));
-        BtnKeyOverrides.Content = KeyMarks.ButtonText(Loc.T("キー置換", "Key overrides"), p?.KeyOverrides.Count ?? 0, p == null || KeyMarks.FeatureOn(p, KbdLayerClient.FeatureKeyOverride));
+        BtnMacros.Content = KeyMarks.ButtonText(Loc.T("マクロ", "Macros"), p?.Macros.Count ?? 0, p == null || KeyMarks.FeatureOn(p, KbdLayerClient.FeatureMacro), p?.Macros.Count(d => d.Disabled) ?? 0);
+        BtnCombos.Content = KeyMarks.ButtonText(Loc.T("コンボ", "Combos"), p?.Combos.Count ?? 0, p == null || KeyMarks.FeatureOn(p, KbdLayerClient.FeatureCombo), p?.Combos.Count(d => d.Disabled) ?? 0);
+        BtnTapDances.Content = KeyMarks.ButtonText(Loc.T("タップダンス", "Tap dances"), p?.TapDances.Count ?? 0, p == null || KeyMarks.FeatureOn(p, KbdLayerClient.FeatureTapDance), p?.TapDances.Count(d => d.Disabled) ?? 0);
+        BtnKeyOverrides.Content = KeyMarks.ButtonText(Loc.T("キー置換", "Key overrides"), p?.KeyOverrides.Count ?? 0, p == null || KeyMarks.FeatureOn(p, KbdLayerClient.FeatureKeyOverride), p?.KeyOverrides.Count(d => d.Disabled) ?? 0);
     }
 
     // ドライバの状態（今リマップが効いているか・画面の変更を適用したか）。タイトルバーに出す。

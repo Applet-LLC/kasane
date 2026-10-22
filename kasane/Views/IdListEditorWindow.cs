@@ -24,6 +24,18 @@ public abstract class IdListEditorWindow : Window
     /// </summary>
     protected readonly string?[] Names;
 
+    /// <summary>
+    /// 番号ごとの「無効」（定義は残すが、キーボードへ適用しない）。画面の「無効にする」で変わる。派生クラスは、コンストラクターで
+    /// <see cref="LoadDisabled"/> を呼んで写し、Result を作るときに、この値を定義の Disabled に入れる。
+    /// </summary>
+    protected readonly bool[] Disabled;
+
+    /// <summary>プロジェクトの定義の「無効」を、編集用の配列に写す。派生クラスのコンストラクターから呼ぶ。</summary>
+    protected void LoadDisabled(int id, bool disabled)
+    {
+        if (id >= 0 && id < Disabled.Length) Disabled[id] = disabled;
+    }
+
     /// <summary>「適用」またはOKで確定した名前の表（番号 → 名前）。名前が1つも無ければ null。</summary>
     public Dictionary<int, string>? ResultNames { get; private set; }
 
@@ -47,6 +59,7 @@ public abstract class IdListEditorWindow : Window
     {
         _count = count;
         Names = new string?[count];
+        Disabled = new bool[count];
         Title = title;
         // 右側に「押して入力」「選ぶ...」「マクロ...」のボタンが並ぶので、横幅に余裕を持たせる（狭いとボタンが隠れる）。
         Width = 1120;
@@ -92,6 +105,7 @@ public abstract class IdListEditorWindow : Window
         _list.SelectionChanged += (_, _) =>
         {
             if (_list.SelectedIndex < 0) return;
+            _detailId = _list.SelectedIndex;
             Detail.Children.Clear();
             AddNameRow(_list.SelectedIndex);
             ShowDetail(_list.SelectedIndex);
@@ -130,6 +144,30 @@ public abstract class IdListEditorWindow : Window
             RefreshItem(id);
         };
         Detail.Children.Add(Row(Loc.T("名前(任意)", "Name (optional)"), box));
+        {
+            // 中身がある番号だけ押せる（中身の編集で、押せるかが変わる。RefreshItem）。チェックを付けると、書いた内容は残したまま、
+            // キーボードへは適用しない。
+            var disabled = new CheckBox
+            {
+                Name = "ItemDisabled",
+                Content = Loc.T("無効にする(内容は残して、キーボードには適用しない)", "Disable (keep the content, but do not apply it to the keyboard)"),
+                IsChecked = Disabled[id],
+                IsEnabled = !string.IsNullOrEmpty(Summary(id)),
+                Margin = new Thickness(110, 0, 0, 6),
+            };
+            _disabledBox = disabled;
+            // Click ではなく Checked/Unchecked（UI Automation の Toggle でも起きる）。
+            RoutedEventHandler changed = (_, _) =>
+            {
+                Disabled[id] = disabled.IsChecked == true;
+                RefreshItem(id);
+                if (Disabled[id]) ShowValidation("", false);
+                else OnItemEnabled(id); // 有効に戻したときは、その項目を検証して、結果を出す
+            };
+            disabled.Checked += changed;
+            disabled.Unchecked += changed;
+            Detail.Children.Add(disabled);
+        }
         if (string.IsNullOrEmpty(Summary(id)))
             Detail.Children.Add(new TextBlock
             {
@@ -144,6 +182,7 @@ public abstract class IdListEditorWindow : Window
         var s = Summary(id);
         var name = Names[id];
         string body = string.IsNullOrEmpty(s) ? Loc.T("(未使用)", "(unused)") : s;
+        if (Disabled[id] && !string.IsNullOrEmpty(s)) body = Loc.T("[無効] ", "[Disabled] ") + body;
         return string.IsNullOrEmpty(name) ? $"{id,2}: {body}" : $"{id,2}: {name} — {body}";
     }
 
@@ -151,7 +190,12 @@ public abstract class IdListEditorWindow : Window
     protected void RefreshItem(int id)
     {
         if (id >= 0 && id < _list.Items.Count) _list.Items[id] = ItemText(id);
+        // 右側に出している番号なら、「無効にする」を押せるかを、中身に合わせる（一覧の行の入れ替えで、選択が外れることがある）。
+        if (_disabledBox != null && id == _detailId) _disabledBox.IsEnabled = !string.IsNullOrEmpty(Summary(id));
     }
+
+    private CheckBox? _disabledBox;
+    private int _detailId = -1;
 
     protected void ShowValidation(string text, bool isError)
     {
@@ -171,6 +215,9 @@ public abstract class IdListEditorWindow : Window
     /// （例: "SingleTap"）。省略時は無名（呼び出し側が複数箇所で使い回す場合など）。</summary>
     protected static TextBox KeycodeBox(string text, string? name = null) =>
         new() { Name = name ?? "", Text = text, Width = 300, FontFamily = new FontFamily("Consolas") };
+
+    /// <summary>「無効にする」のチェックを外したとき（有効に戻したとき）。その項目を検証して、<see cref="ShowValidation"/> に出す。</summary>
+    protected virtual void OnItemEnabled(int id) { }
 
     /// <summary>一覧の行をダブルクリックしたとき（既定では何もしない）。</summary>
     protected virtual void OnItemActivated(int id) { }
