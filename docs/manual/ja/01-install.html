@@ -23,10 +23,11 @@
 <li><a href="09-advanced.html">9. マクロ・コンボ・タップダンス・キー置換</a></li>
 <li><a href="10-ime-nicola.html">10. IME連動とNICOLA</a></li>
 <li><a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a></li>
-<li><a href="12-settings.html">12. 設定ダイアログ</a></li>
-<li><a href="13-import-export.html">13. インポート／エクスポート</a></li>
-<li><a href="14-backup-migrate.html">14. バックアップと移行</a></li>
-<li><a href="15-reference.html">15. 付録</a></li>
+<li><a href="12-recipes.html">12. 設定の例</a></li>
+<li><a href="13-settings.html">13. 設定ダイアログ</a></li>
+<li><a href="14-import-export.html">14. インポート／エクスポート</a></li>
+<li><a href="15-backup-migrate.html">15. バックアップと移行</a></li>
+<li><a href="16-reference.html">16. 付録</a></li>
 </ol>
 
 </nav>
@@ -97,9 +98,9 @@
 <li>空欄のままにすると、各ユーザーの <code>%LOCALAPPDATA%\applet\kasane</code> に保存されます。ほとんどの場合は、空欄で構いません。</li>
 <li>指定するときは、<code>D:\kasane</code> のように、ドライブ文字から始まるフルパスにします。</li>
 <li>指定したフォルダが無ければ、インストーラーが作ります。すでにあるフォルダの権限は変えません。</li>
-<li>管理者保護（Windows 11 の機能）を使っているときは、ここで指定すると便利です。昇格したエディタと通常のトレイが、同じフォルダを見るようになります。詳しくは<a href="14-backup-migrate.html">14. バックアップと移行</a>を見てください。</li>
+<li>管理者保護（Windows 11 の機能）を使っているときは、ここで指定すると便利です。昇格したエディタと通常のトレイが、同じフォルダを見るようになります。詳しくは<a href="15-backup-migrate.html">15. バックアップと移行</a>を見てください。</li>
 </ul>
-<p>後から変える場合は、インストーラーをもう一度実行します（<a href="12-settings.html">12. 設定ダイアログ</a>の「保存先」タブには、現在の値が表示されます）。変更した後は、サインインし直してください。</p>
+<p>後から変える場合は、インストーラーをもう一度実行します（<a href="13-settings.html">13. 設定ダイアログ</a>の「保存先」タブには、現在の値が表示されます）。変更した後は、サインインし直してください。</p>
 <h4 id="section-5">設定ファイルの取り込み</h4>
 <p>以前の環境から書き出した設定ファイル（<code>*.kasane.json</code>）を、インストール時にドライバへ反映します。既定ではオフです。</p>
 <p><img src="../img/ja/install-wizard-import.png" alt="設定ファイルの取り込み" /></p>
@@ -110,7 +111,7 @@
 </ol>
 <p><img src="../img/ja/install-wizard-import-filled.png" alt="設定ファイルの入力" /></p>
 <p><img src="../img/ja/install-wizard-import-missing.png" alt="設定ファイルが見つかりません" /></p>
-<p>取り込んだ設定は、再起動後（またはキーボードを接続し直したとき）から有効になります。すでに設定のある型番は置き換わり、前の設定は 1 世代だけ退避されます。退避した設定は、設定ダイアログの「保存先」タブから戻せます（<a href="13-import-export.html">13. インポート／エクスポート</a>）。結果は <code>%ProgramData%\applet\kasane\import.log</code> に残ります。</p>
+<p>取り込んだ設定は、再起動後（またはキーボードを接続し直したとき）から有効になります。すでに設定のある型番は置き換わり、前の設定は 1 世代だけ退避されます。退避した設定は、設定ダイアログの「保存先」タブから戻せます（<a href="14-import-export.html">14. インポート／エクスポート</a>）。結果は <code>%ProgramData%\applet\kasane\import.log</code> に残ります。</p>
 <h3 id="section-6">3. インストールを実行する</h3>
 <p><strong>インストール</strong> を押すと、ファイルのコピーと登録が始まります。ここまでの設定を確かめたいときは、<strong>戻る</strong> で前のページに戻れます。</p>
 <p><img src="../img/ja/install-wizard-ready.png" alt="準備完了" /></p>

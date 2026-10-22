@@ -23,10 +23,11 @@
 <li><a href="09-advanced.html">9. マクロ・コンボ・タップダンス・キー置換</a></li>
 <li><a href="10-ime-nicola.html">10. IME連動とNICOLA</a></li>
 <li><a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a></li>
-<li><a href="12-settings.html">12. 設定ダイアログ</a></li>
-<li><a href="13-import-export.html">13. インポート／エクスポート</a></li>
-<li><a href="14-backup-migrate.html">14. バックアップと移行</a></li>
-<li><a href="15-reference.html">15. 付録</a></li>
+<li><a href="12-recipes.html">12. 設定の例</a></li>
+<li><a href="13-settings.html">13. 設定ダイアログ</a></li>
+<li><a href="14-import-export.html">14. インポート／エクスポート</a></li>
+<li><a href="15-backup-migrate.html">15. バックアップと移行</a></li>
+<li><a href="16-reference.html">16. 付録</a></li>
 </ol>
 
 </nav>
@@ -47,7 +48,164 @@
 <li><a href="05-editor-basics.html">エディタの基本画面</a>で、キーボードを選び、キーを入れ替えて、キーボードに適用します。</li>
 <li>困ったときのために、<a href="07-emergency.html">緊急解除</a>と<a href="02-uninstall.html">アンインストール</a>の手順を先に見ておくと安心です。</li>
 </ol>
-<h2 id="section-2">章の案内</h2>
+<h2 id="section-2">名称とファイル名</h2>
+<table>
+<thead>
+<tr>
+<th>部品</th>
+<th>名前</th>
+<th>ファイル、場所</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>製品名</td>
+<td>かさね（kasane）</td>
+<td>インストール先は <code>C:\Program Filespplet\kasane</code></td>
+</tr>
+<tr>
+<td>エディタ</td>
+<td>kasane</td>
+<td><code>kasane.exe</code>（<code>keymap-gui</code> フォルダ）</td>
+</tr>
+<tr>
+<td>トレイ（常駐）</td>
+<td>kasane-tray</td>
+<td><code>kasane-tray.exe</code>（<code>tray</code> フォルダ。ログオン時に自動起動）。UI アクセスのない版は <code>kasane-tray-nua.exe</code>（手動で起動する）</td>
+</tr>
+<tr>
+<td>デバイスドライバ</td>
+<td>kbdlayer</td>
+<td><code>kbdlayer.sys</code>（内部名とサービス名は <code>kbdlayer</code>。<code>kbdlayer</code> フォルダ）</td>
+</tr>
+<tr>
+<td>ライセンス管理（License Manager）</td>
+<td>kasane-license</td>
+<td><code>kasane-license.exe</code>（<code>license-gui</code> フォルダ）</td>
+</tr>
+<tr>
+<td>ライセンスサービス</td>
+<td>kasaneLicenseSvc（表示名 kasane License Service）</td>
+<td><code>kasane-license-svc.exe</code>（<code>license-svc</code> フォルダ）。ライセンスの記録は <code>%ProgramData%\kbdlayer-license</code></td>
+</tr>
+<tr>
+<td>ドライバの管理ツール</td>
+<td>DriverManager</td>
+<td><code>DriverManager.exe</code>（インストール先の直下）</td>
+</tr>
+<tr>
+<td>コマンド版の設定ツール</td>
+<td>KeymapTool</td>
+<td><code>KeymapTool.exe</code>（インストール先の直下）</td>
+</tr>
+<tr>
+<td>インストーラー</td>
+<td>Install-kasane</td>
+<td><code>Install-kasane.exe</code>、<code>KasaneSetup-ja-JP.msi</code>、<code>KasaneSetup-en-US.msi</code></td>
+</tr>
+<tr>
+<td>設定の保存先</td>
+<td></td>
+<td><code>%LOCALAPPDATA%pplet\kasane</code>（環境変数 <code>KASANE</code> で変えられる）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="section-3">やりたいことから探す</h2>
+<table>
+<thead>
+<tr>
+<th>やりたいこと</th>
+<th>見る章</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>インストールする。設定の保存先を決める</td>
+<td><a href="01-install.html">1. インストール</a></td>
+</tr>
+<tr>
+<td>以前の設定を、インストールのときに取り込む</td>
+<td><a href="01-install.html">1. インストール</a>、<a href="14-import-export.html">14. インポート／エクスポート</a></td>
+</tr>
+<tr>
+<td>アンインストールする</td>
+<td><a href="02-uninstall.html">2. アンインストール</a></td>
+</tr>
+<tr>
+<td>ライセンスを認証する。試用版を使う</td>
+<td><a href="03-license.html">3. ライセンスの認証</a></td>
+</tr>
+<tr>
+<td>一時的にキーの入れ替えを止める</td>
+<td><a href="04-tray.html">4. トレイ</a>（一時停止）、<a href="05-editor-basics.html">5. エディタの基本画面</a>（OFF）</td>
+</tr>
+<tr>
+<td>キーを入れ替える</td>
+<td><a href="05-editor-basics.html">5. エディタの基本画面</a>、<a href="12-recipes.html">12. 設定の例</a></td>
+</tr>
+<tr>
+<td>別のキーボードを使う（配列を追加する）</td>
+<td><a href="05-editor-basics.html">5. エディタの基本画面</a>（KLE から追加）</td>
+</tr>
+<tr>
+<td>設定したのに、違うキーが入れ替わる</td>
+<td><a href="06-calibration.html">6. キャリブレーション</a></td>
+</tr>
+<tr>
+<td>設定を間違えて、キーボードから入力できなくなった</td>
+<td><a href="07-emergency.html">7. 緊急解除</a></td>
+</tr>
+<tr>
+<td>短く押したときと、長押ししたときで、動作を変える</td>
+<td><a href="08-key-assign.html">8. キーの割り当て</a>、<a href="12-recipes.html">12. 設定の例</a></td>
+</tr>
+<tr>
+<td>キーを押している間だけ、別のキー配置にする</td>
+<td><a href="08-key-assign.html">8. キーの割り当て</a>（レイヤー）、<a href="12-recipes.html">12. 設定の例</a></td>
+</tr>
+<tr>
+<td>決まったキーの並びを、1 つのキーで出す</td>
+<td><a href="09-advanced.html">9. マクロ・コンボ・タップダンス・キー置換</a>（マクロ）</td>
+</tr>
+<tr>
+<td>2 つのキーの同時押しで、別のキーを出す</td>
+<td><a href="09-advanced.html">9. マクロ・コンボ・タップダンス・キー置換</a>（コンボ）</td>
+</tr>
+<tr>
+<td>Ctrl+◯◯ のような組み合わせを、別の動作にする</td>
+<td><a href="09-advanced.html">9. マクロ・コンボ・タップダンス・キー置換</a>（キー置換）、<a href="12-recipes.html">12. 設定の例</a></td>
+</tr>
+<tr>
+<td>日本語入力（IME）に合わせて、キー配置を切り替える。親指シフトを使う</td>
+<td><a href="10-ime-nicola.html">10. IME連動とNICOLA</a></td>
+</tr>
+<tr>
+<td>キーで、プログラムを起動する。文字列を入力する</td>
+<td><a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a></td>
+</tr>
+<tr>
+<td>アプリごとに、キー配置を変える。ゲームの間だけ止める</td>
+<td><a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a></td>
+</tr>
+<tr>
+<td>画面の色や表示言語を変える</td>
+<td><a href="13-settings.html">13. 設定ダイアログ</a></td>
+</tr>
+<tr>
+<td>設定をバックアップする。別のパソコンへ移す</td>
+<td><a href="14-import-export.html">14. インポート／エクスポート</a>、<a href="15-backup-migrate.html">15. バックアップと移行</a></td>
+</tr>
+<tr>
+<td>のどか（nodoka）の設定を使う</td>
+<td><a href="14-import-export.html">14. インポート／エクスポート</a></td>
+</tr>
+<tr>
+<td>うまく動かない。ログを見たい</td>
+<td><a href="16-reference.html">16. 付録</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="section-4">章の案内</h2>
 <table>
 <thead>
 <tr>
@@ -101,26 +259,27 @@
 <td>プログラムの起動、文字列の入力、前面のアプリに合わせた切り替え</td>
 </tr>
 <tr>
-<td><a href="12-settings.html">12. 設定ダイアログ</a></td>
+<td><a href="12-recipes.html">12. 設定の例</a></td>
+<td>よくある設定を、手順つきで紹介する</td>
+</tr>
+<tr>
+<td><a href="13-settings.html">13. 設定ダイアログ</a></td>
 <td>全般、機能、タイミングなど各タブ</td>
 </tr>
 <tr>
-<td><a href="13-import-export.html">13. インポート／エクスポート</a></td>
+<td><a href="14-import-export.html">14. インポート／エクスポート</a></td>
 <td>設定の書き出し、読み込み、のどかの設定の取り込み</td>
 </tr>
 <tr>
-<td><a href="14-backup-migrate.html">14. バックアップと移行</a></td>
-<td>設定の置き場所、別の PC への移行</td>
+<td><a href="15-backup-migrate.html">15. バックアップと移行</a></td>
+<td>設定の置き場所、別のパソコンへの移行</td>
 </tr>
 <tr>
-<td><a href="15-reference.html">15. 付録</a></td>
-<td>トラブル対応、既知の制限、コマンドライン、環境変数、ログ、トラブル対応</td>
+<td><a href="16-reference.html">16. 付録</a></td>
+<td>トラブル対応、既知の制限、コマンドライン、環境変数、ログ</td>
 </tr>
 </tbody>
 </table>
-<blockquote>
-<p>製品名は 2026年10月に LayerDriver から kasane に変わりました。ドライバの内部名（kbdlayer）、ライセンスの保存先（kbdlayer-license）など、一部の名前は旧名のままです。</p>
-</blockquote>
 
 <div class="pager"><span></span><a href="01-install.html">1. インストール →</a></div>
 </main>

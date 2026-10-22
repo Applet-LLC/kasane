@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>12. 設定の例 - kasane マニュアル</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane マニュアル</a>
+<ol>
+<li><a href="index.html">はじめに</a></li>
+<li><a href="01-install.html">1. インストール</a></li>
+<li><a href="02-uninstall.html">2. アンインストール</a></li>
+<li><a href="03-license.html">3. ライセンスの認証</a></li>
+<li><a href="04-tray.html">4. トレイ</a></li>
+<li><a href="05-editor-basics.html">5. エディタの基本画面</a></li>
+<li><a href="06-calibration.html">6. キャリブレーション</a></li>
+<li><a href="07-emergency.html">7. 緊急解除</a></li>
+<li><a href="08-key-assign.html">8. キーの割り当て</a></li>
+<li><a href="09-advanced.html">9. マクロ・コンボ・タップダンス・キー置換</a></li>
+<li><a href="10-ime-nicola.html">10. IME連動とNICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a></li>
+<li class="current"><a href="12-recipes.html">12. 設定の例</a></li>
+<li><a href="13-settings.html">13. 設定ダイアログ</a></li>
+<li><a href="14-import-export.html">14. インポート／エクスポート</a></li>
+<li><a href="15-backup-migrate.html">15. バックアップと移行</a></li>
+<li><a href="16-reference.html">16. 付録</a></li>
+</ol>
+
+</nav>
+<main>
+<h1 id="section">12. 設定の例</h1>
+<p>よくある設定を、手順つきで紹介します。キーの割り当ての画面や、各エディタの使い方は、<a href="08-key-assign.html">8. キーの割り当て</a>と<a href="09-advanced.html">9. マクロ・コンボ・タップダンス・キー置換</a>で説明しています。</p>
+<table>
+<thead>
+<tr>
+<th>やりたいこと</th>
+<th>例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Caps Lock と左 Ctrl を入れ替える</td>
+<td><a href="#recipe1">例 1</a></td>
+</tr>
+<tr>
+<td>Caps Lock を、短く押すと Esc、長押しすると Ctrl にする</td>
+<td><a href="#recipe2">例 2</a></td>
+</tr>
+<tr>
+<td>Space を押したまま、Shift として使う</td>
+<td><a href="#recipe3">例 3</a></td>
+</tr>
+<tr>
+<td>Space を押したまま、H、J、K、L で矢印キーを打つ</td>
+<td><a href="#recipe4">例 4</a></td>
+</tr>
+<tr>
+<td>Caps Lock を無効にする</td>
+<td><a href="#recipe5">例 5</a></td>
+</tr>
+<tr>
+<td>Shift+2 で <code>&quot;</code> が出るようにする</td>
+<td><a href="#recipe6">例 6</a></td>
+</tr>
+<tr>
+<td>Shift+BS を Delete にする</td>
+<td><a href="#recipe7">例 7</a></td>
+</tr>
+<tr>
+<td>Ctrl+1 で、キーの並び（マクロ）を出す</td>
+<td><a href="#recipe8">例 8</a></td>
+</tr>
+<tr>
+<td>テンキーを、押すたびに切り替わる 3 つの配置にする</td>
+<td><a href="#recipe9">例 9</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="section-1">キーを割り当てる手順</h2>
+<ol>
+<li>エディタで、設定するキーボードとレイアウトを選びます（<a href="05-editor-basics.html">5. エディタの基本画面</a>）。</li>
+<li>キー図のキーをクリックして、「キーの割り当て」の画面を開きます。</li>
+<li>左の一覧から選んで割り当てるか、画面の下の <strong>キーコード</strong> 欄に、例に書いたキーコードを、そのまま入力して、<strong>OK</strong> を押します。</li>
+<li>設定が終わったら、<strong>キーボードに適用(ON)</strong> を押します（管理者として起動していること）。</li>
+</ol>
+<p>この章のキーコードは、<strong>キーコード</strong> 欄に書いてかまいません。キーの名前は、キー図の上のキーを押して、確かめられます。</p>
+<p>別のレイヤーのキーを設定するときは、画面上部のレイヤーの一覧で、レイヤーの番号を選んでから、キーをクリックします。レイヤーを増やすときは、<strong>＋ 追加</strong> を押します。</p>
+<p><a id="recipe1"></a></p>
+<h2 id="caps-lock-ctrl">例 1: Caps Lock と左 Ctrl を入れ替える</h2>
+<table>
+<thead>
+<tr>
+<th>キー</th>
+<th>割り当てるキーコード</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Caps Lock（JIS では、英数キー）</td>
+<td><code>KC_LCTRL</code></td>
+</tr>
+<tr>
+<td>左 Ctrl</td>
+<td><code>KC_CAPSLOCK</code></td>
+</tr>
+</tbody>
+</table>
+<p><img src="../img/ja/editor-swapped.png" alt="入れ替えたキー" /></p>
+<p>詳しい手順は、<a href="05-editor-basics.html">5. エディタの基本画面</a>の「キーを入れ替える」にあります。</p>
+<p><a id="recipe2"></a></p>
+<h2 id="caps-lock-esc-ctrl">例 2: Caps Lock を、短く押すと Esc、長押しすると Ctrl にする</h2>
+<p>Mod-Tap を使います。</p>
+<table>
+<thead>
+<tr>
+<th>キー</th>
+<th>割り当てるキーコード</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Caps Lock</td>
+<td><code>MT(MOD_LCTL,KC_ESC)</code></td>
+</tr>
+</tbody>
+</table>
+<p>「キーの割り当て」の画面では、左の一覧の <strong>Mod-Tap (MT)</strong> を選び、修飾キーに左 Ctrl、タップのキーに <code>KC_ESC</code> を指定して、<strong>キーコード欄に入れる</strong> を押します。</p>
+<ul>
+<li>短く押して離すと、Esc になります。</li>
+<li>押したまま別のキーを押すと、Ctrl を押した状態になります。たとえば、Caps Lock を押しながら <code>C</code> を押すと、Ctrl+C です。</li>
+<li>速く打つと、意図せず長押しになるときは、設定ダイアログの「タイミング」タブで、判定方式を変えます（<a href="13-settings.html">13. 設定ダイアログ</a>）。</li>
+</ul>
+<p><a id="recipe3"></a></p>
+<h2 id="space-shift">例 3: Space を押したまま、Shift として使う</h2>
+<table>
+<thead>
+<tr>
+<th>キー</th>
+<th>割り当てるキーコード</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Space</td>
+<td><code>MT(MOD_LSFT,KC_SPC)</code></td>
+</tr>
+</tbody>
+</table>
+<p>短く押すと Space、押したまま別のキーを押すと、Shift を押した状態になります。</p>
+<p><a id="recipe4"></a></p>
+<h2 id="space-hjkl">例 4: Space を押したまま、H、J、K、L で矢印キーを打つ</h2>
+<p>Layer-Tap を使って、Space を押している間だけ、別の配置（レイヤー 1）にします。</p>
+<ol>
+<li><strong>＋ 追加</strong> で、レイヤー 1 を作ります。</li>
+<li>レイヤー 0 の Space に、<code>LT(1,KC_SPC)</code> を割り当てます。「キーの割り当て」の画面の <strong>Layer-Tap (LT)</strong> で、レイヤーに 1、タップのキーに <code>KC_SPC</code> を指定してもかまいません。</li>
+<li>レイヤー 1 を選んで、次のキーを割り当てます。</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>キー</th>
+<th>割り当てるキーコード</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>H</td>
+<td><code>KC_LEFT</code></td>
+</tr>
+<tr>
+<td>J</td>
+<td><code>KC_DOWN</code></td>
+</tr>
+<tr>
+<td>K</td>
+<td><code>KC_UP</code></td>
+</tr>
+<tr>
+<td>L</td>
+<td><code>KC_RIGHT</code></td>
+</tr>
+</tbody>
+</table>
+<p>レイヤー 1 の、ほかのキーは、▽（透過）のままにします。Space を押している間も、ほかのキーは、普段どおり動きます。</p>
+<p><a id="recipe5"></a></p>
+<h2 id="caps-lock">例 5: Caps Lock を無効にする</h2>
+<table>
+<thead>
+<tr>
+<th>キー</th>
+<th>割り当てるキーコード</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Caps Lock</td>
+<td><code>KC_NO</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>基本</strong> カテゴリの <strong>KC_NO</strong>（✕）を選んでも、同じです。</p>
+<p><a id="recipe6"></a></p>
+<h2 id="shift2">例 6: Shift+2 で <code>&quot;</code> が出るようにする</h2>
+<p>US 配列のキーボードを、US 配列の Windows で使っていて、Shift+2 で <code>@</code> が出るのを、<code>&quot;</code> に変える例です。キー置換を使います。</p>
+<ol>
+<li>キーボードのレイアウトを、<code>US104</code> にします。</li>
+<li>エディタの画面下の <strong>キー置換...</strong> を開きます。</li>
+<li>次のように入力して、<strong>OK</strong> を押します。</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>入力</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>修飾キー</td>
+<td><code>MOD_LSFT</code></td>
+</tr>
+<tr>
+<td>キー</td>
+<td><code>KC_2</code></td>
+</tr>
+<tr>
+<td>置き換え先</td>
+<td><code>LSFT(KC_QUOTE)</code></td>
+</tr>
+</tbody>
+</table>
+<ol start="4">
+<li><strong>設定...</strong> の「機能」タブで、キー置換が ON になっていることを確かめます。</li>
+<li><strong>キーボードに適用(ON)</strong> を押します。</li>
+</ol>
+<p>置き換え先には、Shift を掛けたアポストロフィのキー（<code>LSFT(KC_QUOTE)</code>）を書きます。置き換えているあいだ、条件の Shift は一時的に離されるので、置き換え先に Shift を書かないと、<code>'</code> が出ます。</p>
+<blockquote>
+<p>反対に、US 配列のキーボードを、JIS 配列の Windows で使っている場合は、Shift+2 で <code>&quot;</code> が出ます。<code>@</code> を出したいときは、置き換え先に <code>KC_LBRC</code> を指定します（<a href="09-advanced.html">9. マクロ・コンボ・タップダンス・キー置換</a>の「キー置換」）。</p>
+</blockquote>
+<p><a id="recipe7"></a></p>
+<h2 id="shiftbs-delete">例 7: Shift+BS を Delete にする</h2>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>入力</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>修飾キー</td>
+<td><code>MOD_LSFT</code></td>
+</tr>
+<tr>
+<td>キー</td>
+<td><code>KC_BSPACE</code></td>
+</tr>
+<tr>
+<td>置き換え先</td>
+<td><code>KC_DELETE</code></td>
+</tr>
+</tbody>
+</table>
+<p>手順は、例 6 と同じです。</p>
+<p><a id="recipe8"></a></p>
+<h2 id="ctrl1">例 8: Ctrl+1 で、キーの並び（マクロ）を出す</h2>
+<p>例として、全選択してコピーする（Ctrl+A、Ctrl+C）マクロを、Ctrl+1 で出します。マクロとキー置換を使います。</p>
+<ol>
+<li>エディタの画面下の <strong>マクロ...</strong> を開きます。</li>
+<li>マクロ 0 の中身に、次のように入力します（キーをスペースで区切ります）。</li>
+</ol>
+<pre><code>LCTL(KC_A) LCTL(KC_C)
+</code></pre>
+<ol start="3">
+<li><strong>OK</strong> を押します。</li>
+<li><strong>キー置換...</strong> を開き、次のように入力して、<strong>OK</strong> を押します。</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>入力</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>修飾キー</td>
+<td><code>MOD_LCTL</code></td>
+</tr>
+<tr>
+<td>キー</td>
+<td><code>KC_1</code></td>
+</tr>
+<tr>
+<td>置き換え先</td>
+<td><code>MACRO(0)</code></td>
+</tr>
+</tbody>
+</table>
+<ol start="5">
+<li><strong>設定...</strong> の「機能」タブで、マクロとキー置換が ON になっていることを確かめます。</li>
+<li><strong>キーボードに適用(ON)</strong> を押します。</li>
+</ol>
+<p>Ctrl+1 を押すと、マクロ 0 が 1 回実行されます。Ctrl+1 そのものは、アプリに届きません。実行の間だけ、押している Ctrl が離されるので、マクロの中で Ctrl を使うキーは、<code>LCTL(KC_A)</code> のように書きます。</p>
+<p>文字列や待ちを含む手順を出したいときは、ヘルパー動作のトリガーを使います（<a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a>）。</p>
+<p><a id="recipe9"></a></p>
+<h2 id="section-2">例 9: テンキーを、押すたびに切り替わる 3 つの配置にする</h2>
+<p>テンキー単体のキーボードを、0 キーで、レイヤー 0 → 1 → 2 → 0 と切り替えます。</p>
+<ul>
+<li>レイヤー 1: 一部のキーを、ショートカットと修飾キーにする。</li>
+<li>レイヤー 2: 1〜9 のキーで、決まった文字列を入力する。</li>
+</ul>
+<h3 id="section-3">準備</h3>
+<ol>
+<li>テンキーのキーボードを選び、レイアウトを <code>10KEY</code> にします。</li>
+<li><strong>＋ 追加</strong> を 2 回押して、レイヤー 1 と 2 を作ります。</li>
+</ol>
+<h3 id="section-4">レイヤーを切り替える</h3>
+<p><code>TO(n)</code> は、レイヤー n だけを有効にします。3 つのレイヤーの 0 キーに、次のレイヤーへ進む <code>TO(n)</code> を割り当てると、押すたびに、0 → 1 → 2 → 0 と進みます。</p>
+<table>
+<thead>
+<tr>
+<th>レイヤー</th>
+<th>0 キー</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td><code>TO(1)</code></td>
+</tr>
+<tr>
+<td>1</td>
+<td><code>TO(2)</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>TO(0)</code></td>
+</tr>
+</tbody>
+</table>
+<p>「キーの割り当て」の画面では、<strong>レイヤー操作</strong> の <strong>種類</strong> で <code>TO</code> を選び、<strong>レイヤー</strong> に番号を指定して、<strong>キーコード欄に入れる</strong> を押します。</p>
+<h3 id="section-5">レイヤー 1 の割り当て</h3>
+<p>レイヤー 1 の 0 キーは、切り替えに使うので、左 Shift は、<code>+</code> キーに割り当てます。</p>
+<table>
+<thead>
+<tr>
+<th>キー</th>
+<th>出すもの</th>
+<th>キーコード（US 配列の Windows）</th>
+<th>キーコード（JIS 配列の Windows）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4</td>
+<td>Ctrl+<code>]</code></td>
+<td><code>LCTL(KC_RBRACKET)</code></td>
+<td><code>LCTL(KC_BSLASH)</code></td>
+</tr>
+<tr>
+<td>1</td>
+<td>Ctrl+<code>[</code></td>
+<td><code>LCTL(KC_LBRACKET)</code></td>
+<td><code>LCTL(KC_RBRACKET)</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td>Ctrl+Shift+P</td>
+<td><code>LCTL(LSFT(KC_P))</code></td>
+<td>同じ</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Ctrl+Shift+O</td>
+<td><code>LCTL(LSFT(KC_O))</code></td>
+<td>同じ</td>
+</tr>
+<tr>
+<td><code>+</code></td>
+<td>左 Shift</td>
+<td><code>KC_LSHIFT</code></td>
+<td>同じ</td>
+</tr>
+<tr>
+<td><code>.</code></td>
+<td>左 Ctrl</td>
+<td><code>KC_LCTRL</code></td>
+<td>同じ</td>
+</tr>
+<tr>
+<td>Enter</td>
+<td>左 Alt</td>
+<td><code>KC_LALT</code></td>
+<td>同じ</td>
+</tr>
+<tr>
+<td>0</td>
+<td>レイヤー 2 へ</td>
+<td><code>TO(2)</code></td>
+<td>同じ</td>
+</tr>
+</tbody>
+</table>
+<p><code>[</code> と <code>]</code> のキーコードが、配列で違うのは、キーコードが、キーの位置（スキャンコード）を表すためです。Windows の配列が JIS のときは、<code>]</code> のキーが <code>KC_BSLASH</code>、<code>[</code> のキーが <code>KC_RBRACKET</code> です。</p>
+<h3 id="section-6">レイヤー 2 の割り当て</h3>
+<p>1〜9 のキーに、ヘルパー動作の「文字列を入力する (Text)」を割り当てます。0 キーは、レイヤー 0 に戻ります。</p>
+<table>
+<thead>
+<tr>
+<th>キー</th>
+<th>割り当て</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1〜9</td>
+<td>ヘルパー動作（文字列を入力する）。例: 1 は「お世話になっております。」、2 は「よろしくお願いいたします。」</td>
+</tr>
+<tr>
+<td>0</td>
+<td><code>TO(0)</code></td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li>レイヤー 2 を選び、1 のキーをクリックします。</li>
+<li>左の一覧から <strong>ヘルパー動作</strong> を選び、<strong>新しい動作...</strong> を押します。</li>
+<li>種類を <strong>文字列を入力する (Text)</strong> にして、入力する文字列を書き、<strong>OK</strong> を押します。キーには、<code>HLP(1)</code> のようなコードが入ります。</li>
+<li>2〜9 のキーも、同じようにします。</li>
+</ol>
+<p>ヘルパー動作は、トレイが動いているときだけ働きます（<a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a>）。</p>
+<h3 id="section-7">適用して確かめる</h3>
+<p><strong>キーボードに適用(ON)</strong> を押します。メモ帳を開いて、次のように確かめます。</p>
+<ol>
+<li>0 キーを押す。レイヤー 1 になる（トレイのアイコンに、レイヤーの番号 1 が出ます）。</li>
+<li>4 を押して、Ctrl+<code>]</code> が働くかを確かめる。<code>+</code> を押しながら、別のキーを押すと、Shift を押した状態になる。</li>
+<li>0 キーを押す。レイヤー 2 になる。1〜9 で、設定した文字列が入力される。</li>
+<li>0 キーを押す。レイヤー 0 に戻る。</li>
+</ol>
+<p>トレイのメニューの <strong>レイヤー</strong> からも、レイヤーを切り替えられます（<a href="04-tray.html">4. トレイ</a>）。</p>
+
+<div class="pager"><a href="11-helper-apprules.html">← 11. ヘルパー動作とアプリ別レイヤー</a><a href="13-settings.html">13. 設定ダイアログ →</a></div>
+</main>
+</div>
+</body>
+</html>

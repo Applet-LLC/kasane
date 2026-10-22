@@ -27,10 +27,11 @@ $chapters = @(
     @{ Name = '09-advanced';          Title = '9. マクロ・コンボ・タップダンス・キー置換' }
     @{ Name = '10-ime-nicola';        Title = '10. IME連動とNICOLA' }
     @{ Name = '11-helper-apprules';   Title = '11. ヘルパー動作とアプリ別レイヤー' }
-    @{ Name = '12-settings';          Title = '12. 設定ダイアログ' }
-    @{ Name = '13-import-export';     Title = '13. インポート／エクスポート' }
-    @{ Name = '14-backup-migrate';    Title = '14. バックアップと移行' }
-    @{ Name = '15-reference';         Title = '15. 付録' }
+    @{ Name = '12-recipes';           Title = '12. 設定の例' }
+    @{ Name = '13-settings';          Title = '13. 設定ダイアログ' }
+    @{ Name = '14-import-export';     Title = '14. インポート／エクスポート' }
+    @{ Name = '15-backup-migrate';    Title = '15. バックアップと移行' }
+    @{ Name = '16-reference';         Title = '16. 付録' }
 )
 
 $htmlLang = if ($Lang -eq 'ja') { 'ja' } else { $Lang }
