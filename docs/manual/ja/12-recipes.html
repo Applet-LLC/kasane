@@ -63,20 +63,28 @@
 <td><a href="#recipe5">例 5</a></td>
 </tr>
 <tr>
-<td>Shift+2 で <code>&quot;</code> が出るようにする</td>
+<td>Caps Lock で IME をオン・オフし、Shift+Caps Lock で Caps Lock にする</td>
 <td><a href="#recipe6">例 6</a></td>
 </tr>
 <tr>
-<td>Shift+BS を Delete にする</td>
+<td>右 Alt を、左 Ctrl と左 Alt の同時押し（AltGr）にする</td>
 <td><a href="#recipe7">例 7</a></td>
 </tr>
 <tr>
-<td>Ctrl+1 で、キーの並び（マクロ）を出す</td>
+<td>Shift+2 で <code>&quot;</code> が出るようにする</td>
 <td><a href="#recipe8">例 8</a></td>
 </tr>
 <tr>
-<td>テンキーを、押すたびに切り替わる 3 つの配置にする</td>
+<td>Shift+BS を Delete にする</td>
 <td><a href="#recipe9">例 9</a></td>
+</tr>
+<tr>
+<td>Ctrl+1 で、キーの並び（マクロ）を出す</td>
+<td><a href="#recipe10">例 10</a></td>
+</tr>
+<tr>
+<td>テンキーを、押すたびに切り替わる 3 つの配置にする</td>
+<td><a href="#recipe11">例 11</a></td>
 </tr>
 </tbody>
 </table>
@@ -204,7 +212,66 @@
 </table>
 <p><strong>基本</strong> カテゴリの <strong>KC_NO</strong>（✕）を選んでも、同じです。</p>
 <p><a id="recipe6"></a></p>
-<h2 id="shift2">例 6: Shift+2 で <code>&quot;</code> が出るようにする</h2>
+<h2 id="caps-lock-ime-shiftcaps-lock-caps-lock">例 6: Caps Lock で IME をオン・オフし、Shift+Caps Lock で Caps Lock にする</h2>
+<p>Caps Lock を、日本語入力（IME）のオン・オフのキー（半角/全角キー）にして、Shift を押しながら押したときだけ、本来の Caps Lock にする例です。キーの割り当てと、キー置換を使います。</p>
+<ol>
+<li>Caps Lock を、<code>KC_ZKHK</code>（半角/全角キー）に割り当てます。<strong>NLS</strong> カテゴリの <strong>半/全</strong> を選んでもかまいません。</li>
+<li>エディタの画面下の <strong>キー置換...</strong> を開き、次のように入力して、<strong>OK</strong> を押します。</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>入力</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>修飾キー</td>
+<td><code>MOD_LSFT</code></td>
+</tr>
+<tr>
+<td>キー</td>
+<td><code>KC_ZKHK</code></td>
+</tr>
+<tr>
+<td>置き換え先</td>
+<td><code>KC_CAPSLOCK</code></td>
+</tr>
+</tbody>
+</table>
+<ol start="3">
+<li><strong>設定...</strong> の「機能」タブで、キー置換が ON になっていることを確かめます。</li>
+<li><strong>キーボードに適用(ON)</strong> を押します。</li>
+</ol>
+<p>キー置換の <strong>キー</strong> には、レイヤーの切り替えのあとに出るキー（ここでは、Caps Lock に割り当てた <code>KC_ZKHK</code>）を書きます。置き換えているあいだ、条件の Shift は一時的に離されるので、Caps Lock が、Shift なしで送られます。</p>
+<ul>
+<li>Caps Lock だけを押すと、IME のオンとオフが切り替わります。</li>
+<li>Shift を押しながら Caps Lock を押すと、Caps Lock が切り替わります。</li>
+</ul>
+<blockquote>
+<p>特定のキーを、IME オン、IME オフにしたいときは、そのキーを <code>KC_F13</code>、<code>KC_F14</code> などに置き換えて、IME 側の設定で対応してください。F13〜F24 は、物理のキーがなくても出せます（<a href="08-key-assign.html">8. キーの割り当て</a>）。IME の設定で、割り当てられるキーは、お使いの IME によって違います。</p>
+</blockquote>
+<p><a id="recipe7"></a></p>
+<h2 id="alt-ctrl-alt-altgr">例 7: 右 Alt を、左 Ctrl と左 Alt の同時押し（AltGr）にする</h2>
+<table>
+<thead>
+<tr>
+<th>キー</th>
+<th>割り当てるキーコード</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>右 Alt</td>
+<td><code>LCTL(KC_LALT)</code></td>
+</tr>
+</tbody>
+</table>
+<p>右 Alt を押すと、左 Ctrl と左 Alt を同時に押した状態になります。AltGr のあるキーボード配列（ドイツ語など）の Windows では、AltGr で入力する文字が出ます。AltGr のない配列（米国、日本、韓国）では、Ctrl+Alt のショートカットとして働きます。</p>
+<p>反対に、右 Alt が、意図せず AltGr（左 Ctrl と左 Alt の同時押し）になって困るときは、<a href="16-reference.html">16. 付録</a>のトラブル対応を見てください。</p>
+<p><a id="recipe8"></a></p>
+<h2 id="shift2">例 8: Shift+2 で <code>&quot;</code> が出るようにする</h2>
 <p>US 配列のキーボードを、US 配列の Windows で使っていて、Shift+2 で <code>@</code> が出るのを、<code>&quot;</code> に変える例です。キー置換を使います。</p>
 <ol>
 <li>キーボードのレイアウトを、<code>US104</code> にします。</li>
@@ -241,8 +308,8 @@
 <blockquote>
 <p>反対に、US 配列のキーボードを、JIS 配列の Windows で使っている場合は、Shift+2 で <code>&quot;</code> が出ます。<code>@</code> を出したいときは、置き換え先に <code>KC_LBRC</code> を指定します（<a href="09-advanced.html">9. マクロ・コンボ・タップダンス・キー置換</a>の「キー置換」）。</p>
 </blockquote>
-<p><a id="recipe7"></a></p>
-<h2 id="shiftbs-delete">例 7: Shift+BS を Delete にする</h2>
+<p><a id="recipe9"></a></p>
+<h2 id="shiftbs-delete">例 9: Shift+BS を Delete にする</h2>
 <table>
 <thead>
 <tr>
@@ -265,9 +332,9 @@
 </tr>
 </tbody>
 </table>
-<p>手順は、例 6 と同じです。</p>
-<p><a id="recipe8"></a></p>
-<h2 id="ctrl1">例 8: Ctrl+1 で、キーの並び（マクロ）を出す</h2>
+<p>手順は、例 8 と同じです。</p>
+<p><a id="recipe10"></a></p>
+<h2 id="ctrl1">例 10: Ctrl+1 で、キーの並び（マクロ）を出す</h2>
 <p>例として、全選択してコピーする（Ctrl+A、Ctrl+C）マクロを、Ctrl+1 で出します。マクロとキー置換を使います。</p>
 <ol>
 <li>エディタの画面下の <strong>マクロ...</strong> を開きます。</li>
@@ -307,8 +374,8 @@
 </ol>
 <p>Ctrl+1 を押すと、マクロ 0 が 1 回実行されます。Ctrl+1 そのものは、アプリに届きません。実行の間だけ、押している Ctrl が離されるので、マクロの中で Ctrl を使うキーは、<code>LCTL(KC_A)</code> のように書きます。</p>
 <p>文字列や待ちを含む手順を出したいときは、ヘルパー動作のトリガーを使います（<a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a>）。</p>
-<p><a id="recipe9"></a></p>
-<h2 id="section-2">例 9: テンキーを、押すたびに切り替わる 3 つの配置にする</h2>
+<p><a id="recipe11"></a></p>
+<h2 id="section-2">例 11: テンキーを、押すたびに切り替わる 3 つの配置にする</h2>
 <p>テンキー単体のキーボードを、0 キーで、レイヤー 0 → 1 → 2 → 0 と切り替えます。</p>
 <ul>
 <li>レイヤー 1: 一部のキーを、ショートカットと修飾キーにする。</li>

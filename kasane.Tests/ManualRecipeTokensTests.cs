@@ -22,6 +22,10 @@ public class ManualRecipeTokensTests
     [InlineData("KC_RIGHT")]
     [InlineData("KC_NO")]
     [InlineData("KC_LBRC")]
+    [InlineData("KC_ZKHK")]
+    [InlineData("KC_F13")]
+    [InlineData("KC_F14")]
+    [InlineData("LCTL(KC_LALT)")]
     // テンキーのレイヤーの例
     [InlineData("TO(0)")]
     [InlineData("TO(1)")]
@@ -44,6 +48,7 @@ public class ManualRecipeTokensTests
     [Theory]
     [InlineData("MOD_LSFT", "KC_2", "LSFT(KC_QUOTE)")]     // Shift+2 を " にする(US 配列の Windows)
     [InlineData("MOD_LSFT", "KC_BSPACE", "KC_DELETE")]      // Shift+BS を Delete にする
+    [InlineData("MOD_LSFT", "KC_ZKHK", "KC_CAPSLOCK")]      // Caps Lock を IME(半角/全角)にして、Shift+Caps Lock を Caps Lock にする
     [InlineData("MOD_LCTL", "KC_1", "MACRO(0)")]            // Ctrl+1 でマクロ 0
     public void RecipeKeyOverrides_AreAccepted(string mods, string key, string replacement)
     {
