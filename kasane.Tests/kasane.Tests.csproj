@@ -32,6 +32,7 @@
     <Compile Include="..\kasane-tray\DesktopViewMode.cs" Link="Tray\DesktopViewMode.cs" />
     <Compile Include="..\kasane-tray\PauseStateStore.cs" Link="Tray\PauseStateStore.cs" />
     <Compile Include="..\kasane-tray\AutoOffController.cs" Link="Tray\AutoOffController.cs" />
+    <Compile Include="..\kasane-tray\SessionActivity.cs" Link="Tray\SessionActivity.cs" />
     <Compile Include="..\kasane-tray\AutoOffStore.cs" Link="Tray\AutoOffStore.cs" />
     <Compile Include="..\kasane-tray\ImeLinkController.cs" Link="Tray\ImeLinkController.cs" />
     <Compile Include="..\kasane-tray\Win32ImeSource.cs" Link="Tray\Win32ImeSource.cs" />
