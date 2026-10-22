@@ -23,6 +23,7 @@ public class ManualRecipeTokensTests
     [InlineData("KC_NO")]
     [InlineData("KC_LBRC")]
     [InlineData("KC_ZKHK")]
+    [InlineData("LALT(KC_ZKHK)")]
     [InlineData("KC_F13")]
     [InlineData("KC_F14")]
     [InlineData("LCTL(KC_LALT)")]

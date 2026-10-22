@@ -9,7 +9,7 @@
 | Space を押したまま、Shift として使う | [例 3](#recipe3) |
 | Space を押したまま、H、J、K、L で矢印キーを打つ | [例 4](#recipe4) |
 | Caps Lock を無効にする | [例 5](#recipe5) |
-| Caps Lock で IME をオン・オフし、Shift+Caps Lock で Caps Lock にする | [例 6](#recipe6) |
+| Caps Lock で IME をオン・オフする。Shift+Caps Lock で Caps Lock にする | [例 6](#recipe6) |
 | 右 Alt を、左 Ctrl と左 Alt の同時押し（AltGr）にする | [例 7](#recipe7) |
 | Shift+2 で `"` が出るようにする | [例 8](#recipe8) |
 | Shift+BS を Delete にする | [例 9](#recipe9) |
@@ -91,11 +91,30 @@ Layer-Tap を使って、Space を押している間だけ、別の配置（レ�
 **基本** カテゴリの **KC_NO**（✕）を選んでも、同じです。
 
 <a id="recipe6"></a>
-## 例 6: Caps Lock で IME をオン・オフし、Shift+Caps Lock で Caps Lock にする
+## 例 6: Caps Lock で IME をオン・オフする
 
-Caps Lock を、日本語入力（IME）のオン・オフのキー（半角/全角キー）にして、Shift を押しながら押したときだけ、本来の Caps Lock にする例です。キーの割り当てと、キー置換を使います。
+Caps Lock を、日本語入力（IME）のオンとオフを切り替えるキーにします。Alt+半角/全角は、JIS 配列と US 配列のどちらのキーボードでも、Microsoft IME のオンとオフが切り替わる組み合わせです。
 
-1. Caps Lock を、`KC_ZKHK`（半角/全角キー）に割り当てます。**NLS** カテゴリの **半/全** を選んでもかまいません。
+| キー | 割り当てるキーコード |
+|---|---|
+| Caps Lock | `LALT(KC_ZKHK)` |
+
+`KC_ZKHK` は、半角/全角キーです。**NLS** カテゴリの **半/全** を選び、修飾キーの **左Alt** にチェックを付けても、同じ割り当てになります。
+
+> 特定のキーを、IME オン、IME オフにしたいときは、そのキーを `KC_F13`、`KC_F14` などに置き換えて、IME 側の設定で対応してください。F13〜F24 は、物理のキーがなくても出せます（[8. キーの割り当て](08-key-assign.html)）。IME の設定で、割り当てられるキーは、お使いの IME によって違います。
+
+### Shift+Caps Lock で、本来の Caps Lock にする
+
+Shift+Caps Lock を、本来の Caps Lock にしたいときは、キー置換を足します。ただし、キー置換が働くのは、キーに、普通のキー（`KC_*`）が割り当てられているときだけです。`LALT(KC_ZKHK)` のような、修飾付きのキーが割り当てられているキーには、使えません。
+
+JIS 配列のキーボードなど、半角/全角キーを単独で押して、IME のオンとオフを切り替えられるときは、次のようにします。
+
+1. Caps Lock に、修飾キーなしの `KC_ZKHK` を割り当てます。
+
+| キー | 割り当てるキーコード |
+|---|---|
+| Caps Lock | `KC_ZKHK` |
+
 2. エディタの画面下の **キー置換...** を開き、次のように入力して、**OK** を押します。
 
 | 項目 | 入力 |
@@ -111,8 +130,6 @@ Caps Lock を、日本語入力（IME）のオン・オフのキー（半角/全
 
 - Caps Lock だけを押すと、IME のオンとオフが切り替わります。
 - Shift を押しながら Caps Lock を押すと、Caps Lock が切り替わります。
-
-> 特定のキーを、IME オン、IME オフにしたいときは、そのキーを `KC_F13`、`KC_F14` などに置き換えて、IME 側の設定で対応してください。F13〜F24 は、物理のキーがなくても出せます（[8. キーの割り当て](08-key-assign.html)）。IME の設定で、割り当てられるキーは、お使いの IME によって違います。
 
 <a id="recipe7"></a>
 ## 例 7: 右 Alt を、左 Ctrl と左 Alt の同時押し（AltGr）にする

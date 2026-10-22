@@ -63,7 +63,7 @@
 <td><a href="#recipe5">例 5</a></td>
 </tr>
 <tr>
-<td>Caps Lock で IME をオン・オフし、Shift+Caps Lock で Caps Lock にする</td>
+<td>Caps Lock で IME をオン・オフする。Shift+Caps Lock で Caps Lock にする</td>
 <td><a href="#recipe6">例 6</a></td>
 </tr>
 <tr>
@@ -212,10 +212,47 @@
 </table>
 <p><strong>基本</strong> カテゴリの <strong>KC_NO</strong>（✕）を選んでも、同じです。</p>
 <p><a id="recipe6"></a></p>
-<h2 id="caps-lock-ime-shiftcaps-lock-caps-lock">例 6: Caps Lock で IME をオン・オフし、Shift+Caps Lock で Caps Lock にする</h2>
-<p>Caps Lock を、日本語入力（IME）のオン・オフのキー（半角/全角キー）にして、Shift を押しながら押したときだけ、本来の Caps Lock にする例です。キーの割り当てと、キー置換を使います。</p>
+<h2 id="caps-lock-ime">例 6: Caps Lock で IME をオン・オフする</h2>
+<p>Caps Lock を、日本語入力（IME）のオンとオフを切り替えるキーにします。Alt+半角/全角は、JIS 配列と US 配列のどちらのキーボードでも、Microsoft IME のオンとオフが切り替わる組み合わせです。</p>
+<table>
+<thead>
+<tr>
+<th>キー</th>
+<th>割り当てるキーコード</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Caps Lock</td>
+<td><code>LALT(KC_ZKHK)</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>KC_ZKHK</code> は、半角/全角キーです。<strong>NLS</strong> カテゴリの <strong>半/全</strong> を選び、修飾キーの <strong>左Alt</strong> にチェックを付けても、同じ割り当てになります。</p>
+<blockquote>
+<p>特定のキーを、IME オン、IME オフにしたいときは、そのキーを <code>KC_F13</code>、<code>KC_F14</code> などに置き換えて、IME 側の設定で対応してください。F13〜F24 は、物理のキーがなくても出せます（<a href="08-key-assign.html">8. キーの割り当て</a>）。IME の設定で、割り当てられるキーは、お使いの IME によって違います。</p>
+</blockquote>
+<h3 id="shiftcaps-lock-caps-lock">Shift+Caps Lock で、本来の Caps Lock にする</h3>
+<p>Shift+Caps Lock を、本来の Caps Lock にしたいときは、キー置換を足します。ただし、キー置換が働くのは、キーに、普通のキー（<code>KC_*</code>）が割り当てられているときだけです。<code>LALT(KC_ZKHK)</code> のような、修飾付きのキーが割り当てられているキーには、使えません。</p>
+<p>JIS 配列のキーボードなど、半角/全角キーを単独で押して、IME のオンとオフを切り替えられるときは、次のようにします。</p>
 <ol>
-<li>Caps Lock を、<code>KC_ZKHK</code>（半角/全角キー）に割り当てます。<strong>NLS</strong> カテゴリの <strong>半/全</strong> を選んでもかまいません。</li>
+<li>Caps Lock に、修飾キーなしの <code>KC_ZKHK</code> を割り当てます。</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>キー</th>
+<th>割り当てるキーコード</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Caps Lock</td>
+<td><code>KC_ZKHK</code></td>
+</tr>
+</tbody>
+</table>
+<ol start="2">
 <li>エディタの画面下の <strong>キー置換...</strong> を開き、次のように入力して、<strong>OK</strong> を押します。</li>
 </ol>
 <table>
@@ -249,9 +286,6 @@
 <li>Caps Lock だけを押すと、IME のオンとオフが切り替わります。</li>
 <li>Shift を押しながら Caps Lock を押すと、Caps Lock が切り替わります。</li>
 </ul>
-<blockquote>
-<p>特定のキーを、IME オン、IME オフにしたいときは、そのキーを <code>KC_F13</code>、<code>KC_F14</code> などに置き換えて、IME 側の設定で対応してください。F13〜F24 は、物理のキーがなくても出せます（<a href="08-key-assign.html">8. キーの割り当て</a>）。IME の設定で、割り当てられるキーは、お使いの IME によって違います。</p>
-</blockquote>
 <p><a id="recipe7"></a></p>
 <h2 id="alt-ctrl-alt-altgr">例 7: 右 Alt を、左 Ctrl と左 Alt の同時押し（AltGr）にする</h2>
 <table>
