@@ -233,27 +233,8 @@
 <p>特定のキーを、IME オン、IME オフにしたいときは、そのキーを <code>KC_F13</code>、<code>KC_F14</code> などに置き換えて、IME 側の設定で対応してください。F13〜F24 は、物理のキーがなくても出せます（<a href="08-key-assign.html">8. キーの割り当て</a>）。IME の設定で、割り当てられるキーは、お使いの IME によって違います。</p>
 </blockquote>
 <h3 id="shiftcaps-lock-caps-lock">Shift+Caps Lock で、本来の Caps Lock にする</h3>
-<p>Shift+Caps Lock を、本来の Caps Lock にしたいときは、キー置換を足します。ただし、キー置換が働くのは、キーに、普通のキー（<code>KC_*</code>）が割り当てられているときだけです。<code>LALT(KC_ZKHK)</code> のような、修飾付きのキーが割り当てられているキーには、使えません。</p>
-<p>この制限を解決するには、IME 側の設定で、半角/全角キーだけで、IME のオンとオフが切り替わるようにしてください。そのうえで、次の手順で、Caps Lock に、修飾キーなしの <code>KC_ZKHK</code> を割り当てます。</p>
-<p>JIS 配列のキーボードなど、半角/全角キーを単独で押して、IME のオンとオフを切り替えられるときは、そのまま、次のようにします。</p>
+<p>Caps Lock のキーに <code>LALT(KC_ZKHK)</code> を割り当てると、Shift を押しながらでも、同じ割り当てが働きます。Shift+Caps Lock を、本来の Caps Lock として使いたいときは、キー置換を足します。</p>
 <ol>
-<li>Caps Lock に、修飾キーなしの <code>KC_ZKHK</code> を割り当てます。</li>
-</ol>
-<table>
-<thead>
-<tr>
-<th>キー</th>
-<th>割り当てるキーコード</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Caps Lock</td>
-<td><code>KC_ZKHK</code></td>
-</tr>
-</tbody>
-</table>
-<ol start="2">
 <li>エディタの画面下の <strong>キー置換...</strong> を開き、次のように入力して、<strong>OK</strong> を押します。</li>
 </ol>
 <table>
@@ -274,19 +255,26 @@
 </tr>
 <tr>
 <td>置き換え先</td>
-<td><code>KC_CAPSLOCK</code></td>
+<td><code>LSFT(KC_CAPSLOCK)</code></td>
 </tr>
 </tbody>
 </table>
-<ol start="3">
+<ol start="2">
 <li><strong>設定...</strong> の「機能」タブで、キー置換が ON になっていることを確かめます。</li>
 <li><strong>キーボードに適用(ON)</strong> を押します。</li>
 </ol>
-<p>キー置換の <strong>キー</strong> には、レイヤーの切り替えのあとに出るキー（ここでは、Caps Lock に割り当てた <code>KC_ZKHK</code>）を書きます。置き換えているあいだ、条件の Shift は一時的に離されるので、Caps Lock が、Shift なしで送られます。</p>
+<ul>
+<li><strong>キー</strong> には、キー置換の対象になる、出力のキーを書きます。Caps Lock に割り当てた <code>LALT(KC_ZKHK)</code> の、キーの部分(<code>KC_ZKHK</code>)です。</li>
+<li><strong>置き換え先</strong> は、JIS 配列の Windows では <code>LSFT(KC_CAPSLOCK)</code> にします。JIS 配列では、Shift を押さない Caps Lock のキーは「英数」キーとして働き、Caps Lock が切り替わるのは、Shift を押しているときだけだからです。US 配列の Windows では、<code>KC_CAPSLOCK</code> で足ります。</li>
+</ul>
+<p>これで、次のように動きます。</p>
 <ul>
 <li>Caps Lock だけを押すと、IME のオンとオフが切り替わります。</li>
 <li>Shift を押しながら Caps Lock を押すと、Caps Lock が切り替わります。</li>
 </ul>
+<blockquote>
+<p>キー置換は、出力のキーで対象を決めます。そのため、本物の半角/全角キーを Shift と一緒に押したときも、Caps Lock に置き換わります。</p>
+</blockquote>
 <p><a id="recipe7"></a></p>
 <h2 id="alt-ctrl-alt-altgr">例 7: 右 Alt を、左 Ctrl と左 Alt の同時押し（AltGr）にする</h2>
 <table>
