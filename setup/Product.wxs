@@ -324,7 +324,10 @@
           Type="ownProcess"
           Start="auto"
           ErrorControl="normal"
-          Account="LocalSystem" />
+          Account="LocalSystem">
+          <!-- シャットダウン時に EventLog より先に停止させる(停止中のログ書き込みで落ちるのを防ぐ) -->
+          <ServiceDependency Id="EventLog" />
+        </ServiceInstall>
         <ServiceControl
           Id="SVC_KbdLayerLicense_Ctrl"
           Name="kasaneLicenseSvc"
