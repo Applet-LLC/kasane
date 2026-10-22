@@ -8,12 +8,15 @@ namespace Kasane.Views;
 /// マクロ（またはタップダンス）1件の、選ぶ画面に出す情報（番号・名前・中身）。<paramref name="Kind"/> は "MACRO" か "TAPDANCE"
 /// （入れるトークン MACRO(n)・TAPDANCE(n) の名前）。
 /// </summary>
-public sealed record MacroInfo(int Id, string? Name, string Content, string Kind = "MACRO")
+public sealed record MacroInfo(int Id, string? Name, string Content, string Kind = "MACRO", bool Disabled = false)
 {
+    // 無効にしたものは、先頭に印を付ける（選べるが、適用されない）。
+    private string Tag => Disabled ? Loc.T("[無効] ", "[Disabled] ") : "";
+
     public override string ToString() =>
         string.IsNullOrWhiteSpace(Name)
-            ? $"{Id,3}: {(Content.Length == 0 ? Loc.T("(未使用)", "(unused)") : Content)}"
-            : $"{Id,3}: {Name} — {(Content.Length == 0 ? Loc.T("(未使用)", "(unused)") : Content)}";
+            ? $"{Id,3}: {Tag}{(Content.Length == 0 ? Loc.T("(未使用)", "(unused)") : Content)}"
+            : $"{Id,3}: {Name} — {Tag}{(Content.Length == 0 ? Loc.T("(未使用)", "(unused)") : Content)}";
 
     public string Token => $"{Kind}({Id})";
 }

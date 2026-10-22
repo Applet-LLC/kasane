@@ -67,7 +67,7 @@ public static class PortableExporter
 
         kb.Macros = p.Macros.Select(CloneMacro).ToList();
         kb.TapDances = p.TapDances.Select(CloneTapDance).ToList();
-        kb.KeyOverrides = p.KeyOverrides.Select(k => new KeyOverrideDef { Id = k.Id, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement, RepeatMacro = k.RepeatMacro }).ToList();
+        kb.KeyOverrides = p.KeyOverrides.Select(k => new KeyOverrideDef { Id = k.Id, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement, RepeatMacro = k.RepeatMacro, Disabled = k.Disabled }).ToList();
         kb.Combos = new List<PortableCombo>();
         foreach (var c in p.Combos)
         {
@@ -76,7 +76,7 @@ public static class PortableExporter
                 report.Warn(Loc.T($"コンボ{c.Id}: メンバーのスキャンコードが分からないため書き出せませんでした", $"Combo {c.Id}: could not export because a member's scan code is unknown"));
                 continue;
             }
-            kb.Combos.Add(new PortableCombo { Id = c.Id, Key1 = ScName(k1), Key2 = ScName(k2), Output = c.Output });
+            kb.Combos.Add(new PortableCombo { Id = c.Id, Key1 = ScName(k1), Key2 = ScName(k2), Output = c.Output, Disabled = c.Disabled });
         }
         kb.Timing = new PortableTiming
         {
@@ -200,11 +200,11 @@ public static class PortableExporter
         return copy.Count > 0 ? copy : null;
     }
 
-    private static MacroDef CloneMacro(MacroDef m) => new() { Id = m.Id, Keys = new List<string>(m.Keys) };
+    private static MacroDef CloneMacro(MacroDef m) => new() { Id = m.Id, Keys = new List<string>(m.Keys), Disabled = m.Disabled };
 
     private static TapDanceDef CloneTapDance(TapDanceDef t) => new()
     {
-        Id = t.Id, SingleTap = t.SingleTap, SingleHold = t.SingleHold, DoubleTap = t.DoubleTap, TripleTap = t.TripleTap,
+        Id = t.Id, SingleTap = t.SingleTap, SingleHold = t.SingleHold, DoubleTap = t.DoubleTap, TripleTap = t.TripleTap, Disabled = t.Disabled,
     };
 
     public static bool HasContent(HelperConfig h) => h.Actions.Count + h.Triggers.Count + h.AppLayerRules.Count > 0;

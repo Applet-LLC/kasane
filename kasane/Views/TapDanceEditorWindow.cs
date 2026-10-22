@@ -18,17 +18,22 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
                 "長押しは KC_*、MT(MOD_LCTL,KC_NO) のような修飾キー、LT(1,KC_NO) のようなレイヤー(MT/LTのタップ側のキーは使われません)、" +
                 "LCTL(KC_C) のような修飾付きキー(押している間)、LM(1,MOD_LCTL)、MACRO(n)(長押しが決まったときに1回実行)のいずれかを指定します。" +
                 "空欄(または KC_NO)にした欄は「動作なし」で、そのタップ回数・長押しでは何も起きません。" +
-                "判定時間はタイミング設定の TapDanceTerm です。4つとも空にすると未使用になります。",
+                "判定時間はタイミング設定の TapDanceTerm です。4つとも空にすると未使用になります。\n" +
+                "「無効にする」にチェックを付けると、書いた内容を残したまま、キーボードには適用されません。",
                 "A tap dance changes the action depending on how many times in a row you tap a key assigned TAPDANCE(n) in the keymap, or whether you hold it.\n" +
                 "For 1, 2, and 3 taps, specify a key (KC_*), a key with modifiers such as LCTL(KC_C), or MACRO(n). " +
                 "For a hold, specify KC_*, a modifier key such as MT(MOD_LCTL,KC_NO), a layer such as LT(1,KC_NO) (the tap-side key of MT/LT is not used), " +
                 "a key with modifiers such as LCTL(KC_C) (while held), LM(1,MOD_LCTL), or MACRO(n) (runs once when the hold is recognized). " +
                 "A field left blank (or KC_NO) means “no action”: nothing happens for that tap count or hold. " +
-                "The timing is TapDanceTerm in the timing settings. If all four are blank, the tap dance is unused."))
+                "The timing is TapDanceTerm in the timing settings. If all four are blank, the tap dance is unused.\n" +
+                "If you check \"Disable\", the content is kept but not applied to the keyboard."))
     {
         foreach (var t in tapDances)
             if (t.Id >= 0 && t.Id < _defs.Length)
+            {
                 _defs[t.Id] = new TapDanceDef { Id = t.Id, SingleTap = t.SingleTap, SingleHold = t.SingleHold, DoubleTap = t.DoubleTap, TripleTap = t.TripleTap };
+                LoadDisabled(t.Id, t.Disabled);
+            }
         LoadNames(names);
     }
 
@@ -41,7 +46,7 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
         var list = new List<MacroInfo>();
         for (int i = 0; i < _defs.Length; i++)
             if (_defs[i] != null || !string.IsNullOrWhiteSpace(Names[i]))
-                list.Add(new MacroInfo(i, Names[i], Summary(i), "TAPDANCE"));
+                list.Add(new MacroInfo(i, Names[i], Summary(i), "TAPDANCE", Disabled[i]));
         return list;
     }
 
@@ -104,13 +109,21 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
         Detail.Children.Add(insert);
     }
 
+    protected override void OnItemEnabled(int id)
+    {
+        var errors = new List<string>();
+        if (_defs[id] is { } t) ProjectService.TapDanceToEntry(t, errors);
+        ShowValidation(errors.Count == 0 ? "OK" : string.Join("\n", errors), errors.Count > 0);
+    }
+
     protected override bool ValidateAll(out string error)
     {
         var errors = new List<string>();
-        foreach (var t in _defs.Where(t => t != null)) ProjectService.TapDanceToEntry(t!, errors);
+        // 無効のものは、検証しない。
+        foreach (var t in _defs.Where(t => t != null && !Disabled[t.Id])) ProjectService.TapDanceToEntry(t!, errors);
         error = string.Join("\n", errors);
         if (errors.Count > 0) return false;
-        Result = _defs.Where(t => t != null).Select(t => t!).ToList();
+        Result = _defs.Where(t => t != null).Select(t => { t!.Disabled = Disabled[t.Id]; return t; }).ToList();
         return true;
     }
 }

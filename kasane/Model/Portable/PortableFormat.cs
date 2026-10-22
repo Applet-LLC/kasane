@@ -56,6 +56,9 @@ public sealed class PortableCombo
     public string Key1 { get; set; } = "";
     public string Key2 { get; set; } = "";
     public string Output { get; set; } = "";
+    /// <summary>無効にする（定義は残すが、キーボードへ適用しない）。false のときはファイルに書かない。</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Disabled { get; set; }
 }
 
 public sealed class PortableTiming

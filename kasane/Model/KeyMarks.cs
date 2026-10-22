@@ -33,16 +33,19 @@ public static class KeyMarks
             if (action.Type == ActionType.Macro)
             {
                 marks.Append('M');
-                tip.Add(Describe(Loc.T("マクロ", "Macro"), action.Param1, project.MacroNames));
+                tip.Add(Describe(Loc.T("マクロ", "Macro"), action.Param1, project.MacroNames) +
+                        (project.Macros.Any(m => m.Id == action.Param1 && m.Disabled) ? Loc.T("(無効)", " (disabled)") : ""));
             }
             else if (action.Type == ActionType.TapDance)
             {
                 marks.Append('D');
-                tip.Add(Describe(Loc.T("タップダンス", "Tap dance"), action.Param1, project.TapDanceNames));
+                tip.Add(Describe(Loc.T("タップダンス", "Tap dance"), action.Param1, project.TapDanceNames) +
+                        (project.TapDances.Any(t => t.Id == action.Param1 && t.Disabled) ? Loc.T("(無効)", " (disabled)") : ""));
             }
         }
 
-        foreach (var c in project.Combos)
+        // 無効にしたコンボ・キー置換は、適用されないので、印を付けない。
+        foreach (var c in project.Combos.Where(c => !c.Disabled))
         {
             if (c.Slot1 != slot.Index && c.Slot2 != slot.Index) continue;
             int otherIndex = c.Slot1 == slot.Index ? c.Slot2 : c.Slot1;
@@ -50,15 +53,15 @@ public static class KeyMarks
             string combo = Describe(Loc.T("コンボ", "Combo"), c.Id, project.ComboNames);
             tip.Add(Loc.T($"{combo}: {other} と同時に押す → {c.Output}", $"{combo}: press together with {other} → {c.Output}"));
         }
-        if (project.Combos.Any(c => c.Slot1 == slot.Index || c.Slot2 == slot.Index)) marks.Append('C');
+        if (project.Combos.Any(c => !c.Disabled && (c.Slot1 == slot.Index || c.Slot2 == slot.Index))) marks.Append('C');
 
-        foreach (var k in project.KeyOverrides)
+        foreach (var k in project.KeyOverrides.Where(k => !k.Disabled))
         {
             if (!TriggersOverride(k, token)) continue;
             string ko = Describe(Loc.T("キー置換", "Key override"), k.Id, project.KeyOverrideNames);
             tip.Add(Loc.T($"{ko}: {k.Mods.Replace(" ", "")} を押しながら → {k.Replacement}", $"{ko}: while holding {k.Mods.Replace(" ", "")} → {k.Replacement}"));
         }
-        if (project.KeyOverrides.Any(k => TriggersOverride(k, token))) marks.Append('R');
+        if (project.KeyOverrides.Any(k => !k.Disabled && TriggersOverride(k, token))) marks.Append('R');
 
         // 並びは「M D C R」の順に固定する（キーごとに同じ順で読めるように）。
         string ordered = new string("MDCR".Where(ch => marks.ToString().Contains(ch)).ToArray());
@@ -96,11 +99,19 @@ public static class KeyMarks
             ? Loc.T($"{kind}{id}「{n}」", $"{kind} {id} \"{n}\"")
             : Loc.T($"{kind}{id}", $"{kind} {id}");
 
-    /// <summary>ボタンの表示。定義が無ければ「マクロ...」、あれば「マクロ(2)...」、機能がOFFなら「マクロ(2・OFF)...」。</summary>
-    public static string ButtonText(string name, int count, bool featureOn) =>
-        count == 0 ? $"{name}..."
-        : featureOn ? Loc.T($"{name}({count})...", $"{name} ({count})...")
-        : Loc.T($"{name}({count}・OFF)...", $"{name} ({count}, OFF)...");
+    /// <summary>
+    /// ボタンの表示。定義が無ければ「マクロ...」、あれば「マクロ(2)...」。無効にした定義があれば「マクロ(2・無効1)...」
+    /// （すべて無効なら「マクロ(無効1)...」）、機能がOFFなら「マクロ(2・OFF)...」。<paramref name="count"/> は無効を含む定義の数。
+    /// </summary>
+    public static string ButtonText(string name, int count, bool featureOn, int disabled = 0)
+    {
+        if (count == 0) return $"{name}...";
+        var parts = new List<string>();
+        if (count - disabled > 0 || disabled == 0) parts.Add((count - disabled).ToString());
+        if (disabled > 0) parts.Add(Loc.T($"無効{disabled}", $"{disabled} disabled"));
+        if (!featureOn) parts.Add("OFF");
+        return Loc.T($"{name}({string.Join("・", parts)})...", $"{name} ({string.Join(", ", parts)})...");
+    }
 
     /// <summary>機能のON/OFF（<see cref="KeymapProject.EnabledFeatures"/> が null なら、GUIでは管理しない＝すべて有効とみなす）。</summary>
     public static bool FeatureOn(KeymapProject project, uint feature) =>

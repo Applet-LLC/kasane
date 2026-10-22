@@ -290,7 +290,7 @@ public static class PortableImporter
             foreach (var m in src)
             {
                 if (m.Id < 0 || m.Id >= KbdLayerClient.MaxMacroCount) { r.Warn(Loc.T($"マクロ{m.Id}は読み込めません(0〜{KbdLayerClient.MaxMacroCount - 1})", $"Macro {m.Id} cannot be imported (0 to {KbdLayerClient.MaxMacroCount - 1})")); continue; }
-                target.Macros.Add(new MacroDef { Id = m.Id, Keys = new List<string>(m.Keys) });
+                target.Macros.Add(new MacroDef { Id = m.Id, Keys = new List<string>(m.Keys), Disabled = m.Disabled });
                 map[m.Id] = m.Id;
             }
             r.Info(Loc.T($"マクロを{target.Macros.Count}個読み込みました(置き換え)", $"Imported {target.Macros.Count} macro(s) (replaced)"));
@@ -299,12 +299,12 @@ public static class PortableImporter
         int added = 0, reused = 0;
         foreach (var m in src)
         {
-            var same = target.Macros.FirstOrDefault(x => x.Keys.SequenceEqual(m.Keys));
+            var same = target.Macros.FirstOrDefault(x => x.Keys.SequenceEqual(m.Keys) && x.Disabled == m.Disabled);
             if (same != null) { map[m.Id] = same.Id; reused++; continue; }
             int id = target.Macros.All(x => x.Id != m.Id) && m.Id >= 0 && m.Id < KbdLayerClient.MaxMacroCount
                 ? m.Id : FreeId(target.Macros.Select(x => x.Id), KbdLayerClient.MaxMacroCount);
             if (id < 0) { r.Warn(Loc.T($"マクロの空きが無いため、マクロ{m.Id}は読み込めませんでした(上限{KbdLayerClient.MaxMacroCount})", $"No free macro slot, so macro {m.Id} could not be imported (limit {KbdLayerClient.MaxMacroCount})")); continue; }
-            target.Macros.Add(new MacroDef { Id = id, Keys = new List<string>(m.Keys) });
+            target.Macros.Add(new MacroDef { Id = id, Keys = new List<string>(m.Keys), Disabled = m.Disabled });
             map[m.Id] = id;
             added++;
             if (id != m.Id) r.Info(Loc.T($"マクロ{m.Id} → マクロ{id}(番号を付け直しました)", $"Macro {m.Id} -> macro {id} (renumbered)"));
@@ -320,9 +320,9 @@ public static class PortableImporter
         string Fix(string t) => TokenIds.Rewrite(t, macroMap, null, helperMap);
         TapDanceDef Copy(TapDanceDef t, int id) => new()
         {
-            Id = id, SingleTap = Fix(t.SingleTap), SingleHold = Fix(t.SingleHold), DoubleTap = Fix(t.DoubleTap), TripleTap = Fix(t.TripleTap),
+            Id = id, SingleTap = Fix(t.SingleTap), SingleHold = Fix(t.SingleHold), DoubleTap = Fix(t.DoubleTap), TripleTap = Fix(t.TripleTap), Disabled = t.Disabled,
         };
-        bool Same(TapDanceDef a, TapDanceDef b) => a.SingleTap == b.SingleTap && a.SingleHold == b.SingleHold && a.DoubleTap == b.DoubleTap && a.TripleTap == b.TripleTap;
+        bool Same(TapDanceDef a, TapDanceDef b) => a.SingleTap == b.SingleTap && a.SingleHold == b.SingleHold && a.DoubleTap == b.DoubleTap && a.TripleTap == b.TripleTap && a.Disabled == b.Disabled;
 
         if (mode == ImportMode.Replace)
         {
@@ -383,7 +383,7 @@ public static class PortableImporter
             if (id < 0 || id >= KbdLayerClient.MaxComboCount || target.Combos.Any(x => x.Id == id))
                 id = FreeId(target.Combos.Select(x => x.Id), KbdLayerClient.MaxComboCount);
             if (id < 0) { r.Warn(Loc.T($"コンボの空きが無いため、コンボ{c.Id}は読み込めませんでした(上限{KbdLayerClient.MaxComboCount})", $"No free combo slot, so combo {c.Id} could not be imported (limit {KbdLayerClient.MaxComboCount})")); continue; }
-            target.Combos.Add(new ComboDef { Id = id, Slot1 = s1.Index, Slot2 = s2.Index, Output = fix(c.Output) });
+            target.Combos.Add(new ComboDef { Id = id, Slot1 = s1.Index, Slot2 = s2.Index, Output = fix(c.Output), Disabled = c.Disabled });
             map[c.Id] = id;
             added++;
         }
@@ -399,12 +399,12 @@ public static class PortableImporter
         foreach (var k in src)
         {
             if (mode == ImportMode.Append &&
-                target.KeyOverrides.Any(x => x.Mods == k.Mods && x.Key == k.Key && x.Replacement == k.Replacement && x.RepeatMacro == k.RepeatMacro)) continue;
+                target.KeyOverrides.Any(x => x.Mods == k.Mods && x.Key == k.Key && x.Replacement == k.Replacement && x.RepeatMacro == k.RepeatMacro && x.Disabled == k.Disabled)) continue;
             int id = k.Id;
             if (id < 0 || id >= KbdLayerClient.MaxKeyOverrideCount || target.KeyOverrides.Any(x => x.Id == id))
                 id = FreeId(target.KeyOverrides.Select(x => x.Id), KbdLayerClient.MaxKeyOverrideCount);
             if (id < 0) { r.Warn(Loc.T($"キー置換の空きが無いため、キー置換{k.Id}は読み込めませんでした(上限{KbdLayerClient.MaxKeyOverrideCount})", $"No free key override slot, so key override {k.Id} could not be imported (limit {KbdLayerClient.MaxKeyOverrideCount})")); continue; }
-            target.KeyOverrides.Add(new KeyOverrideDef { Id = id, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement, RepeatMacro = k.RepeatMacro });
+            target.KeyOverrides.Add(new KeyOverrideDef { Id = id, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement, RepeatMacro = k.RepeatMacro, Disabled = k.Disabled });
             map[k.Id] = id;
             added++;
         }

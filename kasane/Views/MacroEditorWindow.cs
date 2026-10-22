@@ -17,15 +17,21 @@ public sealed class MacroEditorWindow : IdListEditorWindow
                 ("マクロは、キーマップで MACRO(n) を割り当てたキーを押したときに、並べたキーを順にタップ(押して離す)します。\n" +
                  "キーコードをスペース区切りで並べてください(例: KC_H KC_I)。Ctrl+C のような同時押しは LCTL(KC_C) と書きます" +
                  "(C(KC_C) でも可。Ctrl+Shift+T は LCTL(LSFT(KC_T)))。\n" +
-                 $"1つのマクロは{KbdLayerClient.MaxMacroSteps}ステップまでです(キー1つで2、修飾キー1つにつき2を使います)。"),
+                 $"1つのマクロは{KbdLayerClient.MaxMacroSteps}ステップまでです(キー1つで2、修飾キー1つにつき2を使います)。\n" +
+                 "「無効にする」にチェックを付けると、書いた内容を残したまま、キーボードには適用されません。"),
                 ("A macro taps the listed keys in order (press and release) when you press a key assigned MACRO(n) in the keymap.\n" +
                  "List keycodes separated by spaces (example: KC_H KC_I). Write simultaneous presses such as Ctrl+C as LCTL(KC_C) " +
                  "(C(KC_C) also works; Ctrl+Shift+T is LCTL(LSFT(KC_T))).\n" +
-                 $"One macro can have up to {KbdLayerClient.MaxMacroSteps} steps (each key uses 2, and each modifier key uses 2).")))
+                 $"One macro can have up to {KbdLayerClient.MaxMacroSteps} steps (each key uses 2, and each modifier key uses 2).\n" +
+                 "If you check \"Disable\", the content is kept but not applied to the keyboard.")))
     {
         for (int i = 0; i < _texts.Length; i++) _texts[i] = "";
         foreach (var m in macros)
-            if (m.Id >= 0 && m.Id < _texts.Length) _texts[m.Id] = string.Join(" ", m.Keys);
+            if (m.Id >= 0 && m.Id < _texts.Length)
+            {
+                _texts[m.Id] = string.Join(" ", m.Keys);
+                LoadDisabled(m.Id, m.Disabled);
+            }
         LoadNames(names);
     }
 
@@ -37,7 +43,7 @@ public sealed class MacroEditorWindow : IdListEditorWindow
         var list = new List<MacroInfo>();
         for (int i = 0; i < _texts.Length; i++)
             if (_texts[i].Length > 0 || !string.IsNullOrWhiteSpace(Names[i]))
-                list.Add(new MacroInfo(i, Names[i], _texts[i]));
+                list.Add(new MacroInfo(i, Names[i], _texts[i], "MACRO", Disabled[i]));
         return list;
     }
 
@@ -86,7 +92,15 @@ public sealed class MacroEditorWindow : IdListEditorWindow
     {
         Id = id,
         Keys = _texts[id].Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).ToList(),
+        Disabled = Disabled[id],
     };
+
+    protected override void OnItemEnabled(int id)
+    {
+        var errors = new List<string>();
+        ProjectService.MacroSteps(ToDef(id), errors);
+        ShowValidation(errors.Count == 0 ? "OK" : string.Join("\n", errors), errors.Count > 0);
+    }
 
     protected override bool ValidateAll(out string error)
     {
@@ -96,7 +110,7 @@ public sealed class MacroEditorWindow : IdListEditorWindow
         {
             if (_texts[i].Length == 0) continue;
             var def = ToDef(i);
-            ProjectService.MacroSteps(def, errors);
+            if (!def.Disabled) ProjectService.MacroSteps(def, errors); // 無効のものは、検証しない
             result.Add(def);
         }
         error = string.Join("\n", errors);

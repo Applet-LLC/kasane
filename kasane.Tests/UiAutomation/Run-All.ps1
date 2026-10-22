@@ -1,4 +1,4 @@
-﻿# UI Automation の試験 T1〜T14 を順に実行して、結果をまとめる（2026-10-10、P7）。
+﻿# UI Automation の試験 T1〜T15 を順に実行して、結果をまとめる（2026-10-10、P7）。
 # 使い方: powershell -ExecutionPolicy Bypass -File Run-All.ps1 [-Only T11-,T12-]（前方一致。T1 だけを選ぶには T1-）
 # 前提: kasane.exe がビルド済み（Debug|x64）で、昇格していない PowerShell から実行する。各試験は自分で kasane.exe を起動して終了する。
 # 注意: T10 はトレイ（kasane-tray-nua.exe。uiAccess の無い版）を終了させる。実行後にトレイが必要なら、起動し直す。
