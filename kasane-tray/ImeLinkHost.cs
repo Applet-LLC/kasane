@@ -120,10 +120,11 @@ public sealed class ImeLinkHost : IDisposable
     {
         // 別のスレッドが先に確かめ終えていたら、それを使う（切り替わりの記録が、二重にならないように）。
         if (_activeCached && unchecked(now - Volatile.Read(ref _activeCheckedAt)) < 150) return _activeCache;
-        bool console = IsActiveConsoleSession(), wts = WtsSessionLocked(), desktop = !InputDesktopAccessible(), lockApp = LockAppInFront();
-        bool active = console && !wts && !desktop && !lockApp;
+        var state = QueryConnectState();
+        bool wts = WtsSessionLocked(), desktop = !InputDesktopAccessible(), lockApp = LockAppInFront();
+        bool active = SessionActivity.IsActive(state, wts, desktop, lockApp);
         if (!_activeCached || active != _activeCache)
-            TrayLog.Write($"Session: active={active} (console={console}, wtsLocked={wts}, desktopDenied={desktop}, lockApp={lockApp})"); // 切り替わりだけ記録する（原因の切り分け用）
+            TrayLog.Write($"Session: active={active} (connectState={(state?.ToString() ?? "unknown")}, wtsLocked={wts}, desktopDenied={desktop}, lockApp={lockApp})"); // 切り替わりだけ記録する（原因の切り分け用）
         _activeCache = active; // 競合しても、どちらも今の正しい値を入れるだけ
         Volatile.Write(ref _activeCheckedAt, now);
         _activeCached = true;
@@ -263,8 +264,16 @@ public sealed class ImeLinkHost : IDisposable
         finally { CloseHandle(process); }
     }
 
-    private static bool IsActiveConsoleSession() =>
-        ProcessIdToSessionId((uint)Environment.ProcessId, out uint mine) && mine == WTSGetActiveConsoleSessionId();
+    // 自分のセッションの接続状態（WTSConnectState）。コンソールでも RDP でも、画面につながっていれば Active。
+    // 取得できなければ null（SessionActivity は、操作中とみなす）。
+    private static WtsConnectState? QueryConnectState()
+    {
+        const int WTSConnectState = 8;
+        if (!WTSQuerySessionInformationW(IntPtr.Zero, 0xFFFFFFFF, WTSConnectState, out IntPtr buffer, out uint bytes) || buffer == IntPtr.Zero)
+            return null;
+        try { return bytes >= 4 ? (WtsConnectState)Marshal.ReadInt32(buffer) : null; }
+        finally { WTSFreeMemory(buffer); }
+    }
 
     public void Dispose()
     {
@@ -294,7 +303,6 @@ public sealed class ImeLinkHost : IDisposable
     [DllImport("wtsapi32.dll")] private static extern void WTSFreeMemory(IntPtr memory);
     [DllImport("user32.dll", SetLastError = true)] private static extern IntPtr OpenInputDesktop(uint flags, bool inherit, uint desiredAccess);
     [DllImport("user32.dll")] private static extern bool CloseDesktop(IntPtr desktop);
-    [DllImport("kernel32.dll")] private static extern uint WTSGetActiveConsoleSessionId();
     [DllImport("kernel32.dll")] private static extern bool ProcessIdToSessionId(uint processId, out uint sessionId);
 }
 
