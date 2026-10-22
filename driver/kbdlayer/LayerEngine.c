@@ -2203,9 +2203,10 @@ ResolveModdedKey(
         PKBDLAYER_KEY_ENTRY keyEntry = FindKeyEntry(devExt->LayerMap, scanCode);
         PKBDLAYER_ACTION resolved = (keyEntry != NULL) ?
             ResolveEffectiveAction(devExt, devExt->LayerMap, keyEntry) : NULL;
-        UCHAR mask;
+        UCHAR mask = 0;
         UCHAR downBefore;
         UCHAR added;
+        BOOLEAN overridden = FALSE;
 
         if (resolved != NULL && resolved->Type == KBDLAYER_ACTION_ONESHOT_MOD &&
             (devExt->OneShotMods & resolved->Param1) == resolved->Param1) {
@@ -2222,9 +2223,18 @@ ResolveModdedKey(
             return TRUE;
         }
         if (resolved != NULL && IsModdedActionType(resolved->Type)) {
-            action = *resolved;
-            mask = (action.Type == KBDLAYER_ACTION_MODDED_KEY || action.Type == KBDLAYER_ACTION_ONESHOT_MOD)
-                       ? action.Param1 : (UCHAR)(action.Param2 & 0xFF);
+            // 修飾付きキー（LCTL(kc)など）は、出力キー（Param2）で Key Override の表を見る。当たれば、
+            // 通常のキーと同じく置き換え先を押す（この修飾付きキー自身の修飾キーは足さない。
+            // 条件の判定に使うのは、物理で押されているものと、他の記録が足しているものだけ）。
+            // LM・OSM・Key Overrideの記録は出力キーを持たない（または内部の記録）ので対象外。
+            if (resolved->Type == KBDLAYER_ACTION_MODDED_KEY &&
+                MatchKeyOverrideLocked(devExt, resolved->Param2, &action, &suppress)) {
+                overridden = TRUE;
+            } else {
+                action = *resolved;
+                mask = (action.Type == KBDLAYER_ACTION_MODDED_KEY || action.Type == KBDLAYER_ACTION_ONESHOT_MOD)
+                           ? action.Param1 : (UCHAR)(action.Param2 & 0xFF);
+            }
         } else {
             // Key Override: 解決した出力キー（KEYアクション。マップに無いキーは物理スキャンコード）が
             // 表のどれかに当たり、条件の修飾キーが押されていれば、置き換え先を修飾付きキーと同じ扱いで
@@ -2239,6 +2249,9 @@ ResolveModdedKey(
                 KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
                 return FALSE;
             }
+            overridden = TRUE;
+        }
+        if (overridden) {
             if (action.Type == KBDLAYER_ACTION_MACRO) {
                 // 置き換え先がマクロ。記録と控えをEngineLock内で作り、ロックを離してから送る（2段）。
                 KBDLAYER_MACRO_STEP macroSteps[KBDLAYER_MAX_MACRO_STEPS];
