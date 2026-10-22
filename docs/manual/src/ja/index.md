@@ -17,6 +17,47 @@ kasane（かさね）は、Windows のキーボードの割り当てを変える
 3. [エディタの基本画面](05-editor-basics.html)で、キーボードを選び、キーを入れ替えて、キーボードに適用します。
 4. 困ったときのために、[緊急解除](07-emergency.html)と[アンインストール](02-uninstall.html)の手順を先に見ておくと安心です。
 
+## 名称とファイル名
+
+| 部品 | 名前 | ファイル、場所 |
+|---|---|---|
+| 製品名 | かさね（kasane） | インストール先は `C:\Program Filespplet\kasane` |
+| エディタ | kasane | `kasane.exe`（`keymap-gui` フォルダ） |
+| トレイ（常駐） | kasane-tray | `kasane-tray.exe`（`tray` フォルダ。ログオン時に自動起動）。UI アクセスのない版は `kasane-tray-nua.exe`（手動で起動する） |
+| デバイスドライバ | kbdlayer | `kbdlayer.sys`（内部名とサービス名は `kbdlayer`。`kbdlayer` フォルダ） |
+| ライセンス管理（License Manager） | kasane-license | `kasane-license.exe`（`license-gui` フォルダ） |
+| ライセンスサービス | kasaneLicenseSvc（表示名 kasane License Service） | `kasane-license-svc.exe`（`license-svc` フォルダ）。ライセンスの記録は `%ProgramData%\kbdlayer-license` |
+| ドライバの管理ツール | DriverManager | `DriverManager.exe`（インストール先の直下） |
+| コマンド版の設定ツール | KeymapTool | `KeymapTool.exe`（インストール先の直下） |
+| インストーラー | Install-kasane | `Install-kasane.exe`、`KasaneSetup-ja-JP.msi`、`KasaneSetup-en-US.msi` |
+| 設定の保存先 | | `%LOCALAPPDATA%pplet\kasane`（環境変数 `KASANE` で変えられる） |
+
+## やりたいことから探す
+
+| やりたいこと | 見る章 |
+|---|---|
+| インストールする。設定の保存先を決める | [1. インストール](01-install.html) |
+| 以前の設定を、インストールのときに取り込む | [1. インストール](01-install.html)、[14. インポート／エクスポート](14-import-export.html) |
+| アンインストールする | [2. アンインストール](02-uninstall.html) |
+| ライセンスを認証する。試用版を使う | [3. ライセンスの認証](03-license.html) |
+| 一時的にキーの入れ替えを止める | [4. トレイ](04-tray.html)（一時停止）、[5. エディタの基本画面](05-editor-basics.html)（OFF） |
+| キーを入れ替える | [5. エディタの基本画面](05-editor-basics.html)、[12. 設定の例](12-recipes.html) |
+| 別のキーボードを使う（配列を追加する） | [5. エディタの基本画面](05-editor-basics.html)（KLE から追加） |
+| 設定したのに、違うキーが入れ替わる | [6. キャリブレーション](06-calibration.html) |
+| 設定を間違えて、キーボードから入力できなくなった | [7. 緊急解除](07-emergency.html) |
+| 短く押したときと、長押ししたときで、動作を変える | [8. キーの割り当て](08-key-assign.html)、[12. 設定の例](12-recipes.html) |
+| キーを押している間だけ、別のキー配置にする | [8. キーの割り当て](08-key-assign.html)（レイヤー）、[12. 設定の例](12-recipes.html) |
+| 決まったキーの並びを、1 つのキーで出す | [9. マクロ・コンボ・タップダンス・キー置換](09-advanced.html)（マクロ） |
+| 2 つのキーの同時押しで、別のキーを出す | [9. マクロ・コンボ・タップダンス・キー置換](09-advanced.html)（コンボ） |
+| Ctrl+◯◯ のような組み合わせを、別の動作にする | [9. マクロ・コンボ・タップダンス・キー置換](09-advanced.html)（キー置換）、[12. 設定の例](12-recipes.html) |
+| 日本語入力（IME）に合わせて、キー配置を切り替える。親指シフトを使う | [10. IME連動とNICOLA](10-ime-nicola.html) |
+| キーで、プログラムを起動する。文字列を入力する | [11. ヘルパー動作とアプリ別レイヤー](11-helper-apprules.html) |
+| アプリごとに、キー配置を変える。ゲームの間だけ止める | [11. ヘルパー動作とアプリ別レイヤー](11-helper-apprules.html) |
+| 画面の色や表示言語を変える | [13. 設定ダイアログ](13-settings.html) |
+| 設定をバックアップする。別のパソコンへ移す | [14. インポート／エクスポート](14-import-export.html)、[15. バックアップと移行](15-backup-migrate.html) |
+| のどか（nodoka）の設定を使う | [14. インポート／エクスポート](14-import-export.html) |
+| うまく動かない。ログを見たい | [16. 付録](16-reference.html) |
+
 ## 章の案内
 
 | 章 | 内容 |
@@ -32,9 +73,8 @@ kasane（かさね）は、Windows のキーボードの割り当てを変える
 | [9. マクロ・コンボ・タップダンス・キー置換](09-advanced.html) | 各エディタの使い方 |
 | [10. IME連動とNICOLA](10-ime-nicola.html) | IME に合わせたレイヤーの切り替え、親指シフト |
 | [11. ヘルパー動作とアプリ別レイヤー](11-helper-apprules.html) | プログラムの起動、文字列の入力、前面のアプリに合わせた切り替え |
-| [12. 設定ダイアログ](12-settings.html) | 全般、機能、タイミングなど各タブ |
-| [13. インポート／エクスポート](13-import-export.html) | 設定の書き出し、読み込み、のどかの設定の取り込み |
-| [14. バックアップと移行](14-backup-migrate.html) | 設定の置き場所、別の PC への移行 |
-| [15. 付録](15-reference.html) | トラブル対応、既知の制限、コマンドライン、環境変数、ログ、トラブル対応 |
-
-> 製品名は 2026年10月に LayerDriver から kasane に変わりました。ドライバの内部名（kbdlayer）、ライセンスの保存先（kbdlayer-license）など、一部の名前は旧名のままです。
+| [12. 設定の例](12-recipes.html) | よくある設定を、手順つきで紹介する |
+| [13. 設定ダイアログ](13-settings.html) | 全般、機能、タイミングなど各タブ |
+| [14. インポート／エクスポート](14-import-export.html) | 設定の書き出し、読み込み、のどかの設定の取り込み |
+| [15. バックアップと移行](15-backup-migrate.html) | 設定の置き場所、別のパソコンへの移行 |
+| [16. 付録](16-reference.html) | トラブル対応、既知の制限、コマンドライン、環境変数、ログ |

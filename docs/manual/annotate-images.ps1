@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   撮影した画像に、番号の丸を描き込んだ版(*-labeled.png)を作る。
 .DESCRIPTION
@@ -18,10 +18,10 @@ function Add-Labels([string]$name, [object[]]$labels) {
     $img.Dispose()
     $g = [System.Drawing.Graphics]::FromImage($bmp)
     $g.SmoothingMode = 'AntiAlias'; $g.TextRenderingHint = 'AntiAliasGridFit'
-    $font = New-Object System.Drawing.Font('Yu Gothic UI', 15, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
+    $font = New-Object System.Drawing.Font('Yu Gothic UI', 34, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
     $fmt = New-Object System.Drawing.StringFormat; $fmt.Alignment = 'Center'; $fmt.LineAlignment = 'Center'
     foreach ($l in $labels) {
-        $r = 14
+        $r = 28
         $g.FillEllipse([System.Drawing.Brushes]::Crimson, $l.X - $r, $l.Y - $r, 2 * $r, 2 * $r)
         $g.DrawEllipse((New-Object System.Drawing.Pen([System.Drawing.Color]::White, 2)), $l.X - $r, $l.Y - $r, 2 * $r, 2 * $r)
         $g.DrawString([string]$l.N, $font, [System.Drawing.Brushes]::White, (New-Object System.Drawing.RectangleF(($l.X - $r), ($l.Y - $r), (2 * $r), (2 * $r))), $fmt)
@@ -34,12 +34,12 @@ function Add-Labels([string]$name, [object[]]$labels) {
 
 # editor-main: 1 タイトルバー / 2 キーボード・レイアウト行 / 3 レイヤー行 / 4 キー図 / 5 下部のボタン / 6 ステータス欄
 Add-Labels 'editor-main' @(
-    @{ N = 1; X = 340;  Y = 22 },
+    @{ N = 1; X = 360;  Y = 28 },
     @{ N = 2; X = 1868; Y = 145 },
     @{ N = 3; X = 410;  Y = 195 },
     @{ N = 4; X = 1450; Y = 290 },
     @{ N = 5; X = 1482; Y = 822 },
-    @{ N = 6; X = 770;  Y = 873 }
+    @{ N = 6; X = 790;  Y = 862 }
 )
 
 # ---- 画像の合成と切り出し(VM で撮った画像を、原稿の図にする) ----
