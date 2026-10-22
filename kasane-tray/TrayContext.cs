@@ -32,6 +32,7 @@ public sealed class TrayContext : ApplicationContext
     private readonly ToolStripMenuItem _pauseItem = new(Loc.T("一時停止", "Pause")) { Name = "TrayPause" };
     private readonly ToolStripMenuItem _layerItem = new(Loc.T("レイヤー", "Layers")) { Name = "TrayLayers" };
     private readonly ToolStripMenuItem _licenseItem = new(Loc.T("ライセンス", "License")) { Name = "TrayLicense" };
+    private readonly ToolStripMenuItem _helpItem = new(Loc.T("ヘルプ", "Help")) { Name = "TrayHelp" };
     private readonly ToolStripMenuItem _aboutItem = new(Loc.T("バージョン情報", "About")) { Name = "TrayAbout" };
     private readonly ToolStripMenuItem _exitItem = new(Loc.T("終了", "Exit")) { Name = "TrayExit" };
     private readonly System.Windows.Forms.Timer _timer = new() { Interval = PollIntervalMs };
@@ -75,9 +76,10 @@ public sealed class TrayContext : ApplicationContext
         _settingsItem.Click += (_, _) => OpenEditor();
         _pauseItem.Click += (_, _) => TogglePause();
         _licenseItem.Click += (_, _) => Notify(AppLauncher.OpenOrActivate(AppLauncher.FindLicense(), Loc.T("ライセンス管理", "License manager")));
+        _helpItem.Click += (_, _) => Notify(ManualLocator.Open(AppContext.BaseDirectory)); // 英語の表示でも、同じマニュアルを開く
         _aboutItem.Click += (_, _) => AboutForm.ShowSingle();
         _exitItem.Click += (_, _) => ExitTray();
-        _menu.Items.AddRange(new ToolStripItem[] { _settingsItem, _pauseItem, _layerItem, _licenseItem, _aboutItem, new ToolStripSeparator(), _exitItem });
+        _menu.Items.AddRange(new ToolStripItem[] { _settingsItem, _pauseItem, _layerItem, _licenseItem, _helpItem, _aboutItem, new ToolStripSeparator(), _exitItem });
         _menu.Opening += (_, _) => { RefreshState(); RebuildLayerMenu(); UpdateLicenseItem(); TrayTheme.Apply(_menu); }; // 開く直前に、最新の状態にする（色のモードも）
 
         _notifyIcon = new NotifyIcon

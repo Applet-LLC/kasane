@@ -21,7 +21,7 @@ kasane（かさね）は、Windows のキーボードの割り当てを変える
 
 | 部品 | 名前 | ファイル、場所 |
 |---|---|---|
-| 製品名 | かさね（kasane） | インストール先は `C:\Program Filespplet\kasane` |
+| 製品名 | かさね（kasane） | インストール先は `C:\Program Files\applet\kasane` |
 | エディタ | kasane | `kasane.exe`（`keymap-gui` フォルダ） |
 | トレイ（常駐） | kasane-tray | `kasane-tray.exe`（`tray` フォルダ。ログオン時に自動起動）。UI アクセスのない版は `kasane-tray-nua.exe`（手動で起動する） |
 | デバイスドライバ | kbdlayer | `kbdlayer.sys`（内部名とサービス名は `kbdlayer`。`kbdlayer` フォルダ） |
@@ -30,7 +30,8 @@ kasane（かさね）は、Windows のキーボードの割り当てを変える
 | ドライバの管理ツール | DriverManager | `DriverManager.exe`（インストール先の直下） |
 | コマンド版の設定ツール | KeymapTool | `KeymapTool.exe`（インストール先の直下） |
 | インストーラー | Install-kasane | `Install-kasane.exe`、`KasaneSetup-ja-JP.msi`、`KasaneSetup-en-US.msi` |
-| 設定の保存先 | | `%LOCALAPPDATA%pplet\kasane`（環境変数 `KASANE` で変えられる） |
+| マニュアル | | `manual\ja\index.html`（インストール先の直下。エディタの **ヘルプ** と、トレイのメニューの **ヘルプ** から開く） |
+| 設定の保存先 | | `%LOCALAPPDATA%\applet\kasane`（環境変数 `KASANE` で変えられる） |
 
 ## やりたいことから探す
 

@@ -218,6 +218,7 @@
           <Directory Id="TRAYDIR" Name="tray" />
           <Directory Id="SAMPLESDIR" Name="samples" />
           <Directory Id="THIRDPARTYDIR" Name="third-party" />
+          <Directory Id="MANUALDIR" Name="manual" />
         </Directory>
         </Directory>
       </Directory>
@@ -243,6 +244,8 @@
       <!-- サードパーティノーティス（THIRD-PARTY-NOTICES.txt）と、各ライセンスのファイル（third-party\）。HarvestDirectory で収穫（KasaneSetup.wixproj）。 -->
       <ComponentGroupRef Id="CG_Notices" />
       <ComponentGroupRef Id="CG_ThirdParty" />
+      <!-- マニュアル（manual\ja\index.html など）。HarvestDirectory で収穫する（KasaneSetup.wixproj）。 -->
+      <ComponentGroupRef Id="CG_Manual" />
     </Feature>
 
     <Feature Id="F_KbdDriver" Title="Keyboard Driver (kbdlayer)" Level="1" Absent="disallow">

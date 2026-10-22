@@ -103,6 +103,13 @@ foreach ($name in $bodies.Keys) {
     }
 }
 
+# 章の一覧にない HTML(章の番号や名前を変えたときの、古いページ)は消す。インストーラーに古いページが入らないようにする。
+$known = $chapters | ForEach-Object { "$($_.Name).html" }
+Get-ChildItem -LiteralPath $out -Filter *.html | Where-Object { $known -notcontains $_.Name } | ForEach-Object {
+    Remove-Item -LiteralPath $_.FullName -Force
+    Write-Host "古いページを削除: $($_.Name)"
+}
+
 if ($problems.Count -gt 0) {
     Write-Host "確認が必要な点が $($problems.Count) 件あります:" -ForegroundColor Yellow
     $problems | ForEach-Object { Write-Host "  $_" }

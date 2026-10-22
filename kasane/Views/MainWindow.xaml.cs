@@ -44,6 +44,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         KbdCanvas.KeyClicked += Keyboard_KeyClicked;
+        PreviewKeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.F1 && !e.Handled) { e.Handled = true; OpenManual(); } }; // F1 でマニュアル
         KbdCanvas.KeyRightClicked += Keyboard_KeyRightClicked;
         LstLayers.ContextMenu = BuildLayerMenu();
         MacroDirectory.Provider = CurrentMacros; // 他の画面の「マクロ...」の選択肢
@@ -790,6 +791,15 @@ public partial class MainWindow : Window
         menu.Items.Add(export);
         menu.Items.Add(import);
         return menu;
+    }
+
+    private void BtnHelp_Click(object sender, RoutedEventArgs e) => OpenManual();
+
+    // マニュアルを、エクスプローラー経由で開く（ブラウザーは Windows の設定に任せる）。英語の表示でも、同じマニュアル。
+    private void OpenManual()
+    {
+        string? error = ManualLocator.Open(AppContext.BaseDirectory);
+        if (error != null) MessageBox.Show(this, error, AppInfo.DisplayName, MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
     private void BtnImportExport_Click(object sender, RoutedEventArgs e) =>
