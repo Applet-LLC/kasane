@@ -482,6 +482,25 @@ Get-ChildItem -LiteralPath $thirdPartySource -File |
     ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $thirdPartyStaging -Force }
 Write-Host "[notices] staged: THIRD-PARTY-NOTICES.txt + third-party\ $((Get-ChildItem $thirdPartyStaging).Count) files"
 
+# マニュアル: docs\manual の ja\*.html、assets\、img\ja\ を、インストール先の manual\ に入れる（MSI は KasaneSetup.wixproj の
+# HarvestDirectory で収穫する）。HTML は ..\assets と ..\img\ja を相対で参照するので、同じ並びで置く。
+# 画像のうち、図を作り直すための元の画像（*-raw.png、tray-strip-*.png）は、入れない。
+$manualStaging = Join-Path $stagingRoot "manual"
+if (Test-Path -LiteralPath $manualStaging) { Remove-Item -LiteralPath $manualStaging -Recurse -Force }
+$manualSource = Join-Path $repoRoot "docs\manual"
+if (-not (Test-Path -LiteralPath (Join-Path $manualSource "ja\index.html"))) {
+    throw "manual not found: $manualSource\ja\index.html (run docs\manual\build-manual.ps1)"
+}
+New-Item -ItemType Directory -Path (Join-Path $manualStaging "ja") -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $manualStaging "assets") -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $manualStaging "img\ja") -Force | Out-Null
+Copy-Item -Path (Join-Path $manualSource "ja\*.html") -Destination (Join-Path $manualStaging "ja") -Force
+Copy-Item -Path (Join-Path $manualSource "assets\*") -Destination (Join-Path $manualStaging "assets") -Recurse -Force
+Get-ChildItem -LiteralPath (Join-Path $manualSource "img\ja") -Filter *.png |
+    Where-Object { $_.Name -notlike "*-raw.png" -and $_.Name -notlike "tray-strip-*.png" } |
+    ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $manualStaging "img\ja") -Force }
+Write-Host "[manual] staged: ja\ $((Get-ChildItem (Join-Path $manualStaging 'ja')).Count) pages, img\ja\ $((Get-ChildItem (Join-Path $manualStaging 'img\ja')).Count) images"
+
 # kasane-launcher: ユーザーが最初に実行する WinForms ランチャー（kbdaddid-license-launcher
 # / Install-kbdaddidLicense.exe と同じ方針）。ここで staging/launcher に置いておくことで、
 # 他のアプリバイナリと同じ EV 署名パス（Step 3 -StagingRoot）に自然に乗る。

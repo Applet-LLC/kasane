@@ -24,6 +24,8 @@ public partial class MainWindow
         BtnIdentify.Content = Loc.T("押して特定...", "Press to identify...");
         BtnIdentify.ToolTip = Loc.T("キーを1つ押して、どのキーボードかを選びます", "Press a key to choose which keyboard it is");
         BtnRefreshDevices.Content = Loc.T("一覧を更新", "Refresh list");
+        BtnHelp.Content = Loc.T("ヘルプ", "Help");
+        BtnHelp.ToolTip = Loc.T("マニュアルを開きます(ブラウザーで表示します。F1 キーでも開けます)", "Opens the manual in your browser (you can also press F1).");
         BtnRefreshDevices.ToolTip = Loc.T("接続中のキーボードの一覧を、ドライバから読み直します(キーボードをつなぎ直したあとなどに使います)",
                                           "Reloads the list of connected keyboards from the driver (use it after reconnecting a keyboard).");
         TxtLayoutLabel.Text = Loc.T("レイアウト:", "Layout:");
