@@ -23,25 +23,26 @@ pwsh kasane.Tests/UiAutomation/Capture-Manual.ps1 -Lang en   # 英語(img/en/)
 
 昇格した PowerShell で `Capture-Manual.ps1 -Admin` を実行する（昇格したウィンドウは、昇格していない UIA から操作できないため）。UAC の確認が出る場合は、許可する。撮影される画面ID: editor-main-admin, calib-main-admin, calib-single, calib-all, settings-scope-admin, settings-i8042-admin, settings-datadir-admin, emergency-tab-admin, emergency-check-admin。キーボードへの適用や、緊急解除の反映は行わない。
 
-## 手動で撮る画面
+## VM で撮った画面(2026-10-22)
 
-VM または Windows Sandbox で撮る(手元の環境を汚さないため)。ウィンドウだけを撮る(Alt+PrintScreen、または Win+Shift+S)。ライセンスキーなどは、伏せるかダミーにする。
+インストーラー、アンインストール、ライセンス、トレイ、ドライバが動いた状態のエディタ(適用、キーの入れ替え、閉じるときの確認)、実行中のアプリの一覧、のどかの取り込みは、Windows 11 の VM で撮った。手順、注意点、ジョブは、`vm-capture/README.md` にある。
 
-| 画面ID | 撮り方 |
+| 画面ID | 内容 |
 |---|---|
-| install-launcher | `Install-kasane.exe` を起動した直後 |
-| install-launcher-failed | `.msi` を別のフォルダに移して起動する(または、失敗させた「インストール失敗」ダイアログ) |
-| install-wizard-welcome / datadir / import / finish | MSI のウィザードの各画面。取り込みファイル無しの警告も、別途撮る |
-| uninstall-off | エディタで OFF(素通しに戻す)を押した状態(昇格して撮る) |
-| uninstall-apps | Windows の設定の「アプリと機能」で「かさね Subscription」を表示 |
-| license-input / activated / diagnostics / trial / error | License Manager の各状態。キーは伏せる。エラーは、無効なキーやオフラインで起こす |
-| tray-icons | 通知領域のアイコン 3 状態(動作中、一時停止中、ドライバに接続できない)を並べる |
-| tray-menu / tray-layers | トレイの右クリックのメニューと、レイヤーのサブメニュー |
-| tray-starting / tray-balloon | 「準備しています」の表示、バルーンの通知 |
-| editor-applied / swapped / close-confirm / keyboard-list | 昇格したエディタで、キーを入れ替えて適用、閉じるときの確認、キーボードの一覧を開いた状態 |
-| assign-power / assign-softkeyboard | 電源キーの確認、画面のキーボード |
-| helper-assign / sequence / trigger | ヘルパー動作の割り当て、操作の手順、トリガーの編集画面 |
-| apprules-editor / picker | 前面のアプリの規則、実行中のアプリから選ぶ |
-| settings-about | インストール版の kasane で、設定のバージョン情報タブ。Debug ビルドで撮ると、ユーザー名入りのパスが写るので、自動撮影には含めない |
-| settings-language-restart | 表示言語を変えて保存したときの確認 |
-| nodoka-import / result | のどかの設定を取り込む画面と、変換の結果 |
+| install-launcher、install-launcher-failed | インストーラーの起動画面。空の MSI を置いて失敗させた画面 |
+| install-wizard-welcome、license、features、datadir、import、import-filled、import-missing、ready、progress、finish | MSI のウィザード |
+| license-input、license-error、license-trial、license-activated、license-diagnostics | License Manager(ユーザー名とキーは、塗りつぶし済み) |
+| tray-menu、tray-menu-paused、tray-layers、tray-starting、tray-icons | トレイ。`tray-icons` は、`annotate-images.ps1` で `tray-strip-*` から作る |
+| editor-keyboard-list、editor-swapped、editor-applied | 管理者のエディタで、キーを入れ替えて適用する |
+| editor-close-confirm-readonly、editor-close-confirm-admin | 閉じるときの確認 |
+| settings-about、settings-language-restart | インストール版のバージョン情報。表示言語を変えたときの確認 |
+| apprules-picker | 実行中のアプリから選ぶ(VM のウィンドウだけが並ぶ) |
+| nodoka-import、nodoka-result | のどかの設定の取り込み |
+| uninstall-off、uninstall-apps、uninstall-apps-menu、uninstall-confirm | OFF にした状態(`uninstall-off-raw` から切り出す)。設定の「インストールされているアプリ」(右側だけ)。アンインストールの確認 |
+
+## 撮れていない画面
+
+- トレイのアイコンの「ドライバに接続できません」の状態。ドライバを止められなかった。
+- トレイのバルーン(通知)。失敗の通知を起こせなかったので、原稿から画像を外した。
+- アンインストール中の「使用中のファイル」の画面。撮った画像の領域がずれたので、使わない(内容は、原稿に文章で書いた)。
+- インストール時の「再起動してから、もう一度」のエラー(1722)。

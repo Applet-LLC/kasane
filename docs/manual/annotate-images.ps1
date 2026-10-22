@@ -41,3 +41,46 @@ Add-Labels 'editor-main' @(
     @{ N = 5; X = 1482; Y = 822 },
     @{ N = 6; X = 770;  Y = 873 }
 )
+
+# ---- 画像の合成と切り出し(VM で撮った画像を、原稿の図にする) ----
+function New-Canvas([int]$w, [int]$h) {
+    $bmp = New-Object System.Drawing.Bitmap($w, $h)
+    $g = [System.Drawing.Graphics]::FromImage($bmp); $g.Clear([System.Drawing.Color]::White)
+    return @{ Bmp = $bmp; G = $g }
+}
+function Save-Canvas($c, [string]$name) { $c.G.Dispose(); $c.Bmp.Save((Join-Path $dir "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png); $c.Bmp.Dispose(); Write-Host "  作成: $name.png" }
+
+# tray-icons: トレイの帯(動作中・一時停止中)を縦に並べ、状態の名前を付ける
+$strips = @(@{ File = 'tray-strip-active'; Label = '動作中(1台)' }, @{ File = 'tray-strip-paused'; Label = '一時停止中' })
+if ($strips | Where-Object { Test-Path (Join-Path $dir "$($_.File).png") }) {
+    $font = New-Object System.Drawing.Font('Yu Gothic UI', 15, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
+    $c = New-Canvas 330 ((24 + 48) * $strips.Count)
+    $y = 0
+    foreach ($s in $strips) {
+        $p = Join-Path $dir "$($s.File).png"; if (-not (Test-Path $p)) { continue }
+        $img = [System.Drawing.Image]::FromFile($p)
+        $c.G.DrawString($s.Label, $font, [System.Drawing.Brushes]::DimGray, 4, $y + 3)
+        $c.G.DrawImage($img, 0, $y + 24, $img.Width, $img.Height); $img.Dispose(); $y += 72
+    }
+    Save-Canvas $c 'tray-icons'
+}
+
+# uninstall-off: OFF にしたあとのエディタの、タイトルバーと下部(ボタンと状態欄)だけを切り出して重ねる
+$raw = Join-Path $dir 'uninstall-off-raw.png'
+if (Test-Path $raw) {
+    $img = [System.Drawing.Image]::FromFile($raw)
+    $topH = 34; $botH = 64; $c = New-Canvas $img.Width ($topH + 8 + $botH)
+    $c.G.DrawImage($img, (New-Object System.Drawing.Rectangle(0, 0, $img.Width, $topH)), 0, 0, $img.Width, $topH, [System.Drawing.GraphicsUnit]::Pixel)
+    $c.G.DrawLine((New-Object System.Drawing.Pen([System.Drawing.Color]::LightGray, 1)), 0, $topH + 4, $img.Width, $topH + 4)
+    $c.G.DrawImage($img, (New-Object System.Drawing.Rectangle(0, ($topH + 8), $img.Width, $botH)), 0, $img.Height - $botH, $img.Width, $botH, [System.Drawing.GraphicsUnit]::Pixel)
+    $img.Dispose(); Save-Canvas $c 'uninstall-off'
+}
+
+# license-diagnostics: 認証済みの画面から、接続の診断の部分だけを切り出す
+$act = Join-Path $dir 'license-activated.png'
+if (Test-Path $act) {
+    $img = [System.Drawing.Image]::FromFile($act)
+    $c = New-Canvas 518 66
+    $c.G.DrawImage($img, (New-Object System.Drawing.Rectangle(0, 0, 518, 66)), 14, 238, 518, 66, [System.Drawing.GraphicsUnit]::Pixel)
+    $img.Dispose(); Save-Canvas $c 'license-diagnostics'
+}

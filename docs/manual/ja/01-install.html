@@ -80,7 +80,7 @@
 <p>ウィザードは次の順に進みます。</p>
 <ol>
 <li>ようこそ</li>
-<li>使用許諾契約書: 内容を確かめて、同意にチェックを入れます。</li>
+<li>使用許諾契約書: 内容を確かめて、<strong>使用許諾契約書に同意します(A)</strong> にチェックを入れます。</li>
 <li>機能の選択: 6 つの機能（ドライバ、トレイ、ライセンスサービス、ライセンス管理、エディタ、共通ファイル）がすべて必須です。選び直しはできません。</li>
 <li>設定フォルダの指定</li>
 <li>設定ファイルの取り込み</li>
@@ -88,6 +88,8 @@
 <li>完了</li>
 </ol>
 <p><img src="../img/ja/install-wizard-welcome.png" alt="ウィザードの最初の画面" /></p>
+<p><img src="../img/ja/install-wizard-license.png" alt="使用許諾契約書" /></p>
+<p><img src="../img/ja/install-wizard-features.png" alt="機能の選択" /></p>
 <h4 id="section-4">設定フォルダの指定</h4>
 <p>設定ファイル（キーボードごとの設定、トレイの設定、ログ）の保存先を指定します。環境変数 <code>KASANE</code> として、マシン全体に設定されます。</p>
 <p><img src="../img/ja/install-wizard-datadir.png" alt="設定フォルダの指定" /></p>
@@ -104,16 +106,23 @@
 <ol>
 <li><strong>設定ファイルを取り込む</strong> にチェックを入れます。</li>
 <li>設定ファイルのフルパスを入力します。この欄は右クリックが使えないので、キーボードで <code>Ctrl+V</code> を押して貼り付けます。</li>
-<li><strong>次へ</strong> を押したときに、ファイルが無ければ、確認の画面が出ます。パスを直すか、チェックを外してください。</li>
+<li><strong>次へ</strong> を押したときに、ファイルが無ければ、「設定ファイルが見つかりません」という確認の画面が出ます。パスを直すか、「設定ファイルを取り込む」のチェックを外してください。</li>
 </ol>
+<p><img src="../img/ja/install-wizard-import-filled.png" alt="設定ファイルの入力" /></p>
+<p><img src="../img/ja/install-wizard-import-missing.png" alt="設定ファイルが見つかりません" /></p>
 <p>取り込んだ設定は、再起動後（またはキーボードを接続し直したとき）から有効になります。すでに設定のある型番は置き換わり、前の設定は 1 世代だけ退避されます。退避した設定は、設定ダイアログの「保存先」タブから戻せます（<a href="13-import-export.html">13. インポート／エクスポート</a>）。結果は <code>%ProgramData%\applet\kasane\import.log</code> に残ります。</p>
-<h3 id="section-6">3. 再起動する</h3>
+<h3 id="section-6">3. インストールを実行する</h3>
+<p><strong>インストール</strong> を押すと、ファイルのコピーと登録が始まります。ここまでの設定を確かめたいときは、<strong>戻る</strong> で前のページに戻れます。</p>
+<p><img src="../img/ja/install-wizard-ready.png" alt="準備完了" /></p>
+<p><img src="../img/ja/install-wizard-progress.png" alt="インストール中" /></p>
+<p>インストールは、通常 1 分以内に終わります。</p>
+<h3 id="section-7">4. 再起動する</h3>
 <p>インストールが終わると、完了の画面に再起動を促すメッセージが出ます。</p>
 <p><img src="../img/ja/install-wizard-finish.png" alt="完了の画面" /></p>
-<p>再起動後にログインすると、License Manager が一度だけ自動で起動します。トレイのアイコンも、タスクトレイに表示されます。</p>
-<h3 id="section-7">4. ライセンスを認証して、もう一度再起動する</h3>
+<p>再起動後にログインすると、License Manager が一度だけ自動で開きます。トレイのアイコンも、タスクトレイに表示されます。再起動の前は、ドライバが停止したままなので、リマップは効きません。</p>
+<h3 id="section-8">5. ライセンスを認証して、もう一度再起動する</h3>
 <p>License Manager でライセンスキーを入力し、アクティベートします（<a href="03-license.html">3. ライセンスの認証</a>）。そのあと、もう一度再起動するか、キーボードを接続し直すと、使えるようになります。</p>
-<h2 id="section-8">入るもの</h2>
+<h2 id="section-9">入るもの</h2>
 <table>
 <thead>
 <tr>
@@ -124,7 +133,7 @@
 <tbody>
 <tr>
 <td>スタートメニュー</td>
-<td><code>applet</code> フォルダの中に、<code>kasane</code>（エディタ）、<code>kasane Tray</code>、<code>kasane License Manager</code></td>
+<td><code>applet</code> フォルダの中の <code>かさね Subscription</code> フォルダに、「かさね」（エディタ）、「かさね Tray」、「kasane License Manager」の 3 つ（英語版のインストーラーでは、「kasane」など英語の名前）</td>
 </tr>
 <tr>
 <td>自動起動</td>
@@ -140,10 +149,10 @@
 </tr>
 </tbody>
 </table>
-<h2 id="section-9">上書きインストール</h2>
+<h2 id="section-10">上書きインストール</h2>
 <p>新しい版は、そのまま上書きインストールできます。アンインストールは要りません。ドライバの設定もライセンスも、引き継がれます。</p>
 <p>上書き、アンインストール、修復の前には、インストーラーがトレイを自動で止めます。</p>
-<h2 id="section-10">サイレントインストール</h2>
+<h2 id="section-11">サイレントインストール</h2>
 <p><code>msiexec</code> で、画面を出さずにインストールできます。設定フォルダと設定ファイルの取り込みは、次のプロパティで渡します。</p>
 <table>
 <thead>
@@ -173,7 +182,7 @@
 </table>
 <pre><code>msiexec /i KasaneSetup-ja-JP.msi /qn KASANE_DIR=D:\kasane IMPORT_SETTINGS=1 IMPORT_SETTINGS_FILE=C:\work\settings.kasane.json
 </code></pre>
-<h2 id="section-11">うまくいかないとき</h2>
+<h2 id="section-12">うまくいかないとき</h2>
 <table>
 <thead>
 <tr>

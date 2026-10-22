@@ -68,6 +68,7 @@ function Want([string]$id) {
 # ウィンドウの見える枠(影を除く)を画面から切り出して保存する。
 function Save-Shot([System.Windows.Automation.AutomationElement]$window, [string]$id) {
     Set-ForegroundWindowFor $window
+    try { $window.GetCurrentPattern([System.Windows.Automation.TransformPattern]::Pattern).Move(20, 20) } catch { }   # 画面の外にはみ出すと、その部分が黒くなる
     Start-Sleep -Milliseconds 400
     $r = New-Object GuiUia.Shot+RECT
     $hwnd = [System.IntPtr]$window.Current.NativeWindowHandle
@@ -173,6 +174,7 @@ try {
     Start-Sleep -Milliseconds 2500
     $main = Find-TopWindowByProcess $script:proc.Id -timeoutMs 10000
     Set-ForegroundWindowFor $main
+    Start-Sleep -Seconds 2
     "起動: $($main.Current.Name)  (言語=$Lang 保存先=$dataDir)"
 
     # ---- エディタの基本画面(05) ----
@@ -197,6 +199,64 @@ try {
     Run-Shot 'combo-editor'       { $w = Open-Child $main 'BtnCombos';       Save-Shot $w 'combo-editor';       Close-Top $w }
     Run-Shot 'tapdance-editor'    { $w = Open-Child $main 'BtnTapDances';    Save-Shot $w 'tapdance-editor';    Close-Top $w }
     Run-Shot 'keyoverride-editor' { $w = Open-Child $main 'BtnKeyOverrides'; Save-Shot $w 'keyoverride-editor'; Close-Top $w }
+
+
+    # ---- キー割り当ての補足画面(08)・ヘルパー動作(11)。ドライバに触れない画面だけ ----
+    function Find-ByName($win, [string]$name, [int]$index = 0) {
+        $cond = New-Object System.Windows.Automation.AndCondition(
+            (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $name)),
+            (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)))
+        $all = $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)
+        if ($all.Count -le $index) { throw "要素が見つかりません: $name [$index]" }
+        return $all[$index]
+    }
+    Run-Shot 'assign-softkeyboard' {
+        $w = Open-Child $main 'Key_0'
+        Select-ListItemByIndex (Find-ChildByAutomationId $w 'LstCategories') 15; Start-Sleep -Milliseconds 600   # 画面のキーボード
+        Save-Shot $w 'assign-softkeyboard'; Close-Top $w
+    }
+    Run-Shot 'assign-power' {
+        $w = Open-Child $main 'Key_0'
+        Select-ListItemByIndex (Find-ChildByAutomationId $w 'LstCategories') 9; Start-Sleep -Milliseconds 600
+        Invoke-Element (Find-ChildByAutomationId $w 'KeycodeButton_KC_PWR'); Start-Sleep -Milliseconds 400
+        $before = Get-AllTopWindowHandles $script:proc.Id
+        Invoke-Element (Find-ChildByAutomationId $w 'BtnOk')
+        $m = Find-NewTopWindow $script:proc.Id $before -timeoutMs 6000
+        Save-Shot $m 'assign-power'
+        # 「いいえ」で閉じる(割り当てない)
+        Set-ForegroundWindowFor $m; Start-Sleep -Milliseconds 300
+        Add-Type -AssemblyName System.Windows.Forms
+        [System.Windows.Forms.SendKeys]::SendWait('n')
+        Start-Sleep -Milliseconds 500; Close-Top $w
+    }
+    Run-Shot 'helper-assign' {
+        $w = Open-Child $main 'Key_0'
+        Select-ListItemByIndex (Find-ChildByAutomationId $w 'LstCategories') 14; Start-Sleep -Milliseconds 600   # ヘルパー動作
+        Save-Shot $w 'helper-assign'
+        $before = Get-AllTopWindowHandles $script:proc.Id
+        Invoke-Element (Find-ChildByAutomationId $w 'NewHelperActionButton')
+        $e = Find-NewTopWindow $script:proc.Id $before -timeoutMs 6000
+        $cb = Find-ChildByAutomationId $e 'ActionType'; Select-ComboItemByIndex $cb 2; Start-Sleep -Milliseconds 400   # 操作の手順 (Sequence)
+        try { $cb.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Collapse() } catch { }; Start-Sleep -Milliseconds 400
+        Save-Shot $e 'helper-sequence'; Close-Top $e; Start-Sleep -Milliseconds 500; Close-Top $w
+    }
+    Run-Shot 'helper-trigger' {
+        $d = Open-Settings $main; Select-TabById $d 'TabHelper'; Start-Sleep -Milliseconds 500
+        $before = Get-AllTopWindowHandles $script:proc.Id
+        Invoke-Element (Find-ByName $d '追加...' 1)     # 2 つ目(トリガー)
+        $e = Find-NewTopWindow $script:proc.Id $before -timeoutMs 6000
+        $cb = Find-ChildByAutomationId $e 'ActionType'; Select-ComboItemByIndex $cb 2; Start-Sleep -Milliseconds 400
+        try { $cb.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Collapse() } catch { }; Start-Sleep -Milliseconds 400
+        Save-Shot $e 'helper-trigger'; Close-Top $e; Start-Sleep -Milliseconds 500; Close-Top $d
+    }
+    Run-Shot 'apprules-editor' {
+        $d = Open-Settings $main; Select-TabById $d 'TabAppRules'; Start-Sleep -Milliseconds 500
+        $before = Get-AllTopWindowHandles $script:proc.Id
+        Invoke-Element (Find-ByName $d '追加...' 0)
+        $e = Find-NewTopWindow $script:proc.Id $before -timeoutMs 6000
+        Save-Shot $e 'apprules-editor'; Close-Top $e; Start-Sleep -Milliseconds 500; Close-Top $d
+    }
+    # 注意: 「実行中のアプリから選ぶ」(apprules-picker)は、実際のウィンドウのタイトルが並ぶので、ここでは撮らない(VM で撮る)。
 
     # ---- キャリブレーション(06) ----
     Run-Shot 'calib-main' { $w = Open-Child $main 'BtnCalibrateAll'; Save-Shot $w 'calib-main'; Close-Top $w }

@@ -40,12 +40,21 @@
 <p><img src="../img/ja/uninstall-off.png" alt="OFF(素通しに戻す)を押した状態" /></p>
 <p>この手順を省くと、再起動するまでのあいだ、ドライバが動いたままになることがあります。手順 1 で OFF にしておけば、割り当ては効きません。</p>
 <h3 id="section-2">2. アプリと機能から削除する</h3>
-<p>Windows の設定の「アプリと機能」（「インストールされているアプリ」）で、「かさね Subscription」を探して削除します。管理者の権限が必要です。</p>
-<p><img src="../img/ja/uninstall-apps.png" alt="Windows の設定でかさねを削除する" /></p>
-<p>アンインストールの前に、インストーラーがトレイを自動で止めます。</p>
-<h3 id="section-3">3. 再起動する</h3>
+<p>Windows の設定の「アプリと機能」（「インストールされているアプリ」）で、「かさね Subscription」を探します。検索欄に「かさね」と入れると絞り込めます。右端の <strong>…</strong> を押すと、<strong>変更</strong> と <strong>アンインストール</strong> が出ます。<strong>アンインストール</strong> を選んでください。管理者の権限が必要です。</p>
+<p><img src="../img/ja/uninstall-apps.png" alt="Windows の設定でかさねを探す" /></p>
+<p><img src="../img/ja/uninstall-apps-menu.png" alt="… のメニュー" /></p>
+<p>確認の画面が出たら、<strong>はい</strong> を押します。</p>
+<p><img src="../img/ja/uninstall-confirm.png" alt="アンインストールの確認" /></p>
+<h4 id="section-3">使用中のファイルの画面</h4>
+<p>トレイが動いていると、「インストールを続行するには、次のアプリケーションを終了する必要があります」という画面が出ます。一覧には、<code>kasane-tray</code> が出ます。</p>
+<ul>
+<li><strong>セットアップの完了後、アプリケーションを自動的に終了して、再起動する</strong>: アンインストールのあとで、パソコンが自動で再起動します。</li>
+<li><strong>アプリケーションを終了しない (再起動が必要になる場合があります)</strong>: 再起動は、自分で行います。</li>
+</ul>
+<p>どちらを選んでも、アンインストールは完了します。手順 3 の再起動は、どちらでも要ります。</p>
+<h3 id="section-4">3. 再起動する</h3>
 <p>パソコンを再起動します。再起動した時点で、ドライバの削除が完了します。</p>
-<h2 id="section-4">削除されるもの</h2>
+<h2 id="section-5">削除されるもの</h2>
 <table>
 <thead>
 <tr>
@@ -76,7 +85,7 @@
 </tr>
 </tbody>
 </table>
-<h2 id="section-5">削除されずに残るもの</h2>
+<h2 id="section-6">削除されずに残るもの</h2>
 <p>再インストールしたときに引き継ぐため、次のものは残ります。</p>
 <table>
 <thead>
@@ -99,9 +108,9 @@
 <blockquote>
 <p>旧名の <code>%LOCALAPPDATA%\LayerDriver</code> が残っている場合もあります。以前の版で使っていた保存先です。</p>
 </blockquote>
-<h2 id="section-6">完全に削除したいとき</h2>
+<h2 id="section-7">完全に削除したいとき</h2>
 <p>アンインストールと再起動のあとで、上の 2 つのフォルダを手で削除してください。削除すると、保存した設定とライセンスキーが失われます。設定を残したいときは、先に<a href="13-import-export.html">エクスポート</a>してください。</p>
-<h2 id="section-7">再インストールしたとき</h2>
+<h2 id="section-8">再インストールしたとき</h2>
 <ul>
 <li>ライセンスは、保存されたキーで自動的に再確認されます。</li>
 <li>保存したキーマップ（<code>project.json</code>）は、kasane を開くと読み込まれます。ドライバ側の設定は削除されているため、<strong>キーボードに適用(ON)</strong> を押すと、元に戻せます。</li>
