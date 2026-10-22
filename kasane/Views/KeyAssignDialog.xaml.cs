@@ -66,6 +66,8 @@ public partial class KeyAssignDialog : Window
         BtnCancel.Click += (_, _) => { if (NonModal) Close(); };
         // トークン欄は、マクロの編集画面の「他の画面の入力欄に挿入」の入れ先にもなる。
         MacroInsert.Register(TxtToken, token => TxtToken.Text = token, acceptsTapDance: true);
+        // この画面が前面になったら、欄を一度もクリックしていなくても、トークン欄を入れ先にする（マクロの画面の「入れる」の入れ忘れ防止が働くように）。
+        Activated += (_, _) => MacroInsert.Select(TxtToken);
         string? layerName = project == null ? null : ProjectService.LayerName(project, layer);
         TxtHeader.Text = Loc.T($"{slot.Description} ／ レイヤー{layer}", $"{slot.Description} / Layer {layer}") + (layerName != null ? $"({layerName})" : "");
 

@@ -20,6 +20,16 @@ public sealed class KeycodeCapture
     private readonly Action _onEnded;
     private bool _active;
 
+    private static int _activeCount;
+    private static long _lastEscapeEndTicks = long.MinValue;
+
+    /// <summary>
+    /// 取り込み中か、Esc で取り込みを終えた直後（約 0.5 秒）か。マクロの画面などが、Esc で閉じる処理を、取り込みの Esc と区別するのに使う
+    /// （取り込みの Esc で、画面まで閉じてしまわないように）。
+    /// </summary>
+    public static bool EscapeBelongsToCapture =>
+        _activeCount > 0 || Environment.TickCount64 - _lastEscapeEndTicks < 500;
+
     /// <param name="onCaptured">キーが取れたとき（キーコード名）。</param>
     /// <param name="onEnded">取り込みが終わったとき（取れた・Esc・取消のどれでも）。ボタンの表示を戻すのに使う。</param>
     public KeycodeCapture(Action<string> onCaptured, Action onEnded)
@@ -37,6 +47,7 @@ public sealed class KeycodeCapture
     {
         if (_active) return;
         _active = true;
+        _activeCount++;
         ComponentDispatcher.ThreadPreprocessMessage += OnMessage;
     }
 
@@ -49,6 +60,7 @@ public sealed class KeycodeCapture
 
     private void End()
     {
+        if (_active) _activeCount--;
         _active = false;
         ComponentDispatcher.ThreadPreprocessMessage -= OnMessage;
         _onEnded();
@@ -64,7 +76,7 @@ public sealed class KeycodeCapture
         handled = true;
 
         if ((lParam & (1L << 30)) != 0) return; // 押しっぱなしの繰り返し
-        if (vk == VK_ESCAPE) { End(); return; }  // Esc は取消（Esc を入れたいときはキー選択画面から）
+        if (vk == VK_ESCAPE) { _lastEscapeEndTicks = Environment.TickCount64; End(); return; }  // Esc は取消（Esc を入れたいときはキー選択画面から）
 
         string? token = vk == VK_PAUSE ? "KC_PAUS" : TokenFromKeyMessage(lParam);
         if (token == null) return; // NumLock OFF のときの偽の Shift など。次のキーを待つ

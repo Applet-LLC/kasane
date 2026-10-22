@@ -79,7 +79,12 @@ public abstract class IdListEditorWindow : Window
         cancel.Click += (_, _) => Close();
         PreviewKeyDown += (_, e) =>
         {
-            if (e.Key == System.Windows.Input.Key.Escape && !e.Handled) { e.Handled = true; Close(); }
+            // 「押して入力」の取り込み中の Esc は、取り込みを終えるためのもの。画面は閉じない。
+            if (e.Key == System.Windows.Input.Key.Escape && !e.Handled)
+            {
+                e.Handled = true;
+                if (!KeycodeCapture.EscapeBelongsToCapture) Close();
+            }
         };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
         buttons.Children.Add(apply);

@@ -43,6 +43,18 @@ public static class MacroDirectory
 /// </summary>
 public static class MacroInsert
 {
+    private sealed record Registration(Action<string> Put, bool AcceptsTapDance);
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<TextBox, Registration> Registrations = new();
+
+    /// <summary>
+    /// 登録済みの入力欄を、入れ先にする（フォーカスを受けたとき、または、その欄のある画面が前面になったときに呼ぶ。
+    /// 画面を開いただけで、欄を一度もクリックしていなくても、入れ先として扱えるようにする）。
+    /// </summary>
+    public static void Select(TextBox box)
+    {
+        if (Registrations.TryGetValue(box, out var r)) { _box = box; _put = r.Put; _acceptsTapDance = r.AcceptsTapDance; }
+    }
+
     private static TextBox? _box;
     private static Action<string>? _put;
     private static bool _acceptsTapDance;
@@ -51,7 +63,9 @@ public static class MacroInsert
     /// <param name="acceptsTapDance">true なら TAPDANCE(n) も入れられる欄（キー割り当て画面のキーコード欄）。false は MACRO(n) だけ。</param>
     public static void Register(TextBox box, Action<string> put, bool acceptsTapDance = false)
     {
-        box.GotKeyboardFocus += (_, _) => { _box = box; _put = put; _acceptsTapDance = acceptsTapDance; };
+        Registrations.Remove(box);
+        Registrations.Add(box, new Registration(put, acceptsTapDance));
+        box.GotKeyboardFocus += (_, _) => Select(box);
         box.Unloaded += (_, _) =>
         {
             if (ReferenceEquals(_box, box)) { _box = null; _put = null; }
