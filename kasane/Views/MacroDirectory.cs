@@ -58,6 +58,23 @@ public static class MacroInsert
         };
     }
 
+    /// <summary>
+    /// <paramref name="token"/>（MACRO(n) など）を、まだ入れていない入れ先があるか。入れられる入れ先の欄があり、その欄の内容に
+    /// トークンが無いとき true（編集画面を閉じるときの確認と、「入れる」ボタンの強調に使う）。
+    /// </summary>
+    public static bool NeedsInsert(string token)
+    {
+        if (_box == null || _put == null || !_box.IsLoaded) return false;
+        return NeedsInsert(token, _box.Text, _acceptsTapDance);
+    }
+
+    /// <summary>入れ先の欄の内容（<paramref name="targetText"/>）に、トークンがまだ入っていないか。TAPDANCE(n) は、入れられない欄では false。</summary>
+    public static bool NeedsInsert(string token, string targetText, bool acceptsTapDance)
+    {
+        if (token.StartsWith("TAPDANCE(", StringComparison.Ordinal) && !acceptsTapDance) return false;
+        return !targetText.Contains(token, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>最後にフォーカスを受けた入力欄へ入れる。入れ先が無ければ false（<paramref name="reason"/> に理由）。</summary>
     public static bool TryInsert(string token, out string reason)
     {

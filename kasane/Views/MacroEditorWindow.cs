@@ -37,6 +37,8 @@ public sealed class MacroEditorWindow : IdListEditorWindow
 
     protected override string Summary(int id) => _texts[id];
 
+    protected override string? InsertKind => "MACRO";
+
     /// <summary>編集中の内容から、名前か中身があるマクロの一覧を作る（他の画面の「マクロ...」の選択肢になる）。</summary>
     public IReadOnlyList<MacroInfo> Snapshot()
     {
@@ -58,6 +60,7 @@ public sealed class MacroEditorWindow : IdListEditorWindow
             return;
         }
         bool ok = MacroInsert.TryInsert($"MACRO({id})", out var reason);
+        UpdateInsertHint();
         ShowValidation(ok ? Loc.T($"MACRO({id}) を入れました。", $"Inserted MACRO({id}).") : reason, isError: !ok);
     }
 
@@ -69,6 +72,7 @@ public sealed class MacroEditorWindow : IdListEditorWindow
         {
             _texts[id] = box.Text.Trim();
             RefreshItem(id);
+            NoteEdited(id);
             var errors = new List<string>();
             ProjectService.MacroSteps(ToDef(id), errors);
             ShowValidation(errors.Count == 0 ? "OK" : string.Join("\n", errors), errors.Count > 0);
@@ -86,6 +90,8 @@ public sealed class MacroEditorWindow : IdListEditorWindow
         };
         insert.Click += (_, _) => InsertIntoOtherWindow(id);
         Detail.Children.Add(insert);
+        InsertButton = insert;
+        UpdateInsertHint();
     }
 
     private MacroDef ToDef(int id) => new()
