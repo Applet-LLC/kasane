@@ -26,4 +26,25 @@ builder.Logging.AddEventLog(settings =>
 });
 
 var host = builder.Build();
+
+// シャットダウン時のクラッシュ調査用: 停止要求を受けた後に発生した例外を、握りつぶされたものも含めて
+// 全部 debug.log に残す(UnhandledException だけでは、原因の例外が見えなかったため)。
+// 通常稼働中は何も出さない。
+var stopping = false;
+host.Services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping.Register(() =>
+{
+    stopping = true;
+    DebugTrace.Log("ApplicationStopping");
+});
+var inFirstChance = new ThreadLocal<bool>();
+AppDomain.CurrentDomain.FirstChanceException += (_, e) =>
+{
+    if (!stopping || inFirstChance.Value) return;
+    inFirstChance.Value = true;
+    try { DebugTrace.Log($"FirstChanceException: {e.Exception}"); }
+    finally { inFirstChance.Value = false; }
+};
+AppDomain.CurrentDomain.ProcessExit += (_, _) => DebugTrace.Log("ProcessExit");
+
 host.Run();
+DebugTrace.Log("host.Run returned");
