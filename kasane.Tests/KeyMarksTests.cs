@@ -81,6 +81,20 @@ public class KeyMarksTests
     }
 
     [Fact]
+    public void ModdedKeyAssignment_MatchesOverrideByOutputKey()
+    {
+        var p = NewProject();
+        p.Layers[0][0] = "LALT(KC_ZKHK)";    // Caps Lock を IME のオン・オフにする割り当て
+        p.Layers[0][1] = "LALT(KC_A)";
+        p.KeyOverrides.Add(new KeyOverrideDef { Id = 0, Mods = "MOD_LSFT", Key = "KC_ZKHK", Replacement = "KC_CAPSLOCK" });
+
+        var m = KeyMarks.For(p, Layout, 0, Slot(0));
+        Assert.Equal("R", m.Marks);
+        Assert.Contains("キー置換0", m.ToolTip);
+        Assert.Equal("", KeyMarks.For(p, Layout, 0, Slot(1)).Marks);   // 出力キーが違う
+    }
+
+    [Fact]
     public void MarksAreOrderedMDCR()
     {
         var p = NewProject();

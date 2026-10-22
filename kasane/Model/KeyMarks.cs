@@ -54,15 +54,28 @@ public static class KeyMarks
 
         foreach (var k in project.KeyOverrides)
         {
-            if (!string.Equals(k.Key?.Trim(), token, StringComparison.OrdinalIgnoreCase)) continue;
+            if (!TriggersOverride(k, token)) continue;
             string ko = Describe(Loc.T("キー置換", "Key override"), k.Id, project.KeyOverrideNames);
             tip.Add(Loc.T($"{ko}: {k.Mods.Replace(" ", "")} を押しながら → {k.Replacement}", $"{ko}: while holding {k.Mods.Replace(" ", "")} → {k.Replacement}"));
         }
-        if (project.KeyOverrides.Any(k => string.Equals(k.Key?.Trim(), token, StringComparison.OrdinalIgnoreCase))) marks.Append('R');
+        if (project.KeyOverrides.Any(k => TriggersOverride(k, token))) marks.Append('R');
 
         // 並びは「M D C R」の順に固定する（キーごとに同じ順で読めるように）。
         string ordered = new string("MDCR".Where(ch => marks.ToString().Contains(ch)).ToArray());
         return ordered.Length == 0 ? Info.None : new Info(ordered, string.Join("\n", tip));
+    }
+
+    /// <summary>
+    /// 割り当て（token）が、キー置換の条件のキーに当たるか。同じトークンなら当たる。割り当てが修飾付きのキー
+    /// （<c>LALT(KC_ZKHK)</c> など）のときは、出力キー（<c>KC_ZKHK</c>）で照合する（ドライバも、出力キーで照合する）。
+    /// </summary>
+    private static bool TriggersOverride(KeyOverrideDef k, string token)
+    {
+        string key = k.Key?.Trim() ?? "";
+        if (string.Equals(key, token, StringComparison.OrdinalIgnoreCase)) return true;
+        return KeycodeTable.TryResolve(token, out var assigned) && assigned.Type == ActionType.ModdedKey &&
+               KeycodeTable.TryResolve(key, out var trigger) && trigger.Type == ActionType.Key &&
+               trigger.Param2 == assigned.Param2;
     }
 
     /// <summary>レイヤーを通した、そのキーの割り当て。透過なら下のレイヤーへ、レイヤー0でも透過なら既定のキーコード。</summary>
