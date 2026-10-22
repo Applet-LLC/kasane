@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>5. エディタの基本画面 - kasane マニュアル</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane マニュアル</a>
+<ol>
+<li><a href="index.html">はじめに</a></li>
+<li><a href="01-install.html">1. インストール</a></li>
+<li><a href="02-uninstall.html">2. アンインストール</a></li>
+<li><a href="03-license.html">3. ライセンスの認証</a></li>
+<li><a href="04-tray.html">4. トレイ</a></li>
+<li class="current"><a href="05-editor-basics.html">5. エディタの基本画面</a></li>
+<li><a href="06-calibration.html">6. キャリブレーション</a></li>
+<li><a href="07-emergency.html">7. 緊急解除</a></li>
+<li><a href="08-key-assign.html">8. キーの割り当て</a></li>
+<li><a href="09-advanced.html">9. マクロ・コンボ・タップダンス・キー置換</a></li>
+<li><a href="10-ime-nicola.html">10. IME連動とNICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a></li>
+<li><a href="12-settings.html">12. 設定ダイアログ</a></li>
+<li><a href="13-import-export.html">13. インポート／エクスポート</a></li>
+<li><a href="14-backup-migrate.html">14. バックアップと移行</a></li>
+<li><a href="15-reference.html">15. 付録</a></li>
+</ol>
+
+</nav>
+<main>
+<h1 id="section">5. エディタの基本画面</h1>
+<p>kasane（エディタ）は、キーボードのキーに割り当てる動作を編集して、キーボードに適用するアプリです。この章では、メイン画面の各部と、キーを入れ替えて動作を確かめるまでの基本の流れを説明します。キーの割り当ての画面や、マクロなどの編集は、後の章で説明します。</p>
+<h2 id="section-1">起動する</h2>
+<p>スタートメニューの <code>applet</code> フォルダの中の <code>かさね Subscription</code> フォルダにある <strong>かさね</strong> を右クリックし、<strong>管理者として実行</strong> で起動します。トレイのアイコンを左クリックしても開けます。</p>
+<p>キーボードへの適用、キャリブレーション（個別キーと全体）、キーボードの特定には、管理者権限が必要です。一般ユーザー権限のアプリに、キー入力を盗み見られたり、勝手にキー入力を仕込まれたりしないよう、ドライバが制限しているためです。</p>
+<h3 id="section-2">閲覧専用モード</h3>
+<p>管理者でなく普通に起動すると、画面の上部に黄色い帯が出て、「閲覧専用モード」と表示されます。このとき、キーボードへの適用、キャリブレーション、キーボードの特定のボタンは使えません。編集、エクスポート、OFF は、閲覧専用モードでもできます。</p>
+<p><img src="../img/ja/editor-readonly.png" alt="閲覧専用モードの帯" /></p>
+<p>帯の <strong>管理者として再起動</strong> を押すと、管理者権限で開き直します。確認の画面（UAC）が出たら、許可してください。</p>
+<p>開き直すと、帯が消えて、<strong>キャリブレーション...</strong> や <strong>押して特定...</strong>、<strong>キーボードに適用(ON)</strong> が押せるようになります。</p>
+<p><img src="../img/ja/editor-main-admin.png" alt="管理者として開いたメイン画面" /></p>
+<h2 id="section-3">画面の各部</h2>
+<p><img src="../img/ja/editor-main-labeled.png" alt="メイン画面の各部" /></p>
+<table>
+<thead>
+<tr>
+<th>番号</th>
+<th>部分</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>タイトルバー</td>
+<td>製品名、バージョン、ドライバの状態</td>
+</tr>
+<tr>
+<td>2</td>
+<td>キーボード行とレイアウト</td>
+<td>設定するキーボードを選ぶ（<strong>名前を付ける...</strong>、<strong>押して特定...</strong>、<strong>一覧を更新</strong>）。右側で、キーボードの配列を選ぶ（<strong>KLEから追加...</strong>）</td>
+</tr>
+<tr>
+<td>3</td>
+<td>レイヤー行</td>
+<td>レイヤーの一覧。<strong>＋ 追加</strong>、<strong>− 最後を削除</strong></td>
+</tr>
+<tr>
+<td>4</td>
+<td>キー図</td>
+<td>クリックでキーの割り当てを変える。右クリックでメニュー</td>
+</tr>
+<tr>
+<td>5</td>
+<td>下部のボタン</td>
+<td><strong>キャリブレーション...</strong>、<strong>ヘルパー...</strong>、<strong>マクロ...</strong>、<strong>コンボ...</strong>、<strong>タップダンス...</strong>、<strong>キー置換...</strong>、<strong>設定...</strong>、<strong>インポート／エクスポート...</strong>、<strong>キーボードに適用(ON)</strong>、<strong>OFF(素通しに戻す)</strong></td>
+</tr>
+<tr>
+<td>6</td>
+<td>ステータス欄</td>
+<td>操作の結果を表示</td>
+</tr>
+</tbody>
+</table>
+<h3 id="section-4">タイトルバー</h3>
+<p>バージョンと一緒に、ドライバの状態が出ます（例: <code>kasane 1.00  ドライバ: ON（リマップ中）</code>）。</p>
+<table>
+<thead>
+<tr>
+<th>表示</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ON（リマップ中）</td>
+<td>設定がドライバに入っていて、リマップが効いている</td>
+</tr>
+<tr>
+<td>OFF（素通し、設定はドライバに残っています）</td>
+<td>設定は残っているが、リマップは止まっている</td>
+</tr>
+<tr>
+<td>設定なし（素通し）</td>
+<td>ドライバに設定がない</td>
+</tr>
+</tbody>
+</table>
+<p>画面の変更をまだ適用していないときは、その旨も出ます。未保存の変更があるときは <code>*</code> が付きます。「OFF なのに入れ替わる」「設定したのに効かない」ときは、最初にここを見てください。</p>
+<h2 id="section-5">設定するキーボードを選ぶ</h2>
+<p><strong>キーボード</strong> の一覧から、設定したいキーボードを選びます。各行は、次の順に表示されます（ないものは省かれます）。</p>
+<p><code>UniqId</code>（8 桁）、つけた名前、Windows 上の名前（デバイスマネージャーの名前や製品名）、ハードウェア ID</p>
+<p><img src="../img/ja/editor-keyboard-list.png" alt="キーボードの一覧" /></p>
+<ul>
+<li><strong>押して特定...</strong>: ノート PC に外付けキーボードをつないでいるときなど、どれが目的のキーボードか分からないときに使います。押すと小さな画面が開くので、目的のキーボードでどれかキーを 1 つ押してください。押したキーボードが選ばれます。押したキーは Windows には送られません。管理者権限が必要です。</li>
+<li><strong>名前を付ける...</strong>: 選んでいるキーボードに、わかりやすい名前（例: 「仕事用」）を付けます。空にすると消えます。名前は画面の表示とエクスポートのファイルだけに使われ、キーの動作には関係しません。</li>
+<li><strong>一覧を更新</strong>: キーボードの一覧を取り直します。</li>
+<li>一覧に「(ドライバ未接続: 編集とエクスポートのみ)」しかないときは、ドライバが動いていないか、ライセンスが有効になっていません。<a href="15-reference.html">15. 付録</a>を見てください。</li>
+</ul>
+<h2 id="section-6">レイアウトを確認する</h2>
+<p><strong>レイアウト</strong> が、お使いのキーボードと合っているかを確かめます。</p>
+<table>
+<thead>
+<tr>
+<th>レイアウト</th>
+<th>キーボード</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>JP109</code></td>
+<td>日本語（JIS）</td>
+</tr>
+<tr>
+<td><code>US104</code></td>
+<td>英語（US）</td>
+</tr>
+<tr>
+<td><code>10KEY</code></td>
+<td>テンキー単体（17 キー）</td>
+</tr>
+</tbody>
+</table>
+<p>初回は、Windows の表示言語に合わせて、<code>JP109</code> か <code>US104</code> が選ばれています。違っていたら切り替えてください。切り替えると、割り当てがリセットされると確認が出るので、<strong>OK</strong> を押します。</p>
+<h3 id="kle">KLE から配列を追加する</h3>
+<p>同梱のレイアウトにない配列（ISO、60%、特殊な配列など）は、<a href="https://www.keyboard-layout-editor.com/">Keyboard Layout Editor</a>（KLE）で作った配列を取り込んで使えます。</p>
+<ol>
+<li>KLE のサイトで配列を作ります。<strong>Raw data</strong> タブの内容を、JSON ファイルに保存します（<strong>Download JSON</strong> でも構いません）。キーの回転（Rotate）は使えません。</li>
+<li><strong>KLEから追加...</strong> を押します。「KLE の配列を取り込む」の画面で、<strong>ファイルを選ぶ...</strong> からそのファイルを選び、<strong>読み込む</strong> を押します。</li>
+<li>一覧に、各キーの既定のキーコードを、ラベルと位置から推定した結果が出ます（列は、ラベル、キーコード、状態、メモ）。緑は確定、黄色は推定、赤は未割り当てです。推定が違うキーや赤のキーは、一覧の <strong>キーコード</strong> を書き換えるか、<strong>一覧から選ぶ...</strong> で選びます。赤のまま保存しても使えますが、そのキーはキャリブレーションが必要です。</li>
+<li><strong>名前</strong>（英数字とハイフン）を付けて、<strong>保存して使う</strong> を押します。<strong>レイアウト</strong> の一覧に出ます。</li>
+</ol>
+<p><img src="../img/ja/editor-kle.png" alt="KLE の取り込み" /></p>
+<p>同梱のレイアウトと同じ名前は使えません。同じ名前で保存し直すと、上書きされます。</p>
+<h2 id="section-7">キーを入れ替える</h2>
+<p>例として、次の入れ替えを設定します。</p>
+<table>
+<thead>
+<tr>
+<th>キーボード</th>
+<th>入れ替えるキー</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JIS</td>
+<td>英数キー（<code>Caps Lock 英数</code> と刻印されたキー）と、左 Ctrl</td>
+</tr>
+<tr>
+<td>US</td>
+<td>Caps Lock と、左 Ctrl</td>
+</tr>
+</tbody>
+</table>
+<p><strong>レイヤー</strong> が <code>0</code> になっていることを確かめてから、JIS では次のようにします。</p>
+<ol>
+<li>キー図の <strong>英数（Caps Lock）</strong> キーをクリックします。</li>
+<li>開いた画面の左の一覧から <strong>修飾キー</strong> を選び、<strong>LCtrl（KC_LCTRL）</strong> を押して <strong>OK</strong> を押します。</li>
+<li>キー図の <strong>左 Ctrl（LCtrl）</strong> キーをクリックします。</li>
+<li>左の一覧から <strong>記号・編集</strong> を選び、<strong>Caps（KC_CAPSLOCK）</strong> を押して <strong>OK</strong> を押します。</li>
+</ol>
+<p>US では、同じ手順で、<strong>Caps Lock</strong> を <code>KC_LCTRL</code> に、<strong>左 Ctrl</strong> を <code>KC_CAPSLOCK</code> にします。</p>
+<p>変更したキーは青色になり、中央に新しい動作（<code>LCtrl</code>、<code>Caps</code>）が表示されます。キー割り当ての画面の詳細は、<a href="08-key-assign.html">8. キーの割り当て</a>を見てください。</p>
+<p><img src="../img/ja/editor-swapped.png" alt="入れ替えたキー" /></p>
+<p>間違えたときは、そのキーを右クリックして、<strong>このレイヤーの割り当てを戻す</strong> を選びます。</p>
+<h3 id="section-8">キー図の見方</h3>
+<p>キーの左上の小さな文字がキーの刻印、中央の大きな文字が、そのキーに今割り当てられている動作です。何も変更していないキーは、刻印と同じです。</p>
+<table>
+<thead>
+<tr>
+<th>色や印</th>
+<th>意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>青</td>
+<td>割り当てを変更したキー</td>
+</tr>
+<tr>
+<td>緑</td>
+<td>レイヤーや Mod-Tap などの動作が割り当てられたキー</td>
+</tr>
+<tr>
+<td>橙の枠</td>
+<td>キャリブレーションで実測した値が、標準と違うキー</td>
+</tr>
+<tr>
+<td>赤の枠</td>
+<td>どのキーか分からないキー（スキャンコードが不明）</td>
+</tr>
+<tr>
+<td>▽</td>
+<td>透過（下のレイヤーの割り当てを使う）</td>
+</tr>
+<tr>
+<td>右下の M</td>
+<td>マクロ（割り当てが <code>MACRO(n)</code>）</td>
+</tr>
+<tr>
+<td>右下の D</td>
+<td>タップダンス（<code>TAPDANCE(n)</code>）</td>
+</tr>
+<tr>
+<td>右下の C</td>
+<td>コンボの対象のキー（どのレイヤーにも出る）</td>
+</tr>
+<tr>
+<td>右下の R</td>
+<td>キー置換の対象のキー（そのキーを出すレイヤーに出る）</td>
+</tr>
+</tbody>
+</table>
+<p>印は M、D、C、R の順に並びます。キーにマウスを載せると、内容（「キー置換3: MOD_LSFT を押しながら → KC_Z」など）が出ます。</p>
+<p>画面下の <strong>マクロ...</strong>、<strong>コンボ...</strong>、<strong>タップダンス...</strong>、<strong>キー置換...</strong> には、定義の数が出ます（例: <code>マクロ(2)...</code>）。設定ダイアログで機能を OFF にしていると、<code>(2・OFF)</code> のように出ます。定義はあっても、動きません。</p>
+<h2 id="section-9">レイヤー</h2>
+<p><strong>＋ 追加</strong> でレイヤーを増やします。レイヤー 0 のどれかのキーに <code>MO(1)</code> などを割り当てると、そのキーを押している間だけ、レイヤー 1 の割り当てになります。レイヤーの一覧を右クリックすると、次のメニューが出ます。</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>このレイヤーをエクスポート...</td>
+<td>レイヤー 1 枚を、ファイルに書き出す</td>
+</tr>
+<tr>
+<td>レイヤーをインポート...</td>
+<td>ファイルから、レイヤーを読み込む</td>
+</tr>
+<tr>
+<td>レイヤー N に名前を付ける...</td>
+<td>わかりやすい名前を付ける（画面の表示とエクスポートのファイルだけに使う）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="section-10">適用する</h2>
+<p>画面下の <strong>キーボードに適用(ON)</strong> を押します。ステータス欄に「適用しました(ON)。…」と出れば完了です。この瞬間から、入れ替えが効きます。</p>
+<p>設定はドライバに保存されるので、パソコンを再起動しても有効なままです。kasane を起動しておく必要もありません。</p>
+<p><img src="../img/ja/editor-applied.png" alt="適用の完了" /></p>
+<p>「適用できません」と出たときは、表示された理由を直してから、もう一度押します。このとき、キーボードの設定は何も変わっていません。</p>
+<h2 id="section-11">動作を確かめる</h2>
+<p>メモ帳を開いて確かめます。</p>
+<p><strong>JIS（英数と左 Ctrl の入れ替え）</strong></p>
+<ul>
+<li>英数キーを押しながら <code>A</code> を押すと、全選択されます。<code>C</code>、<code>V</code> で、コピーと貼り付けができます。</li>
+<li>日本語入力（IME）を ON にした状態で左 Ctrl を押すと、英数キーとして動きます。</li>
+<li>Shift と左 Ctrl を押すと、CapsLock が切り替わります。</li>
+</ul>
+<p><strong>US（CapsLock と左 Ctrl の入れ替え）</strong></p>
+<ul>
+<li>CapsLock を押しながら <code>A</code> を押すと、全選択されます。<code>C</code>、<code>V</code> で、コピーと貼り付けができます。</li>
+<li>左 Ctrl を押すと、CapsLock が切り替わります。ランプが点灯したり消灯したりします。</li>
+</ul>
+<p>どちらも、右 Ctrl とその他のキーは、今までどおり動きます。</p>
+<h2 id="section-12">元に戻す</h2>
+<table>
+<thead>
+<tr>
+<th>やりたいこと</th>
+<th>操作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>一時的に入れ替えを止める（設定は残る）</td>
+<td><strong>OFF(素通しに戻す)</strong> を押す。再開は <strong>キーボードに適用(ON)</strong></td>
+</tr>
+<tr>
+<td>設定を変える</td>
+<td>キーをクリックして変更し、もう一度 <strong>キーボードに適用(ON)</strong></td>
+</tr>
+<tr>
+<td>入れ替えをやめる</td>
+<td>入れ替えたキーを右クリックして <strong>このレイヤーの割り当てを戻す</strong> を選び、<strong>キーボードに適用(ON)</strong> を押す</td>
+</tr>
+<tr>
+<td>アンインストールする</td>
+<td><a href="02-uninstall.html">2. アンインストール</a>を見る</td>
+</tr>
+</tbody>
+</table>
+<h2 id="section-13">保存と閉じるときの確認</h2>
+<p>エディタに保存ボタンはありません。編集した設定は、kasane を閉じるとき、別のキーボードに切り替えるとき、<strong>キーボードに適用(ON)</strong> を押したときに、自動で保存されます（保存先は<a href="14-backup-migrate.html">14. バックアップと移行</a>）。</p>
+<p>保存したが、キーボードに反映していない設定があると、閉じるときに確認が出ます。</p>
+<ul>
+<li>閲覧専用のとき: 「設定は保存されましたが、キーボードに反映されていません。必要に応じて、管理者権限で kasane を起動し、「キーボードに適用(ON)」で反映してください。このまま閉じますか？」と出ます。<strong>OK</strong> で閉じて、<strong>キャンセル</strong> で、閉じずに戻れます。</li>
+<li>管理者として起動しているとき: 「キーボードに反映していない設定が 1 台分あります。反映しますか？」と出ます。<strong>はい</strong> で反映して閉じます。<strong>いいえ</strong> は、反映せずに閉じます（設定は保存済みです）。<strong>キャンセル</strong> で戻ります。</li>
+</ul>
+<p>閲覧専用のときの確認です。</p>
+<p><img src="../img/ja/editor-close-confirm-readonly.png" alt="閉じるときの確認（閲覧専用のとき）" /></p>
+<p>管理者として起動しているときの確認です。</p>
+<p><img src="../img/ja/editor-close-confirm-admin.png" alt="閉じるときの確認（管理者のとき）" /></p>
+<p>保存済みの設定が読めないときや、そのレイアウトが見つからないときは、保存済みの設定を使わずに開きます。この状態では自動で保存せず、閉じるときなどに「保存すると置き換わります」と確認します。元の設定を失わないためです。</p>
+<h2 id="section-14">編集画面を開いている間の制限</h2>
+<p>マクロ、コンボ、タップダンス、キー置換、キーの割り当ての編集画面は、別のウィンドウです。いくつでも同時に開いたまま使えます。</p>
+<p>編集画面が開いている間は、画面の内容とプロジェクトがずれないよう、次の操作ができません。編集画面をすべて閉じると、使えます。</p>
+<ul>
+<li>キーボードとレイアウトの切り替え</li>
+<li><strong>名前を付ける</strong>、<strong>押して特定</strong>、<strong>一覧を更新</strong>、<strong>KLEから追加</strong></li>
+<li>インポート／エクスポート</li>
+<li>レイヤーの追加と削除</li>
+</ul>
+<p>kasane を閉じようとしたときに編集画面が開いていれば、確認が出ます。</p>
+
+<div class="pager"><a href="04-tray.html">← 4. トレイ</a><a href="06-calibration.html">6. キャリブレーション →</a></div>
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4. トレイ - kasane マニュアル</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane マニュアル</a>
+<ol>
+<li><a href="index.html">はじめに</a></li>
+<li><a href="01-install.html">1. インストール</a></li>
+<li><a href="02-uninstall.html">2. アンインストール</a></li>
+<li><a href="03-license.html">3. ライセンスの認証</a></li>
+<li class="current"><a href="04-tray.html">4. トレイ</a></li>
+<li><a href="05-editor-basics.html">5. エディタの基本画面</a></li>
+<li><a href="06-calibration.html">6. キャリブレーション</a></li>
+<li><a href="07-emergency.html">7. 緊急解除</a></li>
+<li><a href="08-key-assign.html">8. キーの割り当て</a></li>
+<li><a href="09-advanced.html">9. マクロ・コンボ・タップダンス・キー置換</a></li>
+<li><a href="10-ime-nicola.html">10. IME連動とNICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a></li>
+<li><a href="12-settings.html">12. 設定ダイアログ</a></li>
+<li><a href="13-import-export.html">13. インポート／エクスポート</a></li>
+<li><a href="14-backup-migrate.html">14. バックアップと移行</a></li>
+<li><a href="15-reference.html">15. 付録</a></li>
+</ol>
+
+</nav>
+<main>
+<h1 id="section">4. トレイ</h1>
+<p>トレイは、ログインすると常駐する小さなアプリです。タスクトレイ（画面右下の通知領域。隠れているときは「^」の中）に、kasane のアイコンが出ます。</p>
+<p>トレイの役割は次のとおりです。</p>
+<ul>
+<li>エディタを開く入口になる</li>
+<li>すべてのキーボードのリマップを、一時的に止める</li>
+<li>レイヤーを手で切り替える</li>
+<li>IME に合わせて、レイヤーや NICOLA を自動で切り替える（<a href="10-ime-nicola.html">10. IME連動とNICOLA</a>）</li>
+<li>ヘルパー動作とアプリ別レイヤーを動かす（<a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a>）</li>
+</ul>
+<p>リマップそのものは、ドライバが行います。トレイが止まっていても、設定は効き続けます（設定により、トレイと連動させることもできます）。</p>
+<h2 id="section-1">アイコンの状態</h2>
+<table>
+<thead>
+<tr>
+<th>状態</th>
+<th>アイコン</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>動作中</td>
+<td>通常の色</td>
+</tr>
+<tr>
+<td>一時停止中</td>
+<td>灰色に印が付く</td>
+</tr>
+<tr>
+<td>ドライバに接続できない</td>
+<td>灰色</td>
+</tr>
+</tbody>
+</table>
+<p><img src="../img/ja/tray-icons.png" alt="アイコンの状態（動作中、一時停止中）" /></p>
+<p>アイコンの右下には、今のレイヤーの番号が出ます（1〜9、10 以上は A〜F）。基底のレイヤー 0 だけのときは、何も出ません。表示が邪魔なときは、設定ダイアログの「全般」で外せます（<a href="12-settings.html">12. 設定ダイアログ</a>）。</p>
+<p>アイコンにマウスを重ねると、状態が出ます。「かさね 1.00 - 動作中(N台)」「かさね 1.00 - 一時停止中」「かさね 1.00 - リマップ中のキーボードはありません」のいずれかです。ドライバに接続できないときは、その旨が出ます。NICOLA を設定しているときは、「NICOLA 入力中」「NICOLA 待機（IME連動）」も出ます。</p>
+<h2 id="section-2">左クリック</h2>
+<p>kasane（エディタ）を開きます。すでに開いているときは、前面に出ます。</p>
+<p>初回など、起動に時間がかかるときは、画面が出るまで「かさね の設定画面を準備しています…」という小さな表示が出ます。画面が出ると、自動で消えます（最長 30 秒）。</p>
+<p><img src="../img/ja/tray-starting.png" alt="準備しています" /></p>
+<h2 id="section-3">右クリックのメニュー</h2>
+<p><img src="../img/ja/tray-menu.png" alt="右クリックのメニュー" /></p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>設定</td>
+<td>kasane（エディタ）を開く</td>
+</tr>
+<tr>
+<td>一時停止</td>
+<td>すべてのキーボードのリマップを止めて、素通しにする。もう一度押すと再開する。チェックが付いている間が、一時停止中</td>
+</tr>
+<tr>
+<td>レイヤー</td>
+<td>レイヤー 1〜15 を、手で入れたり切ったりする</td>
+</tr>
+<tr>
+<td>ライセンス</td>
+<td>License Manager を開く</td>
+</tr>
+<tr>
+<td>バージョン情報</td>
+<td>バージョン、ビルド日時、Web サイト</td>
+</tr>
+<tr>
+<td>終了</td>
+<td>トレイを終了する</td>
+</tr>
+</tbody>
+</table>
+<h3 id="section-4">一時停止</h3>
+<p><img src="../img/ja/tray-menu-paused.png" alt="一時停止中のメニューとアイコン" /></p>
+<p>押すと、すべてのキーボードのリマップが止まり、アイコンが灰色になります。もう一度押すと、止める前に ON だったキーボードが ON に戻ります。リマップが効いているキーボードがないときは、押せません。</p>
+<p>一時停止中にパソコンを再起動しても、停止したままです。トレイを起動し直して（ログインで自動起動します）、<strong>一時停止</strong> を押すと戻ります。エディタで <strong>キーボードに適用(ON)</strong> を押しても戻ります。</p>
+<h3 id="section-5">レイヤー</h3>
+<p>サブメニューから、レイヤー 1〜15 を手で入れたり切ったりします。キーを割り当てる前に試したいときに便利です。チェックが付いているレイヤーが、今有効なものです。</p>
+<p><img src="../img/ja/tray-layers.png" alt="レイヤーのサブメニュー" /></p>
+<ul>
+<li>キーボードが複数あるときは、キーボードごとに分かれます。</li>
+<li>キーボード側の <code>TG</code> や、IME連動、アプリ別レイヤーが立てたレイヤーは、チェックが付いたまま灰色になり、ここからは切れません。</li>
+<li>ここで入れたレイヤーは、もう一度選ぶと切れます。</li>
+<li>一時停止中や、リマップが効いているキーボードがないときは、押せません。</li>
+<li>レイヤー 0 の項目はありません。基底のレイヤーは常に有効なので、入れたり切ったりする対象にならないためです。<code>DF(n)</code> で基底をレイヤー n に替えているときは、レイヤー n の項目に、灰色のチェックが付きます。</li>
+</ul>
+<h3 id="section-6">終了</h3>
+<p>トレイを終了します。設定ダイアログの「全般」にある <strong>トレイが動いている間だけ、キーのリマップを有効にする</strong>（既定は ON）が ON のときは、リマップも OFF になります。OFF のときは、リマップはそのままです。一時停止中に終了すると、停止したままになります。</p>
+<p>終了したあとは、スタートメニューの <code>applet</code> フォルダの中の <code>かさね Subscription</code> フォルダにある <strong>かさね Tray</strong> から、次のログインを待たずに起動し直せます。すでに動いているときに押しても、2 つ目は起動しません。</p>
+<h2 id="section-7">リモート デスクトップで接続しているとき</h2>
+<p>リモート デスクトップ（RDP）で接続したセッションでは、トレイは、そのセッションを「操作中のコンソール」と見なしません（<code>tray.log</code> に、<code>Session: active=False (console=False, ...)</code> と出ます）。設定の「トレイが動いている間だけ、キーのリマップを有効にする」が ON のとき、トレイは、そのセッションでキーボードのリマップを OFF にします。</p>
+<ul>
+<li>OFF になったキーボードは、「リマップ中のキーボードはありません」の状態になり、メニューの <strong>一時停止</strong> と <strong>レイヤー</strong> が、灰色になって押せません。</li>
+<li>リモート デスクトップで kasane を使うときは、設定の「全般」で、この設定を OFF にしてください。</li>
+</ul>
+<blockquote>
+<p>この動作は、Hyper-V の仮想マシンへのリモート デスクトップ接続で確認しました。ほかの環境では確認していません。</p>
+</blockquote>
+<h2 id="off">「一時停止」と「OFF」の違い</h2>
+<p>エディタの <strong>OFF(素通しに戻す)</strong> と、トレイの <strong>一時停止</strong> は、どちらもリマップを止めますが、対象と戻し方が違います。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>OFF(素通しに戻す)</th>
+<th>一時停止</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>操作する場所</td>
+<td>エディタ</td>
+<td>トレイ</td>
+</tr>
+<tr>
+<td>対象</td>
+<td>選んでいるキーボード</td>
+<td>リマップが効いているすべてのキーボード</td>
+</tr>
+<tr>
+<td>戻し方</td>
+<td><strong>キーボードに適用(ON)</strong></td>
+<td>トレイで <strong>一時停止</strong> をもう一度押す。<strong>キーボードに適用(ON)</strong> でも戻る</td>
+</tr>
+<tr>
+<td>設定</td>
+<td>ドライバに残る</td>
+<td>ドライバに残る</td>
+</tr>
+</tbody>
+</table>
+<p>どちらも、設定は消えません。</p>
+<h2 id="section-8">トレイと連動したリマップ</h2>
+<p>設定ダイアログの「全般」にある <strong>トレイが動いている間だけ、キーのリマップを有効にする</strong>（既定は ON）が ON のとき、次の場面でリマップが OFF（素通し）になります。</p>
+<ul>
+<li>トレイの終了</li>
+<li>サインアウト、シャットダウン</li>
+<li>画面のロック（ユーザーの切り替えを含む）</li>
+</ul>
+<p>トレイが起動したときと、ロックを解除したときには、この仕組みで OFF にしたキーボードだけが ON に戻ります。緊急解除や <strong>OFF</strong> ボタンで止めたキーボードは、戻りません。</p>
+<p>トレイが異常終了したとき（クラッシュ、強制終了、電源断など）や、インストーラーがトレイを止めたときは、OFF にできません。リマップを OFF のまま使いたいときは、この設定を OFF にしてください。</p>
+<h2 id="section-9">状態の通知</h2>
+<p>トレイは、失敗したことを、バルーン（通知）で知らせます。</p>
+<h2 id="section-10">自動起動と 2 種類の実行ファイル</h2>
+<p>トレイは、ログオン時に全ユーザーで自動起動します。実行ファイルは 2 種類あります。</p>
+<table>
+<thead>
+<tr>
+<th>ファイル</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kasane-tray.exe</code></td>
+<td>通常の版。ログオン時の自動起動に使います。管理者権限で動くウィンドウにも、キー入力を届けられます</td>
+</tr>
+<tr>
+<td><code>kasane-tray-nua.exe</code></td>
+<td>UI アクセスなしの版。手動で起動するための版です</td>
+</tr>
+</tbody>
+</table>
+<p>エディタは、通常の権限で開きます。キーボードへの適用などで管理者権限が必要なときは、エディタの <strong>管理者として再起動</strong> を使います（<a href="05-editor-basics.html">5. エディタの基本画面</a>）。</p>
+
+<div class="pager"><a href="03-license.html">← 3. ライセンスの認証</a><a href="05-editor-basics.html">5. エディタの基本画面 →</a></div>
+</main>
+</div>
+</body>
+</html>

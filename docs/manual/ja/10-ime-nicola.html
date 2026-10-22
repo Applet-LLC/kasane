@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>10. IME連動とNICOLA - kasane マニュアル</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane マニュアル</a>
+<ol>
+<li><a href="index.html">はじめに</a></li>
+<li><a href="01-install.html">1. インストール</a></li>
+<li><a href="02-uninstall.html">2. アンインストール</a></li>
+<li><a href="03-license.html">3. ライセンスの認証</a></li>
+<li><a href="04-tray.html">4. トレイ</a></li>
+<li><a href="05-editor-basics.html">5. エディタの基本画面</a></li>
+<li><a href="06-calibration.html">6. キャリブレーション</a></li>
+<li><a href="07-emergency.html">7. 緊急解除</a></li>
+<li><a href="08-key-assign.html">8. キーの割り当て</a></li>
+<li><a href="09-advanced.html">9. マクロ・コンボ・タップダンス・キー置換</a></li>
+<li class="current"><a href="10-ime-nicola.html">10. IME連動とNICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a></li>
+<li><a href="12-settings.html">12. 設定ダイアログ</a></li>
+<li><a href="13-import-export.html">13. インポート／エクスポート</a></li>
+<li><a href="14-backup-migrate.html">14. バックアップと移行</a></li>
+<li><a href="15-reference.html">15. 付録</a></li>
+</ol>
+
+</nav>
+<main>
+<h1 id="imenicola">10. IME連動とNICOLA</h1>
+<p>設定ダイアログの <strong>IME連動</strong> タブでは、日本語入力（IME）の状態に合わせて、レイヤーや親指シフト（NICOLA）を自動で切り替えます。</p>
+<p><img src="../img/ja/ime-tab.png" alt="IME連動のタブ" /></p>
+<p>タブの上の部分が、IME に合わせたレイヤーの切り替えです。下の部分が、NICOLA（親指シフト）です。以前の「NICOLA」タブの内容も、このタブにまとまっています。</p>
+<p>どちらも、トレイの kasane が動いているときだけ働きます。</p>
+<h2 id="ime">IME に合わせてレイヤーを切り替える</h2>
+<p>IME の ON と OFF に合わせて、選んだレイヤーを自動で立てます（IME が OFF になると、下ろします）。NICOLA を使わなくても使えます。</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>対象</td>
+<td><strong>このキーボード</strong> と <strong>全キーボード共通</strong> から選ぶ。キーボードごとの設定が先。「このキーボード」で連動しない設定にすると、共通の設定があっても、そのキーボードは連動しない</td>
+</tr>
+<tr>
+<td><strong>IME の ON/OFF に合わせて、レイヤーを立てる</strong></td>
+<td>チェックを付けると、連動する</td>
+</tr>
+<tr>
+<td>立てるレイヤー</td>
+<td>立てるレイヤー（0〜15 のチェックボックス）。1 つ以上</td>
+</tr>
+<tr>
+<td>立てる条件</td>
+<td><strong>IME が ON のとき</strong>（Microsoft IME では、半角英数のモードは OFF と同じ扱い）、または <strong>かな入力のときだけ</strong>（IME が ON で、日本語の入力モード）</td>
+</tr>
+<tr>
+<td><strong>この範囲の設定を消す</strong></td>
+<td>選んでいる対象の設定を消す。そのキーボードに設定がないときは、共通の設定に従う</td>
+</tr>
+</tbody>
+</table>
+<p>立てたレイヤーは、キーボード側の <code>TG</code> などのレイヤーと、OR で重なります。</p>
+<p>前面のウィンドウの IME の状態が取れないとき（管理者として動いているウィンドウなど）は、直前の状態を保ちます。</p>
+<h3 id="ime-1">IME の状態の取得方法</h3>
+<p>IME の状態を読む方法を、<strong>IME の状態の取得方法</strong> で選びます。</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>IMM32 のみ(フックを入れない。既定)</td>
+<td>Windows の標準の方法で読む。追加の DLL は入れない</td>
+</tr>
+<tr>
+<td>TSF（実験的）</td>
+<td>IMM32 で取れないときに、Text Services Framework でも読む。全アプリに小さな DLL（天狼 sirius のフック）が入る</td>
+</tr>
+</tbody>
+</table>
+<p>IMM32 では、次のアプリで状態が取れないか、追従しません。そのようなアプリが前面のときは、直前の状態を保ちます。</p>
+<ul>
+<li>管理者として動くウィンドウ</li>
+<li>設定アプリなど、一部のストアアプリ（値が固定されている）</li>
+<li>新しいメモ帳（ON が読めないことがある）</li>
+</ul>
+<blockquote>
+<p>TSF を選ぶと、Explorer を開くのが遅く感じられる場合があります。原因は特定できていません（<code>docs/KNOWN-ISSUES.md</code>）。32 ビットのアプリと、ARM64 ネイティブのアプリには、この DLL は入りません。使う必要がなければ、既定の「IMM32 のみ」のままにしてください。</p>
+</blockquote>
+<h2 id="nicola">NICOLA（親指シフト）</h2>
+<p>親指シフトを使う設定です。IME連動のタブを下へスクロールした部分にあります。</p>
+<p><img src="../img/ja/nicola-section.png" alt="NICOLA" /></p>
+<ol>
+<li><strong>対象</strong> で、<strong>このキーボード</strong> か <strong>全キーボード共通</strong> を選びます。</li>
+<li><strong>NICOLA</strong> の欄で <strong>この設定を使う</strong> を選ぶと、NICOLA の規格書どおりの配列が入ります。あとから規格書の配列に戻すには、<strong>規格書の配列にする</strong> を押します。<strong>GUIでは管理しない(ドライバの設定をそのまま使う)</strong> のままなら、コマンド版（<code>--set-nicola</code>）で入れた設定は、適用しても変わりません。</li>
+<li>必要なら、<strong>表を編集...</strong> で配列を変えます。<strong>nicola.json を読み込む...</strong> と <strong>nicola.json に書き出す...</strong> で、ファイルとの入出力もできます。</li>
+<li><strong>キーボードに適用(ON)</strong> を押します。</li>
+</ol>
+<h3 id="section">表を編集する</h3>
+<p><strong>表を編集...</strong> で、「NICOLAの表」の画面が開きます。上の「全体」の部分と、下の文字キーの一覧で、次の項目を変えられます。</p>
+<p><img src="../img/ja/nicola-editor.png" alt="NICOLA の表" /></p>
+<ul>
+<li><strong>出力の形式</strong>: IME の入力方式（ローマ字入力の IME、または JIS かな）と、<strong>レイヤー</strong></li>
+<li><strong>判定する</strong>: OFF にすると、設定はキーボードに残したまま、親指シフトをしません</li>
+<li><strong>親指左</strong>、<strong>親指右</strong>、それぞれの <strong>単独打鍵</strong> のキー（例: <code>KC_MHEN</code>、<code>KC_HENK</code>）。単独打鍵の欄を空にすると、親指キーを単独で押しても、何も送りません。</li>
+<li><strong>有効のとき</strong>、<strong>無効のとき</strong>: 判定が有効または無効になったときに、1 回押すキー（IME のオンとオフなど。空は、なし）</li>
+<li><strong>判定時間(ms)</strong>、<strong>重なりの比率</strong>、<strong>最小の重なり(ms)</strong>、<strong>連続シフト</strong></li>
+<li>下の一覧: 各文字キーを、単独、親指左、親指右と同時に押したときに出る、かな（1 文字ずつ）。<strong>文字キーを追加</strong>、<strong>選んだ文字キーを削除</strong> で、一覧を増減できます。</li>
+</ul>
+<p><code>nicola.json</code>（コマンド版と同じ形式）の読み込みと書き出しもできます。</p>
+<h3 id="imenicola-1">IME連動（NICOLA）</h3>
+<p><strong>IME連動: IMEがかなモードのときだけNICOLAにする</strong> にチェックを付けると、IME がかなモードのときだけ、トレイの kasane が、NICOLA のレイヤーを自動で立てます。切り替えるキーは要りません。既定はオフです。</p>
+<ul>
+<li>止めたいときは、チェックを外します。</li>
+<li>対象が <strong>このキーボード</strong> のときは、そのキーボードだけの設定になります。キーボードごとの設定がないときは、<strong>全キーボード共通</strong> の設定に従います。<strong>共通の設定に従う</strong> を押すと、キーボードごとの設定を消せます。</li>
+<li>使わないときは、NICOLA のレイヤー（既定はレイヤー 1）に切り替えるキー（例: <code>TG(1)</code>）を、キーマップに置きます。</li>
+<li>一度チェックを入れたあとは、その選択が残ります。再インストールでも変わりません。</li>
+<li>IME連動をオンにして、NICOLA を設定したキーボードで IME を ON にすると、0.1 秒ほどあとに NICOLA に切り替わり、トレイのアイコンのツールチップが「NICOLA 入力中」になります。IME を OFF（半角英数）にすると、ふつうのキーに戻ります。</li>
+</ul>
+<p>親指キーの単独打鍵（<code>thumbLeftTap</code>、<code>thumbRightTap</code>。Enter や Space など）は、適用のときに、NICOLA のレイヤーのキー割り当てとして自動で足されます。Ctrl や Shift を押している間は、NICOLA の判定が行われず、この割り当てが使われます。キー割り当てが 1 つもなくても、NICOLA は動きます。</p>
+<h3 id="enter-space">例: 無変換と変換を Enter と Space にする</h3>
+<p>親指シフトの親指キーに、無変換と変換を使い、IME に合わせて切り替える例です。</p>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>動作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>無変換が親指左、変換が親指右</td>
+<td>文字キーとの同時打鍵で、規格どおりの文字</td>
+</tr>
+<tr>
+<td>IME が OFF のとき、無変換を単独で押す</td>
+<td>IME が ON になる（手順 2 の Windows の設定）</td>
+</tr>
+<tr>
+<td>IME が ON のとき、無変換を単独で押す</td>
+<td>Enter</td>
+</tr>
+<tr>
+<td>IME が ON のとき、変換を単独で押す</td>
+<td>Space</td>
+</tr>
+<tr>
+<td>Ctrl や Shift を押しながら無変換、変換</td>
+<td>Ctrl+Enter、Shift+Space など</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li>NICOLA の部分で <strong>この設定を使う</strong> を選び、<strong>nicola.json を読み込む...</strong> で、インストール先の <code>samples\nicola-enter-space.json</code> を選びます。親指キーの単独打鍵が Enter と Space になります。JIS かな入力のときは、<strong>表を編集...</strong> で、IME の入力方式を合わせます。<strong>IME連動</strong> にチェックが入っていることを確かめて、<strong>OK</strong> を押します。</li>
+<li>Windows の設定で、無変換キーを「IME-オン」にします（Microsoft IME の「キーとタッチのカスタマイズ」。画面の名前は、Windows の版で少し違います）。IME が OFF のときは NICOLA が働かないので、無変換が IME に届いて、IME が ON になります。変換キーも「IME-オン」になっている場合は、「変換」に戻しておくと、変換を変換のまま使えます。</li>
+<li><strong>キーボードに適用(ON)</strong> を押します。</li>
+<li>トレイの kasane が動いていることを確かめます。</li>
+</ol>
+<p>親指キーの単独打鍵は、同時打鍵の判定時間（既定は 100ms）が過ぎるか、離したときに確定します。</p>
+
+<div class="pager"><a href="09-advanced.html">← 9. マクロ・コンボ・タップダンス・キー置換</a><a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー →</a></div>
+</main>
+</div>
+</body>
+</html>

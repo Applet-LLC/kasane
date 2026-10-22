@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1. インストール - kasane マニュアル</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane マニュアル</a>
+<ol>
+<li><a href="index.html">はじめに</a></li>
+<li class="current"><a href="01-install.html">1. インストール</a></li>
+<li><a href="02-uninstall.html">2. アンインストール</a></li>
+<li><a href="03-license.html">3. ライセンスの認証</a></li>
+<li><a href="04-tray.html">4. トレイ</a></li>
+<li><a href="05-editor-basics.html">5. エディタの基本画面</a></li>
+<li><a href="06-calibration.html">6. キャリブレーション</a></li>
+<li><a href="07-emergency.html">7. 緊急解除</a></li>
+<li><a href="08-key-assign.html">8. キーの割り当て</a></li>
+<li><a href="09-advanced.html">9. マクロ・コンボ・タップダンス・キー置換</a></li>
+<li><a href="10-ime-nicola.html">10. IME連動とNICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a></li>
+<li><a href="12-settings.html">12. 設定ダイアログ</a></li>
+<li><a href="13-import-export.html">13. インポート／エクスポート</a></li>
+<li><a href="14-backup-migrate.html">14. バックアップと移行</a></li>
+<li><a href="15-reference.html">15. 付録</a></li>
+</ol>
+
+</nav>
+<main>
+<h1 id="section">1. インストール</h1>
+<p>kasane のインストーラーは、キーボードドライバ（kbdlayer）、ライセンス管理サービス、エディタ（kasane）、トレイ（常駐アプリ）をまとめて入れます。インストール先は <code>C:\Program Files\applet\kasane</code> に固定されていて、変更できません。</p>
+<h2 id="section-1">準備するもの</h2>
+<ul>
+<li>Windows 11 25H2（x64 または ARM64）</li>
+<li>管理者権限のあるアカウント</li>
+<li>ダウンロードした <code>kasane-subscription.zip</code>（Gumroad のライブラリから、いつでも再ダウンロードできます）</li>
+</ul>
+<p>zip を展開すると、次のファイルが入っています。</p>
+<table>
+<thead>
+<tr>
+<th>ファイル</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Install-kasane.exe</code></td>
+<td>インストールの起動画面。ここから始めます</td>
+</tr>
+<tr>
+<td><code>KasaneSetup-ja-JP.msi</code>, <code>KasaneSetup-en-US.msi</code></td>
+<td>言語別のインストーラー本体。<code>Install-kasane.exe</code> が自動で選びます</td>
+</tr>
+<tr>
+<td><code>License.ja-JP.rtf</code>, <code>License.en-US.rtf</code></td>
+<td>使用許諾</td>
+</tr>
+<tr>
+<td><code>README.ja-JP.txt</code>, <code>README.en-US.txt</code></td>
+<td>インストールガイド</td>
+</tr>
+<tr>
+<td><code>THIRD-PARTY-NOTICES.txt</code>, <code>third-party</code> フォルダ</td>
+<td>第三者のソフトウェアの一覧と、ライセンスの全文</td>
+</tr>
+</tbody>
+</table>
+<p><code>Install-kasane.exe</code> と <code>.msi</code> は、同じフォルダに置いたまま実行してください。</p>
+<h2 id="section-2">手順</h2>
+<h3 id="install-kasane.exe">1. Install-kasane.exe を実行する</h3>
+<p><code>Install-kasane.exe</code> を実行します。Windows の言語が日本語なら日本語で、それ以外なら英語で表示されます。右上のリンクで切り替えられます。</p>
+<p><img src="../img/ja/install-launcher.png" alt="インストール起動画面" /></p>
+<p>説明文のとおり、ライセンスキーの入力はインストール後に出る License Manager で行います（<a href="03-license.html">3. ライセンスの認証</a>）。<strong>インストール</strong> を押すと、インストーラーが始まります。同じフォルダに <code>.msi</code> が見つからないときは、画面に赤字で表示され、ボタンが押せなくなります。</p>
+<h3 id="section-3">2. セットアップウィザードに従う</h3>
+<p>ウィザードは次の順に進みます。</p>
+<ol>
+<li>ようこそ</li>
+<li>使用許諾契約書: 内容を確かめて、<strong>使用許諾契約書に同意します(A)</strong> にチェックを入れます。</li>
+<li>機能の選択: 6 つの機能（ドライバ、トレイ、ライセンスサービス、ライセンス管理、エディタ、共通ファイル）がすべて必須です。選び直しはできません。</li>
+<li>設定フォルダの指定</li>
+<li>設定ファイルの取り込み</li>
+<li>インストールの準備完了、進行</li>
+<li>完了</li>
+</ol>
+<p><img src="../img/ja/install-wizard-welcome.png" alt="ウィザードの最初の画面" /></p>
+<p><img src="../img/ja/install-wizard-license.png" alt="使用許諾契約書" /></p>
+<p><img src="../img/ja/install-wizard-features.png" alt="機能の選択" /></p>
+<h4 id="section-4">設定フォルダの指定</h4>
+<p>設定ファイル（キーボードごとの設定、トレイの設定、ログ）の保存先を指定します。環境変数 <code>KASANE</code> として、マシン全体に設定されます。</p>
+<p><img src="../img/ja/install-wizard-datadir.png" alt="設定フォルダの指定" /></p>
+<ul>
+<li>空欄のままにすると、各ユーザーの <code>%LOCALAPPDATA%\applet\kasane</code> に保存されます。ほとんどの場合は、空欄で構いません。</li>
+<li>指定するときは、<code>D:\kasane</code> のように、ドライブ文字から始まるフルパスにします。</li>
+<li>指定したフォルダが無ければ、インストーラーが作ります。すでにあるフォルダの権限は変えません。</li>
+<li>管理者保護（Windows 11 の機能）を使っているときは、ここで指定すると便利です。昇格したエディタと通常のトレイが、同じフォルダを見るようになります。詳しくは<a href="14-backup-migrate.html">14. バックアップと移行</a>を見てください。</li>
+</ul>
+<p>後から変える場合は、インストーラーをもう一度実行します（<a href="12-settings.html">12. 設定ダイアログ</a>の「保存先」タブには、現在の値が表示されます）。変更した後は、サインインし直してください。</p>
+<h4 id="section-5">設定ファイルの取り込み</h4>
+<p>以前の環境から書き出した設定ファイル（<code>*.kasane.json</code>）を、インストール時にドライバへ反映します。既定ではオフです。</p>
+<p><img src="../img/ja/install-wizard-import.png" alt="設定ファイルの取り込み" /></p>
+<ol>
+<li><strong>設定ファイルを取り込む</strong> にチェックを入れます。</li>
+<li>設定ファイルのフルパスを入力します。この欄は右クリックが使えないので、キーボードで <code>Ctrl+V</code> を押して貼り付けます。</li>
+<li><strong>次へ</strong> を押したときに、ファイルが無ければ、「設定ファイルが見つかりません」という確認の画面が出ます。パスを直すか、「設定ファイルを取り込む」のチェックを外してください。</li>
+</ol>
+<p><img src="../img/ja/install-wizard-import-filled.png" alt="設定ファイルの入力" /></p>
+<p><img src="../img/ja/install-wizard-import-missing.png" alt="設定ファイルが見つかりません" /></p>
+<p>取り込んだ設定は、再起動後（またはキーボードを接続し直したとき）から有効になります。すでに設定のある型番は置き換わり、前の設定は 1 世代だけ退避されます。退避した設定は、設定ダイアログの「保存先」タブから戻せます（<a href="13-import-export.html">13. インポート／エクスポート</a>）。結果は <code>%ProgramData%\applet\kasane\import.log</code> に残ります。</p>
+<h3 id="section-6">3. インストールを実行する</h3>
+<p><strong>インストール</strong> を押すと、ファイルのコピーと登録が始まります。ここまでの設定を確かめたいときは、<strong>戻る</strong> で前のページに戻れます。</p>
+<p><img src="../img/ja/install-wizard-ready.png" alt="準備完了" /></p>
+<p><img src="../img/ja/install-wizard-progress.png" alt="インストール中" /></p>
+<p>インストールは、通常 1 分以内に終わります。</p>
+<h3 id="section-7">4. 再起動する</h3>
+<p>インストールが終わると、完了の画面に再起動を促すメッセージが出ます。</p>
+<p><img src="../img/ja/install-wizard-finish.png" alt="完了の画面" /></p>
+<p>再起動後にログインすると、License Manager が一度だけ自動で開きます。トレイのアイコンも、タスクトレイに表示されます。再起動の前は、ドライバが停止したままなので、リマップは効きません。</p>
+<h3 id="section-8">5. ライセンスを認証して、もう一度再起動する</h3>
+<p>License Manager でライセンスキーを入力し、アクティベートします（<a href="03-license.html">3. ライセンスの認証</a>）。そのあと、もう一度再起動するか、キーボードを接続し直すと、使えるようになります。</p>
+<h2 id="section-9">入るもの</h2>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>スタートメニュー</td>
+<td><code>applet</code> フォルダの中の <code>かさね Subscription</code> フォルダに、「かさね」（エディタ）、「かさね Tray」、「kasane License Manager」の 3 つ（英語版のインストーラーでは、「kasane」など英語の名前）</td>
+</tr>
+<tr>
+<td>自動起動</td>
+<td>トレイが、ログオン時に全ユーザーで自動起動します</td>
+</tr>
+<tr>
+<td>サービス</td>
+<td>ライセンス管理サービス <code>kasaneLicenseSvc</code>（自動起動）</td>
+</tr>
+<tr>
+<td>ドライバ</td>
+<td>キーボードクラスフィルタドライバ <code>kbdlayer</code>（再起動後に有効）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="section-10">上書きインストール</h2>
+<p>新しい版は、そのまま上書きインストールできます。アンインストールは要りません。ドライバの設定もライセンスも、引き継がれます。</p>
+<p>上書き、アンインストール、修復の前には、インストーラーがトレイを自動で止めます。</p>
+<h2 id="section-11">サイレントインストール</h2>
+<p><code>msiexec</code> で、画面を出さずにインストールできます。設定フォルダと設定ファイルの取り込みは、次のプロパティで渡します。</p>
+<table>
+<thead>
+<tr>
+<th>プロパティ</th>
+<th>意味</th>
+<th>例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>KASANE_DIR</code></td>
+<td>設定フォルダ（環境変数 <code>KASANE</code>）</td>
+<td><code>KASANE_DIR=D:\kasane</code></td>
+</tr>
+<tr>
+<td><code>IMPORT_SETTINGS</code></td>
+<td><code>1</code> で、設定ファイルを取り込む</td>
+<td><code>IMPORT_SETTINGS=1</code></td>
+</tr>
+<tr>
+<td><code>IMPORT_SETTINGS_FILE</code></td>
+<td>取り込む設定ファイルのフルパス</td>
+<td><code>IMPORT_SETTINGS_FILE=C:\work\settings.kasane.json</code></td>
+</tr>
+</tbody>
+</table>
+<pre><code>msiexec /i KasaneSetup-ja-JP.msi /qn KASANE_DIR=D:\kasane IMPORT_SETTINGS=1 IMPORT_SETTINGS_FILE=C:\work\settings.kasane.json
+</code></pre>
+<h2 id="section-12">うまくいかないとき</h2>
+<table>
+<thead>
+<tr>
+<th>症状</th>
+<th>原因と対処</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>「This is the wrong Windows version. It's for Windows 11.」と出て、進めない</td>
+<td>Windows 11 以外では、インストールできません</td>
+</tr>
+<tr>
+<td>「再起動してから、もう一度」という趣旨のエラー（1722）で、巻き戻される</td>
+<td>直前にアンインストールしていて、ドライバの削除が再起動待ちになっています。コンピューターを再起動してから、もう一度インストールしてください</td>
+</tr>
+<tr>
+<td>失敗したときのログを見たい</td>
+<td><code>%TEMP%\MSI*.LOG</code>、<code>%ProgramData%\kbdlayer-license\debug.log</code> を確認してください</td>
+</tr>
+</tbody>
+</table>
+<p><img src="../img/ja/install-launcher-failed.png" alt="インストールに失敗したときの画面" /></p>
+
+<div class="pager"><a href="index.html">← はじめに</a><a href="02-uninstall.html">2. アンインストール →</a></div>
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,74 @@
+:root {
+  --bg: #ffffff;
+  --fg: #1f2328;
+  --sub: #59636e;
+  --line: #d1d9e0;
+  --panel: #f6f8fa;
+  --accent: #0b5cad;
+  --note-bg: #fff8e1;
+  --note-line: #e0b400;
+  --warn-bg: #fdecea;
+  --warn-line: #d1352b;
+  --code-bg: #eff1f3;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14181d;
+    --fg: #dde2e8;
+    --sub: #9aa5b1;
+    --line: #333b44;
+    --panel: #1b2027;
+    --accent: #6cb2ff;
+    --note-bg: #2b2610;
+    --note-line: #b8941a;
+    --warn-bg: #2d1715;
+    --warn-line: #d9534f;
+    --code-bg: #232a32;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.8 "Yu Gothic UI", "Meiryo UI", "Hiragino Sans", system-ui, sans-serif;
+}
+a { color: var(--accent); }
+.layout { display: flex; max-width: 1120px; margin: 0 auto; }
+nav.toc {
+  flex: 0 0 240px;
+  padding: 24px 16px;
+  border-right: 1px solid var(--line);
+  position: sticky; top: 0; align-self: flex-start;
+  max-height: 100vh; overflow-y: auto;
+  font-size: 14px; line-height: 1.6;
+}
+nav.toc .brand { font-weight: 700; font-size: 16px; margin-bottom: 12px; display: block; color: var(--fg); text-decoration: none; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; }
+nav.toc li a { display: block; padding: 3px 8px; border-radius: 4px; color: var(--fg); text-decoration: none; }
+nav.toc li a:hover { background: var(--panel); }
+nav.toc li.current a { background: var(--panel); color: var(--accent); font-weight: 700; }
+main { flex: 1 1 auto; min-width: 0; padding: 24px 32px 64px; }
+h1 { font-size: 28px; line-height: 1.4; margin: 0 0 16px; }
+h2 { font-size: 22px; margin: 40px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+h3 { font-size: 18px; margin: 28px 0 8px; }
+img { max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 4px; }
+figure { margin: 16px 0; }
+figcaption { color: var(--sub); font-size: 14px; margin-top: 4px; }
+table { border-collapse: collapse; margin: 16px 0; display: block; overflow-x: auto; }
+th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+th { background: var(--panel); }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 3px; font: 0.92em Consolas, "Cascadia Mono", monospace; }
+pre { background: var(--code-bg); padding: 12px; border-radius: 6px; overflow-x: auto; }
+pre code { background: none; padding: 0; }
+blockquote { margin: 16px 0; padding: 8px 16px; background: var(--note-bg); border-left: 4px solid var(--note-line); }
+blockquote p { margin: 4px 0; }
+.pager { display: flex; justify-content: space-between; gap: 16px; margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); }
+.pager a { text-decoration: none; }
+.todo { background: var(--warn-bg); border-left: 4px solid var(--warn-line); padding: 4px 12px; }
+@media (max-width: 800px) {
+  .layout { display: block; }
+  nav.toc { position: static; max-height: none; border-right: 0; border-bottom: 1px solid var(--line); padding: 16px; }
+  main { padding: 16px; }
+}
