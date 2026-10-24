@@ -11,7 +11,7 @@ SnapMasked $h 'license-trial' $mask; Texts $w
 # サブスク(状態を戻してから)
 Get-Process kasane-license -ErrorAction SilentlyContinue | Stop-Process -Force
 Stop-Service kasaneLicenseSvc -Force
-Remove-Item 'C:\ProgramData\kbdlayer-license\license-svc\licensestate.json' -Force -ErrorAction SilentlyContinue
+Remove-Item 'C:\ProgramData\kbdlayer-license\license-svc\licensestate.dat' -Force -ErrorAction SilentlyContinue
 Start-Service kasaneLicenseSvc; Start-Sleep 3
 $h = Reopen; $w = El $h
 Activate $w '<LICENSE_KEY>'

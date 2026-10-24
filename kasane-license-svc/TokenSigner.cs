@@ -40,10 +40,7 @@ namespace KasaneLicenseSvc;
 /// </summary>
 public sealed class TokenSigner : IDisposable
 {
-    private static readonly string ProtectedKeyDir = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-        "kbdlayer-license", "license-svc");
-    private static readonly string ProtectedKeyPath = Path.Combine(ProtectedKeyDir, "signingkey.dat");
+    private static readonly string ProtectedKeyPath = Path.Combine(ProtectedFolder.Dir, "signingkey.dat");
 
     private readonly ECDsa _ecdsa;
 
@@ -125,7 +122,7 @@ public sealed class TokenSigner : IDisposable
     private static void ProtectAndPersist(byte[] raw, ILogger logger)
     {
         byte[] protectedBytes = ProtectedData.Protect(raw, null, DataProtectionScope.LocalMachine);
-        Directory.CreateDirectory(ProtectedKeyDir);
+        ProtectedFolder.Ensure();
         File.WriteAllBytes(ProtectedKeyPath, protectedBytes);
         logger.LogInformation("TokenSigner: signing key DPAPI-protected and persisted to {Path}", ProtectedKeyPath);
     }
