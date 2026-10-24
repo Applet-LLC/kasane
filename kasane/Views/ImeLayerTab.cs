@@ -14,7 +14,7 @@ internal sealed class ImeLayerTab : HelperTabBase
     private readonly CheckBox _enabled = new() { Name = "ImeLayerEnabledCheck", Content = Loc.T("IME の ON/OFF に合わせて、レイヤーを立てる", "Turn on layers to follow IME on/off"), Margin = new Thickness(0, 0, 0, 6) };
     private readonly CheckBox[] _layers = new CheckBox[16];
     private readonly RadioButton _modeOn = new() { Name = "ImeLayerModeOn", Content = Loc.T("IME が ON のとき(Microsoft IME では、半角英数のモードは OFF と同じ扱いです)", "While the IME is on (with Microsoft IME, half-width alphanumeric mode counts as off)"), GroupName = "ImeLayerMode", Margin = new Thickness(0, 2, 0, 2) };
-    private readonly RadioButton _modeKana = new() { Name = "ImeLayerModeKana", Content = Loc.T("かな入力のときだけ(IME が ON で、日本語の入力モード)", "Only during kana input (IME on, Japanese input mode)"), GroupName = "ImeLayerMode", Margin = new Thickness(0, 2, 0, 2) };
+    private readonly RadioButton _modeKana = new() { Name = "ImeLayerModeKana", Content = Loc.T("日本語入力モードのときだけ(IME が ON で、半角英数ではないとき)", "Only in Japanese input mode (IME on, not half-width alphanumeric)"), GroupName = "ImeLayerMode", Margin = new Thickness(0, 2, 0, 2) };
     private readonly Button _clear = Btn("ImeLayerClearButton", Loc.T("この範囲の設定を消す", "Clear this scope"), 150);
     private readonly TextBlock _hint = new() { TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 6, 0, 0) };
     private bool _loading;

@@ -137,7 +137,7 @@ Caps Lock のキーに `LALT(KC_ZKHK)` を割り当てると、Shift を押し�
 
 右 Alt を押すと、左 Ctrl と左 Alt を同時に押した状態になります。AltGr のあるキーボード配列（ドイツ語など）の Windows では、AltGr で入力する文字が出ます。AltGr のない配列（米国、日本、韓国）では、Ctrl+Alt のショートカットとして働きます。
 
-反対に、右 Alt が、意図せず AltGr（左 Ctrl と左 Alt の同時押し）になって困るときは、[16. 付録](16-reference.html)のトラブル対応を見てください。
+反対に、右 Alt が、意図せず AltGr（左 Ctrl と左 Alt の同時押し）になって困るときは、[16. トラブル対応、既知の制限など](16-reference.html)のトラブル対応を見てください。
 
 <a id="recipe8"></a>
 ## 例 8: Shift+2 で `"` が出るようにする

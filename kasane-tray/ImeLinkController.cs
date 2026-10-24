@@ -48,7 +48,7 @@ public sealed record ImeLinkStatus(bool Linked, bool NicolaOn, int TargetCount, 
 }
 
 /// <summary>
-/// IME連動の中身。IMEがかなモードのときだけ、NICOLAを設定したキーボードのNICOLAのレイヤーを、アプリ管理レイヤーとして
+/// IME連動の中身。IMEが日本語入力モードのときだけ、NICOLAを設定したキーボードのNICOLAのレイヤーを、アプリ管理レイヤーとして
 /// 立てる（キーボード側のTGなどとは別に持つので、お互いを壊さない。実効のレイヤーは両方のOR）。
 ///  - IMEの状態が取れないとき（管理者のウィンドウ、UWPの一部など）は、直前の状態を保つ。
 ///  - 状態が変わったときと、1秒ごとの見直しで、ドライバの状態を合わせる。後者は、キーボードを接続し直して
@@ -140,7 +140,7 @@ public sealed class ImeLinkController
                 }
             }
         }
-        // NICOLAが入力中なのは、IMEがかなモードで、レイヤーマップがONのNICOLAのキーボードがあるとき。
+        // NICOLAが入力中なのは、IMEが日本語入力モードで、レイヤーマップがONのNICOLAのキーボードがあるとき。
         int nicola = _targets.Count(t => t.IsNicola);
         return new ImeLinkStatus(true, _imeOn && _targets.Any(t => t.IsNicola && t.MapEnabled), _targets.Count, nicola);
     }

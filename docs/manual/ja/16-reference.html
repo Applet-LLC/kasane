@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>16. 付録 - kasane マニュアル</title>
+<title>16. トラブル対応、既知の制限など - かさね ヘルプ</title>
 <link rel="stylesheet" href="../assets/style.css">
 </head>
 <body>
 <div class="layout">
 <nav class="toc">
-<a class="brand" href="index.html">kasane マニュアル</a>
+<a class="brand" href="index.html">かさね ヘルプ</a>
 <ol>
 <li><a href="index.html">はじめに</a></li>
 <li><a href="01-install.html">1. インストール</a></li>
@@ -27,12 +27,17 @@
 <li><a href="13-settings.html">13. 設定ダイアログ</a></li>
 <li><a href="14-import-export.html">14. インポート／エクスポート</a></li>
 <li><a href="15-backup-migrate.html">15. バックアップと移行</a></li>
-<li class="current"><a href="16-reference.html">16. 付録</a></li>
+<li class="current"><a href="16-reference.html">16. トラブル対応、既知の制限など</a></li>
+<li><a href="17-keymaptool.html">17. KeymapTool とサンプル</a></li>
+<li><a href="18-readme.html">18. README</a></li>
+<li><a href="19-terms.html">19. 使用許諾</a></li>
+<li><a href="20-third-party.html">20. サードパーティノーティス</a></li>
 </ol>
 
 </nav>
 <main>
-<h1 id="section">16. 付録</h1>
+<div class="pagehead">かさね1.00 2026-10-31&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a></div>
+<h1 id="section">16. トラブル対応、既知の制限など</h1>
 <h2 id="section-1">トラブル対応</h2>
 <table>
 <thead>
@@ -89,8 +94,9 @@
 </tbody>
 </table>
 <h2 id="section-2">既知の制限</h2>
-<p>利用者に関わる主なものです。全体は <code>docs/KNOWN-ISSUES.md</code> にあります。</p>
+<p>いま分かっている制限のうち、利用者に関わるものです。</p>
 <ul>
+<li>このヘルプの英語版は、まだ用意していません。対策としては、ブラウザーの翻訳機能をお使いください。ただし、画面の図は、日本語表示となります。</li>
 <li>Pause/Break を別のキーに置き換えると、押すたびに NumLock が切り替わります。Pause を置き換える設定は避けてください。何かのキーを Pause にする設定は動きます。</li>
 <li>管理者でないときは、キャリブレーションの「入力確認」と、緊急解除の「同時押しを試す」が、Windows のキー入力（低レベルキーフック）で確認する方式になります。右 Shift が扱えない、一部のキーで解放が届かない、などの制限があります。管理者として起動すると、ドライバから直接受け取るので、正確に確認できます。</li>
 <li>右 Shift を <code>E0 36</code> で出すキーボードは、キャリブレーションで扱えない場合があります（実機では未確認です）。</li>
@@ -150,7 +156,7 @@
 </tr>
 </tbody>
 </table>
-<p>コマンドで設定する方法は、<code>docs/TUTORIAL-CLI.md</code> にあります。</p>
+<p>コマンドで設定する方法は、<a href="17-keymaptool.html">17. KeymapTool とサンプル</a>にあります。</p>
 <h2 id="section-4">ログとファイル</h2>
 <table>
 <thead>
@@ -210,7 +216,7 @@
 </tbody>
 </table>
 
-<div class="pager"><a href="15-backup-migrate.html">← 15. バックアップと移行</a><span></span></div>
+<div class="pager"><a href="15-backup-migrate.html">← 15. バックアップと移行</a><a href="17-keymaptool.html">17. KeymapTool とサンプル →</a></div>
 </main>
 </div>
 </body>

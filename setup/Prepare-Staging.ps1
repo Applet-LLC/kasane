@@ -501,6 +501,19 @@ Get-ChildItem -LiteralPath (Join-Path $manualSource "img\ja") -Filter *.png |
     ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $manualStaging "img\ja") -Force }
 Write-Host "[manual] staged: ja\ $((Get-ChildItem (Join-Path $manualStaging 'ja')).Count) pages, img\ja\ $((Get-ChildItem (Join-Path $manualStaging 'img\ja')).Count) images"
 
+# 手順書: マニュアルに書いていないもの(KeymapTool の手順書)だけを、インストール先の docs\ に入れる
+# (MSI は KasaneSetup.wixproj の HarvestDirectory で収穫する)。マニュアルに書いてある内容の md は、二重管理になるので入れない。
+# マニュアルの 17-keymaptool.md が、ここに入れるファイルを指している。
+$docsStaging = Join-Path $stagingRoot "docs"
+if (Test-Path -LiteralPath $docsStaging) { Remove-Item -LiteralPath $docsStaging -Recurse -Force }
+New-Item -ItemType Directory -Path $docsStaging -Force | Out-Null
+foreach ($name in @("TUTORIAL-CLI.md")) {
+    $src = Join-Path $repoRoot "docs\$name"
+    if (-not (Test-Path -LiteralPath $src)) { throw "doc not found: $src" }
+    Copy-Item -LiteralPath $src -Destination $docsStaging -Force
+}
+Write-Host "[docs] staged: $((Get-ChildItem $docsStaging).Count) files"
+
 # kasane-launcher: ユーザーが最初に実行する WinForms ランチャー（kbdaddid-license-launcher
 # / Install-kbdaddidLicense.exe と同じ方針）。ここで staging/launcher に置いておくことで、
 # 他のアプリバイナリと同じ EV 署名パス（Step 3 -StagingRoot）に自然に乗る。

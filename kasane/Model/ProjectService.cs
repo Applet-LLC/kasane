@@ -487,7 +487,7 @@ public static class ProjectService
         if (project.Nicola != null)
         {
             nicolaBlob = NicolaService.BuildBlob(project.Nicola, warnings, errors);
-            // IME連動（トレイ）が、IMEがかなモードのときにそのレイヤーを立てる。使わない場合は、そのレイヤーに切り替えるキーが要る。
+            // IME連動（トレイ）が、IMEが日本語入力モードのときにそのレイヤーを立てる。使わない場合は、そのレイヤーに切り替えるキーが要る。
             if (project.Nicola.Layer >= project.Layers.Count && !NicolaImeLinkFor(project.UniqId))
                 warnings.Add(Loc.T($"NICOLAのレイヤー{project.Nicola.Layer}はキーマップにありません(IME連動を使わない場合は、そのレイヤーに切り替えるキー(TG({project.Nicola.Layer})等)が無いと、親指シフトは働きません)", $"NICOLA layer {project.Nicola.Layer} is not in the keymap (if you don't use IME link, thumb shift won't work without a key that switches to that layer, such as TG({project.Nicola.Layer}))"));
         }
