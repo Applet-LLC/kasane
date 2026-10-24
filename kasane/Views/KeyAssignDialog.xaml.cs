@@ -34,6 +34,14 @@ public partial class KeyAssignDialog : Window
     private readonly CheckBox[] _modChecks = new CheckBox[8];
     private bool _syncingMods;
 
+    // 左のパネル（レイヤー・タップのキー・マクロなどの入力欄と「キーコード欄に入れる」）の入れ忘れ防止。
+    // パネルの入力を変えたあと、「キーコード欄に入れる」を押さずに OK すると、変えた内容が捨てられるので、OK の前に聞く。
+    private Func<string?>? _formBuild;
+    private Button? _formSet;
+    private bool _formTouched;
+    private int _tokenVersion;       // キーコード欄の内容が変わるたびに増える
+    private int _touchedVersion;     // パネルの入力を最後に変えたときの _tokenVersion
+
     public string ResultToken { get; private set; }
 
     /// <summary>
@@ -395,6 +403,20 @@ public partial class KeyAssignDialog : Window
             panel.Children.Add(row);
         }
         var set = Id(new Button { Content = Loc.T("キーコード欄に入れる", "Insert into key code"), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(90, 8, 0, 0) }, "InsertButton");
+        _formBuild = build;
+        _formSet = set;
+        _formTouched = false;
+        // 利用者が入力を変えたら、「入れていない変更がある」と覚える（作ったときの初期値の設定では、覚えない）。
+        void Touched() { _formTouched = true; _touchedVersion = _tokenVersion; UpdateFormHint(); }
+        foreach (var (_, input) in new[] { a, b })
+        {
+            switch (input)
+            {
+                case ComboBox combo: combo.SelectionChanged += (_, _) => Touched(); break;
+                case TextBox box: box.TextChanged += (_, _) => Touched(); break;
+                case CheckBox check: check.Click += (_, _) => Touched(); break;
+            }
+        }
         set.Click += (_, _) =>
         {
             var token = build();
@@ -478,8 +500,29 @@ public partial class KeyAssignDialog : Window
         finally { _syncingMods = false; }
     }
 
+    // パネルで選んだ内容を、まだキーコード欄に入れていなければ、そのトークン（入力を変えたあとに、キーコード欄が変わっていないときだけ）。
+    private string? PendingFormToken()
+    {
+        if (!_formTouched || _touchedVersion != _tokenVersion || _formBuild == null) return null;
+        string? token = _formBuild();
+        if (token == null || token == TxtToken.Text.Trim()) return null;
+        return KeycodeTable.TryResolve(token, out _) ? token : null;
+    }
+
+    // 入れていない内容があるあいだ、「キーコード欄に入れる」ボタンを目立たせる（太字と色）。
+    private void UpdateFormHint()
+    {
+        if (_formSet == null) return;
+        bool pending = PendingFormToken() != null;
+        _formSet.FontWeight = pending ? FontWeights.Bold : FontWeights.Normal;
+        if (pending) _formSet.Background = AppTheme.Palette.KeyChanged;
+        else _formSet.ClearValue(Control.BackgroundProperty);
+    }
+
     private void TxtToken_TextChanged(object sender, TextChangedEventArgs e)
     {
+        _tokenVersion++;
+        UpdateFormHint();
         var token = TxtToken.Text.Trim();
         if (KeycodeTable.TryResolve(token, out var action, out var error))
         {
@@ -507,6 +550,16 @@ public partial class KeyAssignDialog : Window
 
     private void Confirm()
     {
+        // パネルで選んだ内容を、「キーコード欄に入れる」で入れていなければ、入れるかを聞く。
+        if (PendingFormToken() is { } pending)
+        {
+            var answer = MessageBox.Show(this,
+                Loc.T($"左のパネルで選んだ内容({pending})を、まだキーコード欄に入れていません。入れてから OK しますか?\n\n「はい」: 入れて OK\n「いいえ」: 今のキーコード({TxtToken.Text.Trim()})のまま OK\n「キャンセル」: 戻る",
+                      $"What you chose in the left panel ({pending}) has not been inserted into the key code field yet. Insert it and press OK?\n\nYes: insert and OK\nNo: OK with the current key code ({TxtToken.Text.Trim()})\nCancel: go back"),
+                Kasane.Model.AppInfo.DisplayName, MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+            if (answer == MessageBoxResult.Cancel) return;
+            if (answer == MessageBoxResult.Yes) TxtToken.Text = pending;
+        }
         var token = TxtToken.Text.Trim();
         if (!KeycodeTable.TryResolve(token, out _)) return;
         // 電源キーは、割り当てたキーを押すだけでPCの状態が変わるので、確かめてから割り当てる
