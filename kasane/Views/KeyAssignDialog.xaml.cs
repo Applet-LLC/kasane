@@ -408,14 +408,13 @@ public partial class KeyAssignDialog : Window
         _formTouched = false;
         // 利用者が入力を変えたら、「入れていない変更がある」と覚える（作ったときの初期値の設定では、覚えない）。
         void Touched() { _formTouched = true; _touchedVersion = _tokenVersion; UpdateFormHint(); }
+        // 入力欄は、コンボボックスやテキストボックスのこともあれば、それを並べた入れ物（番号の横に「マクロ...」がある行など）のこともある。
+        // 中のコントロールの変更は、バブルするイベントで受ける。
         foreach (var (_, input) in new[] { a, b })
         {
-            switch (input)
-            {
-                case ComboBox combo: combo.SelectionChanged += (_, _) => Touched(); break;
-                case TextBox box: box.TextChanged += (_, _) => Touched(); break;
-                case CheckBox check: check.Click += (_, _) => Touched(); break;
-            }
+            input.AddHandler(System.Windows.Controls.Primitives.Selector.SelectionChangedEvent, new RoutedEventHandler((_, _) => Touched()));
+            input.AddHandler(System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent, new RoutedEventHandler((_, _) => Touched()));
+            input.AddHandler(System.Windows.Controls.Primitives.ButtonBase.ClickEvent, new RoutedEventHandler((_, _) => Touched()));
         }
         set.Click += (_, _) =>
         {
