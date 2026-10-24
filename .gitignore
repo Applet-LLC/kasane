@@ -79,3 +79,6 @@ CLAUDE.md
 kasane/Layouts/*.kasane.json
 kasane/Layouts/keymap.json
 kasane/Layouts/profile.json
+
+# WHQL署名済みドライバ(配布物。git には入れない)
+/driver/signed/
