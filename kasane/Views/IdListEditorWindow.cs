@@ -71,7 +71,9 @@ public abstract class IdListEditorWindow : Window
         var apply = new Button { Name = "ApplyButton", Content = Loc.T("適用", "Apply"), Width = 90, Margin = new Thickness(0, 0, 24, 0) }; // OKとは少し間を空ける
         apply.Click += (_, _) => { if (Commit()) ShowValidation(Loc.T("適用しました。", "Applied."), isError: false); };
         var ok = new Button { Name = "OkButton", Content = "OK", IsDefault = true, Width = 90 };
-        ok.Click += (_, _) => { if (Commit()) Close(); };
+        ok.Click += (_, _) => { if (Commit() && ConfirmPendingInsert()) Close(); };
+        // 別の画面から戻ったとき、入れ先の欄の状態が変わっているので、「入れる」ボタンの強調を見直す。
+        Activated += (_, _) => UpdateInsertHint();
         // 非モーダルなので、IsCancel（ShowDialog 用）ではなく、自分で閉じる。Esc も同じ。
         var cancel = new Button { Name = "CancelButton", Content = Loc.T("キャンセル", "Cancel"), Width = 90, Margin = new Thickness(6, 0, 0, 0) };
         cancel.Click += (_, _) => Close();
@@ -192,6 +194,61 @@ public abstract class IdListEditorWindow : Window
         if (id >= 0 && id < _list.Items.Count) _list.Items[id] = ItemText(id);
         // 右側に出している番号なら、「無効にする」を押せるかを、中身に合わせる（一覧の行の入れ替えで、選択が外れることがある）。
         if (_disabledBox != null && id == _detailId) _disabledBox.IsEnabled = !string.IsNullOrEmpty(Summary(id));
+    }
+
+    // --- 他の画面の入力欄へ MACRO(n)・TAPDANCE(n) を入れる（マクロ・タップダンスの画面） ---
+
+    /// <summary>この画面が入れるトークンの種類（"MACRO"・"TAPDANCE"）。入れない画面は null。</summary>
+    protected virtual string? InsertKind => null;
+
+    /// <summary>右側の「入れる」ボタン。派生クラスが、作ったときに設定する。</summary>
+    protected Button? InsertButton { get; set; }
+
+    /// <summary>この画面で、最後に中身を編集した番号。まだ編集していなければ -1。</summary>
+    protected int LastEditedId { get; private set; } = -1;
+
+    /// <summary>派生クラスが、中身を編集したときに呼ぶ。「入れる」ボタンの強調を更新する。</summary>
+    protected void NoteEdited(int id)
+    {
+        LastEditedId = id;
+        UpdateInsertHint();
+    }
+
+    /// <summary>
+    /// 最後に編集した定義（中身があり、無効でない）の MACRO(n)・TAPDANCE(n) を、まだ入れ先の欄に入れていなければ、そのトークン。
+    /// 入れ先が無い、または、すでに入っていれば null。
+    /// </summary>
+    protected string? PendingInsertToken()
+    {
+        if (InsertKind == null || LastEditedId < 0 || Disabled[LastEditedId] || string.IsNullOrEmpty(Summary(LastEditedId))) return null;
+        string token = $"{InsertKind}({LastEditedId})";
+        return MacroInsert.NeedsInsert(token) ? token : null;
+    }
+
+    /// <summary>まだ入れていないトークンがあるとき、「入れる」ボタンを強調する（太字と色）。入れたら、元に戻す。</summary>
+    protected void UpdateInsertHint()
+    {
+        if (InsertButton == null) return;
+        bool pending = PendingInsertToken() != null;
+        InsertButton.FontWeight = pending ? FontWeights.Bold : FontWeights.Normal;
+        if (pending) InsertButton.Background = AppTheme.Palette.KeyChanged;
+        else InsertButton.ClearValue(Control.BackgroundProperty);
+    }
+
+    // OK で閉じる前に、編集した定義を入れ先にまだ入れていなければ、入れるかを聞く。false なら、閉じない。
+    private bool ConfirmPendingInsert()
+    {
+        string? token = PendingInsertToken();
+        if (token == null) return true;
+        var answer = MessageBox.Show(this,
+            Loc.T($"{token} を、他の画面の入力欄にまだ入れていません。入れてから閉じますか?\n\n「はい」: 入れて閉じる\n「いいえ」: 入れずに閉じる\n「キャンセル」: 閉じない",
+                  $"{token} has not been inserted into the field in the other window yet. Insert it before closing?\n\nYes: insert and close\nNo: close without inserting\nCancel: do not close"),
+            Kasane.Model.AppInfo.DisplayName, MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+        if (answer == MessageBoxResult.Cancel) return false;
+        if (answer == MessageBoxResult.No) return true;
+        if (MacroInsert.TryInsert(token, out var reason)) return true;
+        ShowValidation(reason, isError: true);
+        return false;
     }
 
     private CheckBox? _disabledBox;

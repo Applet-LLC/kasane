@@ -37,6 +37,8 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
         LoadNames(names);
     }
 
+    protected override string? InsertKind => "TAPDANCE";
+
     protected override string Summary(int id) =>
         _defs[id] is { } t ? Loc.T($"{t.SingleTap} / 長押し {t.SingleHold} / {t.DoubleTap} / {t.TripleTap}", $"{t.SingleTap} / hold {t.SingleHold} / {t.DoubleTap} / {t.TripleTap}") : "";
 
@@ -61,6 +63,7 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
             return;
         }
         bool ok = MacroInsert.TryInsert($"TAPDANCE({id})", out var reason);
+        UpdateInsertHint();
         ShowValidation(ok ? Loc.T($"TAPDANCE({id}) を入れました。", $"Inserted TAPDANCE({id}).") : reason, isError: !ok);
     }
 
@@ -85,6 +88,7 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
                 TripleTap = triple.Text.Trim(),
             };
             RefreshItem(id);
+            NoteEdited(id);
             var errors = new List<string>();
             if (_defs[id] is { } t) ProjectService.TapDanceToEntry(t, errors);
             ShowValidation(errors.Count == 0 ? "OK" : string.Join("\n", errors), errors.Count > 0);
@@ -107,6 +111,8 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
         };
         insert.Click += (_, _) => InsertIntoOtherWindow(id);
         Detail.Children.Add(insert);
+        InsertButton = insert;
+        UpdateInsertHint();
     }
 
     protected override void OnItemEnabled(int id)
