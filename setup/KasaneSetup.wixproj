@@ -24,7 +24,7 @@
     <HarvestDirectoryAutogenerateGuids>true</HarvestDirectoryAutogenerateGuids>
     <HarvestDirectoryGenerateGuidsNow>false</HarvestDirectoryGenerateGuidsNow>
     <DefineSolutionProperties>false</DefineSolutionProperties>
-    <DefineConstants>StagingKbdDriverX64=$(MSBuildProjectDirectory)\staging\drivers\kbdlayer\x64;StagingKbdDriverArm64=$(MSBuildProjectDirectory)\staging\drivers\kbdlayer\arm64;StagingSymbol=$(MSBuildProjectDirectory)\staging\Symbol;StagingLicenseSvc=$(MSBuildProjectDirectory)\staging\app\license-svc;StagingLicenseGui=$(MSBuildProjectDirectory)\staging\app\license-gui;StagingKeymapGui=$(MSBuildProjectDirectory)\staging\app\keymap-gui;StagingTray=$(MSBuildProjectDirectory)\staging\app\tray;StagingSamples=$(MSBuildProjectDirectory)\staging\samples;StagingNotices=$(MSBuildProjectDirectory)\staging\notices;StagingThirdParty=$(MSBuildProjectDirectory)\staging\third-party;StagingManual=$(MSBuildProjectDirectory)\staging\manual;MSBuildProjectDirectory=$(MSBuildProjectDirectory);ProductLanguage=$(ProductLanguage);LicenseRtfFile=$(LicenseRtfFile)</DefineConstants>
+    <DefineConstants>StagingKbdDriverX64=$(MSBuildProjectDirectory)\staging\drivers\kbdlayer\x64;StagingKbdDriverArm64=$(MSBuildProjectDirectory)\staging\drivers\kbdlayer\arm64;StagingSymbol=$(MSBuildProjectDirectory)\staging\Symbol;StagingLicenseSvc=$(MSBuildProjectDirectory)\staging\app\license-svc;StagingLicenseGui=$(MSBuildProjectDirectory)\staging\app\license-gui;StagingKeymapGui=$(MSBuildProjectDirectory)\staging\app\keymap-gui;StagingTray=$(MSBuildProjectDirectory)\staging\app\tray;StagingSamples=$(MSBuildProjectDirectory)\staging\samples;StagingNotices=$(MSBuildProjectDirectory)\staging\notices;StagingThirdParty=$(MSBuildProjectDirectory)\staging\third-party;StagingManual=$(MSBuildProjectDirectory)\staging\manual;StagingDocs=$(MSBuildProjectDirectory)\staging\docs;MSBuildProjectDirectory=$(MSBuildProjectDirectory);ProductLanguage=$(ProductLanguage);LicenseRtfFile=$(LicenseRtfFile)</DefineConstants>
   </PropertyGroup>
 
   <!-- Debug|x64・Release|x64 の両方で使う（以前は Release|x64 だけだったため、ソリューションの構成が
@@ -108,6 +108,13 @@
       <ComponentGroupName>CG_Manual</ComponentGroupName>
       <SuppressRootDirectory>true</SuppressRootDirectory>
       <PreprocessorVariable>var.StagingManual</PreprocessorVariable>
+    </HarvestDirectory>
+    <!-- マニュアルに書いていない手順書（インストール先の docs\） -->
+    <HarvestDirectory Include="$(MSBuildProjectDirectory)\staging\docs">
+      <DirectoryRefId>DOCSDIR</DirectoryRefId>
+      <ComponentGroupName>CG_Docs</ComponentGroupName>
+      <SuppressRootDirectory>true</SuppressRootDirectory>
+      <PreprocessorVariable>var.StagingDocs</PreprocessorVariable>
     </HarvestDirectory>
     <!-- KeymapToolのサンプルキーマップ（チュートリアル用を含む） -->
     <HarvestDirectory Include="$(MSBuildProjectDirectory)\staging\samples">

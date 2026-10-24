@@ -219,6 +219,7 @@
           <Directory Id="SAMPLESDIR" Name="samples" />
           <Directory Id="THIRDPARTYDIR" Name="third-party" />
           <Directory Id="MANUALDIR" Name="manual" />
+          <Directory Id="DOCSDIR" Name="docs" />
         </Directory>
         </Directory>
       </Directory>
@@ -246,6 +247,8 @@
       <ComponentGroupRef Id="CG_ThirdParty" />
       <!-- マニュアル（manual\ja\index.html など）。HarvestDirectory で収穫する（KasaneSetup.wixproj）。 -->
       <ComponentGroupRef Id="CG_Manual" />
+      <!-- マニュアルに書いていない手順書（docs\TUTORIAL-CLI.md）。マニュアルの「KeymapTool とサンプル」から開く。 -->
+      <ComponentGroupRef Id="CG_Docs" />
     </Feature>
 
     <Feature Id="F_KbdDriver" Title="Keyboard Driver (kbdlayer)" Level="1" Absent="disallow">

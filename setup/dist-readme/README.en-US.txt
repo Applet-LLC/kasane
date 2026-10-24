@@ -84,6 +84,14 @@ If your subscription license becomes inactive, the layer remapping feature
 stops working. Basic keyboard input keeps working as it is.
 
 
+Help
+----
+The kasane help opens from the "ヘルプ" (Help) button (F1 key) in the editor and
+from the tray menu. It is in the manual folder of the installation folder.
+The help is not yet available in English. Please use your browser's translation
+feature. The screenshots in the help will remain in Japanese.
+
+
 Files in this package
 ---------------------
 - Install-kasane.exe

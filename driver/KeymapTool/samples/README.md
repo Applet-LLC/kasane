@@ -1,7 +1,7 @@
 # KeymapTool サンプル
 
 インストールからキーの入れ替えまでを通しで行う利用者向けの手順は
-[docs/TUTORIAL-CLI.md](../../../docs/TUTORIAL-CLI.md) を参照。そこで使うキーマップは
+インストール先の `docs\TUTORIAL-CLI.md` を参照。そこで使うキーマップは
 `tutorial-jis109-eisu-lctrl.json`（JIS: 英数⇔左Ctrl）、`tutorial-us104-caps-lctrl.json`
 （US: CapsLock⇔左Ctrl）、`tutorial-swap-2key.json`（JIS/US共通の2キー版）、
 `tutorial-10key-numbers.json`（テンキー単体: NumLockに関係なく常に数字）。
@@ -19,7 +19,7 @@ B10=`KC_SLSH`）で、各キーは `[単独, 同側の親指, 反対側の親指
 
 - `nicola-enter-space.json`: `nicola.json` と同じ配列で、親指キーの単独打鍵を、無変換 → Enter、変換 → Space にしたもの
   （`"thumbLeftTap": "KC_ENTER"`、`"thumbRightTap": "KC_SPC"`）。IME連動と組み合わせる使い方は
-  `docs/TUTORIAL-CLI.md` の「例: 無変換・変換を Enter・Space にして…」。
+  `docs\TUTORIAL-CLI.md` の「例: 無変換・変換を Enter・Space にして…」。
 - `"output"`: `"romaji"`（IMEはローマ字入力のまま）または `"jis-kana"`（IMEをかな入力に
   切り替えて使う）。ローマ字では単独の ゛/゜ が打てないため、`--dump-nicola`で警告が出て
   そのプレーンは空になる（濁音・半濁音は反対側の親指で直接打てるので実用上は困らない）。
@@ -507,7 +507,7 @@ JIS版はキー数を`109`にして`test-keymap-jis.json`を使う。
   NumLockを押しっぱなしで数字キー1〜9・0を押すと、F1〜F9・F10になるデモ（US/JIS版と同じ趣旨）。
 - **tutorial-10key-numbers.json**: NumLockの状態に関係なく、数字キーと`.`が常に数字・ピリオドを
   入力するようにしたもの（テンキーの数字を最上段の数字`KC_1`〜`KC_0`に割り当てる。最上段の数字は
-  NumLock OFFでもHome/End/矢印等に化けない）。1レイヤー。[docs/TUTORIAL-CLI.md](../../../docs/TUTORIAL-CLI.md)で使用。
+  NumLock OFFでもHome/End/矢印等に化けない）。1レイヤー。`docs\TUTORIAL-CLI.md`で使用。
 
 ### キャリブレーション時に押すキーの順番
 

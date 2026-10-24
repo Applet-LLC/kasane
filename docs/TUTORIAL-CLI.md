@@ -3,7 +3,7 @@
 kasane（かさね）をインストールしてから、手元のキーボードに合わせてキャリブレーションを行い、
 キーの入れ替え（リマップ）を設定・保存し、実際に動くことを確かめるまでの手順です。
 `KeymapTool.exe`（コマンドライン）だけで完結します。画面で操作したい場合は、同じ設定を
-kasane のGUI（kasane.exe）で行う [TUTORIAL-GUI.md](TUTORIAL-GUI.md) を参照してください
+kasane のGUI（kasane.exe）で行う方法は、かさね ヘルプ（第5章以降）を参照してください
 （インストールとライセンスの手順0〜2は共通です）。
 
 この手順で作る設定は次の2つです。お使いのキーボードに合う方を選んでください。
@@ -92,7 +92,7 @@ Set-Alias KeymapTool "C:\Program Files\applet\kasane\KeymapTool.exe"
 （PowerShellを開き直したら、もう一度実行してください）。
 
 次に、使うキーマップファイルを作業フォルダにコピーします。キーマップはインストール先の
-`C:\Program Files\applet\kasane\samples\` にあります（リポジトリでは `driver/KeymapTool/samples/`）。
+`C:\Program Files\applet\kasane\samples\` にあります。
 
 ```powershell
 Copy-Item "C:\Program Files\applet\kasane\samples\tutorial-*.json" .
@@ -364,17 +364,17 @@ PCを再起動し、ログイン後にもう一度手順8を試します。設�
 
 キーに `HLP(n)`（`n` は 0〜65535。10 進か、`0x` 付きの 16 進）を置くと、そのキーは何も出さず、押下・オートリピート・解放を、
 タスクトレイの kasane（`kasane-tray.exe`）などのアプリへ知らせます。トレイは、`helper.json` に書いた動作（アプリの起動、文字列の入力など）を動かします
-（動作の書き方は [HELPER.md](HELPER.md)）。`KeymapTool` では、通知そのものを見られます。
+（動作の書き方は、かさね ヘルプの第11章）。`KeymapTool` では、通知そのものを見られます。
 
 | やりたいこと | コマンド |
 |---|---|
 | `HLP(n)` のキーが押されるのを見る | `KeymapTool --watch-helper`（昇格は不要。`Ctrl+C` で終了）。`HLP(1) down` / `HLP(1) up` のように 1 件ずつ出ます |
 | レイヤーが変わるのを見る | `KeymapTool --watch-layer <ID>`（アプリ管理レイヤーが立つ・下りるのも見えます） |
 
-- 例のキーマップは `driver/KeymapTool/samples/test-keymap-helper.json`（手順と確認項目は `driver/KeymapTool/samples/README.md`）。
+- 例のキーマップは `samples	est-keymap-helper.json`（手順と確認項目は `samples\README.md`）。
 - `--watch-helper` を起動する前に押した分は出ません。複数起動すると、すべてに同じ行が出ます。
 - `HLP(n)` のキーはコンボのメンバーにもなれますが、コンボが成立するとコンボが優先されます（`samples/README.md` の注意）。
-- 設定ファイルの `helper.json`、アプリ別にレイヤーを立てる規則は、GUI の **設定...** から作るのが簡単です（[TUTORIAL-GUI.md](TUTORIAL-GUI.md)）。
+- 設定ファイルの `helper.json`、アプリ別にレイヤーを立てる規則は、GUI の **設定...** から作るのが簡単です（かさね ヘルプの第11章）。
 
 ## 機能のON/OFF・緊急解除・設定の共有範囲
 
@@ -539,7 +539,7 @@ GUI（kasane）の **設定...** →「IME連動」タブ（下の「NICOLA（�
   （`%LOCALAPPDATA%\applet\kasane\tray.json` の `"ImeLink": true`。環境変数 `KASANE` を設定しているときは、そのフォルダの `tray.json`。数秒でトレイに反映されます）。
   一度設定した値は、再インストールでも変わりません（インストーラーは `tray.json` を書き換えません）。やめるときは、チェックを外します（`"ImeLink": false`）。トレイを終了しても止まります。
 - NICOLAを使わずに、IMEのON/OFFとレイヤーだけを連動させたいときは、GUIの **設定...** →「IME連動」を使います（`helper.json` または `tray.json` の
-  `Helper` の `ImeLayers`。[HELPER.md](HELPER.md) の「IME連動のレイヤー」）。
+  `Helper` の `ImeLayers`。かさね ヘルプの第10章）。
 - キーボード側の切り替えキー（`TG(1)`）と同時に使うこともできます。実効のレイヤーは両方のORなので、IME連動で立てたレイヤーは
   `TG` では消せません。
 

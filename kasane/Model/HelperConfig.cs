@@ -31,7 +31,7 @@ public sealed class HelperConfig
     public ImeLayerLink? ImeLayers { get; set; }
 
     /// <summary>
-    /// NICOLAのIME連動（IMEがかなモードのときだけ NICOLA のレイヤーを立てる）を、このキーボードで使うか（2026-10-19）。
+    /// NICOLAのIME連動（IMEが日本語入力モードのときだけ NICOLA のレイヤーを立てる）を、このキーボードで使うか（2026-10-19）。
     /// null は、全キーボード共通の設定（tray.json の <see cref="TrayConfig.ImeLink"/>）に従う。キーボードごとの設定（helper.json）が、共通より先
     /// （<see cref="HelperConfigSet.NicolaLinkFor"/>）。共通の設定の側（tray.json の Helper）では使わない（共通は ImeLink）。
     /// </summary>
@@ -361,7 +361,7 @@ public sealed class ImeLayerLink
     /// <summary>立てるレイヤー（0〜15）。</summary>
     public List<int> Layers { get; set; } = new();
 
-    /// <summary>"On"（IME が ON のとき。既定）か "Kana"（かな入力のときだけ）。</summary>
+    /// <summary>"On"（IME が ON のとき。既定）か "Kana"（日本語入力モードのときだけ）。</summary>
     public string Mode { get; set; } = ModeOn;
 
     [JsonIgnore]

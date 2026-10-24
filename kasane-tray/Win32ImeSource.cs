@@ -127,7 +127,7 @@ public sealed class Win32ImeSource : IImeSource
 
         var state = new ImeState(true, open != 0, (uint)mode);
         if (wantDetail)
-            detail = Kasane.Model.Loc.T($"{process}({cls}): IME {(state.Open ? "ON" : "OFF")}、変換モード 0x{state.ConversionMode:X}、かな入力 {(state.IsKanaInput ? "はい" : "いいえ")}", $"{process} ({cls}): IME {(state.Open ? "ON" : "OFF")}, conversion mode 0x{state.ConversionMode:X}, kana input {(state.IsKanaInput ? "yes" : "no")}");
+            detail = Kasane.Model.Loc.T($"{process}({cls}): IME {(state.Open ? "ON" : "OFF")}、変換モード 0x{state.ConversionMode:X}、日本語入力モード {(state.IsKanaInput ? "はい" : "いいえ")}", $"{process} ({cls}): IME {(state.Open ? "ON" : "OFF")}, conversion mode 0x{state.ConversionMode:X}, Japanese input mode {(state.IsKanaInput ? "yes" : "no")}");
         return state;
     }
 

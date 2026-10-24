@@ -11,7 +11,7 @@ namespace Kasane.Model;
 public sealed class TrayConfig
 {
     /// <summary>
-    /// IME連動。IMEがかなモード（ON）のときだけ、NICOLAのレイヤーを自動で立てる（トレイが、アプリ管理レイヤーとして立てる）。
+    /// IME連動。IMEが日本語入力モード（ON）のときだけ、NICOLAのレイヤーを自動で立てる（トレイが、アプリ管理レイヤーとして立てる）。
     /// 既定は<b>オフ</b>（2026-10-19。以前はON）。利用者がチェックして保存したあとは、その選択がずっと残る（このファイルは利用者のフォルダにあり、
     /// インストール・再インストールでは書き換えない）。NICOLAを設定していないキーボードには何もしない。
     /// NICOLAを使わずに、IMEのON/OFFとレイヤーだけを連動させたいときは、<see cref="HelperConfig.ImeLayers"/>（設定の「IME連動」タブ）を使う。

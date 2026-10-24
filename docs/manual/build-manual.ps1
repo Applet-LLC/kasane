@@ -31,11 +31,17 @@ $chapters = @(
     @{ Name = '13-settings';          Title = '13. 設定ダイアログ' }
     @{ Name = '14-import-export';     Title = '14. インポート／エクスポート' }
     @{ Name = '15-backup-migrate';    Title = '15. バックアップと移行' }
-    @{ Name = '16-reference';         Title = '16. 付録' }
+    @{ Name = '16-reference';         Title = '16. トラブル対応、既知の制限など' }
+    @{ Name = '17-keymaptool';        Title = '17. KeymapTool とサンプル' }
+    @{ Name = '18-readme';            Title = '18. README' }
+    @{ Name = '19-terms';             Title = '19. 使用許諾' }
+    @{ Name = '20-third-party';       Title = '20. サードパーティノーティス' }
 )
 
 $htmlLang = if ($Lang -eq 'ja') { 'ja' } else { $Lang }
-$productName = 'kasane マニュアル'
+$productName = 'かさね ヘルプ'
+# 各ページの右上に出す、バージョンと著作権の表示。
+$pageHead = 'かさね1.00 2026-10-31&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a>'
 
 function Escape-Html([string]$s) { [System.Net.WebUtility]::HtmlEncode($s) }
 
@@ -80,6 +86,7 @@ for ($i = 0; $i -lt $chapters.Count; $i++) {
 $($toc.ToString())
 </nav>
 <main>
+<div class="pagehead">$pageHead</div>
 $body
 <div class="pager">$prev$next</div>
 </main>
@@ -92,11 +99,23 @@ $body
     $bodies[$ch.Name] = $body
 }
 
+# リンク先のファイルを探す。マニュアルは <インストール先>\manual\ja\ に入るので、../../ で始まるリンクは
+# インストール先の直下を指す。リポジトリでの置き場所は、Prepare-Staging.ps1 がインストール先へ入れる元のファイルと同じ。
+$repoRoot = Split-Path (Split-Path $root -Parent) -Parent
+function Resolve-LinkTarget([string]$target) {
+    if ($target -notmatch '^\.\./\.\./(.+)$') { return (Join-Path $out $target) }
+    $rel = $Matches[1]
+    if ($rel -match '^(License\..+)$')                       { return (Join-Path $repoRoot "setup/License/$($Matches[1])") }
+    if ($rel -match '^(README\..+)$')                        { return (Join-Path $repoRoot "setup/dist-readme/$($Matches[1])") }
+    if ($rel -match '^samples/(.+)$')                         { return (Join-Path $repoRoot "driver/KeymapTool/samples/$($Matches[1])") }
+    return (Join-Path $repoRoot $rel)   # THIRD-PARTY-NOTICES.txt、third-party/、docs/
+}
+
 # 内部リンクと画像の確認(全ページを書き出した後に行う)
 foreach ($name in $bodies.Keys) {
     foreach ($m in [regex]::Matches($bodies[$name], '(?:href|src)="([^"#:]+)(?:#[^"]*)?"')) {
         $target = $m.Groups[1].Value
-        if (-not (Test-Path (Join-Path $out $target))) {
+        if (-not (Test-Path (Resolve-LinkTarget $target))) {
             if ($target -match '\.(png|jpg|gif)$') { $missingImages.Add("${name}: $target") }
             else { $problems.Add("${name}: リンク先がありません: $target") }
         }

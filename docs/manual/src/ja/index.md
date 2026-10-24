@@ -1,8 +1,13 @@
-# kasane マニュアル
+<div class="banner"><img src="../img/ja/editor-main-admin.png" alt="かさねのエディタの画面"></div>
+
+<div class="title-row">
+<h1 id="kasane">かさね ヘルプ</h1>
+<img src="../assets/about.png" alt="かさね">
+</div>
 
 kasane（かさね）は、Windows のキーボードの割り当てを変えるツールです。キーの入れ替え、レイヤーの切り替え、長押しとタップで動作を変える Mod-Tap や Layer-Tap、マクロ、親指シフト（NICOLA）などを、キーボードごとに設定できます。
 
-このマニュアルは、画面の写真を見ながら、インストールからアンインストールまでの全機能を説明します。
+このヘルプは、画面の図を見ながら、インストールからアンインストールまでの全機能を説明します。
 
 ## 動作環境
 
@@ -28,9 +33,9 @@ kasane（かさね）は、Windows のキーボードの割り当てを変える
 | ライセンス管理（License Manager） | kasane-license | `kasane-license.exe`（`license-gui` フォルダ） |
 | ライセンスサービス | kasaneLicenseSvc（表示名 kasane License Service） | `kasane-license-svc.exe`（`license-svc` フォルダ）。ライセンスの記録は `%ProgramData%\kbdlayer-license` |
 | ドライバの管理ツール | DriverManager | `DriverManager.exe`（インストール先の直下） |
-| コマンド版の設定ツール | KeymapTool | `KeymapTool.exe`（インストール先の直下） |
+| コマンド版の設定ツール | KeymapTool | `KeymapTool.exe`（インストール先の直下）。使い方は [17. KeymapTool とサンプル](17-keymaptool.html) |
 | インストーラー | Install-kasane | `Install-kasane.exe`、`KasaneSetup-ja-JP.msi`、`KasaneSetup-en-US.msi` |
-| マニュアル | | `manual\ja\index.html`（インストール先の直下。エディタの **ヘルプ** と、トレイのメニューの **ヘルプ** から開く） |
+| ヘルプ | | `manual\ja\index.html`（インストール先の直下。エディタの **ヘルプ** と、トレイのメニューの **ヘルプ** から開く） |
 | 設定の保存先 | | `%LOCALAPPDATA%\applet\kasane`（環境変数 `KASANE` で変えられる） |
 
 ## やりたいことから探す
@@ -56,8 +61,10 @@ kasane（かさね）は、Windows のキーボードの割り当てを変える
 | アプリごとに、キー配置を変える。ゲームの間だけ止める | [11. ヘルパー動作とアプリ別レイヤー](11-helper-apprules.html) |
 | 画面の色や表示言語を変える | [13. 設定ダイアログ](13-settings.html) |
 | 設定をバックアップする。別のパソコンへ移す | [14. インポート／エクスポート](14-import-export.html)、[15. バックアップと移行](15-backup-migrate.html) |
+| コマンドで設定する。サンプルのキーマップを使う | [17. KeymapTool とサンプル](17-keymaptool.html) |
 | のどか（nodoka）の設定を使う | [14. インポート／エクスポート](14-import-export.html) |
-| うまく動かない。ログを見たい | [16. 付録](16-reference.html) |
+| うまく動かない。ログを見たい | [16. トラブル対応、既知の制限など](16-reference.html) |
+| 使用許諾や、同梱しているソフトウェアのライセンスを確かめる | [19. 使用許諾](19-terms.html)、[20. サードパーティノーティス](20-third-party.html) |
 
 ## 章の案内
 
@@ -78,4 +85,8 @@ kasane（かさね）は、Windows のキーボードの割り当てを変える
 | [13. 設定ダイアログ](13-settings.html) | 全般、機能、タイミングなど各タブ |
 | [14. インポート／エクスポート](14-import-export.html) | 設定の書き出し、読み込み、のどかの設定の取り込み |
 | [15. バックアップと移行](15-backup-migrate.html) | 設定の置き場所、別のパソコンへの移行 |
-| [16. 付録](16-reference.html) | トラブル対応、既知の制限、コマンドライン、環境変数、ログ |
+| [16. トラブル対応、既知の制限など](16-reference.html) | トラブル対応、既知の制限、コマンドライン、環境変数、ログ |
+| [17. KeymapTool とサンプル](17-keymaptool.html) | コマンドで設定する手順、サンプルのキーマップ、キーボードIDの算出方法 |
+| [18. README](18-readme.html) | インストール先にある README |
+| [19. 使用許諾](19-terms.html) | インストール先にある使用許諾契約書 |
+| [20. サードパーティノーティス](20-third-party.html) | 同梱しているソフトウェアのライセンス |

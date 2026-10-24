@@ -72,3 +72,10 @@ blockquote p { margin: 4px 0; }
   nav.toc { position: static; max-height: none; border-right: 0; border-bottom: 1px solid var(--line); padding: 16px; }
   main { padding: 16px; }
 }
+.pagehead { text-align: right; color: var(--sub); font-size: 13px; line-height: 1.5; margin: 0 0 16px; }
+.pagehead a { color: var(--sub); }
+.title-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 16px; }
+.title-row h1 { margin: 0; }
+.title-row img { width: 96px; height: 96px; border: 0; border-radius: 0; flex: 0 0 auto; }
+.banner { margin: 0 0 24px; }
+.banner img { display: block; width: 100%; }

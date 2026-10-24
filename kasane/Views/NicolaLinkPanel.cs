@@ -5,7 +5,7 @@ using Kasane.Model;
 namespace Kasane.Views;
 
 /// <summary>
-/// 「IME連動」タブの NICOLA の部分にある、NICOLA の IME 連動（IME がかなモードのときだけ NICOLA にする）の設定（2026-10-19）。
+/// 「IME連動」タブの NICOLA の部分にある、NICOLA の IME 連動（IME が日本語入力モードのときだけ NICOLA にする）の設定（2026-10-19）。
 /// 対象は「このキーボード」か「全キーボード共通」。キーボードごとの設定（helper.json の <see cref="HelperConfig.NicolaImeLink"/>）が先で、
 /// 設定が無ければ共通（tray.json の <see cref="TrayConfig.ImeLink"/>）に従う。共通の値は、設定画面が OK のときに保存する（呼び出し側が持つ）。
 /// </summary>
@@ -26,9 +26,9 @@ internal sealed class NicolaLinkPanel : HelperTabBase
     /// <param name="changed">値が変わったとき（NICOLA の説明の注意を見直すため）。</param>
     public NicolaLinkPanel(HelperSettingsModel model, Window owner, Func<bool> getGlobal, Action<bool> setGlobal, Action changed)
         : base(model, owner, "NicolaLink",
-            Loc.T("NICOLA の IME 連動(IME がかなモードのときだけ、NICOLA のレイヤーを自動で立てる)を使うかどうかを決めます。" +
+            Loc.T("NICOLA の IME 連動(IME が日本語入力モードのときだけ、NICOLA のレイヤーを自動で立てる)を使うかどうかを決めます。" +
                 "「このキーボード」の設定が「全キーボード共通」より先に使われ、変更は OK で保存されます。",
-                "Choose whether to use IME link for NICOLA (the NICOLA layer is turned on automatically only while the IME is in kana mode). " +
+                "Choose whether to use IME link for NICOLA (the NICOLA layer is turned on automatically only while the IME is in Japanese input mode). " +
                 "The \"This keyboard\" setting takes priority over \"All keyboards\", and changes are saved with OK."))
     {
         _getGlobal = getGlobal;
@@ -38,7 +38,7 @@ internal sealed class NicolaLinkPanel : HelperTabBase
         LinkCheck = new CheckBox
         {
             Name = "NicolaImeLinkCheck",
-            Content = Loc.T("IME連動: IMEがかなモードのときだけNICOLAにする(タスクトレイの kasane が必要)", "IME link: use NICOLA only while the IME is in kana mode (requires kasane in the tray)"),
+            Content = Loc.T("IME連動: IMEが日本語入力モードのときだけNICOLAにする(タスクトレイの kasane が必要)", "IME link: use NICOLA only while the IME is in Japanese input mode (requires kasane in the tray)"),
             Margin = new Thickness(0, 6, 0, 0),
         };
         LinkCheck.Click += (_, _) => Apply();
