@@ -3,7 +3,7 @@ Get-Process kasane-license -ErrorAction SilentlyContinue | Stop-Process -Force
 Stop-Service kasaneLicenseSvc -Force
 $state = Get-ChildItem 'C:\ProgramData\kbdlayer-license' -Recurse -File -ErrorAction SilentlyContinue
 "before: " + (($state | Select-Object -Expand FullName) -join ' ; ')
-Remove-Item 'C:\ProgramData\kbdlayer-license\license-svc\licensestate.json' -Force -ErrorAction SilentlyContinue
+Remove-Item 'C:\ProgramData\kbdlayer-license\license-svc\licensestate.dat' -Force -ErrorAction SilentlyContinue
 Remove-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Services\kbdlayer\Parameters' -Name 'License*' -ErrorAction SilentlyContinue
 Start-Service kasaneLicenseSvc; Start-Sleep 3
 $null = Start-Process 'C:\Program Files\applet\kasane\license-gui\kasane-license.exe' -PassThru

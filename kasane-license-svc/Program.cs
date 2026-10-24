@@ -5,6 +5,10 @@ using KasaneLicenseSvc;
 AppDomain.CurrentDomain.UnhandledException += (_, e) =>
     DebugTrace.Log($"UnhandledException (terminating={e.IsTerminating}): {e.ExceptionObject}");
 
+// ライセンスキーと署名鍵のフォルダを、SYSTEM と Administrators だけにする。すでにあるファイルにも届く。
+try { ProtectedFolder.Ensure(); }
+catch (Exception ex) { DebugTrace.Log($"ProtectedFolder.Ensure failed: {ex}"); }
+
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.AddWindowsService(options =>

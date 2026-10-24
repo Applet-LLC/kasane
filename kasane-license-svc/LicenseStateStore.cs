@@ -1,10 +1,14 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace KasaneLicenseSvc;
 
 /// <summary>
 /// サービス自身の内部状態（SavedLicenseKey / SavedUserEmail / LastRejectionReason / IsTrial）を
-/// %ProgramData%\kbdlayer-license\license-svc\licensestate.json に永続化する。
+/// %ProgramData%\kbdlayer-license\license-svc\licensestate.dat に永続化する。
+/// 中身は JSON を DPAPI(LocalMachine)で暗号化したもので、フォルダは SYSTEM と Administrators だけが
+/// アクセスできる(ProtectedFolder.cs)。ライセンスキーを、同じパソコンの一般ユーザーから読めなくするため。
 ///
 /// 背景（重要、2026-09-27 修正）: 以前はこれらを HKLM\SYSTEM\CurrentControlSet\Services\
 /// kasaneLicenseSvc\Parameters レジストリキーに保存していた。RegistryAccess.cs の旧コメントは
@@ -23,10 +27,7 @@ namespace KasaneLicenseSvc;
 /// </summary>
 public sealed class LicenseStateStore
 {
-    private static readonly string StateDir = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-        "kbdlayer-license", "license-svc");
-    private static readonly string StatePath = Path.Combine(StateDir, "licensestate.json");
+    private static readonly string StatePath = Path.Combine(ProtectedFolder.Dir, "licensestate.dat");
     private static readonly object s_lock = new();
 
     private sealed class State
@@ -112,7 +113,8 @@ public sealed class LicenseStateStore
         {
             if (File.Exists(StatePath))
             {
-                string json = File.ReadAllText(StatePath);
+                byte[] plain = ProtectedData.Unprotect(File.ReadAllBytes(StatePath), null, DataProtectionScope.LocalMachine);
+                string json = Encoding.UTF8.GetString(plain);
                 return JsonSerializer.Deserialize<State>(json) ?? new State();
             }
         }
@@ -125,8 +127,8 @@ public sealed class LicenseStateStore
 
     private static void Save(State state)
     {
-        Directory.CreateDirectory(StateDir);
+        ProtectedFolder.Ensure();
         string json = JsonSerializer.Serialize(state);
-        File.WriteAllText(StatePath, json);
+        File.WriteAllBytes(StatePath, ProtectedData.Protect(Encoding.UTF8.GetBytes(json), null, DataProtectionScope.LocalMachine));
     }
 }
