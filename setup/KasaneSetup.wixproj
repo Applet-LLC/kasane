@@ -15,7 +15,13 @@
     <ProductLanguage Condition="'$(ProductLanguage)' == ''">1041</ProductLanguage>
     <!-- WixVariable(WixUILicenseRtf) は loc文字列ではなくプリプロセッサ変数で解決するため、ここで直接パスを渡す -->
     <LicenseRtfFile Condition="'$(LicenseRtfFile)' == ''">License\License.ja-JP.rtf</LicenseRtfFile>
+    <!--
+      Edition: Subscription（既定）または Pro（買い切り版 kasane Pro）。KasaneSetup.csproj から /p:Edition で渡す。
+      Pro は MSI の名前（KasaneProSetup-*.msi）・UpgradeCode・同梱物が違う（Product.wxs の Edition 分岐）。
+    -->
+    <Edition Condition="'$(Edition)' == ''">Subscription</Edition>
     <OutputName>KasaneSetup-$(CultureSuffix)</OutputName>
+    <OutputName Condition="'$(Edition)' == 'Pro'">KasaneProSetup-$(CultureSuffix)</OutputName>
     <OutputType>Package</OutputType>
     <WixTargetsPath Condition="'$(WixTargetsPath)'==''">$(MSBuildExtensionsPath32)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
     <!-- MSBuildExtensionsPath32 が K: ドライブを指す場合の C: フォールバック -->
@@ -24,7 +30,7 @@
     <HarvestDirectoryAutogenerateGuids>true</HarvestDirectoryAutogenerateGuids>
     <HarvestDirectoryGenerateGuidsNow>false</HarvestDirectoryGenerateGuidsNow>
     <DefineSolutionProperties>false</DefineSolutionProperties>
-    <DefineConstants>StagingKbdDriverX64=$(MSBuildProjectDirectory)\staging\drivers\kbdlayer\x64;StagingKbdDriverArm64=$(MSBuildProjectDirectory)\staging\drivers\kbdlayer\arm64;StagingSymbol=$(MSBuildProjectDirectory)\staging\Symbol;StagingLicenseSvc=$(MSBuildProjectDirectory)\staging\app\license-svc;StagingLicenseGui=$(MSBuildProjectDirectory)\staging\app\license-gui;StagingKeymapGui=$(MSBuildProjectDirectory)\staging\app\keymap-gui;StagingTray=$(MSBuildProjectDirectory)\staging\app\tray;StagingSamples=$(MSBuildProjectDirectory)\staging\samples;StagingNotices=$(MSBuildProjectDirectory)\staging\notices;StagingThirdParty=$(MSBuildProjectDirectory)\staging\third-party;StagingManual=$(MSBuildProjectDirectory)\staging\manual;StagingDocs=$(MSBuildProjectDirectory)\staging\docs;MSBuildProjectDirectory=$(MSBuildProjectDirectory);ProductLanguage=$(ProductLanguage);LicenseRtfFile=$(LicenseRtfFile)</DefineConstants>
+    <DefineConstants>StagingKbdDriverX64=$(MSBuildProjectDirectory)\staging\drivers\kbdlayer\x64;StagingKbdDriverArm64=$(MSBuildProjectDirectory)\staging\drivers\kbdlayer\arm64;StagingSymbol=$(MSBuildProjectDirectory)\staging\Symbol;StagingLicenseSvc=$(MSBuildProjectDirectory)\staging\app\license-svc;StagingLicenseGui=$(MSBuildProjectDirectory)\staging\app\license-gui;StagingKeymapGui=$(MSBuildProjectDirectory)\staging\app\keymap-gui;StagingTray=$(MSBuildProjectDirectory)\staging\app\tray;StagingSamples=$(MSBuildProjectDirectory)\staging\samples;StagingNotices=$(MSBuildProjectDirectory)\staging\notices;StagingThirdParty=$(MSBuildProjectDirectory)\staging\third-party;StagingManual=$(MSBuildProjectDirectory)\staging\manual;StagingDocs=$(MSBuildProjectDirectory)\staging\docs;StagingProActivator=$(MSBuildProjectDirectory)\staging\app\pro-activator;Edition=$(Edition);MSBuildProjectDirectory=$(MSBuildProjectDirectory);ProductLanguage=$(ProductLanguage);LicenseRtfFile=$(LicenseRtfFile)</DefineConstants>
   </PropertyGroup>
 
   <!-- Debug|x64・Release|x64 の両方で使う（以前は Release|x64 だけだったため、ソリューションの構成が
@@ -42,7 +48,7 @@
       1回目の文言（英語ライセンス文など）が埋め込まれたまま出力される。
       obj に $(Culture) を含めることで2回目のビルドが必ず新しい出力先を見て再コンパイルされる。
     -->
-    <IntermediateOutputPath>obj\$(Configuration)\$(Culture)\</IntermediateOutputPath>
+    <IntermediateOutputPath>obj\$(Edition)\$(Configuration)\$(Culture)\</IntermediateOutputPath>
   </PropertyGroup>
 
   <ItemGroup>
@@ -127,7 +133,7 @@
 
   <!-- KasaneSetup.csproj は Prepare-Staging → EV 署名の後に本プロジェクトをビルドする。再実行すると署名が消えるためスキップ可能にする。 -->
   <Target Name="PrepareStaging" BeforeTargets="BeforeBuild" Condition="'$(SkipPrepareStaging)' != 'true'">
-    <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Prepare-Staging.ps1&quot;" />
+    <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Prepare-Staging.ps1&quot; -Edition $(Edition)" />
   </Target>
 
   <Import Project="$(WixTargetsPath)" Condition="Exists('$(WixTargetsPath)')" />

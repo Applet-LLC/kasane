@@ -5,23 +5,28 @@
 # param() ブロックはスクリプトの最初の実行文でなければならない(PowerShellの制約)ため、
 # $ErrorActionPreference の設定より前に置く必要がある。
 param(
-    [string] $Configuration = "Release"
+    [string] $Configuration = "Release",
+    # Subscription（kasane-subscription.zip）または Pro（買い切り版。kasane-pro.zip）
+    [ValidateSet("Subscription", "Pro")][string] $Edition = "Subscription"
 )
 
 $ErrorActionPreference = "Stop"
 
 $setupDir = $PSScriptRoot
 $binDir = Join-Path $setupDir "bin\$Configuration"
-$readmeDir = Join-Path $setupDir "dist-readme"
-$licenseDir = Join-Path $setupDir "License"
+$isPro = ($Edition -eq "Pro")
+$readmeDir = Join-Path $setupDir $(if ($isPro) { "dist-readme-pro" } else { "dist-readme" })
+$licenseDir = Join-Path $setupDir $(if ($isPro) { "License-Pro" } else { "License" })
+$launcherName = if ($isPro) { "Install-kasane-pro.exe" } else { "Install-kasane.exe" }
+$msiPrefix = if ($isPro) { "KasaneProSetup" } else { "KasaneSetup" }
 $distDir = Join-Path $setupDir "dist"
 $stagingDir = Join-Path $distDir "_staging"
-$zipPath = Join-Path $distDir "kasane-subscription.zip"
+$zipPath = Join-Path $distDir $(if ($isPro) { "kasane-pro.zip" } else { "kasane-subscription.zip" })
 
 $requiredFiles = @(
-    "Install-kasane.exe",
-    "KasaneSetup-ja-JP.msi",
-    "KasaneSetup-en-US.msi"
+    $launcherName,
+    "$msiPrefix-ja-JP.msi",
+    "$msiPrefix-en-US.msi"
 )
 
 foreach ($name in $requiredFiles) {

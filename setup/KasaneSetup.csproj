@@ -9,17 +9,34 @@
     <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <!--
+      Edition: Subscription（既定。kasane-subscription.zip）または Pro（買い切り版 kasane Pro。kasane-pro.zip）。
+      msbuild setup\KasaneSetup.csproj /p:Edition=Pro で Pro を作る。Pro は、ライセンス管理サービスと License Manager を作らず・入れず、
+      キーの確認ツール kasane-pro-activator を MSI に埋め込む。ドライバは Prepare-Staging.ps1 が driver\signed-pro か Release-Pro を使う。
+    -->
+    <Edition Condition="'$(Edition)' == ''">Subscription</Edition>
+    <MsiPrefix>KasaneSetup</MsiPrefix>
+    <MsiPrefix Condition="'$(Edition)' == 'Pro'">KasaneProSetup</MsiPrefix>
+    <LauncherExe>Install-kasane.exe</LauncherExe>
+    <LauncherExe Condition="'$(Edition)' == 'Pro'">Install-kasane-pro.exe</LauncherExe>
+    <LicenseDir>License</LicenseDir>
+    <LicenseDir Condition="'$(Edition)' == 'Pro'">License-Pro</LicenseDir>
+  </PropertyGroup>
+
   <Target Name="BuildInstaller" AfterTargets="Build">
     <!-- Step 1: .NET single-file publish for svc, gui, and the launcher (user-facing WinForms entry point) -->
-    <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)\..\kasane-license-svc\kasane-license-svc.csproj&quot; -c Release -r win-x64 /p:PublishSingleFile=true /p:UseAppHost=true --nologo" />
-    <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)\..\kasane-license\kasane-license.csproj&quot; -c Release -r win-x64 /p:PublishSingleFile=true /p:UseAppHost=true --nologo" />
-    <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)\..\kasane-launcher\kasane-launcher.csproj&quot; -c Release -r win-x64 /p:PublishSingleFile=true /p:UseAppHost=true --nologo" />
+    <Exec Condition="'$(Edition)' != 'Pro'" Command="dotnet publish &quot;$(MSBuildProjectDirectory)\..\kasane-license-svc\kasane-license-svc.csproj&quot; -c Release -r win-x64 /p:PublishSingleFile=true /p:UseAppHost=true --nologo" />
+    <Exec Condition="'$(Edition)' != 'Pro'" Command="dotnet publish &quot;$(MSBuildProjectDirectory)\..\kasane-license\kasane-license.csproj&quot; -c Release -r win-x64 /p:PublishSingleFile=true /p:UseAppHost=true --nologo" />
+    <!-- Pro: インストール時に Gumroad へキーを照会するツール（MSI に埋め込む）。 -->
+    <Exec Condition="'$(Edition)' == 'Pro'" Command="dotnet publish &quot;$(MSBuildProjectDirectory)\..\kasane-pro-activator\kasane-pro-activator.csproj&quot; -c Release -r win-x64 /p:PublishSingleFile=true /p:UseAppHost=true --nologo" />
+    <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)\..\kasane-launcher\kasane-launcher.csproj&quot; -c Release -r win-x64 /p:PublishSingleFile=true /p:UseAppHost=true /p:Edition=$(Edition) --nologo" />
     <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)\..\kasane\kasane.csproj&quot; -c Release -r win-x64 /p:PublishSingleFile=true /p:UseAppHost=true --nologo" />
     <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)\..\kasane-tray\kasane-tray.csproj&quot; -c Release -r win-x64 /p:PublishSingleFile=true /p:UseAppHost=true --nologo" />
     <!-- uiAccess=true 版のトレイ（インストールするのはこちら。署名（Step 3）と Program Files への配置が無いと起動できない） -->
     <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)\..\kasane-tray-uia\kasane-tray-uia.csproj&quot; -c Release -r win-x64 /p:PublishSingleFile=true /p:UseAppHost=true --nologo" />
     <!-- Step 2: stage drivers + apps -->
-    <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Prepare-Staging.ps1&quot;" />
+    <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Prepare-Staging.ps1&quot; -Edition $(Edition)" />
     <!-- Step 3: EV code sign staging -->
     <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\EvCodeSign.ps1&quot; -StagingRoot &quot;$(MSBuildProjectDirectory)\staging&quot;" />
     <!--
@@ -28,28 +45,28 @@
       かつ次のカルチャーをビルドすると IncrementalClean が前カルチャーの出力を削除してしまうため、
       各ビルド直後に bin\$(Configuration)\ 直下（フラットな場所）へコピーしてから次のビルドに進む。
     -->
-    <Exec Command="msbuild &quot;$(MSBuildProjectDirectory)\KasaneSetup.wixproj&quot; /p:Configuration=$(Configuration) /p:Platform=x64 /p:SkipPrepareStaging=true /p:Culture=en-us /p:CultureSuffix=en-US /p:ProductLanguage=1033 /p:LicenseRtfFile=License\License.en-US.rtf" />
-    <Copy SourceFiles="$(MSBuildProjectDirectory)\bin\$(Configuration)\en-us\KasaneSetup-en-US.msi"
+    <Exec Command="msbuild &quot;$(MSBuildProjectDirectory)\KasaneSetup.wixproj&quot; /p:Configuration=$(Configuration) /p:Platform=x64 /p:SkipPrepareStaging=true /p:Edition=$(Edition) /p:Culture=en-us /p:CultureSuffix=en-US /p:ProductLanguage=1033 /p:LicenseRtfFile=$(LicenseDir)\License.en-US.rtf" />
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\bin\$(Configuration)\en-us\$(MsiPrefix)-en-US.msi"
           DestinationFolder="$(MSBuildProjectDirectory)\bin\$(Configuration)\" />
-    <Exec Command="msbuild &quot;$(MSBuildProjectDirectory)\KasaneSetup.wixproj&quot; /p:Configuration=$(Configuration) /p:Platform=x64 /p:SkipPrepareStaging=true /p:Culture=ja-jp /p:CultureSuffix=ja-JP /p:ProductLanguage=1041 /p:LicenseRtfFile=License\License.ja-JP.rtf" />
-    <Copy SourceFiles="$(MSBuildProjectDirectory)\bin\$(Configuration)\ja-jp\KasaneSetup-ja-JP.msi"
+    <Exec Command="msbuild &quot;$(MSBuildProjectDirectory)\KasaneSetup.wixproj&quot; /p:Configuration=$(Configuration) /p:Platform=x64 /p:SkipPrepareStaging=true /p:Edition=$(Edition) /p:Culture=ja-jp /p:CultureSuffix=ja-JP /p:ProductLanguage=1041 /p:LicenseRtfFile=$(LicenseDir)\License.ja-JP.rtf" />
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\bin\$(Configuration)\ja-jp\$(MsiPrefix)-ja-JP.msi"
           DestinationFolder="$(MSBuildProjectDirectory)\bin\$(Configuration)\" />
     <!--
       Step 5: EV code sign both MSIs in a single signtool invocation (avoid extra USB token touches).
       -InstallerMsi はセミコロン区切りの1文字列として渡す（powershell.exe -File 経由での
       string[] 配列バインドの不具合を回避するため。EvCodeSign.ps1 側で分割する）。
     -->
-    <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\EvCodeSign.ps1&quot; -InstallerMsi &quot;$(MSBuildProjectDirectory)\bin\$(Configuration)\KasaneSetup-en-US.msi;$(MSBuildProjectDirectory)\bin\$(Configuration)\KasaneSetup-ja-JP.msi&quot;" />
+    <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\EvCodeSign.ps1&quot; -InstallerMsi &quot;$(MSBuildProjectDirectory)\bin\$(Configuration)\$(MsiPrefix)-en-US.msi;$(MSBuildProjectDirectory)\bin\$(Configuration)\$(MsiPrefix)-ja-JP.msi&quot;" />
     <!--
       Step 6: place the (already EV-signed) launcher next to the MSIs so all three ship together.
       ランチャーは Step 3 の -StagingRoot 署名パスで既に署名済みのため、ここでは
       staging\launcher から配布フォルダへコピーするだけでよい（再署名しない）。
     -->
-    <Copy SourceFiles="$(MSBuildProjectDirectory)\staging\launcher\Install-kasane.exe"
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\staging\launcher\$(LauncherExe)"
           DestinationFolder="$(MSBuildProjectDirectory)\bin\$(Configuration)\"
-          Condition="Exists('$(MSBuildProjectDirectory)\staging\launcher\Install-kasane.exe')" />
+          Condition="Exists('$(MSBuildProjectDirectory)\staging\launcher\$(LauncherExe)')" />
     <!-- Step 7: bundle the launcher + both MSIs + bilingual READMEs/licenses into a single
-         distributable zip (dist\kasane-subscription.zip). -->
-    <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Package-Dist.ps1&quot; -Configuration &quot;$(Configuration)&quot;" />
+         distributable zip (dist\kasane-subscription.zip。Pro は dist\kasane-pro.zip). -->
+    <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Package-Dist.ps1&quot; -Configuration &quot;$(Configuration)&quot; -Edition $(Edition)" />
   </Target>
 </Project>

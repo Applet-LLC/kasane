@@ -16,13 +16,31 @@
   DriverManager.exe in CMP_DriverTools (added once driver/KeymapTool/ existed).
 -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <!--
+    Edition（wixproj から /p:Edition で渡す）: Subscription（既定。Gumroad のサブスク。ライセンス管理サービスと License Manager が入る）
+    または Pro（買い切り版 kasane Pro。インストール時に Gumroad へ1回だけキーを照会する。サービスは入れない）。
+    ユーザーに見える名前（ARP の表示名・スタートメニューのフォルダ名・MSI のタイトル）だけが違い、実行ファイルの表記は同じ。
+    LocSuffix: 製品名などの文字列（Product.*.wxl）を、Pro 用に切り替えるための接尾辞。
+    UpgradeCode は別。互いの UpgradeCode を OnlyDetect で検出して、同じ PC への同時インストールを断る（サービス名 kbdlayer が同じため）。
+  -->
+  <?if $(var.Edition) = "Pro" ?>
+  <?define LocSuffix = "Pro" ?>
+  <?define UpgradeCodeValue = "{30F6C4A2-0C5A-474E-9152-B02936D0B042}" ?>
+  <?define OtherUpgradeCode = "{063E6B2B-BA90-43AA-A5D5-D3B98E10C37B}" ?>
+  <?define CoreTitle = "kasane Pro Core" ?>
+  <?else?>
+  <?define LocSuffix = "" ?>
+  <?define UpgradeCodeValue = "{063E6B2B-BA90-43AA-A5D5-D3B98E10C37B}" ?>
+  <?define OtherUpgradeCode = "{30F6C4A2-0C5A-474E-9152-B02936D0B042}" ?>
+  <?define CoreTitle = "kasane Subscription Core" ?>
+  <?endif?>
   <Product
     Id="*"
-    Name="!(loc.ProductName)"
+    Name="!(loc.ProductName$(var.LocSuffix))"
     Language="$(var.ProductLanguage)"
     Version="1.0.1"
     Manufacturer="Applet LLC"
-    UpgradeCode="{063E6B2B-BA90-43AA-A5D5-D3B98E10C37B}">
+    UpgradeCode="$(var.UpgradeCodeValue)">
 
     <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" Platform="x64" />
     <!--
@@ -30,7 +48,7 @@
       同バージョンのインストールでアップグレード（旧製品の除去→新規インストール）を発火させる。
     -->
     <MajorUpgrade
-      DowngradeErrorMessage="!(loc.DowngradeError)"
+      DowngradeErrorMessage="!(loc.DowngradeError$(var.LocSuffix))"
       AllowSameVersionUpgrades="yes" />
     <MediaTemplate EmbedCab="yes" />
 
@@ -53,6 +71,26 @@
     </Condition>
 
     <!--
+      もう一方の版（Subscription と Pro）が入っていたら、インストールを断る。どちらもサービス kbdlayer・同じ INF の
+      ドライバを入れるので、同居できない。FindRelatedProducts が OnlyDetect で検出する（LaunchConditions より前）。
+    -->
+    <Upgrade Id="$(var.OtherUpgradeCode)">
+      <UpgradeVersion Minimum="0.0.0" IncludeMinimum="yes" OnlyDetect="yes" Property="OTHER_EDITION_FOUND" />
+    </Upgrade>
+    <Condition Message="!(loc.OtherEditionInstalled$(var.LocSuffix))"><![CDATA[Installed OR NOT OTHER_EDITION_FOUND]]></Condition>
+
+    <?if $(var.Edition) = "Pro" ?>
+    <!--
+      ライセンスキー（Gumroad）。ランチャー（Install-kasane-pro.exe）が msiexec のコマンドラインで渡すか、MSI を直接
+      実行したときは LicenseKeyDlg で入力する。値は残さない（レジストリの一時値も、kasane-pro-activator が読んだらすぐ消す）。
+      Hidden="yes"（MsiHiddenProperties）: 詳細ログ（/l*v）に、キーの値を書かせない。
+      LICENSEKEY_DIALOG: LicenseKeyDlg を通ったとき 1。VerifyReadyDlg の「戻る」で、キー入力へ戻るために使う。
+    -->
+    <Property Id="LICENSEKEY" Secure="yes" Hidden="yes" />
+    <Property Id="LICENSEKEY_DIALOG" Secure="yes" />
+    <?endif?>
+
+    <!--
       言語別（en-US/ja-JP）に個別ビルドされるMSIそれぞれの利用許諾本文。
       WixVariable の Value は light.exe の loc文字列置換（!(loc.X)）の対象外
       （ファイルパス解決はcandle.exeのプリプロセッサ変数展開でのみ行われる）ため、
@@ -64,14 +102,14 @@
          これはWixVariableではなくWIXUI_EXITDIALOGOPTIONALTEXTプロパティで設定する（ExitDlgの
          OptionalTextコントロールが参照しているのはこのプロパティであり、WixVariable
          "WixUIExitDialogOptionalText" というIdはWixUIの実装が認識しない）。 -->
-    <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="!(loc.ExitDialogOptionalText)" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="!(loc.ExitDialogOptionalText$(var.LocSuffix))" />
     <!-- WiX既定の装飾画像（このプロダクトに無関係な汎用画像）を、ウィザード各画面のバナー帯右上で
          app.ico のアートワークに差し替える。Assets\banner.bmp は493x58 24bpp（WiXのバナー標準
          サイズ）で、app.icoを右上44x44に配置し背景はダイアログと同じ白一色で生成したもの。
          手描きではないので、app.icoを差し替えたら再生成すること。 -->
     <WixVariable Id="WixUIBannerBmp" Value="$(var.MSBuildProjectDirectory)\Assets\banner.bmp" />
 
-    <Icon Id="ICO_App" SourceFile="$(var.MSBuildProjectDirectory)\..\kasane-license\Resources\app.ico" />
+    <Icon Id="ICO_App" SourceFile="$(var.MSBuildProjectDirectory)\..\kasane\Resources\app.ico" />
     <Property Id="ARPPRODUCTICON" Value="ICO_App" />
 
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
@@ -179,7 +217,13 @@
         <Control Id="Next" Type="PushButton" X="248" Y="243" Width="56" Height="17" Text="!(loc.WixUINext)">
           <Publish Event="DoAction" Value="CA_CheckImportFile" Order="1">IMPORT_SETTINGS</Publish>
           <Publish Event="SpawnDialog" Value="ImportFileMissingDlg" Order="2">IMPORT_SETTINGS AND NOT IMPORT_FILE_OK</Publish>
+<?if $(var.Edition) = "Pro" ?>
+          <!-- キーが渡されていない新規インストールのときだけ、LicenseKeyDlg を挟む。Pro の更新（WIX_UPGRADE_DETECTED）では、キーは要らない。 -->
+          <Publish Event="NewDialog" Value="LicenseKeyDlg" Order="3"><![CDATA[(NOT IMPORT_SETTINGS OR IMPORT_FILE_OK) AND LICENSEKEY = "" AND NOT WIX_UPGRADE_DETECTED]]></Publish>
+          <Publish Event="NewDialog" Value="VerifyReadyDlg" Order="4"><![CDATA[(NOT IMPORT_SETTINGS OR IMPORT_FILE_OK) AND (LICENSEKEY <> "" OR WIX_UPGRADE_DETECTED)]]></Publish>
+          <?else?>
           <Publish Event="NewDialog" Value="VerifyReadyDlg" Order="3">NOT IMPORT_SETTINGS OR IMPORT_FILE_OK</Publish>
+          <?endif?>
         </Control>
         <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
           <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
@@ -195,6 +239,49 @@
 
       <Publish Dialog="CustomizeDlg" Control="Next" Event="NewDialog" Value="DataDirDlg" Order="2">1</Publish>
       <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="ImportSettingsDlg" Order="4">NOT Installed OR WixUI_InstallMode = "Change"</Publish>
+      <?if $(var.Edition) = "Pro" ?>
+      <!--
+        ライセンスキーの入力（Pro。ランチャー経由でキーが渡されているときは出ない）。ImportSettingsDlg の次、VerifyReadyDlg の前。
+        Next は常に押せる状態にして、押された時点で LICENSEKEY を見る（Edit の値を ControlCondition で見張る方式は、Next が
+        有効にならない不具合が、kbdaddid 買い切り版の実機で出た）。
+      -->
+      <Dialog Id="LicenseKeyDlg" Width="370" Height="270" Title="!(loc.LicenseKeyDlg_Title)">
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="280" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>{\WixUI_Font_Title}!(loc.LicenseKeyDlg_Title)</Text>
+        </Control>
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="340" Height="15" Transparent="yes" NoPrefix="yes" Text="!(loc.LicenseKeyDlg_Description)" />
+
+        <Control Id="Explain" Type="Text" X="25" Y="52" Width="330" Height="50" Text="!(loc.LicenseKeyDlg_Explain)" />
+        <Control Id="KeyLabel" Type="Text" X="25" Y="110" Width="330" Height="10" Text="!(loc.LicenseKeyDlg_Label)" />
+        <Control Id="LicenseKeyEdit" Type="Edit" X="25" Y="122" Width="320" Height="15" Property="LICENSEKEY" Sunken="yes" />
+        <Control Id="KeyHint" Type="Text" X="25" Y="144" Width="320" Height="30" Text="!(loc.LicenseKeyDlg_Hint)" />
+
+        <Control Id="Back" Type="PushButton" X="192" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)">
+          <Publish Event="NewDialog" Value="ImportSettingsDlg">1</Publish>
+        </Control>
+        <Control Id="Next" Type="PushButton" X="248" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)">
+          <Publish Event="SpawnDialog" Value="LicenseKeyEmptyDlg" Order="1"><![CDATA[LICENSEKEY = ""]]></Publish>
+          <Publish Property="LICENSEKEY_DIALOG" Value="1" Order="2"><![CDATA[LICENSEKEY <> ""]]></Publish>
+          <Publish Event="NewDialog" Value="VerifyReadyDlg" Order="3"><![CDATA[LICENSEKEY <> ""]]></Publish>
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
+          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+        </Control>
+      </Dialog>
+
+      <Dialog Id="LicenseKeyEmptyDlg" Width="260" Height="85" Title="!(loc.LicenseKeyEmptyDlg_Title)">
+        <Control Id="Text" Type="Text" X="25" Y="15" Width="215" Height="35" Text="!(loc.LicenseKeyEmptyDlg_Text)" />
+        <Control Id="Ok" Type="PushButton" X="102" Y="57" Width="56" Height="17" Default="yes" Cancel="yes" Text="!(loc.WixUIOK)">
+          <Publish Event="EndDialog" Value="Return">1</Publish>
+        </Control>
+      </Dialog>
+
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="LicenseKeyDlg" Order="5"><![CDATA[LICENSEKEY_DIALOG = "1"]]></Publish>
+      <?endif?>
     </UI>
 
     <!--
@@ -212,8 +299,10 @@
             <Directory Id="KBDDRIVERDIR_ARM64" Name="arm64" />
           </Directory>
           <Directory Id="SYMBOLDIR" Name="Symbol" />
+          <?if $(var.Edition) != "Pro" ?>
           <Directory Id="LICENSESVCDDIR" Name="license-svc" />
           <Directory Id="LICENSEGUIDIR" Name="license-gui" />
+          <?endif?>
           <Directory Id="KEYMAPGUIDIR" Name="keymap-gui" />
           <Directory Id="TRAYDIR" Name="tray" />
           <Directory Id="SAMPLESDIR" Name="samples" />
@@ -226,7 +315,7 @@
       <!-- スタートメニュー: applet\かさね Subscription（英語版は applet\kasane Subscription） -->
       <Directory Id="ProgramMenuFolder">
         <Directory Id="AppletMenuFolder" Name="applet">
-          <Directory Id="KasaneMenuFolder" Name="!(loc.ProductName)" />
+          <Directory Id="KasaneMenuFolder" Name="!(loc.ProductName$(var.LocSuffix))" />
         </Directory>
       </Directory>
     </Directory>
@@ -237,7 +326,10 @@
       F_LicenseSvc: ライセンス管理サービス（kasane-license-svc.exe）。
       F_LicenseGui: ライセンス管理 GUI（kasane-license.exe）。
     -->
-    <Feature Id="F_Main" Title="kasane Subscription Core" Level="1" Absent="disallow">
+    <Feature Id="F_Main" Title="$(var.CoreTitle)" Level="1" Absent="disallow">
+      <?if $(var.Edition) = "Pro" ?>
+      <ComponentRef Id="CMP_LicenseKeyRegistry" />
+      <?endif?>
       <ComponentRef Id="CMP_DriverTools" />
       <ComponentRef Id="CMP_DriverToolsArm64" />
       <ComponentRef Id="CMP_Shortcuts" />
@@ -267,6 +359,7 @@
       <ComponentRef Id="CMP_SiriusHookDll" />
     </Feature>
 
+<?if $(var.Edition) != "Pro" ?>
     <Feature Id="F_LicenseSvc" Title="License Service" Level="1" Absent="disallow">
       <ComponentRef Id="CMP_LicenseSvcExe" />
     </Feature>
@@ -275,6 +368,7 @@
       <ComponentRef Id="CMP_LicenseGuiExe" />
       <ComponentRef Id="CMP_RunOnceLicenseGui" />
     </Feature>
+    <?endif?>
 
     <!--
       F_KeymapGui: キーマップ編集GUI（kasane.exe + Layouts\*.json）と、
@@ -306,6 +400,7 @@
       </Component>
     </DirectoryRef>
 
+    <?if $(var.Edition) != "Pro" ?>
     <!--
       License Service: kasane-license-svc.exe（単一ファイル publish）
       ServiceInstall は exe と同じ Component に含めることで WiX が ImagePath を自動設定する。
@@ -340,6 +435,7 @@
           Wait="yes" />
       </Component>
     </DirectoryRef>
+    <?endif?>
 
     <!-- Tray: kasane-tray.exe（単一ファイル publish）。Run キーでログイン時に自動起動する。 -->
     <DirectoryRef Id="TRAYDIR">
@@ -392,6 +488,7 @@
       </Component>
     </DirectoryRef>
 
+<?if $(var.Edition) != "Pro" ?>
     <!-- License GUI: kasane-license.exe（単一ファイル publish） -->
     <DirectoryRef Id="LICENSEGUIDIR">
       <Component Id="CMP_LicenseGuiExe" Guid="{205AF696-E36B-46A0-AA2E-E06061FD492E}">
@@ -415,14 +512,17 @@
                        Type="string" KeyPath="yes" />
       </Component>
     </DirectoryRef>
+    <?endif?>
 
     <!-- スタートメニューショートカット -->
     <DirectoryRef Id="KasaneMenuFolder">
       <Component Id="CMP_Shortcuts" Guid="{3A444FE9-C76E-47A9-BC5B-D7E42A15765A}">
+        <?if $(var.Edition) != "Pro" ?>
         <Shortcut Id="ShortcutLicenseGui" Name="kasane License Manager"
                   Target="[LICENSEGUIDIR]kasane-license.exe"
                   WorkingDirectory="LICENSEGUIDIR"
                   Icon="ICO_App" />
+        <?endif?>
         <Shortcut Id="ShortcutKeymapGui" Name="!(loc.ShortcutKeymapName)"
                   Target="[KEYMAPGUIDIR]kasane.exe"
                   WorkingDirectory="KEYMAPGUIDIR"
@@ -443,6 +543,84 @@
                        Type="integer" Value="1" KeyPath="yes" />
       </Component>
     </DirectoryRef>
+
+<?if $(var.Edition) = "Pro" ?>
+    <!--
+      LICENSEKEY を kasane-pro-activator.exe に渡すための一時レジストリ値。deferred CustomAction の ExeCommand="[~]" は、
+      kbdaddid 買い切り版の実機で常に空文字列になったため、標準の RegistryValue（WriteRegistryValues）で渡す。
+      kasane-pro-activator.exe が読んだらすぐに消す。キーが渡されたときだけ作る（更新・修復では作らない）。
+    -->
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="CMP_LicenseKeyRegistry" Guid="{4FFFDADE-F453-431B-9134-78DB9A04B12F}">
+        <Condition><![CDATA[LICENSEKEY <> ""]]></Condition>
+        <RegistryValue Root="HKLM" Key="SOFTWARE\kasane-pro-setup" Name="PendingLicenseKey"
+                       Value="[LICENSEKEY]" Type="string" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <!--
+      ライセンスキーの確認（Pro）。kasane-pro-activator.exe を MSI に埋め込み（インストール先には置かない）、インストール時に1回だけ
+      Gumroad へ照会する。Return="check" なので、キーが無効・接続不可なら 0 以外を返し、インストール全体が巻き戻る
+      （ドライバは入らない）。理由は HKLM\SOFTWARE\kasane-pro-setup に残り、ランチャーが案内する。
+    -->
+    <Binary Id="BIN_ProActivator" SourceFile="$(var.StagingProActivator)\kasane-pro-activator.exe" />
+    <CustomAction
+      Id="CA_VerifyLicense"
+      BinaryKey="BIN_ProActivator"
+      ExeCommand=""
+      Execute="deferred"
+      Return="check"
+      Impersonate="no" />
+
+    <!--
+      サブスク版（Subscription）のライセンス情報の後始末（deferred、SYSTEM。失敗しても続ける）。サブスク版のアンインストールは、
+      再インストールで使い回すため、ライセンスの状態を残す。Pro では要らないので、残っていれば消す:
+      サービス kasaneLicenseSvc、%ProgramData%\kbdlayer-license（ライセンスキーと署名鍵を含む）、ドライバの LicenseToken / License、
+      RunOnce の kasaneLicense。設定（レイヤーマップなど）には触れない。
+    -->
+    <CustomAction
+      Id="CA_CleanupSubscriptionService"
+      Script="vbscript"
+      Execute="deferred"
+      Return="ignore"
+      Impersonate="no"><![CDATA[
+On Error Resume Next
+Set s=CreateObject("WScript.Shell")
+s.Run "net stop kasaneLicenseSvc",0,True
+s.Run "sc delete kasaneLicenseSvc",0,True
+]]></CustomAction>
+    <CustomAction
+      Id="CA_CleanupSubscriptionFolder"
+      Script="vbscript"
+      Execute="deferred"
+      Return="ignore"
+      Impersonate="no"><![CDATA[
+On Error Resume Next
+Set s=CreateObject("WScript.Shell")
+CreateObject("Scripting.FileSystemObject").DeleteFolder s.ExpandEnvironmentStrings("%ProgramData%")&"\kbdlayer-license",True
+]]></CustomAction>
+    <CustomAction
+      Id="CA_CleanupSubscriptionRegistry"
+      Script="vbscript"
+      Execute="deferred"
+      Return="ignore"
+      Impersonate="no"><![CDATA[
+On Error Resume Next
+Set s=CreateObject("WScript.Shell")
+b="HKLM\SYSTEM\CurrentControlSet\Services\kbdlayer\Parameters\"
+s.RegDelete b&"LicenseToken"
+s.RegDelete b&"License"
+]]></CustomAction>
+    <CustomAction
+      Id="CA_CleanupSubscriptionRunOnce"
+      Script="vbscript"
+      Execute="deferred"
+      Return="ignore"
+      Impersonate="no"><![CDATA[
+On Error Resume Next
+CreateObject("WScript.Shell").RegDelete "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce\kasaneLicense"
+]]></CustomAction>
+    <?endif?>
 
     <!--
       アンインストール前にインストールフォルダを完全削除するクリーンアップ。
@@ -559,6 +737,14 @@ End If
 
     <!-- InstallFiles is not atomic in the deferred script: Before InstallFinalize runs after all file operations have been scripted. -->
     <InstallExecuteSequence>
+      <?if $(var.Edition) = "Pro" ?>
+      <!-- キーの確認は、新規インストールのときだけ。Pro の更新（WIX_UPGRADE_DETECTED）・修復では、もう一度は聞かない。WriteRegistryValues の後（一時レジストリ値が書かれたあと）。 -->
+      <Custom Action="CA_VerifyLicense" After="WriteRegistryValues"><![CDATA[NOT Installed AND NOT REMOVE~="ALL" AND NOT WIX_UPGRADE_DETECTED]]></Custom>
+      <Custom Action="CA_CleanupSubscriptionService" After="CA_InstallKbdDriver"><![CDATA[NOT REMOVE~="ALL"]]></Custom>
+      <Custom Action="CA_CleanupSubscriptionFolder" After="CA_CleanupSubscriptionService"><![CDATA[NOT REMOVE~="ALL"]]></Custom>
+      <Custom Action="CA_CleanupSubscriptionRegistry" After="CA_CleanupSubscriptionFolder"><![CDATA[NOT REMOVE~="ALL"]]></Custom>
+      <Custom Action="CA_CleanupSubscriptionRunOnce" After="CA_CleanupSubscriptionRegistry"><![CDATA[NOT REMOVE~="ALL"]]></Custom>
+      <?endif?>
       <Custom Action="CA_StopTray" Before="RemoveExistingProducts" />
       <Custom Action="CA_CheckKbdPendingDelete" After="InstallInitialize">NOT REMOVE~="ALL" AND &amp;F_KbdDriver=3</Custom>
       <Custom Action="CA_InstallKbdDriver" Before="InstallFinalize">NOT REMOVE~="ALL" AND &amp;F_KbdDriver=3</Custom>

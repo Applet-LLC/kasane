@@ -4,7 +4,19 @@
   <String Id="ShortcutKeymapName">kasane</String>
   <String Id="ShortcutTrayName">kasane Tray</String>
   <String Id="DowngradeError">A newer version of kasane Subscription is already installed.</String>
-  <String Id="Error1722">A program run as part of the setup did not finish as expected. If you have just uninstalled kasane, restart the computer and run the installer again. If it still fails, contact support. (Error 1722 {{, action: [2], location: [3], command: [4]}})</String>
+  <String Id="Error1722">A program run as part of the setup did not finish as expected. If you have just uninstalled kasane, restart the computer and run the installer again. If this edition asks for a license key, also check that the key is correct and that the computer is connected to the internet. If it still fails, contact support. (Error 1722 {{, action: [2], location: [3], command: [4]}})</String>
+  <String Id="ProductNamePro">kasane Pro</String>
+  <String Id="DowngradeErrorPro">A newer version of kasane Pro is already installed.</String>
+  <String Id="ExitDialogOptionalTextPro">Restart your computer to complete the installation.</String>
+  <String Id="OtherEditionInstalled">kasane Pro is installed. Subscription and Pro cannot be installed on the same computer at the same time.</String>
+  <String Id="OtherEditionInstalledPro">kasane Subscription is installed. Uninstall kasane Subscription first, restart the computer, and then run this installer again.</String>
+  <String Id="LicenseKeyDlg_Title">Enter your license key</String>
+  <String Id="LicenseKeyDlg_Description">Enter the license key you purchased on Gumroad</String>
+  <String Id="LicenseKeyDlg_Explain">The key is checked once, during installation. An internet connection is required. If the key cannot be checked, the installation stops and nothing is changed.</String>
+  <String Id="LicenseKeyDlg_Label">License key:</String>
+  <String Id="LicenseKeyDlg_Hint">The mouse right-click menu is not available here. Use the keyboard and paste with Ctrl+V.</String>
+  <String Id="LicenseKeyEmptyDlg_Title">No license key</String>
+  <String Id="LicenseKeyEmptyDlg_Text">Enter your license key.</String>
   <String Id="LicenseSvcDescription">kasane subscription license management</String>
   <String Id="ExitDialogOptionalText">Restart your computer to complete the installation. The License Manager will start automatically the next time you sign in.</String>
 

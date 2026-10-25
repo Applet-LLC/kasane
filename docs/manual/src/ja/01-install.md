@@ -2,11 +2,13 @@
 
 kasane のインストーラーは、キーボードドライバ（kbdlayer）、ライセンス管理サービス、エディタ（kasane）、トレイ（常駐アプリ）をまとめて入れます。インストール先は `C:\Program Files\applet\kasane` に固定されていて、変更できません。
 
+この章は Subscription 版の手順で書いています。買い切り版（Pro）の違いは「Pro 版のインストール」に、Subscription 版からの移行は「Subscription 版から Pro 版へ移る」にまとめました。
+
 ## 準備するもの
 
 - Windows 11 25H2（x64 または ARM64）
 - 管理者権限のあるアカウント
-- ダウンロードした `kasane-subscription.zip`（Gumroad のライブラリから、いつでも再ダウンロードできます）
+- ダウンロードした `kasane-subscription.zip`（Pro 版は `kasane-pro.zip`）。Gumroad のライブラリから、いつでも再ダウンロードできます
 
 zip を展開すると、次のファイルが入っています。
 
@@ -114,6 +116,35 @@ License Manager でライセンスキーを入力し、アクティベートし�
 
 上書き、アンインストール、修復の前には、インストーラーがトレイを自動で止めます。
 
+## Pro 版のインストール
+
+Pro 版は、`kasane-pro.zip` を展開して入れます。手順は Subscription 版とほぼ同じで、次の点が違います。
+
+| 項目 | Pro 版 |
+|---|---|
+| 起動画面 | `Install-kasane-pro.exe`。画面にライセンスキーの入力欄があります |
+| インストーラー本体 | `KasaneProSetup-ja-JP.msi`、`KasaneProSetup-en-US.msi` |
+| ライセンスキー | 入力欄に貼り付けて **インストール** を押すと、インストーラーが Gumroad に 1 回だけ確認します（[3. ライセンスの認証](03-license.html)） |
+| 機能の選択 | License Manager とライセンスサービスは入りません |
+| 再起動後 | License Manager は開きません。再起動すれば、そのまま使えます |
+| スタートメニュー | `applet` フォルダの中の `かさね Pro` フォルダ |
+| サービス | ライセンス管理サービスは入りません |
+
+Subscription 版と Pro 版は、同じパソコンに両方入れられません。Subscription 版が入っているパソコンで Pro 版のインストールを始めると、案内が出て、先に進めません。
+
+## Subscription 版から Pro 版へ移る
+
+上書きインストールはできません。次の順で、いったんアンインストールしてから入れ直します。
+
+1. 設定を残したいときは、kasane の設定をエクスポートします（[14. インポート／エクスポート](14-import-export.html)）。
+2. Subscription 版をアンインストールして、再起動します（[2. アンインストール](02-uninstall.html)）。
+3. `Install-kasane-pro.exe` を実行し、Pro 版のライセンスキーを入力してインストールします。
+4. 再起動します。
+
+アンインストールのあとに再起動しないまま Pro 版を入れると、ドライバの削除が終わっておらず、エラー（1722）で取りやめになることがあります。そのときは、再起動してからもう一度実行してください。
+
+キーボードごとの設定（`project.json`）や、トレイの設定は、そのまま引き継がれます。Subscription 版のライセンスの記録（`%ProgramData%\kbdlayer-license`）は、Pro 版のインストール時に削除されます。Pro 版では使わないからです。
+
 ## サイレントインストール
 
 `msiexec` で、画面を出さずにインストールできます。設定フォルダと設定ファイルの取り込みは、次のプロパティで渡します。
@@ -126,6 +157,12 @@ License Manager でライセンスキーを入力し、アクティベートし�
 
 ```
 msiexec /i KasaneSetup-ja-JP.msi /qn KASANE_DIR=D:\kasane IMPORT_SETTINGS=1 IMPORT_SETTINGS_FILE=C:\work\settings.kasane.json
+```
+
+Pro 版では、`LICENSEKEY` にライセンスキーを渡します。サイレントインストールのログ（`/l*v`）には、キーの値は書かれません。
+
+```
+msiexec /i KasaneProSetup-ja-JP.msi /qn LICENSEKEY=XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX
 ```
 
 ## うまくいかないとき

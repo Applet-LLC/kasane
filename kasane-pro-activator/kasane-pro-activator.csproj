@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    kasane Pro（買い切り版）のインストーラーから、deferred CustomAction として一度だけ実行され、
+    Gumroad にライセンスキーを照会する。インストール後は何も残さない（MSI に Binary として
+    埋め込み、インストール先には置かない）。kbdaddid 買い切り版の license-activator が元。
+    ビルド: dotnet publish -c Release -r win-x64 /p:PublishSingleFile=true
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>KasaneProActivator</RootNamespace>
+    <AssemblyName>kasane-pro-activator</AssemblyName>
+    <Company>Applet LLC</Company>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <IncludeAllContentForSelfExtract>false</IncludeAllContentForSelfExtract>
+    <Platforms>AnyCPU;x64</Platforms>
+  </PropertyGroup>
+
+</Project>

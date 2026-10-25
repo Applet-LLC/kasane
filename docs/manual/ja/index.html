@@ -48,12 +48,12 @@
 <ul>
 <li>Windows 11 25H2（x64 または ARM64）</li>
 <li>インストールのための管理者権限</li>
-<li>インターネット接続。ライセンス管理サービスが約24時間ごとに Gumroad へ接続し、サブスクリプションが有効かどうかを確認します。直近の確認結果を使うので、ネットワークに接続できなくても、最大7日間はオフラインのまま使えます。</li>
+<li>インターネット接続。Subscription 版では、ライセンス管理サービスが約24時間ごとに Gumroad へ接続し、サブスクリプションが有効かどうかを確認します。直近の確認結果を使うので、ネットワークに接続できなくても、最大7日間はオフラインのまま使えます。 Pro 版では、インストール時にライセンスキーを確認するときだけ必要です。</li>
 </ul>
 <h2 id="section-1">はじめての方へ</h2>
 <ol>
 <li><a href="01-install.html">インストール</a>して、再起動します。</li>
-<li><a href="03-license.html">ライセンスの認証</a>をします。</li>
+<li><a href="03-license.html">ライセンスの認証</a>をします（Pro 版は、インストール中に済んでいます）。</li>
 <li><a href="05-editor-basics.html">エディタの基本画面</a>で、キーボードを選び、キーを入れ替えて、キーボードに適用します。</li>
 <li>困ったときのために、<a href="07-emergency.html">緊急解除</a>と<a href="02-uninstall.html">アンインストール</a>の手順を先に見ておくと安心です。</li>
 </ol>
@@ -88,12 +88,12 @@
 <td><code>kbdlayer.sys</code>（内部名とサービス名は <code>kbdlayer</code>。<code>kbdlayer</code> フォルダ）</td>
 </tr>
 <tr>
-<td>ライセンス管理（License Manager）</td>
+<td>ライセンス管理（License Manager、Subscription 版のみ）</td>
 <td>kasane-license</td>
 <td><code>kasane-license.exe</code>（<code>license-gui</code> フォルダ）</td>
 </tr>
 <tr>
-<td>ライセンスサービス</td>
+<td>ライセンスサービス（Subscription 版のみ）</td>
 <td>kasaneLicenseSvc（表示名 kasane License Service）</td>
 <td><code>kasane-license-svc.exe</code>（<code>license-svc</code> フォルダ）。ライセンスの記録は <code>%ProgramData%\kbdlayer-license</code></td>
 </tr>
@@ -146,7 +146,7 @@
 <td><a href="02-uninstall.html">2. アンインストール</a></td>
 </tr>
 <tr>
-<td>ライセンスを認証する。試用版を使う</td>
+<td>ライセンスを認証する。試用版を使う。Pro 版のキーを確認する</td>
 <td><a href="03-license.html">3. ライセンスの認証</a></td>
 </tr>
 <tr>
@@ -246,7 +246,7 @@
 </tr>
 <tr>
 <td><a href="03-license.html">3. ライセンスの認証</a></td>
-<td>License Manager、試用版</td>
+<td>License Manager、試用版、Pro 版のキー確認</td>
 </tr>
 <tr>
 <td><a href="04-tray.html">4. トレイ</a></td>
