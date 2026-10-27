@@ -1,3 +1,4 @@
+using Kasane.Model;
 using Microsoft.Win32;
 
 namespace Kasane.Tray;
@@ -41,7 +42,7 @@ internal sealed class TrayIconPromoter : IDisposable
     /// <summary>自分の項目が見つかったら true（書いた・既に利用者の選択がある）。まだ無ければ false。</summary>
     private bool TryPromote()
     {
-        using var root = Registry.CurrentUser.OpenSubKey(BaseKey);
+        using var root = OpenRoot();
         if (root == null) return false;
         foreach (string name in root.GetSubKeyNames())
         {
@@ -51,6 +52,20 @@ internal sealed class TrayIconPromoter : IDisposable
             return true;
         }
         return false;
+    }
+
+    /// <summary>
+    /// タスクバーの設定の置き場。タスクバーはエクスプローラーを動かしているユーザーのもの。管理者保護では、トレイが ADMIN_ユーザー名 で動くので、
+    /// 自分の HKCU ではなく、エクスプローラーのユーザーの HKCU（HKEY_USERS\&lt;SID&gt;）を開く。昇格していないトレイ（Administrators が deny-only）は、
+    /// そこを開けない（UnauthorizedAccessException。呼び出し側がログに記録して諦める）。
+    /// </summary>
+    private static RegistryKey? OpenRoot()
+    {
+        var shell = AdminProtection.GetShellUserSid();
+        var self = System.Security.Principal.WindowsIdentity.GetCurrent().User;
+        if (shell != null && self != null && !shell.Equals(self))
+            return Registry.Users.OpenSubKey(shell.Value + @"\" + BaseKey);
+        return Registry.CurrentUser.OpenSubKey(BaseKey);
     }
 
     /// <summary>保存されたパス（フルパス、または {GUID}\… の形）が、実行中の exe のパスと同じか。</summary>

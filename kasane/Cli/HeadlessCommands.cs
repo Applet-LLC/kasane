@@ -10,6 +10,9 @@ namespace Kasane.Cli;
 ///   --install-import &lt;ファイル&gt;                 設定ファイルの内容を、ドライバのレジストリへ書く（前の設定は .bak に1世代退避）。
 ///   --restore-import-backup [&lt;保存先名&gt;|--all]    退避（.bak）と今の設定を入れ替える（もう一度で元に戻る）。
 ///   --prepare-data-dir &lt;フォルダ&gt; [&lt;取り込むファイル&gt;]   保存先のフォルダを（無ければ）作り、Users に変更権限を付ける。取り込むファイルがあれば、そこへ kasane-import.json として置く（インストーラーが使う）。
+///   --ensure-data-acl [&lt;フォルダ&gt;]               保存先（省略時は環境変数 KASANE のフォルダ）に、いま動いているユーザー自身の変更権限を付ける。管理者保護で、トレイが昇格していない ADMIN_ユーザー名 として動くとき（Administrators が deny-only で、フォルダへ書けない）に、昇格して1回実行する。
+///   --setup-autostart &lt;トレイのexe&gt;               ログオン時の自動起動を、管理者保護の有無に合わせて整える（有効ならユーザーごとのタスクを作って Run キーを無効にし、無効ならタスクを消す。インストーラーが使う）。
+///   --remove-autostart                         自動起動のタスクと、Run キーの無効の記録を消す（アンインストール）。
 ///   --import-pending                           保存先（環境変数 KASANE のフォルダ）の kasane-import.json を、設定が無いものだけ取り込む（通常権限。トレイが起動時に呼ぶ）。
 /// 結果は、ログ（%ProgramData%\applet\kasane\import.log）に追記する。終了コード: 0 = 成功、1 = 引数・ファイルの問題、2 = 一部または全部が失敗。
 /// </summary>
@@ -19,6 +22,9 @@ public static class HeadlessCommands
     public const string RestoreBackup = "--restore-import-backup";
     public const string ImportPending = "--import-pending";
     public const string PrepareDataDir = "--prepare-data-dir";
+    public const string EnsureDataAcl = "--ensure-data-acl";
+    public const string SetupAutostart = "--setup-autostart";
+    public const string RemoveAutostart = "--remove-autostart";
 
     public static string LogPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "applet", "kasane", "import.log");
@@ -43,6 +49,21 @@ public static class HeadlessCommands
         if (args[0].Equals(PrepareDataDir, StringComparison.OrdinalIgnoreCase))
         {
             exitCode = RunPrepareDataDir(args.Length > 1 ? args[1] : null, args.Length > 2 ? args[2] : null, new FileLog(LogPath));
+            return true;
+        }
+        if (args[0].Equals(EnsureDataAcl, StringComparison.OrdinalIgnoreCase))
+        {
+            exitCode = RunEnsureDataAcl(args.Length > 1 ? args[1] : null, new FileLog(LogPath));
+            return true;
+        }
+        if (args[0].Equals(SetupAutostart, StringComparison.OrdinalIgnoreCase))
+        {
+            exitCode = RunSetupAutostart(args.Length > 1 ? args[1] : null, new FileLog(LogPath));
+            return true;
+        }
+        if (args[0].Equals(RemoveAutostart, StringComparison.OrdinalIgnoreCase))
+        {
+            exitCode = RunRemoveAutostart(new FileLog(LogPath));
             return true;
         }
         if (args[0].Equals(ImportPending, StringComparison.OrdinalIgnoreCase))
@@ -96,18 +117,97 @@ public static class HeadlessCommands
         }
     }
 
-    private static void GrantUsersModify(string folder)
+    /// <summary>自動起動を、管理者保護の有無に合わせて整える（<see cref="Autostart.Apply"/>）。引数はトレイの exe のフルパス。</summary>
+    public static int RunSetupAutostart(string? trayExe, ILog log)
+    {
+        log.Write($"{SetupAutostart} {trayExe}");
+        if (string.IsNullOrWhiteSpace(trayExe) || !Path.IsPathFullyQualified(trayExe.Trim().Trim('"')))
+        {
+            log.Write(Loc.T("エラー: トレイの exe のフルパスを指定してください", "Error: specify the full path of the tray exe"));
+            return 1;
+        }
+        try
+        {
+            return Autostart.Apply(Path.GetFullPath(trayExe.Trim().Trim('"')), AdminProtection.IsEnabled(), AdminProtection.GetInteractiveUsers(), log.Write);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            log.Write(Loc.T($"エラー: {ex.Message}", $"Error: {ex.Message}"));
+            return 2;
+        }
+    }
+
+    public static int RunRemoveAutostart(ILog log)
+    {
+        log.Write(RemoveAutostart);
+        Autostart.Remove(log.Write);
+        return 0;
+    }
+
+    private static void GrantUsersModify(string folder) =>
+        GrantModify(folder, new System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.BuiltinUsersSid, null));
+
+    private static void GrantModify(string folder, System.Security.Principal.SecurityIdentifier sid)
     {
         var info = new DirectoryInfo(folder);
         var acl = info.GetAccessControl();
-        var users = new System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.BuiltinUsersSid, null);
         acl.AddAccessRule(new System.Security.AccessControl.FileSystemAccessRule(
-            users,
+            sid,
             System.Security.AccessControl.FileSystemRights.Modify,
             System.Security.AccessControl.InheritanceFlags.ContainerInherit | System.Security.AccessControl.InheritanceFlags.ObjectInherit,
             System.Security.AccessControl.PropagationFlags.None,
             System.Security.AccessControl.AccessControlType.Allow));
         info.SetAccessControl(acl);
+    }
+
+    /// <summary>フォルダの ACL に、そのアカウント自身への許可（変更権限以上）がすでにあるか。グループ経由の権限は数えない。</summary>
+    private static bool HasModifyFor(string folder, System.Security.Principal.SecurityIdentifier sid)
+    {
+        var acl = new DirectoryInfo(folder).GetAccessControl();
+        foreach (System.Security.AccessControl.FileSystemAccessRule rule in acl.GetAccessRules(true, true, typeof(System.Security.Principal.SecurityIdentifier)))
+        {
+            if (rule.AccessControlType == System.Security.AccessControl.AccessControlType.Allow
+                && rule.IdentityReference.Equals(sid)
+                && (rule.FileSystemRights & System.Security.AccessControl.FileSystemRights.Modify) == System.Security.AccessControl.FileSystemRights.Modify)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// 保存先のフォルダに、いま動いているユーザー自身（昇格したプロセスのトークンのユーザー）への変更権限を付ける。
+    /// 管理者保護では、トレイ（uiAccess）は昇格しない ADMIN_ユーザー名 として動き、Administrators が deny-only になる。フォルダの権限が
+    /// Administrators と元のユーザーにしか無いと、トレイは書けない。昇格したプロセスは Administrators が有効なので ACL を直せる。
+    /// 昇格しても同じアカウント（SMAA）なので、このユーザー自身を足せば、トレイと設定画面の両方が書ける。他のユーザーには広げない。
+    /// すでに付いていれば何もしない（従来の UAC では元のユーザー自身の権限が付いているので、何もしない）。
+    /// </summary>
+    public static int RunEnsureDataAcl(string? dir, ILog log)
+    {
+        log.Write($"{EnsureDataAcl} {dir}");
+        try
+        {
+            string full = Path.GetFullPath(string.IsNullOrWhiteSpace(dir) ? HelperConfig.BaseDirectory : dir.Trim().Trim('"'));
+            var sid = System.Security.Principal.WindowsIdentity.GetCurrent().User;
+            if (sid == null)
+            {
+                log.Write(Loc.T("エラー: 実行ユーザーを取得できません", "Error: could not get the current user"));
+                return 2;
+            }
+            Directory.CreateDirectory(full);
+            if (HasModifyFor(full, sid))
+            {
+                log.Write(Loc.T($"すでに権限があります: {full} ({sid.Value})", $"Access is already granted: {full} ({sid.Value})"));
+                return 0;
+            }
+            GrantModify(full, sid);
+            log.Write(Loc.T($"変更権限を付けました: {full} ({sid.Value})", $"Granted modify permission: {full} ({sid.Value})"));
+            return 0;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or InvalidOperationException)
+        {
+            log.Write(Loc.T($"エラー: {ex.Message}", $"Error: {ex.Message}"));
+            return 2;
+        }
     }
 
     public static int RunImportPending(ILog log)

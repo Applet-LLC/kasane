@@ -183,7 +183,8 @@
           <Publish Event="NewDialog" Value="CustomizeDlg">1</Publish>
         </Control>
         <Control Id="Next" Type="PushButton" X="248" Y="243" Width="56" Height="17" Text="!(loc.WixUINext)">
-          <Publish Event="NewDialog" Value="ImportSettingsDlg">1</Publish>
+          <Publish Event="DoAction" Value="CA_NormalizeKasaneDir" Order="1">1</Publish>
+          <Publish Event="NewDialog" Value="ImportSettingsDlg" Order="2">1</Publish>
         </Control>
         <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
           <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
@@ -652,6 +653,11 @@ End If
 ]]></CustomAction>
 
     <!-- 取り込みファイルの確認（ImportSettingsDlg の Next。immediate）。貼り付けた「"」は外す（エクスプローラーの「パスのコピー」は、"" で囲んで返す）。 -->
+    <!--
+      KASANE_DIR の前後の空白と二重引用符を外す。エクスプローラーの「パスのコピー」で貼ると "D:\kasane-data" のように引用符が付き、そのまま環境変数 KASANE に入ると、
+      %KASANE% を使う他のツールやバッチで、引用符つきのパスになってしまうため。レジストリから読んだ既存の値（引用符つきで入っていたもの）も、画面に出す前に直す。
+    -->
+    <CustomAction Id="CA_NormalizeKasaneDir" Script="vbscript" Execute="immediate" Return="ignore"><![CDATA[Session.Property("KASANE_DIR")=Trim(Replace(Session.Property("KASANE_DIR"),Chr(34),""))]]></CustomAction>
     <CustomAction Id="CA_CheckImportFile" Script="vbscript" Execute="immediate" Return="ignore"><![CDATA[p=Replace(Session.Property("IMPORT_SETTINGS_FILE"),Chr(34),""):Session.Property("IMPORT_SETTINGS_FILE")=p:Session.Property("IMPORT_FILE_OK")="":If CreateObject("Scripting.FileSystemObject").FileExists(p) Then Session.Property("IMPORT_FILE_OK")="1"]]></CustomAction>
 
     <!--
@@ -669,6 +675,29 @@ End If
       Return="ignore"
       Impersonate="no" />
     <CustomAction Id="CA_SetImportFileArg" Property="IMPORT_FILE_ARG" Value="[IMPORT_SETTINGS_FILE]" Execute="immediate" />
+
+    <!--
+      ログオン時の自動起動を、管理者保護の有無に合わせて整える（deferred、SYSTEM）。kasane.exe のヘッドレスコマンド（setup-autostart）。
+      管理者保護が無効: Run キー（CMP_TrayExe）だけで起動する。タスクがあれば消す。
+      管理者保護が有効: Run キー経由の起動は、昇格しないトークンで UAC の確認が出る。そこで、いまログオンしているユーザーごとにタスクスケジューラのタスク
+      （ログオン時、最上位の特権、powershell.exe 経由）を作り、Run キーは StartupApproved で無効にする（Run キーの値は消さない。消すと修復で戻る）。
+      ログオンしているユーザーが見つからなければ、Run キーを有効のままにする。管理者保護の設定を、インストールの後で変えたときは、修復（再インストール）で切り替える。
+      アンインストールでは、タスクと StartupApproved の値を消す（アップグレードで旧製品が消えるときは、新製品が作り直すので消さない）。
+    -->
+    <CustomAction
+      Id="CA_SetupAutostart"
+      Directory="KEYMAPGUIDIR"
+      ExeCommand="&quot;[KEYMAPGUIDIR]kasane.exe&quot; --setup-autostart &quot;[TRAYDIR]kasane-tray.exe&quot;"
+      Execute="deferred"
+      Return="ignore"
+      Impersonate="no" />
+    <CustomAction
+      Id="CA_RemoveAutostart"
+      Directory="KEYMAPGUIDIR"
+      ExeCommand="&quot;[KEYMAPGUIDIR]kasane.exe&quot; --remove-autostart"
+      Execute="deferred"
+      Return="ignore"
+      Impersonate="no" />
 
     <!--
       設定ファイルの内容を、ドライバのレジストリへ書く（deferred、SYSTEM）。kasane.exe のヘッドレスモード（install-import コマンド）。ファイルが無い・形式が違うなど、
@@ -735,8 +764,15 @@ End If
     <!-- 外部プログラム（Return="check" の exe）の失敗の文言（エラー 1722）は、WixUI の Overridable な文字列 Error1722 を、
          Product.*.wxl で同じ Id を定義して上書きする（Error 要素で足すと、WixUI の定義と重複してリンクに失敗する）。 -->
 
+    <!-- 画面を出す前に、レジストリから読んだ KASANE_DIR の引用符を外す（DataDirDlg の入力欄に、引用符なしで出す）。 -->
+    <InstallUISequence>
+      <Custom Action="CA_NormalizeKasaneDir" After="AppSearch" />
+    </InstallUISequence>
+
     <!-- InstallFiles is not atomic in the deferred script: Before InstallFinalize runs after all file operations have been scripted. -->
     <InstallExecuteSequence>
+      <!-- サイレントインストール（KASANE_DIR="D:\kasane-data" のように引用符つきで渡された場合）と、更新で読んだ既存の値も、コストの計算（環境変数のコンポーネントの条件）の前に直す。 -->
+      <Custom Action="CA_NormalizeKasaneDir" Before="CostInitialize" />
       <?if $(var.Edition) = "Pro" ?>
       <!-- キーの確認は、新規インストールのときだけ。Pro の更新（WIX_UPGRADE_DETECTED）・修復では、もう一度は聞かない。WriteRegistryValues の後（一時レジストリ値が書かれたあと）。 -->
       <Custom Action="CA_VerifyLicense" After="WriteRegistryValues"><![CDATA[NOT Installed AND NOT REMOVE~="ALL" AND NOT WIX_UPGRADE_DETECTED]]></Custom>
@@ -751,6 +787,8 @@ End If
       <!-- 取り込み（任意）。ドライバのインストールのあと、kasane.exe が置かれたあとに行う。 -->
       <Custom Action="CA_SetImportFileArg" Before="InstallInitialize">NOT REMOVE~="ALL" AND KASANE_DIR &lt;&gt; "" AND IMPORT_SETTINGS="1"</Custom>
       <Custom Action="CA_PrepareKasaneDir" Before="InstallFinalize">NOT REMOVE~="ALL" AND KASANE_DIR &lt;&gt; ""</Custom>
+      <Custom Action="CA_SetupAutostart" Before="InstallFinalize">NOT REMOVE~="ALL"</Custom>
+      <Custom Action="CA_RemoveAutostart" Before="RemoveFiles"><![CDATA[REMOVE~="ALL" AND NOT UPGRADINGPRODUCTCODE]]></Custom>
       <Custom Action="CA_ImportDriverSettings" After="CA_InstallKbdDriver">NOT REMOVE~="ALL" AND IMPORT_SETTINGS="1" AND IMPORT_SETTINGS_FILE &lt;&gt; ""</Custom>
       <ScheduleReboot After="CA_ImportDriverSettings">NOT REMOVE~="ALL" AND &amp;F_KbdDriver=3</ScheduleReboot>
 
