@@ -308,10 +308,10 @@ NTSTATUS AddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT PhysicalDev
 
     // i8042prtのParametersを、このキーボードの型番に合わせて書き換える／初期化する
     // （オプションが無効なら何もしない）。port driverがStartされる前の、PASSIVE_LEVELのここで行う。
-    // 失敗してもAddDeviceは続ける。ライセンスが実効でないときは書き換えない（従来どおり）。
-    if (LicenseIsEffective()) {
-        ApplyI8042OverrideForDevice(devExt->ModelKey);
-    }
+    // 失敗してもAddDeviceは続ける。ライセンスの状態に関わらず行う: この書き換えはAddDeviceの時にしか
+    // 効かず（ACPI PS/2は起動時にしかAddDeviceが走らない）、ここで見送ると、起動直後の検証の失敗など
+    // で後からライセンスが確認できても、その起動では取り返せないため。
+    ApplyI8042OverrideForDevice(devExt->ModelKey);
 
     // デバイスインスタンスパスモード (DeviceIdMode=0)
     if (deviceIdMode == 0 && devExt->InstanceKey != 0) {
