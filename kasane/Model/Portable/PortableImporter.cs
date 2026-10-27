@@ -20,6 +20,8 @@ public sealed class ImportOptions
     public bool Helper { get; set; } = true;
     /// <summary>実測したスキャンコードも読み込む（同じレイアウトのときだけ）。</summary>
     public bool MeasuredScanCodes { get; set; }
+    /// <summary>復旧用の設定（トレイの設定、緊急解除、i8042prt、共有範囲、利用者のレイアウト）も読み込む。全体一括のファイルに入っているときだけ。</summary>
+    public bool Recovery { get; set; }
 
     /// <summary>
     /// 置き換え: 選んだ項目を、ファイルの内容で置き換える。追加: 今の設定を残し、ファイルの内容を足す

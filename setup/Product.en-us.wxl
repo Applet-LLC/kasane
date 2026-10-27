@@ -30,6 +30,7 @@
   <String Id="ImportSettingsDlg_Check">Import a settings file</String>
   <String Id="ImportSettingsDlg_Label">Settings file (full path):</String>
   <String Id="ImportSettingsDlg_Hint">Right-click is not available here, so use the keyboard and paste with Ctrl+V.</String>
+  <String Id="ImportSettingsDlg_RecoveryFound">The recovery file (kasane-recovery.kasane.json) found in the settings folder has been selected. Clear the check box if you do not want to import it.</String>
   <String Id="ImportFileMissingDlg_Title">Settings file not found</String>
   <String Id="ImportFileMissingDlg_Text">The settings file was not found. Check the path, or clear "Import a settings file".</String>
 </WixLocalization>

@@ -10,6 +10,8 @@ public sealed class ExportOptions
     public bool IncludeMeasured { get; set; }
     /// <summary>ヘルパー設定（helper.json）を含める。</summary>
     public bool IncludeHelper { get; set; } = true;
+    /// <summary>復旧用の設定（全体一括のときだけ使う。<see cref="RecoveryExporter.Collect"/> で集めたもの）。null なら含めない。</summary>
+    public PortableRecovery? Recovery { get; set; }
 }
 
 /// <summary>キーコード文字列の中の MACRO(n) / TAPDANCE(n) / HLP(n) の番号を調べる・付け替える。</summary>

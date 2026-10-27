@@ -86,7 +86,17 @@ kasane の設定が、どこに・何として保存されているか、バッ�
 - トレイの設定（`Tray`）: IME連動、全キーボード共通のヘルパー設定。
 - 実測値（`MeasuredScanCodes`）は、バックアップのとき（同じ機器へ戻すとき）だけ含める。
 
-入らないもの: `tray-state.json`・`tray-mapoff.json`・`tray-autooff.json`・`tray.log`、ライセンス、利用者のレイアウトファイル（`Layouts\`）、緊急解除の組み合わせ（ドライバ全体の設定）、i8042prt の設定。
+- 復旧用の設定（`Recovery`。全体一括のとき、利用者が「復旧用の設定も含める」を選んだときだけ。同じ PC への復元向け。レイヤーだけ・このキーボードだけの書き出しには入れない）:
+  - `TraySettings`: トレイの設定のうち、`ImeLink` と共通のヘルパー設定以外（`ImeSource`・`ColorMode`・`UiLanguage`・`ShowLayerOnIcon`・`RemapOnlyWhileTrayRuns`・`DesktopViewMode`）。
+  - `EmergencyRelease`: 緊急解除の組み合わせ（スキャンコード。ドライバ全体）。
+  - `I8042`: i8042prt の設定（`Enabled` とプロファイル）。
+  - `DeviceScopes`: キーボードごとの共有範囲（0 = 同じ型番で共有、1 = この1台だけ、2 = すべてのキーボードで共有）。
+  - `Layouts`: 利用者のレイアウト（`Layouts\kle-<名前>.json` の中身。同梱のレイアウトと名前が重なるものは入れない）。
+  - 既定のファイル名は `kasane-recovery.kasane.json`（設定フォルダ。エクスポートの保存の画面が、復旧用を含めるとき、これを既定にする）。インストーラーは、新規インストールのとき、設定フォルダ（`KASANE_DIR`）にこのファイルがあれば、取り込むファイルに選ぶ（画面ではチェック済みで表示。画面を出さないインストールでは自動で取り込む。`IMPORT_SETTINGS=0` で止める。`setup/Product.wxs` の `CA_FindRecoveryFile`）。
+  - インストール時の取り込み（`kasane.exe --install-import`）は、緊急解除（`Parameters\EmergencyRelease`）、i8042prt（`Parameters\I8042Override`。IOCTL と同じ形のバイト列）、共有範囲（`Parameters\DeviceBinding` の値。値名は UniqId の8桁の16進数）を、ドライバを介さずレジストリへ書く（`PersistedSettings.WriteEmergencyRelease` など）。トレイの設定とレイアウトは、トレイの起動時の取り込み（`kasane-import.json`）が、まだ無いものだけ戻す（tray.json が無いときだけ、レイアウトはその名前のファイルが無いものだけ）。
+  - 読み込み（エクスポート画面から）では、トレイの設定とレイアウトは管理者権限なしで戻る（トレイの設定は、ファイルにある項目だけ。レイアウトは、同じ名前のファイルがあれば上書きしない）。緊急解除・i8042prt・共有範囲は、管理者権限でドライバを開いているときだけ戻る（共有範囲は、接続中のキーボードのうち UniqId が同じものだけ）。
+
+入らないもの: `tray-state.json`・`tray-mapoff.json`・`tray-autooff.json`・`tray.log`、ライセンス。上の復旧用の設定は、選んだときだけ入る。
 
 ### 5.2 フォルダごとコピーする場合
 

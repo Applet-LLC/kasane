@@ -42,6 +42,7 @@ public sealed class ImportExportWindow : Window
     private readonly RadioButton _exLayer = new() { Name = "ExportScopeLayer", Content = Loc.T("レイヤー1枚(使っているマクロなども一緒に)", "One layer (with the macros it uses)"), GroupName = "ExScope", Margin = new Thickness(0, 2, 8, 2) };
     private readonly ComboBox _exLayerCombo = new() { Name = "ExportLayerCombo", Width = 80 };
     private readonly CheckBox _exHelper = new() { Name = "ExportHelperCheck", Content = Loc.T("ヘルパー設定(動作・トリガー・アプリ別レイヤー)を含める", "Include helper settings (actions, triggers, per-app layers)"), IsChecked = true, Margin = new Thickness(0, 8, 0, 0) };
+    private readonly CheckBox _exRecovery = new() { Name = "ExportRecoveryCheck", Content = Loc.T("復旧用の設定も含める(トレイの表示・色・言語、デスクトップ、緊急解除、i8042prt、共有範囲、自分で追加したレイアウト。同じパソコンへの復元向け)", "Include recovery settings (tray display/color/language, desktop, emergency release, i8042prt, sharing scopes, your own layouts; for restoring to this PC)"), Margin = new Thickness(0, 2, 0, 0) };
     private readonly CheckBox _exMeasured = new() { Name = "ExportMeasuredCheck", Content = Loc.T("実測したスキャンコードを含める(同じキーボードへのバックアップ用)", "Include measured scan codes (for backing up to the same keyboard)"), Margin = new Thickness(0, 2, 0, 0) };
     private readonly RadioButton _exFormatKasane = new() { Name = "ExportFormatKasane", Content = Loc.T("kasane の設定ファイル(*.kasane.json。レイヤー・マクロ・コンボなどすべて)", "kasane settings file (*.kasane.json; layers, macros, combos, and everything else)"), GroupName = "ExFormat", IsChecked = true, Margin = new Thickness(0, 2, 0, 2) };
     private readonly RadioButton _exFormatKeymapTool = new() { Name = "ExportFormatKeymapTool", Content = Loc.T("KeymapTool 用 JSON(keymap.json と profile.json。レイヤーとキャリブレーションだけを書き出し、マクロやコンボなどは含みません)", "JSON for KeymapTool (keymap.json and profile.json; writes only layers and calibration, not macros, combos, etc.)"), GroupName = "ExFormat", Margin = new Thickness(0, 2, 0, 2) };
@@ -70,6 +71,7 @@ public sealed class ImportExportWindow : Window
     private readonly CheckBox _imFeatures = Check("ImportFeaturesCheck", Loc.T("機能のON/OFF", "Feature on/off"));
     private readonly CheckBox _imNicola = Check("ImportNicolaCheck", Loc.T("NICOLA(親指シフト)", "NICOLA (thumb shift)"));
     private readonly CheckBox _imHelper = Check("ImportHelperCheck", Loc.T("ヘルパー設定(読み込むとすぐ helper.json に書かれます)", "Helper settings (written to helper.json as soon as you import)"));
+    private readonly CheckBox _imRecovery = Check("ImportRecoveryCheck", Loc.T("復旧用の設定(トレイの設定、緊急解除、i8042prt、共有範囲、レイアウト。緊急解除・i8042prt・共有範囲は、管理者権限のときだけ読み込みます)", "Recovery settings (tray settings, emergency release, i8042prt, sharing scopes, layouts; emergency release, i8042prt and sharing scopes are imported only with administrator rights)"));
     private readonly CheckBox _imMeasured = Check("ImportMeasuredCheck", Loc.T("実測したスキャンコード(同じレイアウトのときだけ)", "Measured scan codes (only for the same layout)"));
     private readonly StackPanel _imModeRow = new() { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
     private readonly RadioButton _imReplace = new() { Name = "ImportModeReplace", Content = Loc.T("置き換え", "Replace"), GroupName = "ImMode", IsChecked = true, Margin = new Thickness(0, 0, 16, 0) };
@@ -86,6 +88,7 @@ public sealed class ImportExportWindow : Window
     // クリア
     private readonly KbdLayerClient? _client;
     private readonly bool _canWriteDriver;
+    private readonly bool _clientWritable; // 管理者権限でドライバを開いている（キーボードが決まっていなくても、ドライバ全体の設定は書ける）
     private readonly RadioButton _clThis = new() { Name = "ClearScopeThis", GroupName = "ClScope", IsChecked = true, Margin = new Thickness(0, 2, 0, 2) };
     private readonly RadioButton _clAll = new() { Name = "ClearScopeAll", GroupName = "ClScope", Margin = new Thickness(0, 2, 0, 2) };
     private readonly RadioButton _clPick = new() { Name = "ClearScopePick", Content = Loc.T("選んだキーボード", "Selected keyboards"), GroupName = "ClScope", Margin = new Thickness(0, 2, 0, 2) };
@@ -129,6 +132,7 @@ public sealed class ImportExportWindow : Window
     {
         _client = client;
         _canWriteDriver = canWriteDriver && client != null && uniqId != 0;
+        _clientWritable = canWriteDriver && client != null;
         _project = project;
         _layout = layout;
         _uniqId = uniqId;
@@ -241,6 +245,9 @@ public sealed class ImportExportWindow : Window
                             "For backups or moving settings to another PC, use the kasane settings file.")));
         p.Children.Add(_exHelper);
         p.Children.Add(_exMeasured);
+        p.Children.Add(_exRecovery);
+        p.Children.Add(Help(Loc.T("復旧用の設定は、「全体一括」のときだけ選べます。レイヤーだけ・このキーボードだけの書き出し(他の人に渡すもの)には入れません。",
+                                  "Recovery settings can be selected only for \"All keyboards\". They are never included in a one-layer or one-keyboard export (the kind you hand to other people).")));
 
         (startScope switch { PortableScope.All => _exAll, PortableScope.Layer => _exLayer, _ => _exKeyboard }).IsChecked = true;
         _exLayerCombo.IsEnabled = _exLayer.IsChecked == true; // レイヤー1枚のときだけ選べる
@@ -269,6 +276,8 @@ public sealed class ImportExportWindow : Window
         _exFormatKasane.IsEnabled = _exFormatKeymapTool.IsEnabled = keyboard;
         bool kasane = !keyboard || _exFormatKasane.IsChecked == true;
         _exHelper.IsEnabled = _exMeasured.IsEnabled = kasane;
+        _exRecovery.IsEnabled = _exAll.IsChecked == true;
+        if (!_exRecovery.IsEnabled) _exRecovery.IsChecked = false;
     }
 
     // 書き出したファイルを選んだ状態で、エクスプローラーを開く（フォルダなら、そのフォルダを開く）。
@@ -333,6 +342,9 @@ public sealed class ImportExportWindow : Window
         }
     }
 
+    /// <summary>復旧用の設定を含めるときの、既定のファイル名。インストーラーが、設定フォルダでこの名前を探す（setup/Product.wxs の CA_FindRecoveryFile）。</summary>
+    public const string RecoveryFileName = "kasane-recovery.kasane.json";
+
     private PortableScope ExportScope => _exAll.IsChecked == true ? PortableScope.All : _exLayer.IsChecked == true ? PortableScope.Layer : PortableScope.Keyboard;
 
     private void DoExport()
@@ -345,20 +357,25 @@ public sealed class ImportExportWindow : Window
         {
             if (scope == PortableScope.All && !ConfirmSavedForAll(Loc.T("全体一括の書き出し", "Exporting everything"))) return;
 
+            // 復旧用の設定を含めるときは、設定フォルダの kasane-recovery.kasane.json を既定にする（インストーラーが、再インストールのときに見つけて取り込む）。
+            // 前回使ったフォルダを覚える ClientGuid は、この場合は付けない（付けると、前回のフォルダが優先される）。
+            bool recoveryFile = scope == PortableScope.All && _exRecovery.IsChecked == true;
             var dlg = new SaveFileDialog
             {
                 Title = Loc.T("書き出し先", "Export To"),
                 InitialDirectory = DialogDefaults.DataFolder,
-                ClientGuid = DialogDefaults.SettingsExport,
                 Filter = Loc.T("kasane の設定 (*.kasane.json)|*.kasane.json|すべてのファイル|*.*", "kasane settings (*.kasane.json)|*.kasane.json|All files|*.*"),
-                FileName = FileNameFor(scope, _uniqId),
+                FileName = recoveryFile ? RecoveryFileName : FileNameFor(scope, _uniqId),
                 OverwritePrompt = true,
             };
+            if (!recoveryFile) dlg.ClientGuid = DialogDefaults.SettingsExport;
             if (dlg.ShowDialog(this) != true) return;
 
             PortableFile file;
             if (scope == PortableScope.All)
             {
+                if (_exRecovery.IsChecked == true)
+                    options.Recovery = RecoveryExporter.Collect(_client != null ? new ClientRecoveryDriver(_client) : null, _devices.Select(d => d.UniqId), null, report);
                 file = PortableService.ExportAll(null, options, report);
             }
             else
@@ -574,7 +591,7 @@ public sealed class ImportExportWindow : Window
         p.Children.Add(_imSourceRow);
         p.Children.Add(_imMapPanel);
 
-        foreach (var c in new[] { _imLayers, _imMacros, _imCombos, _imTapDances, _imKeyOverrides, _imTiming, _imFeatures, _imNicola, _imHelper, _imMeasured })
+        foreach (var c in new[] { _imLayers, _imMacros, _imCombos, _imTapDances, _imKeyOverrides, _imTiming, _imFeatures, _imNicola, _imHelper, _imMeasured, _imRecovery })
             _imOptions.Children.Add(c);
         _imMeasured.IsChecked = false;
         p.Children.Add(new TextBlock { Text = Loc.T("読み込む項目:", "Items to import:"), FontWeight = FontWeights.SemiBold });
@@ -764,6 +781,12 @@ public sealed class ImportExportWindow : Window
         if (!helperAvail) _imHelper.IsChecked = false;
         else if (!_imHelper.IsEnabled) _imHelper.IsChecked = true;
         _imHelper.IsEnabled = helperAvail;
+
+        // 復旧用の設定は、全体一括のファイルに入っているときだけ。
+        bool recoveryAvail = all && file.Recovery != null;
+        if (!recoveryAvail) _imRecovery.IsChecked = false;
+        else if (!_imRecovery.IsEnabled) _imRecovery.IsChecked = true;
+        _imRecovery.IsEnabled = recoveryAvail;
     }
 
     private ImportOptions BuildOptions()
@@ -791,6 +814,7 @@ public sealed class ImportExportWindow : Window
             Nicola = _imNicola.IsEnabled && _imNicola.IsChecked == true,
             Helper = _imHelper.IsEnabled && _imHelper.IsChecked == true,
             MeasuredScanCodes = _imMeasured.IsEnabled && _imMeasured.IsChecked == true,
+            Recovery = _imRecovery.IsEnabled && _imRecovery.IsChecked == true,
             Mode = _imAppend.IsChecked == true ? ImportMode.Append : ImportMode.Replace,
         };
     }
@@ -846,6 +870,20 @@ public sealed class ImportExportWindow : Window
         ShowReport(_imReport, res.Report, Loc.T("読み込みました。「閉じる」で編集画面に戻ります。保存と「キーボードに適用」はこのあと行ってください。", "Imported. Click \"Close\" to return to the editor, then save and use \"Apply to keyboard\"."));
     }
 
+    // 復旧用の設定のうち、ドライバに入れるもの（緊急解除、i8042prt、共有範囲）。管理者権限でドライバを開いているときだけ。
+    private void ApplyRecoveryToDriver(PortableRecovery recovery, PortableReport report)
+    {
+        bool hasDriverItems = recovery.EmergencyRelease != null || recovery.I8042 != null || recovery.DeviceScopes is { Count: > 0 };
+        if (!hasDriverItems) return;
+        if (!_clientWritable || _client == null)
+        {
+            report.Warn(Loc.T("緊急解除・i8042prt・共有範囲は、管理者権限でドライバを開いていないため、読み込めませんでした。「管理者として再起動」してから、もう一度読み込んでください。",
+                              "Emergency release, i8042prt and sharing scopes were not imported because the driver is not open with administrator rights. Restart as administrator and import again."));
+            return;
+        }
+        RecoveryImporter.ApplyDriver(recovery, new ClientRecoveryDriver(_client), _devices.Select(d => d.UniqId).ToList(), report);
+    }
+
     private void RunAll(ImportOptions o)
     {
         var maps = _mapCombos.Select((c, i) => new PortableService.Mapping(i, (c.SelectedItem as Target)?.Id)).ToList();
@@ -855,6 +893,10 @@ public sealed class ImportExportWindow : Window
             return;
         }
         if (!ConfirmSavedForAll(Loc.T("全体一括の読み込み", "Importing everything"))) return;
+        if (o.Recovery && MessageBox.Show(this,
+                Loc.T("復旧用の設定(トレイの設定、緊急解除、i8042prt、共有範囲、レイアウト)も読み込みます。\n緊急解除・i8042prt・共有範囲は、ドライバ全体の設定で、今の内容が置き換わります(管理者権限のときだけ)。続けますか？",
+                      "The recovery settings (tray settings, emergency release, i8042prt, sharing scopes, layouts) will also be imported.\nEmergency release, i8042prt and sharing scopes are driver-wide settings, and the current values will be replaced (administrator rights only). Continue?"),
+                Title, MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
         var ask = MessageBox.Show(this,
             Loc.T(
                 "選んだキーボードの保存先の設定を、ファイルの内容で" + (o.Mode == ImportMode.Replace ? "置き換えます" : "追加します") + "。\n" +
@@ -867,6 +909,7 @@ public sealed class ImportExportWindow : Window
 
         var report = new PortableReport();
         var changed = PortableService.ImportAll(_file!, maps, o, null, report);
+        if (o.Recovery && _file!.Recovery is { } recovery) ApplyRecoveryToDriver(recovery, report);
         if (_uniqId != 0 && changed.Contains(_uniqId)) CurrentChangedOnDisk = true;
         ShowReport(_imReport, report,
             report.HasErrors && changed.Count == 0 ? Loc.T("読み込めませんでした。", "Could not import.")

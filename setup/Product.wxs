@@ -184,7 +184,9 @@
         </Control>
         <Control Id="Next" Type="PushButton" X="248" Y="243" Width="56" Height="17" Text="!(loc.WixUINext)">
           <Publish Event="DoAction" Value="CA_NormalizeKasaneDir" Order="1">1</Publish>
-          <Publish Event="NewDialog" Value="ImportSettingsDlg" Order="2">1</Publish>
+          <!-- 設定フォルダに kasane-recovery.kasane.json があれば、次の画面で取り込むファイルとして選んでおく（新規インストールのときだけ）。 -->
+          <Publish Event="DoAction" Value="CA_FindRecoveryFile" Order="2"><![CDATA[NOT Installed AND NOT WIX_UPGRADE_DETECTED]]></Publish>
+          <Publish Event="NewDialog" Value="ImportSettingsDlg" Order="3">1</Publish>
         </Control>
         <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
           <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
@@ -211,6 +213,9 @@
           <Condition Action="enable">IMPORT_SETTINGS</Condition>
         </Control>
         <Control Id="ImportHint" Type="Text" X="40" Y="178" Width="315" Height="30" Text="!(loc.ImportSettingsDlg_Hint)" />
+        <Control Id="RecoveryFoundNote" Type="Text" X="40" Y="208" Width="315" Height="24" Text="!(loc.ImportSettingsDlg_RecoveryFound)">
+          <Condition Action="hide"><![CDATA[NOT RECOVERY_FILE_FOUND]]></Condition>
+        </Control>
 
         <Control Id="Back" Type="PushButton" X="192" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)">
           <Publish Event="NewDialog" Value="DataDirDlg">1</Publish>
@@ -657,6 +662,24 @@ End If
       KASANE_DIR の前後の空白と二重引用符を外す。エクスプローラーの「パスのコピー」で貼ると "D:\kasane-data" のように引用符が付き、そのまま環境変数 KASANE に入ると、
       %KASANE% を使う他のツールやバッチで、引用符つきのパスになってしまうため。レジストリから読んだ既存の値（引用符つきで入っていたもの）も、画面に出す前に直す。
     -->
+    <!--
+      復旧用のファイルの自動検出。設定フォルダ（KASANE_DIR）に kasane-recovery.kasane.json があり、取り込むファイルがまだ指定されていなければ、
+      それを取り込むファイルにして、取り込みをオンにする（IMPORT_SETTINGS=0 が明示されているときは何もしない）。見つけたら RECOVERY_FILE_FOUND=1（画面の注記用）。
+      kasane の「エクスポート」は、復旧用の設定を含めるとき、このファイル名を既定にする。設定フォルダはアンインストールで消えないので、再インストールで見つかる。
+      新規インストールのときだけ（更新・修復では、古いファイルで今の設定を置き換えないよう、探さない）。
+    -->
+    <CustomAction Id="CA_FindRecoveryFile" Script="vbscript" Execute="immediate" Return="ignore"><![CDATA[
+d = Session.Property("KASANE_DIR")
+If d <> "" And Session.Property("IMPORT_SETTINGS") <> "0" And Session.Property("IMPORT_SETTINGS_FILE") = "" Then
+  If Right(d, 1) <> "\" Then d = d & "\"
+  f = d & "kasane-recovery.kasane.json"
+  If CreateObject("Scripting.FileSystemObject").FileExists(f) Then
+    Session.Property("IMPORT_SETTINGS_FILE") = f
+    Session.Property("IMPORT_SETTINGS") = "1"
+    Session.Property("RECOVERY_FILE_FOUND") = "1"
+  End If
+End If
+]]></CustomAction>
     <CustomAction Id="CA_NormalizeKasaneDir" Script="vbscript" Execute="immediate" Return="ignore"><![CDATA[Session.Property("KASANE_DIR")=Trim(Replace(Session.Property("KASANE_DIR"),Chr(34),""))]]></CustomAction>
     <CustomAction Id="CA_CheckImportFile" Script="vbscript" Execute="immediate" Return="ignore"><![CDATA[p=Replace(Session.Property("IMPORT_SETTINGS_FILE"),Chr(34),""):Session.Property("IMPORT_SETTINGS_FILE")=p:Session.Property("IMPORT_FILE_OK")="":If CreateObject("Scripting.FileSystemObject").FileExists(p) Then Session.Property("IMPORT_FILE_OK")="1"]]></CustomAction>
 
@@ -773,6 +796,8 @@ End If
     <InstallExecuteSequence>
       <!-- サイレントインストール（KASANE_DIR="D:\kasane-data" のように引用符つきで渡された場合）と、更新で読んだ既存の値も、コストの計算（環境変数のコンポーネントの条件）の前に直す。 -->
       <Custom Action="CA_NormalizeKasaneDir" Before="CostInitialize" />
+      <!-- 画面を出さないインストール（/qn・/qb）でも、設定フォルダの復旧用のファイルを見つけたら取り込む（新規インストールのときだけ。止めるには IMPORT_SETTINGS=0）。 -->
+      <Custom Action="CA_FindRecoveryFile" After="CA_NormalizeKasaneDir"><![CDATA[UILevel < 4 AND NOT Installed AND NOT WIX_UPGRADE_DETECTED AND NOT REMOVE~="ALL"]]></Custom>
       <?if $(var.Edition) = "Pro" ?>
       <!-- キーの確認は、新規インストールのときだけ。Pro の更新（WIX_UPGRADE_DETECTED）・修復では、もう一度は聞かない。WriteRegistryValues の後（一時レジストリ値が書かれたあと）。 -->
       <Custom Action="CA_VerifyLicense" After="WriteRegistryValues"><![CDATA[NOT Installed AND NOT REMOVE~="ALL" AND NOT WIX_UPGRADE_DETECTED]]></Custom>

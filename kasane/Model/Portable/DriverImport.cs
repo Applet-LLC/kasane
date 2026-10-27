@@ -87,6 +87,40 @@ public static class DriverImport
                 skipped++;
             }
         }
+
+        if (file.Recovery != null) skipped += ApplyRecovery(file.Recovery, store, report);
         return new Result(written, backedUp, skipped);
+    }
+
+    /// <summary>
+    /// 復旧用の設定のうち、ドライバのレジストリに入れるもの（緊急解除、i8042prt、キーボードごとの共有範囲）を書く。
+    /// トレイの設定とレイアウトは、起動時の取り込み（<see cref="PendingImport"/>）が戻す。書けなかった項目の数を返す。
+    /// 共有範囲は、キーボードが接続されていなくても書く（UniqId が同じ差し込み口に戻したときに効く）。
+    /// </summary>
+    public static int ApplyRecovery(PortableRecovery recovery, PersistedSettings store, PortableReport report)
+    {
+        int failed = 0;
+        void Try(string what, Action write)
+        {
+            try { write(); report.Info(Loc.T($"{what}を書きました", $"Wrote {what}")); }
+            catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or IOException or UnauthorizedAccessException or System.Security.SecurityException)
+            {
+                report.Error(Loc.T($"{what}を書けませんでした({ex.Message})", $"Could not write {what} ({ex.Message})"));
+                failed++;
+            }
+        }
+
+        if (recovery.EmergencyRelease is { } keys) Try(Loc.T("緊急解除の組み合わせ", "the emergency release combination"), () => store.WriteEmergencyRelease(keys));
+        if (recovery.I8042 is { } i)
+        {
+            var profiles = i.Profiles.Select(p => new Kasane.Interop.I8042Profile(p.ModelKey, p.Type, p.Subtype, p.Identifier, p.LayerJpn, p.LayerKor)).ToList();
+            Try(Loc.T("i8042prt の設定", "the i8042prt settings"), () => store.WriteI8042Config(new Kasane.Interop.I8042Config(i.Enabled, profiles)));
+        }
+        foreach (var s in recovery.DeviceScopes ?? new())
+        {
+            if (PortableKeyboard.ParseUniqId(s.UniqId) is not uint id) continue;
+            Try(Loc.T($"{id:X8} の共有範囲", $"the sharing scope of {id:X8}"), () => store.WriteDeviceBinding(id, s.Binding));
+        }
+        return failed;
     }
 }

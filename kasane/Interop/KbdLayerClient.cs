@@ -551,11 +551,18 @@ public sealed partial class KbdLayerClient : IDisposable
     }
 
     /// <summary>全体置換。不正な入力（文字・長さ・重複・個数）はドライバが拒否し、設定は変わらない。</summary>
-    public void SetI8042Config(I8042Config config)
+    public void SetI8042Config(I8042Config config) =>
+        Ioctl(Loc.T("i8042prt設定の書き込み", "Writing the i8042prt settings"), IOCTL_SET_I8042_CONFIG, SerializeI8042Config(config), 0);
+
+    /// <summary>
+    /// i8042prt の設定のバイト列（KBDLAYER_I8042_CONFIG。IOCTL の入力と、レジストリの Parameters\I8042Override の値は同じ形で、常にこのサイズ全体）。
+    /// インストール時に、ドライバを介さずレジストリへ書くときにも使う（<see cref="PersistedSettings.WriteI8042Config"/>）。
+    /// </summary>
+    public static byte[] SerializeI8042Config(I8042Config config)
     {
         if (config.Profiles.Count > I8042MaxProfiles)
             throw new ArgumentException(Loc.T($"プロファイルは{I8042MaxProfiles}個までです。", $"A maximum of {I8042MaxProfiles} profiles is allowed."), nameof(config));
-        Ioctl(Loc.T("i8042prt設定の書き込み", "Writing the i8042prt settings"), IOCTL_SET_I8042_CONFIG, Build(w =>
+        return Build(w =>
         {
             w.Write(config.Enabled ? 1u : 0u);
             w.Write((uint)config.Profiles.Count);
@@ -582,7 +589,7 @@ public sealed partial class KbdLayerClient : IDisposable
                     w.Write(buf);
                 }
             }
-        }), 0);
+        });
     }
 
     // --- NICOLA（キーボードごと。blob = KBDLAYER_NICOLA_HEADER + KBDLAYER_NICOLA_KEY_ENTRY[]） ---

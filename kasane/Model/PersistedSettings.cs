@@ -224,6 +224,62 @@ public sealed class PersistedSettings
         return backedUp;
     }
 
+    // ------------------------------------------------------------------
+    // ドライバ全体の設定（復旧用）。Parameters の直下に、ドライバが書くのと同じ形で書く。
+    // ------------------------------------------------------------------
+
+    private string ParametersPath
+    {
+        get
+        {
+            int i = _layerMapsPath.LastIndexOf('\\');
+            return i < 0 ? _layerMapsPath : _layerMapsPath[..i];
+        }
+    }
+
+    /// <summary>
+    /// 緊急解除の組み合わせ（Parameters\EmergencyRelease の EmergencyReleaseKeyCount と EmergencyReleaseScanCodes）。
+    /// ドライバの検証と同じく、2〜6個で、重複なし（ドライバは、合わない値を読むと、既定の組み合わせに戻す）。
+    /// </summary>
+    public void WriteEmergencyRelease(IReadOnlyList<ushort> scanCodes)
+    {
+        if (scanCodes.Count < KbdLayerClient.EmergencyMinKeys || scanCodes.Count > KbdLayerClient.EmergencyMaxKeys)
+            throw new InvalidOperationException(Loc.T($"緊急解除のキーは{KbdLayerClient.EmergencyMinKeys}〜{KbdLayerClient.EmergencyMaxKeys}個です", $"The emergency release needs {KbdLayerClient.EmergencyMinKeys} to {KbdLayerClient.EmergencyMaxKeys} keys"));
+        if (scanCodes.Distinct().Count() != scanCodes.Count)
+            throw new InvalidOperationException(Loc.T("緊急解除のキーが重複しています", "The emergency release keys contain duplicates"));
+        var bytes = new byte[scanCodes.Count * sizeof(ushort)];
+        for (int i = 0; i < scanCodes.Count; i++) BitConverter.GetBytes(scanCodes[i]).CopyTo(bytes, i * sizeof(ushort));
+        using var key = _hive.CreateSubKey($@"{ParametersPath}\EmergencyRelease", writable: true)
+                        ?? throw new IOException(Loc.T("レジストリキー EmergencyRelease を作れません", "Cannot create registry key EmergencyRelease"));
+        key.SetValue("EmergencyReleaseKeyCount", scanCodes.Count, RegistryValueKind.DWord);
+        key.SetValue("EmergencyReleaseScanCodes", bytes, RegistryValueKind.Binary);
+    }
+
+    /// <summary>i8042prt の設定（Parameters\I8042Override。バイト列は <see cref="KbdLayerClient.SerializeI8042Config"/>）。</summary>
+    public void WriteI8042Config(I8042Config config)
+    {
+        if (config.Profiles.Any(p => p.ModelKey == 0))
+            throw new InvalidOperationException(Loc.T("i8042prt のプロファイルの ModelKey に 0 は使えません", "ModelKey 0 cannot be used in an i8042prt profile"));
+        if (config.Profiles.Select(p => p.ModelKey).Distinct().Count() != config.Profiles.Count)
+            throw new InvalidOperationException(Loc.T("i8042prt のプロファイルの ModelKey が重複しています", "The i8042prt profiles contain a duplicate ModelKey"));
+        if (config.Profiles.Any(p => new[] { p.Identifier, p.LayerJpn, p.LayerKor }.Any(s => s != null && s.Length >= KbdLayerClient.I8042StrChars)))
+            throw new InvalidOperationException(Loc.T($"i8042prt の文字列は{KbdLayerClient.I8042StrChars - 1}文字までです", $"i8042prt strings are limited to {KbdLayerClient.I8042StrChars - 1} characters"));
+        byte[] bytes = KbdLayerClient.SerializeI8042Config(config); // 先に作って検証する
+        using var key = _hive.CreateSubKey(ParametersPath, writable: true)
+                        ?? throw new IOException(Loc.T("レジストリキー Parameters を作れません", "Cannot create registry key Parameters"));
+        key.SetValue("I8042Override", bytes, RegistryValueKind.Binary);
+    }
+
+    /// <summary>キーボード（InstanceKey = UniqId）ごとの共有範囲（Parameters\DeviceBinding の値。値名は InstanceKey の8桁の16進数）。</summary>
+    public void WriteDeviceBinding(uint instanceKey, uint binding)
+    {
+        if (instanceKey == 0 || binding > KbdLayerClient.BindingGlobal)
+            throw new InvalidOperationException(Loc.T("共有範囲の値が不正です", "Invalid sharing scope value"));
+        using var key = _hive.CreateSubKey($@"{ParametersPath}\DeviceBinding", writable: true)
+                        ?? throw new IOException(Loc.T("レジストリキー DeviceBinding を作れません", "Cannot create registry key DeviceBinding"));
+        key.SetValue(instanceKey.ToString("X8"), (int)binding, RegistryValueKind.DWord);
+    }
+
     /// <summary>
     /// 退避（.bak）と本体を入れ替える。もう一度呼べば、元に戻る。退避が無ければ false。
     /// ドライバは、キーボードが接続されたときに読むので、反映にはキーボードの接続し直し（または再起動）が要る。

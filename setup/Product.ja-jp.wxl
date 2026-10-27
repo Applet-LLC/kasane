@@ -30,6 +30,7 @@
   <String Id="ImportSettingsDlg_Check">設定ファイルを取り込む</String>
   <String Id="ImportSettingsDlg_Label">設定ファイル（フルパス）:</String>
   <String Id="ImportSettingsDlg_Hint">マウスの右クリックは利用できないので、キーボードを使用して、Ctrl+Vで貼り付けてください。</String>
+  <String Id="ImportSettingsDlg_RecoveryFound">設定フォルダにあった復旧用のファイル（kasane-recovery.kasane.json）を選びました。取り込まないときは、チェックを外してください。</String>
   <String Id="ImportFileMissingDlg_Title">設定ファイルが見つかりません</String>
   <String Id="ImportFileMissingDlg_Text">指定した設定ファイルが見つかりません。パスを確かめるか、「設定ファイルを取り込む」のチェックを外してください。</String>
 </WixLocalization>
