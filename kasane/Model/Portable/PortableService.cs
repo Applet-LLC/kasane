@@ -87,6 +87,7 @@ public static class PortableService
             Helper = options.IncludeHelper && tray.Helper != null && PortableExporter.HasContent(tray.Helper)
                 ? PortableExporter.CloneHelper(tray.Helper) : null,
         };
+        file.Recovery = options.Recovery;
         report.Info(Loc.T($"キーボード{file.Keyboards.Count}台を書き出しました", $"Exported {file.Keyboards.Count} keyboard(s)"));
         return file;
     }
@@ -213,6 +214,8 @@ public static class PortableService
                 report.Error(Loc.T($"トレイの設定を保存できませんでした({ex.Message})", $"Could not save the tray settings ({ex.Message})"));
             }
         }
+        // 復旧用の設定のうち、ファイルに書くもの（トレイの設定、利用者のレイアウト）。ドライバに入れるものは、呼び出し側が RecoveryImporter.ApplyDriver で戻す。
+        if (o.Recovery && file.Recovery != null) RecoveryImporter.ApplyFiles(file.Recovery, baseDirectory, report);
         return changed;
     }
 
@@ -220,6 +223,6 @@ public static class PortableService
     {
         Layers = o.Layers, Macros = o.Macros, Combos = o.Combos, TapDances = o.TapDances, KeyOverrides = o.KeyOverrides,
         Timing = o.Timing, Features = o.Features, Nicola = o.Nicola, Helper = o.Helper, MeasuredScanCodes = o.MeasuredScanCodes,
-        Mode = o.Mode, TargetLayer = o.TargetLayer,
+        Recovery = o.Recovery, Mode = o.Mode, TargetLayer = o.TargetLayer,
     };
 }

@@ -27,6 +27,8 @@ public sealed class PortableFile
     public List<PortableKeyboard> Keyboards { get; set; } = new();
     /// <summary>トレイの設定（全体一括のときだけ）。</summary>
     public PortableTray? Tray { get; set; }
+    /// <summary>復旧用の設定（全体一括で、利用者が選んだときだけ。同じ PC への復元向け）。無ければ null。</summary>
+    public PortableRecovery? Recovery { get; set; }
 
     [JsonIgnore]
     public PortableScope? ParsedScope =>
@@ -38,6 +40,66 @@ public sealed class PortableTray
     public bool? ImeLink { get; set; }
     /// <summary>全キーボード共通のヘルパー設定。</summary>
     public HelperConfig? Helper { get; set; }
+}
+
+/// <summary>
+/// 復旧用の設定。ふだんのエクスポートには入らない設定（トレイの表示まわり、ドライバ全体の設定、利用者のレイアウト）を、
+/// 同じ PC への復元のために、全体一括に加える。レイヤーだけ・このキーボードだけのエクスポート（他の人に渡す用）には入れない。
+/// 項目が null のものは「ファイルに含まれていない」（読み込み時に触らない）。
+/// </summary>
+public sealed class PortableRecovery
+{
+    /// <summary>トレイの設定のうち、IME 連動と共通のヘルパー設定（<see cref="PortableTray"/>）以外。</summary>
+    public PortableTraySettings? TraySettings { get; set; }
+    /// <summary>緊急解除の組み合わせ（スキャンコード。ドライバ全体で1つ）。</summary>
+    public List<ushort>? EmergencyRelease { get; set; }
+    public PortableI8042? I8042 { get; set; }
+    /// <summary>キーボードごとの共有範囲（0 = 同じ型番で共有、1 = この1台だけ、2 = すべてのキーボードで共有）。</summary>
+    public List<PortableDeviceScope>? DeviceScopes { get; set; }
+    /// <summary>利用者が「KLEから追加」で保存したレイアウト（同梱のものは含めない）。</summary>
+    public List<PortableUserLayout>? Layouts { get; set; }
+}
+
+public sealed class PortableTraySettings
+{
+    public string? ImeSource { get; set; }
+    public string? ColorMode { get; set; }
+    public string? UiLanguage { get; set; }
+    public bool? ShowLayerOnIcon { get; set; }
+    public bool? RemapOnlyWhileTrayRuns { get; set; }
+    /// <summary>デスクトップのアイコンの表示方法（0〜4）。null は「変えない」。</summary>
+    public int? DesktopViewMode { get; set; }
+}
+
+public sealed class PortableI8042
+{
+    public bool Enabled { get; set; }
+    public List<PortableI8042Profile> Profiles { get; set; } = new();
+}
+
+public sealed class PortableI8042Profile
+{
+    public uint ModelKey { get; set; }
+    public uint? Type { get; set; }
+    public uint? Subtype { get; set; }
+    public string? Identifier { get; set; }
+    public string? LayerJpn { get; set; }
+    public string? LayerKor { get; set; }
+}
+
+public sealed class PortableDeviceScope
+{
+    /// <summary>"0xCDEC0000"（<see cref="PortableKeyboard.UniqId"/> と同じ形）。</summary>
+    public string? UniqId { get; set; }
+    public uint Binding { get; set; }
+}
+
+public sealed class PortableUserLayout
+{
+    /// <summary>レイアウトの名前（ファイル名から「kle-」と「.json」を除いたもの）。</summary>
+    public string Name { get; set; } = "";
+    /// <summary>レイアウトのファイルの中身（KLE の JSON）。</summary>
+    public string Json { get; set; } = "";
 }
 
 public sealed class PortableLayer
@@ -148,7 +210,7 @@ public static class PortableIO
             }
             if (f.ParsedScope == null) { error = Loc.T($"Scope「{f.Scope}」は All / Keyboard / Layer のいずれかにしてください", $"Scope \"{f.Scope}\" must be one of All / Keyboard / Layer"); return false; }
             f.Keyboards ??= new();
-            if (f.Keyboards.Count == 0) { error = Loc.T("キーボードの設定が入っていません", "The file contains no keyboard settings"); return false; }
+            if (f.Keyboards.Count == 0 && f.Recovery == null) { error = Loc.T("キーボードの設定が入っていません", "The file contains no keyboard settings"); return false; }
             if (f.Keyboards.Any(k => k == null)) { error = Loc.T("Keyboards に空の項目があります", "Keyboards contains an empty entry"); return false; }
             file = f;
             return true;
