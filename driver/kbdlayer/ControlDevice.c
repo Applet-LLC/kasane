@@ -9,6 +9,7 @@
 #include "LayerEngine.h"
 #include "ControlDevice.h"
 #include "I8042Override.h"
+#include "License.h"
 #include "..\\common\\kbdlayer_ioctl.h"
 
 #ifndef DBG
@@ -155,13 +156,17 @@ HandleListDevices(
     PDEVICE_EXTENSION devExt;
     PKBDLAYER_LIST_DEVICES_OUTPUT out = (PKBDLAYER_LIST_DEVICES_OUTPUT)SystemBuffer;
 
+    // ライセンスが実効でない間は、キーボードを列挙しない（DeviceCount 0）。数える走査と詰める走査で
+    // 結果が食い違わないよう（バッファの大きさは数えた結果で決まる）、判定は1回だけ行う。
+    BOOLEAN licensed = LicenseIsEffective();
+
     *BytesReturned = 0;
 
     KeAcquireSpinLock(&g_listLock, &oldIrql);
 
     for (entry = g_deviceList.Flink; entry != &g_deviceList; entry = entry->Flink) {
         devExt = CONTAINING_RECORD(entry, DEVICE_EXTENSION, ListEntry);
-        if (devExt->DeviceId != 0) {
+        if (licensed && devExt->DeviceId != 0) {
             count++;
         }
     }
@@ -182,7 +187,7 @@ HandleListDevices(
 
         for (entry = g_deviceList.Flink; entry != &g_deviceList; entry = entry->Flink) {
             devExt = CONTAINING_RECORD(entry, DEVICE_EXTENSION, ListEntry);
-            if (devExt->DeviceId == 0) {
+            if (!licensed || devExt->DeviceId == 0) {
                 continue;
             }
             infoArray[i].UniqId = devExt->DeviceId;
@@ -1413,6 +1418,44 @@ HandleWaitKeyEvent(
     return StartWaitKeyEvent(Irp, lastSeq);
 }
 
+// ライセンスの再検証（REVALIDATE_LICENSE。管理者・SYSTEMのみ: IOCTLコードがFILE_WRITE_ACCESS）。
+// 入力はMode、出力は再検証の後の状態。同期で検証する（PASSIVE_LEVEL。数ミリ秒）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleRevalidateLicense(
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    ULONG outputLen = IrpSp->Parameters.DeviceIoControl.OutputBufferLength;
+    ULONG mode;
+    ULONG state = 0;
+    NTSTATUS status;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_REVALIDATE_LICENSE_INPUT)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    if (outputLen < sizeof(KBDLAYER_REVALIDATE_LICENSE_OUTPUT)) {
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+
+    // METHOD_BUFFERED: 出力は同じバッファに書くので、入力を先に読んでおく。
+    mode = ((PKBDLAYER_REVALIDATE_LICENSE_INPUT)SystemBuffer)->Mode;
+
+    status = LicenseRevalidate(mode, &state);
+    if (!NT_SUCCESS(status)) {
+        return status;
+    }
+
+    ((PKBDLAYER_REVALIDATE_LICENSE_OUTPUT)SystemBuffer)->State = state;
+    *BytesReturned = sizeof(KBDLAYER_REVALIDATE_LICENSE_OUTPUT);
+    return STATUS_SUCCESS;
+}
+
 NTSTATUS
 DispatchControlIoctl(
     IN PDEVICE_OBJECT DeviceObject,
@@ -1543,6 +1586,9 @@ DispatchControlIoctl(
         break;
     case IOCTL_KBDLAYER_SET_I8042_CONFIG:
         status = HandleSetI8042Config(irpSp, systemBuffer, &bytesReturned);
+        break;
+    case IOCTL_KBDLAYER_REVALIDATE_LICENSE:
+        status = HandleRevalidateLicense(irpSp, systemBuffer, &bytesReturned);
         break;
     default:
         status = STATUS_INVALID_DEVICE_REQUEST;

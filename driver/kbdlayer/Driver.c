@@ -24,6 +24,7 @@
 #include "LayerEngine.h"
 #include "I8042Override.h"
 #include "ControlDevice.h"
+#include "License.h"
 #include "token.h"
 
 #ifndef DBG
@@ -103,8 +104,12 @@ FindDeviceExtensionByUniqId(
     PDEVICE_EXTENSION found = NULL;
 
     if (UniqId == 0) {
-        // DeviceId=0は「未識別（Licenseが無効等）」を表す特別値であり、
-        // 有効な操作対象にはなり得ない。
+        // DeviceId=0は「未識別」を表す特別値であり、有効な操作対象にはなり得ない。
+        return NULL;
+    }
+    if (!LicenseIsEffective()) {
+        // ライセンスが実効でない間は、DeviceIdがあっても操作対象にしない
+        // （IOCTLでレイヤーマップ等を設定できてしまうのを防ぐ）。
         return NULL;
     }
 
@@ -159,6 +164,10 @@ NTSTATUS DriverEntry(IN PDRIVER_OBJECT DriverObject, IN PUNICODE_STRING Registry
         // 自体を設定できないので、その場合は不要（IOCTLハンドラも呼ばれない）。
         InitializeEmergencyReleaseGlobal(g_ControlDeviceObject);
     }
+
+    // ライセンスの状態と再検証（License.c）。制御デバイスが無ければ再検証はできず、
+    // 暫定有効は期限で自動的に無効になる。
+    InitializeLicense(g_ControlDeviceObject);
 
     return STATUS_SUCCESS;
 }
@@ -228,39 +237,10 @@ NTSTATUS AddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT PhysicalDev
     // LoadPersistedLayerMapForDeviceが上書きする。
     devExt->EnabledFeatures = KBDLAYER_FEATURE_ALL;
 
-#ifdef KBDLAYER_PRO
-    // 買い切り版(kasane Pro)。キーの確認はインストール時に済んでいる（インストーラーが
-    // Gumroadに照会する）ので、ドライバはトークンを読まず、常にライセンス有効とする。
-    // token.cも、この構成ではビルドに含めない（公開鍵も載らない）。
-    devExt->License = 1UL;
-#else
-    // LicenseTokenをECDSA検証してライセンス状態を決定（PASSIVE_LEVEL）
-    {
-        WCHAR tokenBuf[512] = {0};
-        RegReadServiceString(L"kbdlayer", L"LicenseToken", tokenBuf, RTL_NUMBER_OF(tokenBuf));
-        devExt->License = (tokenBuf[0] != 0 && ValidateLicenseToken(tokenBuf)) ? 1UL : 0UL;
-        KBDLAYER_TRACE("AddDevice: token validation result License=%lu\n", devExt->License);
-    }
-#endif
-
-    // License無効ならDeviceIdを0に設定して残りの処理をスキップ
-    if (devExt->License == 0) {
-        devExt->DeviceId = 0;
-        KBDLAYER_TRACE("AddDevice: License=0 (disabled); DeviceId=0 for PDO=0x%p\n", PhysicalDeviceObject);
-        KdPrint(("kbdlayer: License disabled; set DeviceId=0 and skip identification\n"));
-
-        KIRQL oldIrql;
-        KeAcquireSpinLock(&g_listLock, &oldIrql);
-        InsertTailList(&g_deviceList, &devExt->ListEntry);
-        KeReleaseSpinLock(&g_listLock, oldIrql);
-
-        deviceObject->Flags |= devExt->LowerDevice->Flags & (DO_BUFFERED_IO | DO_DIRECT_IO | DO_POWER_PAGABLE);
-        deviceObject->DeviceType = devExt->LowerDevice->DeviceType;
-        deviceObject->Characteristics = devExt->LowerDevice->Characteristics;
-        deviceObject->Flags &= ~DO_DEVICE_INITIALIZING;
-
-        return STATUS_SUCCESS;
-    }
+    // ライセンスはここで検証しない。起動直後のAddDeviceではECDSA検証が失敗する環境があり、内蔵の
+    // ACPI PS/2キーボードは起動時にしかAddDeviceが走らないため、ここで無効と決めると、そのキーボードは
+    // 起動中ずっと使えなくなる。DeviceIdの算出と永続設定の復元はライセンスと無関係に常に行い、
+    // ライセンスは使うとき（LicenseIsEffective、License.h）にゲートする。
 
     DbgPrint("kbdlayer: PhysicalDeviceObject=0x%p, Type=0x%08X, Characteristics=0x%08X, DeviceExtension=0x%p\n",
              PhysicalDeviceObject,
@@ -328,8 +308,10 @@ NTSTATUS AddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT PhysicalDev
 
     // i8042prtのParametersを、このキーボードの型番に合わせて書き換える／初期化する
     // （オプションが無効なら何もしない）。port driverがStartされる前の、PASSIVE_LEVELのここで行う。
-    // 失敗してもAddDeviceは続ける。
-    ApplyI8042OverrideForDevice(devExt->ModelKey);
+    // 失敗してもAddDeviceは続ける。ライセンスが実効でないときは書き換えない（従来どおり）。
+    if (LicenseIsEffective()) {
+        ApplyI8042OverrideForDevice(devExt->ModelKey);
+    }
 
     // デバイスインスタンスパスモード (DeviceIdMode=0)
     if (deviceIdMode == 0 && devExt->InstanceKey != 0) {
@@ -373,7 +355,7 @@ NTSTATUS AddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT PhysicalDev
     // （PnP再認識・再起動時の自動復元）。まだg_deviceListに公開されていない
     // （他スレッドからの競合が無い）ため、EngineLockを取らずに直接devExtへ
     // 書き込んでよい。
-    if (devExt->License != 0 && devExt->DeviceId != 0) {
+    if (devExt->DeviceId != 0) {
         // 永続化スコープ（Model共有 or この1台だけ）はInstanceKeyに紐づく設定として
         // 別に持つ（DeviceBindingサブキー、値名=InstanceKeyHex）。無ければ既定のModel。
         ULONG bindingValue = KBDLAYER_BINDING_MODEL;
@@ -611,10 +593,15 @@ VOID ServiceCallback(
     // （DeviceExtension.hのOutputLockの説明参照）。出口（関数末尾）まで保持する。
     KeAcquireSpinLock(&devExt->OutputLock, &outputIrql);
 
-    // DeviceIdはユーザーモードから非同期に設定される。0の間は素通し
-    // （ただしキャリブレーションウィザードのCAPTURE_NEXT_KEYはDeviceId確定後
-    // にしか呼べないため、この経路には影響しない）。
-    if (devExt->DeviceId != 0) {
+    // DeviceIdが0（未識別）か、ライセンスが実効でない間は素通し。DeviceIdはライセンスと無関係に
+    // AddDeviceで算出済みなので、DeviceId != 0 だけでは足りない。VALIDのときはLicenseIsEffectiveの
+    // 判定はvolatileの読み出し1回で済む。判定は、この呼び出しの中で1回だけ行う（OutputLockを保持して
+    // いる間にINVALIDへ遷移しても、AbortLiveStateForDeviceがOutputLockを待つので、この呼び出しは
+    // 最後まで一貫した状態で動く）。
+    // （キャリブレーションウィザードのCAPTURE_NEXT_KEYはDeviceId確定後にしか呼べないため、
+    // この経路には影響しない）
+    BOOLEAN licensed = (devExt->DeviceId != 0 && LicenseIsEffective());
+    if (licensed) {
         // 緊急時の解除手段（release-roadmap-priority.md 項番3）。レイヤーマップ・
         // マクロ・コンボの内容に一切依存せず必ず動くよう、生の物理スキャンコードの
         // 段階で、どの処理よりも先に見る（キャリブレーションの抑止中でも見逃さない）。
@@ -677,7 +664,7 @@ VOID ServiceCallback(
         }
         goto consumed;
     } else {
-        KBDLAYER_TRACE("ServiceCallback DeviceId=0 (skip) sc=0x%X flags=0x%X\n",
+        KBDLAYER_TRACE("ServiceCallback DeviceId=0 or license not effective (skip) sc=0x%X flags=0x%X\n",
                        InputDataStart->MakeCode, InputDataStart->Flags);
     }
 
@@ -703,7 +690,7 @@ consumed:
 
     // Phase 6: このバッチでレイヤー状態が変わり、NICOLA判定の有効/無効が切り替わったなら
     // OnEnterKey/OnExitKey（IMEオン/オフ等）を送る。
-    if (devExt->DeviceId != 0) {
+    if (licensed) {
         NicolaSyncActivation(devExt);
     }
 
@@ -711,7 +698,7 @@ consumed:
 
     // このバッチでレイヤー状態（MO/TG/OSL/LT/DF・NICOLAの有効）が変わっていれば、
     // WAIT_LAYER_CHANGEで待っているアプリへ知らせる（IRPの完了はOutputLockの外で行う）。
-    if (devExt->DeviceId != 0) {
+    if (licensed) {
         LayerNotifyIfChanged(devExt);
     }
 }
@@ -845,8 +832,8 @@ NTSTATUS ReadComplete(PDEVICE_OBJECT DeviceObject, PIRP Irp, PVOID Context) {
 
     PDEVICE_EXTENSION devExt = (PDEVICE_EXTENSION)DeviceObject->DeviceExtension;
 
-    // Licenseが無効なら何もしない
-    if (devExt->License == 0) {
+    // DeviceIdが未識別、またはライセンスが実効でないなら何もしない
+    if (devExt->DeviceId == 0 || !LicenseIsEffective()) {
         DbgPrint("kbdlayer: License disabled; not modifying ExtraInformation\n");
         if (Irp->PendingReturned) {
             IoMarkIrpPending(Irp);
@@ -887,7 +874,12 @@ NTSTATUS ReadComplete(PDEVICE_OBJECT DeviceObject, PIRP Irp, PVOID Context) {
 }
 
 VOID Unload(IN PDRIVER_OBJECT DriverObject) {
-    PDEVICE_OBJECT deviceObject = DriverObject->DeviceObject;
+    PDEVICE_OBJECT deviceObject;
+
+    // ライセンスの再検証（タイマー・DPC・作業項目）は、デバイスを触るので、デバイスの削除より先に止める。
+    TeardownLicense();
+
+    deviceObject = DriverObject->DeviceObject;
     while (deviceObject != NULL) {
         PDEVICE_OBJECT nextDevice = deviceObject->NextDevice;
 

@@ -32,6 +32,12 @@ public sealed class Worker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // 起動時: ドライバに、書き込み済みの LicenseToken を再検証させる。ドライバは起動直後の検証に
+        // 失敗することがあり、そのときは自分でも再試行するが、ここでも成功を後押しする。
+        // SOFT: 失敗しても状態を変えない（サービスもブート直後に起動するので、ここでの失敗を確定として
+        // ドライバ自身の再試行を潰さない）。Gumroad への問い合わせを待たずに、すぐ行う。
+        DriverRevalidator.Revalidate(DriverRevalidator.ModeSoft);
+
         // 起動時: 保存済みキーで再検証（一時的なネットワーク未確立に備えてリトライ付き）
         try
         {
