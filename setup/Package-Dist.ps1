@@ -66,7 +66,22 @@ Get-ChildItem -LiteralPath $thirdPartyDir -File |
 if (Test-Path -LiteralPath $zipPath) {
     Remove-Item -LiteralPath $zipPath -Force
 }
-Compress-Archive -Path (Join-Path $stagingDir "*") -DestinationPath $zipPath -Force
+# Compress-Archive は、全体をメモリに載せるため、1GB 級の MSI を含むとき OutOfMemoryException で失敗する（Windows PowerShell 5.1）。
+# ZipArchive は、ファイルを順に書き出すので、メモリを使わない。エントリ名は、Windows PowerShell 5.1 の CreateFromDirectory だと「\」区切りになるので、
+# 1つずつ「/」区切りで追加する（zip の規格どおり。他の展開ツールでもフォルダとして扱える）。
+Add-Type -AssemblyName System.IO.Compression
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$zipStream = [System.IO.File]::Open($zipPath, [System.IO.FileMode]::Create)
+try {
+    $archive = New-Object System.IO.Compression.ZipArchive($zipStream, [System.IO.Compression.ZipArchiveMode]::Create)
+    try {
+        $rootLength = (Get-Item -LiteralPath $stagingDir).FullName.TrimEnd([char]92).Length + 1
+        Get-ChildItem -LiteralPath $stagingDir -Recurse -File | ForEach-Object {
+            $entryName = $_.FullName.Substring($rootLength).Replace([string][char]92, "/")
+            [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, $_.FullName, $entryName, [System.IO.Compression.CompressionLevel]::Optimal)
+        }
+    } finally { $archive.Dispose() }
+} finally { $zipStream.Dispose() }
 
 Remove-Item -Path $stagingDir -Recurse -Force
 
