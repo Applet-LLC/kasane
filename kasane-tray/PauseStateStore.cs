@@ -30,8 +30,15 @@ public sealed class JsonPauseStateStore : IPauseStateStore
 
     public void Save(IReadOnlyList<uint> uniqIds)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-        File.WriteAllText(_path, JsonSerializer.Serialize(new State { PausedDevices = uniqIds.Distinct().ToList() }));
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
+            File.WriteAllText(_path, JsonSerializer.Serialize(new State { PausedDevices = uniqIds.Distinct().ToList() }));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // 保存先に書けなくても（管理者保護で別ユーザーとして動いたときなど）、一時停止の操作は続ける。記録できないと、次の起動で戻せないだけ。
+        }
     }
 
     public void Clear()

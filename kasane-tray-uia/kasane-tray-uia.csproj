@@ -55,6 +55,7 @@
     <Compile Include="..\kasane\Model\AppInfo.cs" Link="Shared\AppInfo.cs" />
     <Compile Include="..\kasane\Model\ManualLocator.cs" Link="Shared\ManualLocator.cs" />
     <Compile Include="..\kasane\Model\HelperConfig.cs" Link="Shared\HelperConfig.cs" />
+    <Compile Include="..\kasane\Model\AdminProtection.cs" Link="Shared\AdminProtection.cs" />
     <Compile Include="..\kasane\Model\HelperActions.cs" Link="Shared\HelperActions.cs" />
     <EmbeddedResource Include="..\kasane\Resources\app.ico" Link="app.ico" />
     <!-- 天狼（sirius）のフック用 DLL（TSF で IME の状態を読む）。ビルド済みなら exe の隣に置く（無ければ IMM32 だけで動く）。ビルド: sirius\README.md -->

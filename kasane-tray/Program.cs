@@ -26,6 +26,17 @@ internal static class Program
             return;
         }
 
+        // 診断: 管理者権限で動く他のアプリの情報を、トレイ（uiAccess）が取れるかの調査（kasane-tray.exe --probe-elevated [回数 [間隔秒]]）。
+        // 3秒待つ間に昇格済みのアプリを前面にし、以降は間隔ごとに、%TEMP%\kasane-elevated-probe.txt に追記する。管理者保護が有効な環境で使う。
+        int elevatedIndex = Array.IndexOf(args, "--probe-elevated");
+        if (elevatedIndex >= 0)
+        {
+            int count = elevatedIndex + 1 < args.Length && int.TryParse(args[elevatedIndex + 1], out int c) ? Math.Clamp(c, 1, 600) : 5;
+            int interval = elevatedIndex + 2 < args.Length && int.TryParse(args[elevatedIndex + 2], out int s) ? Math.Clamp(s, 1, 60) : 5;
+            ElevatedAppProbe.Run(Path.Combine(Path.GetTempPath(), "kasane-elevated-probe.txt"), count, interval);
+            return;
+        }
+
         // 表示言語の変更による再起動: 元のトレイが終わるのを待つ（単一起動のミューテックスを取り合わないため）。
         int waitIndex = Array.IndexOf(args, "--wait-pid");
         if (waitIndex >= 0 && waitIndex + 1 < args.Length && int.TryParse(args[waitIndex + 1], out int waitPid))
@@ -45,6 +56,9 @@ internal static class Program
         Application.ThreadException += (_, e) => TrayLog.Write("ThreadException: " + e.Exception);
         AppDomain.CurrentDomain.UnhandledException += (_, e) => TrayLog.Write("UnhandledException: " + e.ExceptionObject);
 
+        // 権限まわりの診断（管理者保護で別ユーザーとして動いたときに、保存先へ書けない原因を切り分けるため）。
+        TrayLog.Write(Kasane.Model.AdminProtection.Describe(Kasane.Model.HelperConfig.BaseDirectory));
+
         using var context = new TrayContext();
         Application.Run(context);
         GC.KeepAlive(mutex);
@@ -63,6 +77,11 @@ internal static class TrayLog
             if (File.Exists(path) && new FileInfo(path).Length > 200_000) File.Delete(path);
             File.AppendAllText(path, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {message}{Environment.NewLine}");
         }
-        catch (Exception) { /* 記録できなくても、トレイは続ける */ }
+        catch (Exception ex)
+        {
+            // 保存先に書けないときは、%TEMP% に残す（原因の切り分けの手がかり。ここでも書けなければ、トレイは続ける）。
+            try { File.AppendAllText(Path.Combine(Path.GetTempPath(), "kasane-tray-fallback.log"), $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} (保存先に書けません: {ex.GetType().Name}) {message}{Environment.NewLine}"); }
+            catch (Exception) { }
+        }
     }
 }

@@ -32,6 +32,8 @@ public sealed class TrayContext : ApplicationContext
     private readonly ToolStripMenuItem _pauseItem = new(Loc.T("一時停止", "Pause")) { Name = "TrayPause" };
     private readonly ToolStripMenuItem _layerItem = new(Loc.T("レイヤー", "Layers")) { Name = "TrayLayers" };
     private readonly ToolStripMenuItem _licenseItem = new(Loc.T("ライセンス", "License")) { Name = "TrayLicense" };
+    // 保存先に書けないときだけ出す（管理者保護で、トレイが昇格していない ADMIN_ユーザー名 として動くとき。kasane.exe --ensure-data-acl を昇格して実行する）。
+    private readonly ToolStripMenuItem _fixAccessItem = new(Loc.T("保存先の権限を直す…", "Fix data folder access…")) { Name = "TrayFixDataAccess", Visible = false };
     private readonly ToolStripMenuItem _helpItem = new(Loc.T("ヘルプ", "Help")) { Name = "TrayHelp" };
     private readonly ToolStripMenuItem _aboutItem = new(Loc.T("バージョン情報", "About")) { Name = "TrayAbout" };
     private readonly ToolStripMenuItem _exitItem = new(Loc.T("終了", "Exit")) { Name = "TrayExit" };
@@ -76,10 +78,11 @@ public sealed class TrayContext : ApplicationContext
         _settingsItem.Click += (_, _) => OpenEditor();
         _pauseItem.Click += (_, _) => TogglePause();
         _licenseItem.Click += (_, _) => Notify(AppLauncher.OpenOrActivate(AppLauncher.FindLicense(), Loc.T("ライセンス管理", "License manager")));
+        _fixAccessItem.Click += (_, _) => FixDataFolderAccess();
         _helpItem.Click += (_, _) => Notify(ManualLocator.Open(AppContext.BaseDirectory)); // 英語の表示でも、同じマニュアルを開く
         _aboutItem.Click += (_, _) => AboutForm.ShowSingle();
         _exitItem.Click += (_, _) => ExitTray();
-        _menu.Items.AddRange(new ToolStripItem[] { _settingsItem, _pauseItem, _layerItem, _licenseItem, _helpItem, _aboutItem, new ToolStripSeparator(), _exitItem });
+        _menu.Items.AddRange(new ToolStripItem[] { _settingsItem, _pauseItem, _layerItem, _licenseItem, _fixAccessItem, _helpItem, _aboutItem, new ToolStripSeparator(), _exitItem });
         _menu.Opening += (_, _) => { RefreshState(); RebuildLayerMenu(); UpdateLicenseItem(); TrayTheme.Apply(_menu); }; // 開く直前に、最新の状態にする（色のモードも）
 
         _notifyIcon = new NotifyIcon
@@ -105,6 +108,7 @@ public sealed class TrayContext : ApplicationContext
         _timer.Tick += (_, _) => { RefreshState(); SyncDesktopView(); };
         _timer.Start();
         StartPendingImport();
+        CheckDataFolderAccess();
         RefreshState();
     }
 
@@ -184,6 +188,62 @@ public sealed class TrayContext : ApplicationContext
     private void UpdateLicenseItem()
     {
         _licenseItem.Visible = AppLauncher.FindLicense() != null;
+        _fixAccessItem.Visible = !AdminProtection.CanWrite(HelperConfig.BaseDirectory);
+    }
+
+    // 起動時に保存先へ書けないと分かったら、バルーンで知らせる（メニューの「保存先の権限を直す」で直せる）。
+    private void CheckDataFolderAccess()
+    {
+        if (AdminProtection.CanWrite(HelperConfig.BaseDirectory)) return;
+        _notifyIcon.ShowBalloonTip(8000, AppInfo.DisplayName,
+            Loc.T("設定の保存先に書き込めません。トレイのメニューの「保存先の権限を直す」で直せます。",
+                  "Cannot write to the data folder. Use \"Fix data folder access\" in the tray menu."), ToolTipIcon.Warning);
+        _notifyIcon.BalloonTipClicked += (_, _) => FixDataFolderAccess();
+    }
+
+    // 昇格して kasane.exe --ensure-data-acl を1回実行する（管理者保護では、認証の確認が1回出る）。終わったら、書けるようになったかを知らせる。
+    private void FixDataFolderAccess()
+    {
+        string? exe = AppLauncher.FindEditor();
+        if (exe == null)
+        {
+            Notify(Loc.T("設定画面（kasane.exe）が見つかりません", "Could not find the Settings app (kasane.exe)"));
+            return;
+        }
+        try
+        {
+            var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe, "--ensure-data-acl")
+            {
+                UseShellExecute = true,
+                Verb = "runas",
+                WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden,
+            });
+            if (process == null) return;
+            process.EnableRaisingEvents = true;
+            process.Exited += (_, _) =>
+            {
+                process.Dispose();
+                try { _ui.BeginInvoke(new Action(ReportDataFolderAccess)); }
+                catch (InvalidOperationException) { /* 終了中 */ }
+            };
+        }
+        catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223)
+        {
+            // 確認のダイアログで取り消された。何もしない。
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            TrayLog.Write("ensure-data-acl: " + ex.Message);
+            Notify(Loc.T("保存先の権限を直せませんでした", "Could not fix access to the data folder"));
+        }
+    }
+
+    private void ReportDataFolderAccess()
+    {
+        bool ok = AdminProtection.CanWrite(HelperConfig.BaseDirectory);
+        TrayLog.Write("ensure-data-acl: " + AdminProtection.Describe(HelperConfig.BaseDirectory));
+        if (ok) _notifyIcon.ShowBalloonTip(5000, AppInfo.DisplayName, Loc.T("保存先に書き込めるようになりました", "The data folder is now writable"), ToolTipIcon.Info);
+        else Notify(Loc.T("保存先の権限を直せませんでした", "Could not fix access to the data folder"));
     }
 
     private void OpenEditor()

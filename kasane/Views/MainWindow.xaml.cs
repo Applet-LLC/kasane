@@ -740,6 +740,16 @@ public partial class MainWindow : Window
     private bool SaveProject()
     {
         if (_project == null) return false;
+        if (TrySaveProject(out string? error)) return true;
+        MessageBox.Show(this, Loc.T($"保存できませんでした: {error}", $"Could not save: {error}"), DialogCaption, MessageBoxButton.OK, MessageBoxImage.Error);
+        return false;
+    }
+
+    /// <summary>保存する。画面は出さない。失敗したときは理由を <paramref name="error"/> に入れて false。</summary>
+    private bool TrySaveProject(out string? error)
+    {
+        error = null;
+        if (_project == null) return false;
         try
         {
             ProjectService.Save(_project);
@@ -750,9 +760,34 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, Loc.T($"保存できませんでした: {ex.Message}", $"Could not save: {ex.Message}"), DialogCaption, MessageBoxButton.OK, MessageBoxImage.Error);
+            error = ex.Message;
             return false;
         }
+    }
+
+    /// <summary>
+    /// 保存に失敗したとき、保存せずに続けるかを確かめる。保存先に書けない環境（管理者保護で、昇格しないトレイや設定画面が ADMIN_ユーザー名 として動くとき、
+    /// など）では、保存の失敗で閉じられなくなるのを避けるため。続けてよければ true（変更は捨てる）。「いいえ」が既定。
+    /// </summary>
+    private bool ConfirmDiscardAfterSaveFailure(string? error)
+    {
+        var r = MessageBox.Show(this,
+            Loc.T($"保存できませんでした: {error}\n\n" +
+                  $"保存先: {HelperConfig.BaseDirectory}\n" +
+                  $"実行ユーザー: {Environment.UserDomainName}\\{Environment.UserName}\n\n" +
+                  "トレイのメニューに「保存先の権限を直す…」があれば、それで直せることがあります。\n\n" +
+                  "はい: 保存せずに続ける(今の変更は捨てる)　／　いいえ: 戻る",
+                  $"Could not save: {error}\n\n" +
+                  $"Data folder: {HelperConfig.BaseDirectory}\n" +
+                  $"Running as: {Environment.UserDomainName}\\{Environment.UserName}\n\n" +
+                  "If the tray menu has \"Fix data folder access…\", it may fix this.\n\n" +
+                  "Yes: continue without saving (discard the current changes) / No: go back"),
+            DialogCaption, MessageBoxButton.YesNo, MessageBoxImage.Error, MessageBoxResult.No);
+        if (r != MessageBoxResult.Yes) return false;
+        _dirty = false;
+        _unapplied.Remove(_project?.UniqId ?? 0);
+        UpdateTitle();
+        return true;
     }
 
 
@@ -987,7 +1022,8 @@ public partial class MainWindow : Window
             if (r == MessageBoxResult.Cancel) return false;
             if (r == MessageBoxResult.No) { _dirty = false; _unapplied.Remove(_project?.UniqId ?? 0); UpdateTitle(); return true; }
         }
-        return SaveProject();
+        // 保存できないときは、そのまま閉じられなくなるのを避けるため、保存せずに続けるかを確かめる。
+        return TrySaveProject(out string? error) || ConfirmDiscardAfterSaveFailure(error);
     }
 
     private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
