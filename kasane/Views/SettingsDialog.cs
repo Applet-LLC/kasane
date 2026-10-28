@@ -1048,7 +1048,7 @@ public sealed class SettingsDialog : Window
                 Show();
                 ShowStatus(status, modelKey == 0
                     ? Loc.T("このキーボードの型番(ModelKey)を取得できないため、プロファイルは指定できません。", "The keyboard's model (ModelKey) could not be obtained, so a profile can't be specified.")
-                    : Loc.T($"このキーボードの型番(ModelKey {modelKey:X8})のプロファイルを表示しています。", $"Showing the profile for this keyboard's model (ModelKey {modelKey:X8})."), modelKey == 0);
+                    : Loc.T($"このキーボード(DeviceId: {_uniqId:X8})の型番(ModelKey: {modelKey:X8})のプロファイルを表示しています。同じ型番のキーボードで共有されます。", $"Showing the profile for this keyboard's model (DeviceId: {_uniqId:X8}, ModelKey: {modelKey:X8}). It is shared by keyboards of the same model."), modelKey == 0);
             }
             catch (KbdLayerException ex)
             {
