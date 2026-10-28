@@ -6,6 +6,7 @@
 #include <ntstrsafe.h>
 #include "DeviceExtension.h"
 #include "LayerEngine.h"
+#include "License.h"
 #include "..\\common\\regutil.h"
 #include "token.h" // KBDLAYER_TRACE
 
@@ -3784,6 +3785,88 @@ ClearLayerMapForDevice(
     return STATUS_SUCCESS;
 }
 
+// 生きた状態の中止（SetLayerMapEnabledForDevice(FALSE)とAbortLiveStateForDeviceが共有する）。
+// 前半: OutputLockとEngineLockを保持して呼ぶ。保留/確定/ドレイン中の判定を打ち切り、送出済みの
+// makeのbreakをReleasesへ集め、まだ押されている物理キーの解放は後から捨てるよう記録する
+// （Abort*Locked参照）。レイヤー状態もリセットする。永続設定には触れない。
+_IRQL_requires_(DISPATCH_LEVEL)
+static VOID
+AbortLiveStateLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _Inout_ PKBDLAYER_ABORT_RELEASES Releases
+    )
+{
+    // Phase 2/4/5: 保留/確定/ドレイン中の判定を打ち切る。
+    // タイマーはこの後キャンセルする。DPCはOutputLockを取ってから状態を見るので、
+    // キャンセルが競合で間に合わなくても、リセット後の状態を見て何もしない。
+    AbortTapHoldLocked(devExt, Releases);
+    AbortComboLocked(devExt, Releases);
+    AbortTapDanceLocked(devExt, Releases);
+    // 素通しに戻すときはレイヤー状態もリセットする（次にONにしたとき、
+    // 直前にどのレイヤーがアクティブだったかに依存させないため）。
+    devExt->ActiveLayerMask = 0;
+    devExt->DefaultLayer = 0;
+    devExt->OneShotLayerPending = FALSE;
+    devExt->OneShotLayerBit = 0;
+    // TTで固定したレイヤーとタップの回数も消す（押しているTTキーの解放は押下記録どおりに
+    // 処理されるが、固定が無いのでビットを落とすだけになる）。
+    devExt->TtToggledLayers = 0;
+    devExt->TtTapCount = 0;
+    devExt->TtKeyDown = FALSE;
+    // OSMの待ち（次のキーのために押したままにしている修飾キー）も消す。breakは下の安全網が送る。
+    // 押しているOSMは、離したときに普通の修飾キーとして戻す（One Shotにしない）。
+    devExt->OneShotMods = 0;
+    devExt->OsmUsedWhileHeld = TRUE;
+}
+
+// 後半: OutputLockだけを保持し（EngineLockは放した状態で）呼ぶ。タイマーを止め、集めたbreakを送る。
+_IRQL_requires_(DISPATCH_LEVEL)
+static VOID
+FinishAbortLiveState(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ const KBDLAYER_ABORT_RELEASES* Releases
+    )
+{
+    KeCancelTimer(&devExt->HoldTimer);
+    KeCancelTimer(&devExt->ComboTimer);
+    KeCancelTimer(&devExt->TapDanceTimer);
+    SendAbortReleases(devExt, Releases);
+    ReleaseLeakedModifiers(devExt);
+}
+
+// ライセンスが無効になったときに、このキーボードの生きた状態を中止する。
+// SetLayerMapEnabledForDevice(FALSE)と違い、LayerMapEnabledも永続設定（Enabled）も書き換えない
+// （ライセンスが戻ったら、ユーザーが保存した設定がそのまま効く）。NICOLAは、ライセンスが実効でない間は
+// 無効として扱われる（NicolaIsActiveLocked）ので、状態の片付けはここで行う（IMEのオン/オフキーは送らない）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+AbortLiveStateForDevice(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    KIRQL outputIrql;
+    KBDLAYER_ABORT_RELEASES releases;
+
+    releases.Count = 0;
+    releases.ReplayCount = 0;
+
+    KeAcquireSpinLock(&devExt->OutputLock, &outputIrql);
+    KeAcquireSpinLockAtDpcLevel(&devExt->EngineLock);
+    AbortLiveStateLocked(devExt, &releases);
+    // 無効の間は、ServiceCallbackがエンジンを通さず素通しにするので、「押下を捨てたキーの解放を捨てる」
+    // 記録（SuppressedDown）は消費されない。残すと、ライセンスが戻った後に、そのキーの最初の1打を
+    // 捨ててしまう。素通しの間に届く解放は、余分なbreakになるだけで害がない。
+    RtlZeroMemory(devExt->SuppressedDown, sizeof(devExt->SuppressedDown));
+    devExt->SuppressedDownCount = 0;
+    KeReleaseSpinLockFromDpcLevel(&devExt->EngineLock);
+
+    FinishAbortLiveState(devExt, &releases);
+    NicolaSyncActivationEx(devExt, FALSE);
+    KeReleaseSpinLock(&devExt->OutputLock, outputIrql);
+
+    LayerNotifyIfChanged(devExt);
+}
+
 _IRQL_requires_max_(PASSIVE_LEVEL)
 NTSTATUS
 SetLayerMapEnabledForDevice(
@@ -3810,37 +3893,12 @@ SetLayerMapEnabledForDevice(
         devExt->LayerMapEnabled = TRUE;
     } else {
         devExt->LayerMapEnabled = FALSE;
-        // Phase 2/4/5: 保留/確定/ドレイン中の判定を打ち切る。送出済みのmakeのbreakを集め、
-        // まだ押されている物理キーの解放は後から捨てるよう記録する（Abort*Locked参照）。
-        // タイマーはこの後キャンセルする。DPCはOutputLockを取ってから状態を見るので、
-        // キャンセルが競合で間に合わなくても、リセット後の状態を見て何もしない。
-        AbortTapHoldLocked(devExt, &releases);
-        AbortComboLocked(devExt, &releases);
-        AbortTapDanceLocked(devExt, &releases);
-        // 素通しに戻すときはレイヤー状態もリセットする（次にONにしたとき、
-        // 直前にどのレイヤーがアクティブだったかに依存させないため）。
-        devExt->ActiveLayerMask = 0;
-        devExt->DefaultLayer = 0;
-        devExt->OneShotLayerPending = FALSE;
-        devExt->OneShotLayerBit = 0;
-        // TTで固定したレイヤーとタップの回数も消す（押しているTTキーの解放は押下記録どおりに
-        // 処理されるが、固定が無いのでビットを落とすだけになる）。
-        devExt->TtToggledLayers = 0;
-        devExt->TtTapCount = 0;
-        devExt->TtKeyDown = FALSE;
-        // OSMの待ち（次のキーのために押したままにしている修飾キー）も消す。breakは下の安全網が送る。
-        // 押しているOSMは、離したときに普通の修飾キーとして戻す（One Shotにしない）。
-        devExt->OneShotMods = 0;
-        devExt->OsmUsedWhileHeld = TRUE;
+        AbortLiveStateLocked(devExt, &releases);
     }
     KeReleaseSpinLockFromDpcLevel(&devExt->EngineLock);
 
     if (!Enabled) {
-        KeCancelTimer(&devExt->HoldTimer);
-        KeCancelTimer(&devExt->ComboTimer);
-        KeCancelTimer(&devExt->TapDanceTimer);
-        SendAbortReleases(devExt, &releases);
-        ReleaseLeakedModifiers(devExt);
+        FinishAbortLiveState(devExt, &releases);
     }
     KeReleaseSpinLock(&devExt->OutputLock, outputIrql);
 
@@ -5911,7 +5969,9 @@ NicolaIsActiveLocked(
 {
     PKBDLAYER_NICOLA_HEADER table = devExt->NicolaTable;
 
-    if (table == NULL || !table->Enabled || !devExt->LayerMapEnabled || devExt->LayerMap == NULL) {
+    // ライセンスが実効でない間は無効（INVALIDへの遷移では、AbortLiveStateForDeviceが状態を片付ける）。
+    if (table == NULL || !table->Enabled || !devExt->LayerMapEnabled || devExt->LayerMap == NULL ||
+        !LicenseIsEffective()) {
         return FALSE;
     }
     return (EffectiveLayerMaskLocked(devExt) & (1UL << table->Layer)) != 0;

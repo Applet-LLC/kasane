@@ -616,6 +616,7 @@ Set s=CreateObject("WScript.Shell")
 b="HKLM\SYSTEM\CurrentControlSet\Services\kbdlayer\Parameters\"
 s.RegDelete b&"LicenseToken"
 s.RegDelete b&"License"
+s.RegDelete b&"LicenseLastState"
 ]]></CustomAction>
     <CustomAction
       Id="CA_CleanupSubscriptionRunOnce"
@@ -747,6 +748,33 @@ End If
       Return="check"
       Impersonate="no" />
 
+    <?if $(var.Edition) != "Pro" ?>
+    <!--
+      ドライバのライセンスの「前回の状態」（Parameters\LicenseLastState）の初期値を 1 にする（サブスク版。値が無いときだけ）。
+      ドライバは、起動直後の検証（ECDSA）に失敗する環境があるため、前回有効だったマシンは、検証が済むまでの間（既定5分）、
+      暫定で有効として扱う。値が無い（インストール直後の）初回の起動で検証に失敗すると、
+      そのキーボードの機能が起動中ずっと使えない。それを避けるため、インストーラーが先に 1 を書く。
+      ライセンスが無い場合は、ドライバが最初の再検証の失敗で 0 に戻す（暫定の有効は、インストール後の最初の5分だけ）。
+      すでに値があるときは触れない（無効のまま更新したマシンを、更新のたびに暫定有効に戻さないため）。
+      deferred、SYSTEM。失敗してもインストールは続ける。
+    -->
+    <CustomAction
+      Id="CA_SeedLicenseLastState"
+      Script="vbscript"
+      Execute="deferred"
+      Return="ignore"
+      Impersonate="no"><![CDATA[
+On Error Resume Next
+Set s=CreateObject("WScript.Shell")
+k="HKLM\SYSTEM\CurrentControlSet\Services\kbdlayer\Parameters\LicenseLastState"
+v=s.RegRead(k)
+If Err.Number<>0 Then
+  Err.Clear
+  s.RegWrite k,1,"REG_DWORD"
+End If
+]]></CustomAction>
+    <?endif?>
+
     <CustomAction
       Id="CA_UninstallKbdDriver"
       FileKey="FIL_DriverManagerExe"
@@ -815,6 +843,9 @@ End If
       <Custom Action="CA_SetupAutostart" Before="InstallFinalize">NOT REMOVE~="ALL"</Custom>
       <Custom Action="CA_RemoveAutostart" Before="RemoveFiles"><![CDATA[REMOVE~="ALL" AND NOT UPGRADINGPRODUCTCODE]]></Custom>
       <Custom Action="CA_ImportDriverSettings" After="CA_InstallKbdDriver">NOT REMOVE~="ALL" AND IMPORT_SETTINGS="1" AND IMPORT_SETTINGS_FILE &lt;&gt; ""</Custom>
+      <?if $(var.Edition) != "Pro" ?>
+      <Custom Action="CA_SeedLicenseLastState" After="CA_ImportDriverSettings">NOT REMOVE~="ALL" AND &amp;F_KbdDriver=3</Custom>
+      <?endif?>
       <ScheduleReboot After="CA_ImportDriverSettings">NOT REMOVE~="ALL" AND &amp;F_KbdDriver=3</ScheduleReboot>
 
       <!--

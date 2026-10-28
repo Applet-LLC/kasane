@@ -549,6 +549,15 @@ SetLayerMapEnabledForDevice(
     _In_ BOOLEAN Enabled
     );
 
+// ライセンスが無効になったときに、このキーボードの生きた状態（押下中のmakeのbreak、保留中の
+// TapHold/Combo/TapDance、アクティブなレイヤー、NICOLA）を中止する。SetLayerMapEnabledForDevice(FALSE)
+// と同じ中止処理だが、LayerMapEnabledも永続設定も書き換えない（ライセンスが戻れば、保存した設定が効く）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+AbortLiveStateForDevice(
+    _In_ PDEVICE_EXTENSION devExt
+    );
+
 // GET_LAYERMAP: 現在のblob（SETで渡したのと同じバイト列）とEnabled状態を返す。
 // マップ未設定の場合は *BytesReturned=0, *OutEnabled=FALSE で成功する。
 _IRQL_requires_max_(PASSIVE_LEVEL)

@@ -941,4 +941,32 @@ typedef struct _KBDLAYER_I8042_CONFIG {
 #define IOCTL_KBDLAYER_WAIT_KEY_EVENT \
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x81F, METHOD_BUFFERED, FILE_WRITE_ACCESS)
 
+// ライセンスの再検証（2026-10-28）。ライセンスの状態はドライバ全体で1つ。LicenseTokenを書いた・消した
+// 直後と、サービスの起動時にサービスが送る。ライセンスが無効でも、各キーボードのDeviceIdと永続設定は
+// AddDeviceで算出・復元済みなので、再検証が成功すればキーボードを接続し直さずに有効になる。
+// ライセンスの設定そのものを変えるので FILE_WRITE_ACCESS（管理者・SYSTEMのみ）。
+#define IOCTL_KBDLAYER_REVALIDATE_LICENSE \
+    CTL_CODE(FILE_DEVICE_KBDLAYER, 0x820, METHOD_BUFFERED, FILE_WRITE_ACCESS)
+
+// ライセンスの状態（KBDLAYER_REVALIDATE_LICENSE_OUTPUT::State）。
+#define KBDLAYER_LICENSE_STATE_INVALID      0UL // 無効
+#define KBDLAYER_LICENSE_STATE_PROVISIONAL  1UL // 暫定有効。前回は有効だった。起動直後の検証が済むまで、期限つきで有効
+#define KBDLAYER_LICENSE_STATE_VALID        2UL // 有効（検証成功）
+
+// 再検証の扱い（KBDLAYER_REVALIDATE_LICENSE_INPUT::Mode）。
+// DEFINITIVE: 検証の結果を確定として扱う。失敗なら、暫定有効の途中でも即座に無効にする
+//             （LicenseTokenを書いた・消した直後。ユーザーが操作した結果）。
+// SOFT:       成功なら有効にするが、失敗しても状態を変えない（サービスの起動時。サービスも
+//             ブート直後に起動するので、そこでの失敗を確定としてドライバ自身の再試行を潰さない）。
+#define KBDLAYER_REVALIDATE_DEFINITIVE 0UL
+#define KBDLAYER_REVALIDATE_SOFT       1UL
+
+typedef struct _KBDLAYER_REVALIDATE_LICENSE_INPUT {
+    ULONG Mode; // KBDLAYER_REVALIDATE_*
+} KBDLAYER_REVALIDATE_LICENSE_INPUT, *PKBDLAYER_REVALIDATE_LICENSE_INPUT;
+
+typedef struct _KBDLAYER_REVALIDATE_LICENSE_OUTPUT {
+    ULONG State; // 再検証の後のKBDLAYER_LICENSE_STATE_*
+} KBDLAYER_REVALIDATE_LICENSE_OUTPUT, *PKBDLAYER_REVALIDATE_LICENSE_OUTPUT;
+
 #endif // _KBDLAYER_COMMON_IOCTL_H_

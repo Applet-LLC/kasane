@@ -154,6 +154,7 @@ Platform.
     <ClCompile Include="..\common\hwidutil.c" />
     <ClCompile Include="..\common\regutil.c" />
     <ClCompile Include="Driver.c" />
+    <ClCompile Include="License.c" />
     <ClCompile Include="token.c" Condition="'$(KbdlayerEdition)'!='Pro'" />
     <ClCompile Include="LayerEngine.c" />
     <ClCompile Include="ControlDevice.c" />
@@ -171,6 +172,7 @@ Platform.
     <ClInclude Include="..\common\regutil.h" />
     <ClInclude Include="..\common\kbdlayer_ioctl.h" />
     <ClInclude Include="token.h" />
+    <ClInclude Include="License.h" />
     <ClInclude Include="DeviceExtension.h" />
     <ClInclude Include="LayerEngine.h" />
     <ClInclude Include="ControlDevice.h" />

@@ -41,6 +41,8 @@ public sealed class RegistryAccess
         using var key = OpenOrCreateKey(KbdParams);
         key.SetValue(ValLicenseToken, token, RegistryValueKind.String);
         key.SetValue(ValLicense, 1, RegistryValueKind.DWord);
+        // ドライバは書き換えを自分では検知しない。再起動やキーボードの抜き差しなしに反映させる。
+        DriverRevalidator.Revalidate(DriverRevalidator.ModeDefinitive);
     }
 
     /// <summary>ライセンス無効化：LicenseToken を削除し License を 0 にする。</summary>
@@ -49,6 +51,8 @@ public sealed class RegistryAccess
         using var key = OpenOrCreateKey(KbdParams);
         try { key.DeleteValue(ValLicenseToken, throwOnMissingValue: false); } catch { /* ignore */ }
         key.SetValue(ValLicense, 0, RegistryValueKind.DWord);
+        // トークンが無くなったので、ドライバに確定として再検証させる（即座に無効になる）。
+        DriverRevalidator.Revalidate(DriverRevalidator.ModeDefinitive);
     }
 
     /// <summary>ドライバが読む署名済みトークン文字列をそのまま読み返す。

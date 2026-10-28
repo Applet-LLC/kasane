@@ -79,10 +79,13 @@ typedef struct _KBDLAYER_HELD_KEY {
 
 typedef struct _DEVICE_EXTENSION {
     PDEVICE_OBJECT LowerDevice;
-    ULONG DeviceId; // アドレッシング用ID（Target.UniqId、ExtraInformation刻印）。DeviceIdModeで決まる。
+    // アドレッシング用ID（Target.UniqId、ExtraInformation刻印）。DeviceIdModeで決まる。
+    // ライセンスとは独立にAddDeviceで常に算出する（起動直後のAddDeviceでライセンスの検証が失敗しても、
+    // 後から有効にできるように）。ライセンスが実効でない間は、DeviceIdがあっても使えない。
+    // 使う側は DeviceId != 0 && LicenseIsEffective() で判定する（License.h）。
+    ULONG DeviceId;
     LIST_ENTRY ListEntry;
     WCHAR HardwareId[256]; // HardwareId キャッシュ
-    ULONG License; // 0 = disabled, 1 = enabled (read at AddDevice)
 
     // --- 永続化スコープ（E-2: DeviceIdは一意でない前提で設計する） ---
     // DeviceIdとは独立に、常に両方を計算して持つ（common/kbdlayer_ioctl.hのコメント参照）。
