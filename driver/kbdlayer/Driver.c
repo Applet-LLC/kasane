@@ -81,6 +81,9 @@ VOID ServiceCallback(PVOID NormalContext, PVOID SystemArgument1,
 _IRQL_requires_max_(DISPATCH_LEVEL)
 static BOOLEAN ResolveAndForward(_In_ PDEVICE_EXTENSION devExt, _In_ PKEYBOARD_INPUT_DATA InputDataStart,
                                  _In_ PKEYBOARD_INPUT_DATA InputDataEnd, _Inout_opt_ PVOID SystemArgument3);
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static BOOLEAN ResolveHeldOnlyAndForward(_In_ PDEVICE_EXTENSION devExt, _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+                                         _In_ PKEYBOARD_INPUT_DATA InputDataEnd, _Inout_opt_ PVOID SystemArgument3);
 
 // g_listLockを保護しつつg_deviceListを走査し、DeviceIdが一致する
 // DEVICE_EXTENSIONを返す（見つからなければNULL）。宣言はDeviceExtension.h。
@@ -663,8 +666,26 @@ VOID ServiceCallback(
             compacted = TRUE;
         }
         goto consumed;
+    } else if (devExt->DeviceId != 0) {
+        // ライセンスが実効でない間。新しい押下は素通しだが、有効だった間に押されたキーの解放と、
+        // 修飾キーの押下状態(RealModsDown等)は追い続ける(OFFのときと同じ)。追わないと、無効の間に
+        // 離したキーの解放が記録に反映されず、リマップ先のキーが押しっぱなしになる、離した修飾キーが
+        // 押されたままの扱いで残って有効に戻したあとのキー置換が効かない、などが起きる。
+        if ((InputDataEnd - InputDataStart) > 1 && NeedsSingleEventDispatch(devExt)) {
+            for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
+                KEYBOARD_INPUT_DATA single = *p;
+                ULONG dummyConsumed = 0;
+                ResolveHeldOnlyAndForward(devExt, &single, &single + 1, &dummyConsumed);
+            }
+            compacted = TRUE;
+            goto consumed;
+        }
+        if (ResolveHeldOnlyAndForward(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
+            compacted = TRUE;
+        }
+        goto consumed;
     } else {
-        KBDLAYER_TRACE("ServiceCallback DeviceId=0 or license not effective (skip) sc=0x%X flags=0x%X\n",
+        KBDLAYER_TRACE("ServiceCallback DeviceId=0 (skip) sc=0x%X flags=0x%X\n",
                        InputDataStart->MakeCode, InputDataStart->Flags);
     }
 
@@ -701,6 +722,37 @@ consumed:
     if (licensed) {
         LayerNotifyIfChanged(devExt);
     }
+}
+
+// ライセンスが実効でない間のServiceCallback用。押下記録(HeldKeys)に従った解放の処理と、
+// ForwardToClassでの修飾キー状態の追跡だけを行う。MT・コンボ・タップダンス・マクロ・NICOLA・
+// 新しい押下の解決は呼ばない(無効になる時点でAbortLiveStateForDeviceが保留状態を消し済み)。
+// ExtraInformationへのDeviceId刻印もしない。戻り値はResolveAndForwardTailと同じ。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static BOOLEAN
+ResolveHeldOnlyAndForward(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd,
+    _Inout_opt_ PVOID SystemArgument3)
+{
+    BOOLEAN compacted = FALSE;
+
+    // 押下中の記録がある修飾付きキー等の解放・リピートは、記録どおりに処理する
+    // (新しい押下は、ResolveModdedKey内でライセンスを見て、解決しない)。
+    if (ResolveModdedKey(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
+        return FALSE;
+    }
+
+    PKEYBOARD_INPUT_DATA newEnd = ResolveLayerAction(devExt, InputDataStart, InputDataEnd);
+    if (newEnd != InputDataEnd) {
+        compacted = TRUE;
+        InputDataEnd = newEnd;
+    }
+    if (ForwardToClass(devExt, InputDataStart, InputDataEnd, SystemArgument3)) {
+        compacted = TRUE;
+    }
+    return compacted;
 }
 
 // ServiceCallbackのうち、キャリブレーション後の「Resolve*の連鎖 → kbdclassへ転送」部分。

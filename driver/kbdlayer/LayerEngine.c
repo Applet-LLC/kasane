@@ -830,9 +830,9 @@ ResolveLayerAction(
     // キャリブレーションウィザードのキャプチャ記録は、Combo/TapHold等より前に
     // 動く必要があるためResolveCalibration（ServiceCallbackの先頭）へ移した。
 
-    if (!devExt->LayerMapEnabled || devExt->LayerMap == NULL) {
-        // マップが無効・未設定でも、有効だった間に押されたキーの解放だけは記録どおりに
-        // 処理する（押しっぱなしを残さないため）。記録が無ければ何もしない。
+    if (!devExt->LayerMapEnabled || devExt->LayerMap == NULL || !LicenseIsEffective()) {
+        // マップが無効・未設定、またはライセンスが実効でなくても、有効だった間に押されたキーの
+        // 解放だけは記録どおりに処理する（押しっぱなしを残さないため）。記録が無ければ何もしない。
         if (devExt->HeldKeyCount == 0) {
             KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
             return InputDataEnd;
@@ -2133,7 +2133,7 @@ ResolveModdedKey(
             // マップがOFFのとき（押している間にOFF・緊急解除された）は、One Shotにしない（実機試験D-2:
             // OFFの後に離したOSMが、次のキーまで修飾キーを持ち越していた）。
             BOOLEAN toOneShot = (action.Type == KBDLAYER_ACTION_ONESHOT_MOD &&
-                                 devExt->LayerMapEnabled &&
+                                 devExt->LayerMapEnabled && LicenseIsEffective() &&
                                  !devExt->OsmUsedWhileHeld && devExt->OsmHeldScanCode == scanCode);
             SetHeldAddedModsLocked(devExt, held, 0);
             SetHeldKeyLocked(devExt, scanCode, KBDLAYER_HELD_NONE, NULL);
@@ -2178,7 +2178,7 @@ ResolveModdedKey(
 
         if (isBreak) {
             SetHeldKeyLocked(devExt, scanCode, KBDLAYER_HELD_NONE, NULL);
-        } else if (devExt->EnabledFeatures & KBDLAYER_FEATURE_MACRO) {
+        } else if ((devExt->EnabledFeatures & KBDLAYER_FEATURE_MACRO) && LicenseIsEffective()) {
             // まだ押されている条件の修飾キーだけを離す。
             UCHAR stillDown = (UCHAR)(held->Action.Param2 & (devExt->RealModsDown | AddedModsUnion(devExt)));
             BeginKeyOverrideMacroLocked(devExt, held->Action.Param1, stillDown,
@@ -2196,7 +2196,7 @@ ResolveModdedKey(
 
     // --- 新しい押下 ---
     if (isBreak || held->State != KBDLAYER_HELD_NONE ||
-        !devExt->LayerMapEnabled || devExt->LayerMap == NULL) {
+        !devExt->LayerMapEnabled || devExt->LayerMap == NULL || !LicenseIsEffective()) {
         KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
         return FALSE;
     }
@@ -2349,7 +2349,7 @@ NeedsSingleEventDispatch(
     // Key Overrideの表がある間も1件ずつ（条件の修飾キーの判定と、一時的に離す処理を1件ずつ行うため）。
     needs = (devExt->ModdedHeldCount != 0) ||
             devExt->ComboPendingActive || devExt->ComboConfirmed || devExt->ComboDraining ||
-            (devExt->LayerMapEnabled && devExt->LayerMap != NULL &&
+            (devExt->LayerMapEnabled && devExt->LayerMap != NULL && LicenseIsEffective() &&
              (devExt->LayerMap->NeedsSingleEvents || anyCombo ||
               (devExt->KeyOverrideCount != 0 && (devExt->EnabledFeatures & KBDLAYER_FEATURE_KEYOVERRIDE))));
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
@@ -3853,9 +3853,10 @@ AbortLiveStateForDevice(
     KeAcquireSpinLock(&devExt->OutputLock, &outputIrql);
     KeAcquireSpinLockAtDpcLevel(&devExt->EngineLock);
     AbortLiveStateLocked(devExt, &releases);
-    // 無効の間は、ServiceCallbackがエンジンを通さず素通しにするので、「押下を捨てたキーの解放を捨てる」
-    // 記録（SuppressedDown）は消費されない。残すと、ライセンスが戻った後に、そのキーの最初の1打を
-    // 捨ててしまう。素通しの間に届く解放は、余分なbreakになるだけで害がない。
+    // 無効の間のServiceCallbackは、押下記録(HeldKeys)に従う解放と修飾キーの状態の追跡だけを行い、
+    // 新しい押下は素通しにする(ResolveHeldOnlyAndForward)。「押下を捨てたキーの解放を捨てる」記録
+    // （SuppressedDown）は、この経路で消費される保証がない。残すと、ライセンスが戻った後に、そのキーの
+    // 最初の1打を捨ててしまうので、ここで消す。素通しの間に届く解放は、余分なbreakになるだけで害がない。
     RtlZeroMemory(devExt->SuppressedDown, sizeof(devExt->SuppressedDown));
     devExt->SuppressedDownCount = 0;
     KeReleaseSpinLockFromDpcLevel(&devExt->EngineLock);
