@@ -240,6 +240,29 @@
 </tbody>
 </table>
 <p>選んで、<strong>変更する</strong> を押すと反映されます。画面の下に、現在の範囲と、キーボードの識別子（InstanceKey、ModelKey）が出ます。閲覧専用モードのときは、変更できません。</p>
+<p>画面に出る 2 つの識別子は、8 桁の 16 進数で、キーボードの情報から次のように作られます。</p>
+<table>
+<thead>
+<tr>
+<th>識別子</th>
+<th>計算の元</th>
+<th>性質</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>InstanceKey</td>
+<td>デバイスのインスタンス ID（接続位置を含む）</td>
+<td>1 台ごとに違い、USB ポートを変えると変わります。<code>DeviceId</code>、<code>UniqId</code> と同じ値で、設定フォルダの中の <code>&lt;UniqId&gt;</code> フォルダの名前になります</td>
+</tr>
+<tr>
+<td>ModelKey</td>
+<td>ハードウェア ID の先頭の 1 件</td>
+<td>同じ型番なら同じ値で、ポートを変えても変わりません。改訂番号（<code>REV_xxxx</code>）が違うと、別の型番として扱われます</td>
+</tr>
+</tbody>
+</table>
+<p>どちらも 16 ビットの計算結果から作る値なので、別のキーボードと一致することがまれにあります。</p>
 <ul>
 <li>「すべてのキーボードで共有」は、配列の違うキーボード（JIS とテンキーなど）を混ぜると、意図しない割り当てになります。接続中に型番の違うキーボードがあると、確認が出ます。</li>
 <li>切り替えるときは、今の設定が切り替え先へコピーされ、切り替え先の既存の設定は上書きされます。たとえば、「すべて」や「この 1 台」から「同じ型番」へ戻すと、同じ型番で共有している設定が置き換わります。</li>
@@ -267,6 +290,7 @@
 <li>プロファイルのない型番には、<code>OverrideKeyboardType</code>、<code>OverrideKeyboardSubtype</code>、<code>OverrideKeyboardIdentifier</code> と <code>LayerDriver JPN</code>、<code>LayerDriver KOR</code> を削除して、OS の既定に戻します。</li>
 </ul>
 <p>無効（既定）のときは、何もしません。<strong>現在選択しているキーボードに対する指定（接続時に下の値を書き込む）</strong> にチェックを付けると、選んでいるキーボードの型番のプロファイルとして、下の値が使われます。<strong>国・配列プリセット</strong> から選ぶか、<strong>タイプ</strong>、<strong>サブタイプ</strong>、<code>OverrideKeyboardIdentifier</code>、<code>LayerDriver JPN</code>、<code>LayerDriver KOR</code>（レイアウト DLL 名。例: <code>kbd106.dll</code>）を、手で入れます。ほかに登録された型番があるときは、一覧に出ます。無効の間はプロファイルを設定できませんが、保存済みの内容は残り、有効にしたときに使われます。ドライバ全体の設定で、<strong>反映する</strong> を押すとすぐに保存されます。書き換えは、次にキーボードを接続したとき（再接続、または再起動）から行われます。</p>
+<p>画面の上部には、選んでいるキーボードの <code>DeviceId</code> と、型番を表す <code>ModelKey</code> が出ます。プロファイルは <code>ModelKey</code> ごとに保存されるので、同じ型番のキーボードで共有されます。2 つの識別子については、前の「共有範囲」の節を参照してください。</p>
 <h2 id="section-10">デスクトップ</h2>
 <p>デスクトップのアイコンの表示方法（通常表示、詳細表示、小さなアイコン表示、リスト表示、タイル表示）を変えます。キーのリマップとは関係がなく、のどかの設定にあった機能を引き継いだものです。</p>
 <p><img src="../img/ja/settings-desktop.png" alt="デスクトップ" /></p>
