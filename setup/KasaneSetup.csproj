@@ -40,6 +40,21 @@
     <!-- Step 3: EV code sign staging -->
     <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\EvCodeSign.ps1&quot; -StagingRoot &quot;$(MSBuildProjectDirectory)\staging&quot;" />
     <!--
+      Step 3b: Subscription 版の WHQL 提出用に、EV 署名後の drivers と Symbol を staging\Subscribe へコピーする。
+      staging は版ごとに作り直すが、staging\Subscribe は Prepare-Staging.ps1 が残すので、後から Pro 版をビルドしても消えない。
+      コピーのたびに、前回の内容は消す。
+    -->
+    <PropertyGroup Condition="'$(Edition)' != 'Pro'">
+      <SubmitCopyDir>$(MSBuildProjectDirectory)\staging\Subscribe\</SubmitCopyDir>
+    </PropertyGroup>
+    <ItemGroup Condition="'$(Edition)' != 'Pro'">
+      <SubmitSrc Include="$(MSBuildProjectDirectory)\staging\drivers\**\*" Dest="drivers" />
+      <SubmitSrc Include="$(MSBuildProjectDirectory)\staging\Symbol\**\*" Dest="Symbol" />
+    </ItemGroup>
+    <RemoveDir Condition="'$(Edition)' != 'Pro'" Directories="$(SubmitCopyDir)" />
+    <Copy Condition="'$(Edition)' != 'Pro'" SourceFiles="@(SubmitSrc)"
+          DestinationFiles="@(SubmitSrc->'$(SubmitCopyDir)%(Dest)\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <!--
       Step 4: build WiX MSI, once per language (culture別に独立したMSIを生成)。
       WiX/Votive はカルチャーごとに bin\$(Configuration)\<culture>\ サブフォルダへ出力し、
       かつ次のカルチャーをビルドすると IncrementalClean が前カルチャーの出力を削除してしまうため、

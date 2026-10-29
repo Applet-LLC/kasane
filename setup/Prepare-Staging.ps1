@@ -364,7 +364,11 @@ function Get-KernelDriverSource {
 # --- ステージング開始 ---
 
 if (Test-Path $stagingRoot) {
-    Remove-Item -Path $stagingRoot -Recurse -Force
+    # staging\Subscribe は、Subscription 版の WHQL 提出用に退避したコピー（KasaneSetup.csproj の Step 3b）。
+    # 後から Pro 版をビルドしても消えないよう、これだけ残す。
+    Get-ChildItem -LiteralPath $stagingRoot -Force |
+        Where-Object { $_.Name -ne "Subscribe" } |
+        Remove-Item -Recurse -Force
 }
 
 # kbdlayer: x64・arm64それぞれでWHQL署名済みがあればそちらを優先。ステージング先は

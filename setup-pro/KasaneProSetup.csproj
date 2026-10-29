@@ -15,6 +15,7 @@
       2. setup/KasaneSetup.csproj を Edition=Pro でビルドする。setup/dist/kasane-pro.zip ができる。
     構成（Debug/Release）にかかわらず、Release で作る。EV 署名のため、USB トークンの PIN の入力が要る。
     スイッチ: -p:ProDriverBuild=false（ドライバのビルドを省く）、-p:ProInstallerBuild=false（インストーラーを省く）
+    クリーン: このプロジェクトのクリーンで、driver\kbdlayer\x64\Release-Pro と ARM64\Release-Pro を削除する（ProDriverBuild=false なら削除しない）。
   -->
   <PropertyGroup>
     <TargetFramework>net48</TargetFramework>
@@ -31,6 +32,16 @@
   <ItemGroup>
     <Compile Include="KasaneProSetup.Dummy.cs" />
   </ItemGroup>
+
+  <!-- Clean のとき、Pro 用ドライバの出力（x64 と ARM64 の Release-Pro、中間ファイルを含む）を削除する。
+       ドライバの vcxproj は増分ビルドなので、消さないと、.sys と .pdb が再生成されず古いままになる。
+       署名済みパッケージ（driver\signed-pro）は別のフォルダなので、消さない。 -->
+  <Target Name="CleanProDriver" AfterTargets="Clean" Condition="'$(ProDriverBuild)' != 'false'">
+    <PropertyGroup>
+      <CleanRepoRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '..'))</CleanRepoRoot>
+    </PropertyGroup>
+    <RemoveDir Directories="$(CleanRepoRoot)driver\kbdlayer\x64\Release-Pro;$(CleanRepoRoot)driver\kbdlayer\ARM64\Release-Pro" />
+  </Target>
 
   <Target Name="BuildProInstaller" AfterTargets="Build">
     <PropertyGroup>
