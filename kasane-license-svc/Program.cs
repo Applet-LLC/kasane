@@ -24,7 +24,17 @@ builder.Services.AddSingleton<LicenseService>();
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<PipeServer>();
 
-// 標準の AddEventLog ではなく、書き込み失敗を握りつぶす版を使う(理由は SafeEventLogLoggerProvider 参照)。
+// AddWindowsService が標準の EventLog プロバイダーを自動で登録するので、それを外して、
+// 書き込み失敗を握りつぶす版だけを使う(理由は SafeEventLogLoggerProvider 参照)。
+var stockEventLog = builder.Services
+    .Where(d => d.ServiceType == typeof(ILoggerProvider)
+        && d.ImplementationType == typeof(Microsoft.Extensions.Logging.EventLog.EventLogLoggerProvider))
+    .ToList();
+foreach (var d in stockEventLog)
+{
+    builder.Services.Remove(d);
+}
+DebugTrace.Log($"Removed stock EventLog logger providers: {stockEventLog.Count}");
 builder.Logging.AddProvider(new SafeEventLogLoggerProvider(
     new Microsoft.Extensions.Logging.EventLog.EventLogSettings { SourceName = "kasaneLicenseSvc" }));
 
