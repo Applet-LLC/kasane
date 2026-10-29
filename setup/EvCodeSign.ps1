@@ -118,8 +118,14 @@ if ($StagingRoot -ne "") {
     $extensionsApp = @(".exe", ".dll")
     $extensionsKernel = @(".sys", ".cat")
 
+    # staging\Subscribe は WHQL 提出用に退避したコピーなので、署名の対象にしない。
+    $submitCopyPrefix = (Join-Path $fullStaging.Path "Subscribe").TrimEnd('\') + "\"
+
     $toSignApp = @(Get-ChildItem -LiteralPath $fullStaging.Path -Recurse -File -ErrorAction SilentlyContinue |
-            Where-Object { $extensionsApp -contains $_.Extension.ToLowerInvariant() } |
+            Where-Object {
+                $extensionsApp -contains $_.Extension.ToLowerInvariant() -and
+                -not $_.FullName.StartsWith($submitCopyPrefix, [System.StringComparison]::OrdinalIgnoreCase)
+            } |
             ForEach-Object { $_.FullName })
 
     if ($toSignApp.Count -gt 0) {
@@ -161,6 +167,7 @@ if ($StagingRoot -ne "") {
             Where-Object {
                 $ext = $_.Extension.ToLowerInvariant()
                 if ($extensionsKernel -notcontains $ext) { return $false }
+                if ($_.FullName.StartsWith($submitCopyPrefix, [System.StringComparison]::OrdinalIgnoreCase)) { return $false }
                 foreach ($prefix in $kernelSignExcludedPrefixes) {
                     if ($_.FullName.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
                         return $false
