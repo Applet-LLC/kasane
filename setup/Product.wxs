@@ -362,6 +362,7 @@
       <ComponentRef Id="CMP_KasaneDirEnv" />
       <ComponentRef Id="CMP_TrayExe" />
       <ComponentRef Id="CMP_TrayNuaExe" />
+      <ComponentRef Id="CMP_StartprocExe" />
       <ComponentRef Id="CMP_SiriusHookDll" />
     </Feature>
 
@@ -453,6 +454,18 @@
                        Name="kasane-tray"
                        Value="&quot;[TRAYDIR]kasane-tray.exe&quot;"
                        Type="string" />
+      </Component>
+    </DirectoryRef>
+
+    <!--
+      startproc.exe: 管理者保護が有効なとき、タスクスケジューラがトレイを起動するためのランチャー（PowerShell のウィンドウを出さない）。
+      タスクが [TRAYDIR]startproc.exe をフルパスで指定する。
+    -->
+    <DirectoryRef Id="TRAYDIR">
+      <Component Id="CMP_StartprocExe" Guid="{A3F61C08-9D27-4B5E-8E14-62C7D0B9F3A1}">
+        <File Id="FIL_StartprocExe"
+              Source="$(var.StagingTray)\startproc.exe"
+              KeyPath="yes" />
       </Component>
     </DirectoryRef>
 
@@ -704,7 +717,7 @@ End If
       ログオン時の自動起動を、管理者保護の有無に合わせて整える（deferred、SYSTEM）。kasane.exe のヘッドレスコマンド（setup-autostart）。
       管理者保護が無効: Run キー（CMP_TrayExe）だけで起動する。タスクがあれば消す。
       管理者保護が有効: Run キー経由の起動は、昇格しないトークンで UAC の確認が出る。そこで、いまログオンしているユーザーごとにタスクスケジューラのタスク
-      （ログオン時、最上位の特権、powershell.exe 経由）を作り、Run キーは StartupApproved で無効にする（Run キーの値は消さない。消すと修復で戻る）。
+      （ログオン時、最上位の特権、startproc.exe 経由）を作り、Run キーは StartupApproved で無効にする（Run キーの値は消さない。消すと修復で戻る）。
       ログオンしているユーザーが見つからなければ、Run キーを有効のままにする。管理者保護の設定を、インストールの後で変えたときは、修復（再インストール）で切り替える。
       アンインストールでは、タスクと StartupApproved の値を消す（アップグレードで旧製品が消えるときは、新製品が作り直すので消さない）。
     -->

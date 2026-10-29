@@ -26,8 +26,8 @@ public class AutostartTests
         Assert.Equal("InteractiveToken", doc.Descendants(ns + "LogonType").Single().Value);
         Assert.Equal(@"T480S\applet", doc.Descendants(ns + "LogonTrigger").Single().Element(ns + "UserId")!.Value);
         Assert.Equal("false", doc.Descendants(ns + "StopIfGoingOnBatteries").Single().Value);
-        Assert.Equal("powershell.exe", doc.Descendants(ns + "Command").Single().Value);
-        Assert.Contains(@"Start-Process -FilePath 'C:\Program Files\applet\kasane\tray\kasane-tray.exe'", doc.Descendants(ns + "Arguments").Single().Value);
+        Assert.Equal(@"C:\Program Files\applet\kasane\tray\startproc.exe", doc.Descendants(ns + "Command").Single().Value);
+        Assert.Equal(@"-FilePath ""C:\Program Files\applet\kasane\tray\kasane-tray.exe""", doc.Descendants(ns + "Arguments").Single().Value);
     }
 
     [Fact]
@@ -36,7 +36,7 @@ public class AutostartTests
         string xml = Autostart.BuildTaskXml(@"C:\R&D\it's\kasane-tray.exe", "S-1-5-21-1-2-3-1003", @"PC\u");
         XNamespace ns = "http://schemas.microsoft.com/windows/2004/02/mit/task";
         string args = XDocument.Parse(xml).Descendants(ns + "Arguments").Single().Value;
-        Assert.Contains(@"'C:\R&D\it''s\kasane-tray.exe'", args); // PowerShell の単一引用符は2つ重ねる
+        Assert.Equal(@"-FilePath ""C:\R&D\it's\kasane-tray.exe""", args); // XML の & は &amp; に直され、パースすると戻る
     }
 
     [Fact]

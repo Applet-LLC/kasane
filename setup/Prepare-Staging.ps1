@@ -471,6 +471,12 @@ Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kasane-tray" `
     -ExeFileName "kasane-tray-nua.exe" `
     -DestDir (Join-Path $stagingRoot "app/tray")
 
+# startproc.exe: 管理者保護が有効なとき、タスクスケジューラがトレイを起動するためのランチャー（PowerShell のウィンドウを出さずに起動する）。
+# 別プロジェクト natsu の成果物をそのまま取り込んだもの（setup/Assets/startproc.exe）。Autostart.BuildTaskXml が、フルパスで指定する。
+Copy-RequiredToolExe -ExeFileName "startproc.exe" -DestDir (Join-Path $stagingRoot "app/tray") -CandidatePaths @(
+    (Join-Path $repoRoot "setup/Assets/startproc.exe")
+)
+
 # 天狼（sirius）のフック用 DLL（IME の状態を TSF で読む。トレイが exe と同じフォルダから読み込む。sirius\ フォルダ、x64 の Release）。
 # 他のプロセスに注入される DLL なので、VC++ ランタイムは静的リンク（/MT）。動的リンクの古いビルドが入ると止める。
 Copy-RequiredToolExe -ExeFileName "sirius_hook_for_kasane_x64.dll" -DestDir (Join-Path $stagingRoot "app/tray") -CandidatePaths @(

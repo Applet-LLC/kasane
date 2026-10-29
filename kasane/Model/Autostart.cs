@@ -13,12 +13,13 @@ namespace Kasane.Model;
 ///  - 管理者保護が有効: Run キー経由の起動は、昇格しないトークンで UAC の確認が出る。そこで、ログオンしているユーザーごとに、タスクスケジューラのタスク
 ///    （ログオン時、最上位の特権）を作り、Run キーはタスクマネージャーの「スタートアップ」と同じ StartupApproved の値で無効にする（Run キーそのものは
 ///    MSI のコンポーネントの値なので、消すと修復で戻る）。タスクは昇格したトークンで起動し、uiAccess も付く（実機で確認済み）。
-/// タスクの形は、のどか（nodoka64.exe）で動いている設定と同じ（powershell.exe 経由の Start-Process）。
+/// タスクは startproc.exe（PowerShell のウィンドウを出さずにアプリを起動する小さなランチャー）を、フルパスで呼ぶ。
 /// </summary>
 public static class Autostart
 {
     public const string TaskPrefix = "kasane-tray";
     public const string RunValueName = "kasane-tray";
+    public const string LauncherFileName = "startproc.exe";
     private const string ApprovedKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
 
     /// <summary>StartupApproved\Run の値。先頭の 1 バイトが、02 = 有効、03 = 無効（タスクマネージャーと同じ）。</summary>
@@ -35,12 +36,14 @@ public static class Autostart
     }
 
     /// <summary>
-    /// タスクの XML。そのユーザーがログオンしたときに、最上位の特権（HighestAvailable）で powershell.exe 経由でトレイを起動する。
-    /// 直に起動するのではなく powershell.exe の Start-Process を挟むのは、のどかで確認した形に合わせるため（直起動だと失敗することがある）。
+    /// タスクの XML。そのユーザーがログオンしたときに、最上位の特権（HighestAvailable）で startproc.exe 経由でトレイを起動する。
+    /// 直に起動するのではなく startproc.exe を挟むのは、直起動だと失敗することがあるため。powershell.exe の Start-Process と違って、ウィンドウが出ない。
+    /// startproc.exe は、トレイの exe と同じフォルダーに置く（インストーラーが入れる）。
     /// </summary>
     public static string BuildTaskXml(string trayExePath, string userSid, string account)
     {
-        string path = SecurityElement.Escape(trayExePath.Replace("'", "''"))!;
+        string launcher = SecurityElement.Escape(Path.Combine(Path.GetDirectoryName(trayExePath) ?? "", LauncherFileName))!;
+        string path = SecurityElement.Escape(trayExePath)!;
         return $"""
             <?xml version="1.0" encoding="UTF-16"?>
             <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
@@ -68,8 +71,8 @@ public static class Autostart
               </Triggers>
               <Actions Context="Author">
                 <Exec>
-                  <Command>powershell.exe</Command>
-                  <Arguments>-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "Start-Process -FilePath '{path}'"</Arguments>
+                  <Command>{launcher}</Command>
+                  <Arguments>-FilePath "{path}"</Arguments>
                 </Exec>
               </Actions>
             </Task>
