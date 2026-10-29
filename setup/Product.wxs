@@ -38,7 +38,7 @@
     Id="*"
     Name="!(loc.ProductName$(var.LocSuffix))"
     Language="$(var.ProductLanguage)"
-    Version="1.0.1"
+    Version="1.0.0"
     Manufacturer="Applet LLC"
     UpgradeCode="$(var.UpgradeCodeValue)">
 
@@ -810,6 +810,19 @@ End If
       Return="ignore" />
 
     <!--
+      アンインストールでは、ファイルの使用中の判定（InstallValidate）より前にトレイを終了する。起動したままだと、Restart Manager が
+      トレイに終了要求（WM_QUERYENDSESSION）を送り、トレイが終了処理をしている最中にファイルが削除されて、
+      System.Diagnostics.Tracing の読み込みに失敗するエラーのダイアログが出ていた（2026-10-29 に確認）。
+      同じ Id は1つの Sequence に1回しか置けないので、CA_StopTray とは別の Id にしている。
+    -->
+    <CustomAction
+      Id="CA_StopTrayOnRemove"
+      Directory="TARGETDIR"
+      ExeCommand="&quot;[System64Folder]taskkill.exe&quot; /F /IM kasane-tray.exe /IM kasane-tray-nua.exe"
+      Execute="immediate"
+      Return="ignore" />
+
+    <!--
       前のアンインストールの後、再起動する前に再インストールすると、サービス kbdlayer が「削除予約済み」のままで、INF によるサービスの作成が
       ERROR_SERVICE_MARKED_FOR_DELETE (1072) で失敗し、インストールが最後（CA_InstallKbdDriver）で巻き戻る（2026-10-11 に発生）。
       レジストリ（DeleteFlag）にはこの状態が出ないので、DriverManager.exe check-pending が SCM に問い合わせる（削除予約済みなら終了コード 1072）。
@@ -848,6 +861,7 @@ End If
       <Custom Action="CA_CleanupSubscriptionRunOnce" After="CA_CleanupSubscriptionRegistry"><![CDATA[NOT REMOVE~="ALL"]]></Custom>
       <?endif?>
       <Custom Action="CA_StopTray" Before="RemoveExistingProducts" />
+      <Custom Action="CA_StopTrayOnRemove" Before="InstallValidate"><![CDATA[REMOVE~="ALL" AND NOT UPGRADINGPRODUCTCODE]]></Custom>
       <Custom Action="CA_CheckKbdPendingDelete" After="InstallInitialize">NOT REMOVE~="ALL" AND &amp;F_KbdDriver=3</Custom>
       <Custom Action="CA_InstallKbdDriver" Before="InstallFinalize">NOT REMOVE~="ALL" AND &amp;F_KbdDriver=3</Custom>
       <!-- 取り込み（任意）。ドライバのインストールのあと、kasane.exe が置かれたあとに行う。 -->
