@@ -4,7 +4,19 @@
   <String Id="ShortcutKeymapName">かさね</String>
   <String Id="ShortcutTrayName">かさね Tray</String>
   <String Id="DowngradeError">新しいバージョンのかさね Subscription がすでにインストールされています。</String>
-  <String Id="Error1722">セットアップの一部として実行されたプログラムが正常に終了しませんでした。直前にかさねをアンインストールした場合は、コンピューターを再起動してから、もう一度インストールしてください。それでも失敗するときは、サポート担当者に問い合わせてください。（エラー 1722 {{、処理: [2]、場所: [3]、コマンド: [4]}}）</String>
+  <String Id="Error1722">セットアップの一部として実行されたプログラムが正常に終了しませんでした。直前にかさねをアンインストールした場合は、コンピューターを再起動してから、もう一度インストールしてください。ライセンスキーを入力する版では、キーが正しいことと、インターネットに接続できていることも確かめてください。それでも失敗するときは、サポート担当者に問い合わせてください。（エラー 1722 {{、処理: [2]、場所: [3]、コマンド: [4]}}）</String>
+  <String Id="ProductNamePro">かさね Pro</String>
+  <String Id="DowngradeErrorPro">新しいバージョンのかさね Pro がすでにインストールされています。</String>
+  <String Id="ExitDialogOptionalTextPro">インストールを完了するには、コンピューターを再起動してください。</String>
+  <String Id="OtherEditionInstalled">かさね Pro がインストールされています。同じコンピューターに、Subscription と Pro は同時にインストールできません。</String>
+  <String Id="OtherEditionInstalledPro">かさね Subscription がインストールされています。先にかさね Subscription をアンインストールし、コンピューターを再起動してから、もう一度インストールしてください。</String>
+  <String Id="LicenseKeyDlg_Title">ライセンスキーの入力</String>
+  <String Id="LicenseKeyDlg_Description">Gumroad で購入したライセンスキーを入力してください</String>
+  <String Id="LicenseKeyDlg_Explain">キーの確認は、インストール時に1回だけ行います。インターネットに接続している必要があります。確認できないときは、インストールを中止して、何も変更しません。</String>
+  <String Id="LicenseKeyDlg_Label">ライセンスキー:</String>
+  <String Id="LicenseKeyDlg_Hint">マウスの右クリックは利用できないので、キーボードを使用して、Ctrl+Vで貼り付けてください。</String>
+  <String Id="LicenseKeyEmptyDlg_Title">ライセンスキーがありません</String>
+  <String Id="LicenseKeyEmptyDlg_Text">ライセンスキーを入力してください。</String>
   <String Id="LicenseSvcDescription">かさね サブスクリプションライセンス管理</String>
   <String Id="ExitDialogOptionalText">インストールを完了するには、コンピューターを再起動してください。再起動後にログインすると、ライセンス管理ツールが自動的に起動します。</String>
 

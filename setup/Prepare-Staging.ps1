@@ -431,15 +431,23 @@ foreach ($tool in @("DriverManager.exe", "DriverManager_arm64.exe", "KeymapTool.
     }
 }
 
-# kasane-license-svc: .NET 8 Worker Service の publish 成果物（exe + appsettings.json）
-Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kasane-license-svc" `
-    -ExeFileName "kasane-license-svc.exe" `
-    -DestDir (Join-Path $stagingRoot "app/license-svc")
+if ($Edition -eq "Pro") {
+    # Pro（買い切り版）: ライセンス管理サービスと License Manager は入れない。代わりに、インストール時に
+    # Gumroad へキーを照会するツール（kasane-pro-activator.exe。MSI に埋め込む）を用意する。
+    Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kasane-pro-activator" `
+        -ExeFileName "kasane-pro-activator.exe" `
+        -DestDir (Join-Path $stagingRoot "app/pro-activator")
+} else {
+    # kasane-license-svc: .NET 8 Worker Service の publish 成果物（exe + appsettings.json）
+    Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kasane-license-svc" `
+        -ExeFileName "kasane-license-svc.exe" `
+        -DestDir (Join-Path $stagingRoot "app/license-svc")
 
-# kasane-license: .NET 8 WPF の publish 成果物（exe のみ）
-Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kasane-license" `
-    -ExeFileName "kasane-license.exe" `
-    -DestDir (Join-Path $stagingRoot "app/license-gui")
+    # kasane-license: .NET 8 WPF の publish 成果物（exe のみ）
+    Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kasane-license" `
+        -ExeFileName "kasane-license.exe" `
+        -DestDir (Join-Path $stagingRoot "app/license-gui")
+}
 
 # kasane: キーマップ編集GUI（.NET 8 WPF）。Stage-DotNetPublish は publish 出力の
 # 直下のファイルしかコピーしないので、KLEレイアウト（Layouts\*.json）はソースから別途コピーする
@@ -492,9 +500,11 @@ $noticesSource = Join-Path $repoRoot "THIRD-PARTY-NOTICES.txt"
 if (-not (Test-Path -LiteralPath $noticesSource)) { throw "THIRD-PARTY-NOTICES.txt not found: $noticesSource" }
 Copy-Item -LiteralPath $noticesSource -Destination $noticesStaging -Force
 # 使用許諾（License.*.rtf）と README も、インストール先の直下に入れる（配布の zip の直下と同じ並び）。
+$licenseSrcDir = if ($Edition -eq "Pro") { "License-Pro" } else { "License" }
+$readmeSrcDir = if ($Edition -eq "Pro") { "dist-readme-pro" } else { "dist-readme" }
 foreach ($f in @(
-        (Join-Path $PSScriptRoot "License\License.en-US.rtf"), (Join-Path $PSScriptRoot "License\License.ja-JP.rtf"),
-        (Join-Path $PSScriptRoot "dist-readme\README.en-US.txt"), (Join-Path $PSScriptRoot "dist-readme\README.ja-JP.txt"))) {
+        (Join-Path $PSScriptRoot "$licenseSrcDir\License.en-US.rtf"), (Join-Path $PSScriptRoot "$licenseSrcDir\License.ja-JP.rtf"),
+        (Join-Path $PSScriptRoot "$readmeSrcDir\README.en-US.txt"), (Join-Path $PSScriptRoot "$readmeSrcDir\README.ja-JP.txt"))) {
     if (-not (Test-Path -LiteralPath $f)) { throw "install-root document not found: $f" }
     Copy-Item -LiteralPath $f -Destination $noticesStaging -Force
 }
@@ -546,7 +556,7 @@ Write-Host "[docs] staged: $((Get-ChildItem $docsStaging).Count) files"
 # ビルド後に KasaneSetup.csproj の最終 Copy が staging/launcher から
 # bin\<Configuration>\ へコピーし、両言語のMSIと同じフォルダに配置する。
 Stage-DotNetPublish -RepoRoot $repoRoot -ProjectName "kasane-launcher" `
-    -ExeFileName "Install-kasane.exe" `
+    -ExeFileName $(if ($Edition -eq "Pro") { "Install-kasane-pro.exe" } else { "Install-kasane.exe" }) `
     -DestDir (Join-Path $stagingRoot "launcher")
 
 # EvCodeSign.ps1 向けに WHQL 署名済みドライバ一覧を staging 直下に書き出す。
