@@ -1,5 +1,9 @@
 using System.Diagnostics;
 using System.Globalization;
+#if KASANE_PRO
+using System.Text.RegularExpressions;
+using Microsoft.Win32;
+#endif
 
 namespace KasaneLauncher;
 
@@ -31,6 +35,15 @@ public sealed class MainForm : Form
     private readonly LinkLabel _languageLink;
 
     private readonly bool _msiMissing;
+
+#if KASANE_PRO
+    // 買い切り版(kasane Pro)。キーは msiexec に LICENSEKEY=... で渡し、確認はインストーラー
+    // (kasane-pro-activator.exe)が1回だけ行う。失敗の理由は、kasane-pro-activator.exe が
+    // HKLM\SOFTWARE\kasane-pro-setup に書くので、msiexec の終了後に読んで案内する。
+    private const string SetupRegistryKeyPath = @"SOFTWARE\kasane-pro-setup";
+    private readonly Label _keyLabel;
+    private readonly TextBox _keyBox;
+#endif
 
     public MainForm()
     {
@@ -136,6 +149,12 @@ public sealed class MainForm : Form
         };
         root.Controls.Add(languageRow);
         root.Controls.Add(_description);
+#if KASANE_PRO
+        _keyLabel = new Label { AutoSize = true, Margin = new Padding(0, 0, 0, 4) };
+        _keyBox = new TextBox { Width = 420, Margin = new Padding(0, 0, 0, 12), MaxLength = 128 };
+        root.Controls.Add(_keyLabel);
+        root.Controls.Add(_keyBox);
+#endif
         root.Controls.Add(_statusLabel);
         root.Controls.Add(buttonRow);
 
@@ -155,6 +174,9 @@ public sealed class MainForm : Form
         Text = Strings.WindowTitle;
         _languageLink.Text = Strings.LanguageSwitchLabel;
         _description.Text = Strings.Description;
+#if KASANE_PRO
+        _keyLabel.Text = Strings.KeyLabel;
+#endif
         _installButton.Text = Strings.InstallButton;
         _cancelButton.Text = Strings.CancelButton;
         ApplySharedButtonSize();
@@ -197,9 +219,15 @@ public sealed class MainForm : Form
     }
 
     /// <summary>選択中の言語に対応するMSIファイル名（このランチャーと同じフォルダに置かれる想定）。</summary>
+#if KASANE_PRO
+    private static string MsiFileName => Strings.IsJapanese
+        ? "KasaneProSetup-ja-JP.msi"
+        : "KasaneProSetup-en-US.msi";
+#else
     private static string MsiFileName => Strings.IsJapanese
         ? "KasaneSetup-ja-JP.msi"
         : "KasaneSetup-en-US.msi";
+#endif
 
     private static string GetMsiPath() => Path.Combine(AppContext.BaseDirectory, MsiFileName);
 
@@ -213,6 +241,27 @@ public sealed class MainForm : Form
             return;
         }
 
+#if KASANE_PRO
+        // ライセンスキーを確かめてから渡す。msiexec のコマンドラインに入るので、英数字とハイフン以外は断る
+        // (引用符などでコマンドラインを壊されないように)。
+        string licenseKey = _keyBox.Text.Trim();
+        if (licenseKey.Length == 0)
+        {
+            MessageBox.Show(this, Strings.KeyEmptyMessage, Strings.VerifyFailedTitle,
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            _keyBox.Focus();
+            return;
+        }
+        if (!Regex.IsMatch(licenseKey, @"^[A-Za-z0-9\-]{8,128}$"))
+        {
+            MessageBox.Show(this, Strings.KeyInvalidFormatMessage, Strings.VerifyFailedTitle,
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            _keyBox.Focus();
+            return;
+        }
+        ClearSetupRegistry();
+#endif
+
         SetBusy(true, Strings.InstallingStatus);
 
         try
@@ -220,7 +269,11 @@ public sealed class MainForm : Form
             var psi = new ProcessStartInfo
             {
                 FileName = "msiexec.exe",
+#if KASANE_PRO
+                Arguments = $"/i \"{msiPath}\" LICENSEKEY=\"{licenseKey}\"",
+#else
                 Arguments = $"/i \"{msiPath}\"",
+#endif
                 UseShellExecute = true,
             };
 
@@ -236,9 +289,30 @@ public sealed class MainForm : Form
                 || process.ExitCode == ErrorSuccessRebootRequired
                 || process.ExitCode == ErrorSuccessRebootInitiated)
             {
+#if KASANE_PRO
+                ClearSetupRegistry();
+#endif
                 Close();
                 return;
             }
+
+#if KASANE_PRO
+            // ライセンスキーの確認で失敗したときは、理由に合わせた案内を出す。
+            (string? outcome, string? detail) = ReadVerifyOutcome();
+            ClearSetupRegistry();
+            if (outcome is not null)
+            {
+                string text = outcome switch
+                {
+                    "REJECTED" => Strings.VerifyRejectedMessage(detail),
+                    "NETWORK" => Strings.VerifyNetworkMessage,
+                    "MISSING_KEY" => Strings.VerifyMissingKeyMessage,
+                    _ => Strings.VerifyConfigErrorMessage,
+                };
+                MessageBox.Show(this, text, Strings.VerifyFailedTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+#endif
 
             MessageBox.Show(this, Strings.InstallFailedMessage, Strings.InstallFailedTitle,
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -254,8 +328,40 @@ public sealed class MainForm : Form
         }
     }
 
+#if KASANE_PRO
+    /// <summary>kasane-pro-activator.exe が書いた検証結果を読む(無ければ null)。</summary>
+    private static (string? Outcome, string? Detail) ReadVerifyOutcome()
+    {
+        try
+        {
+            using RegistryKey? key = Registry.LocalMachine.OpenSubKey(SetupRegistryKeyPath);
+            return (key?.GetValue("LastVerifyOutcome") as string, key?.GetValue("LastVerifyMessage") as string);
+        }
+        catch
+        {
+            return (null, null);
+        }
+    }
+
+    /// <summary>キーや検証結果を、レジストリに残さない(インストールの前後で消す)。</summary>
+    private static void ClearSetupRegistry()
+    {
+        try
+        {
+            Registry.LocalMachine.DeleteSubKeyTree(SetupRegistryKeyPath, throwOnMissingSubKey: false);
+        }
+        catch
+        {
+            // 消せなくても、インストールの結果には影響しない。
+        }
+    }
+#endif
+
     private void SetBusy(bool busy, string statusText)
     {
+#if KASANE_PRO
+        _keyBox.Enabled = !busy;
+#endif
         _installButton.Enabled = !busy && !_msiMissing;
         _cancelButton.Enabled = !busy;
         _statusLabel.ForeColor = Color.DimGray;

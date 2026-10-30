@@ -8,6 +8,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>KasaneLauncher</RootNamespace>
     <AssemblyName>Install-kasane</AssemblyName>
+    <!-- 買い切り版(kasane Pro)のランチャー: dotnet publish /p:Edition=Pro。キー入力欄を持ち、MSI にキーを渡す。
+         exe 名と obj を分けて、サブスク版の成果物と混ざらないようにする。 -->
+    <AssemblyName Condition="'$(Edition)' == 'Pro'">Install-kasane-pro</AssemblyName>
+    <DefineConstants Condition="'$(Edition)' == 'Pro'">$(DefineConstants);KASANE_PRO</DefineConstants>
+    <IntermediateOutputPath Condition="'$(Edition)' == 'Pro'">obj\Pro\$(Configuration)\</IntermediateOutputPath>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
