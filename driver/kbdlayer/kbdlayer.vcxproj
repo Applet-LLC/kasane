@@ -45,6 +45,13 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <!-- 買い切り版(kasane Pro)のドライバ: msbuild /p:KbdlayerEdition=Pro で、KBDLAYER_PRO を定義し、token.c を除き、
+       出力先を Release-Pro に分ける（サブスク版の x64\Release と取り違えない）。 -->
+  <PropertyGroup Condition="'$(KbdlayerEdition)'=='Pro'">
+    <OutDir>$(MSBuildProjectDirectory)\$(Platform)\$(Configuration)-Pro\</OutDir>
+    <IntDir>$(MSBuildProjectDirectory)\$(Platform)\$(Configuration)-Pro\int\</IntDir>
+    <PackageDir>$(OutDir)kbdlayer\</PackageDir>
+  </PropertyGroup>
   <PropertyGroup />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <RunInf2Cat>true</RunInf2Cat>
@@ -102,6 +109,11 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(KbdlayerEdition)'=='Pro'">
+    <ClCompile>
+      <PreprocessorDefinitions>KBDLAYER_PRO;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
@@ -120,7 +132,7 @@
     <ClCompile Include="..\common\hwidutil.c" />
     <ClCompile Include="..\common\regutil.c" />
     <ClCompile Include="Driver.c" />
-    <ClCompile Include="token.c" />
+    <ClCompile Include="token.c" Condition="'$(KbdlayerEdition)'!='Pro'" />
     <ClCompile Include="LayerEngine.c" />
     <ClCompile Include="ControlDevice.c" />
     <ClCompile Include="NicolaCore.c" />

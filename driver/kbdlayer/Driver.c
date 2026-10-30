@@ -228,6 +228,12 @@ NTSTATUS AddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT PhysicalDev
     // LoadPersistedLayerMapForDeviceが上書きする。
     devExt->EnabledFeatures = KBDLAYER_FEATURE_ALL;
 
+#ifdef KBDLAYER_PRO
+    // 買い切り版(kasane Pro)。キーの確認はインストール時に済んでいる（インストーラーが
+    // Gumroadに照会する）ので、ドライバはトークンを読まず、常にライセンス有効とする。
+    // token.cも、この構成ではビルドに含めない（公開鍵も載らない）。
+    devExt->License = 1UL;
+#else
     // LicenseTokenをECDSA検証してライセンス状態を決定（PASSIVE_LEVEL）
     {
         WCHAR tokenBuf[512] = {0};
@@ -235,6 +241,7 @@ NTSTATUS AddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT PhysicalDev
         devExt->License = (tokenBuf[0] != 0 && ValidateLicenseToken(tokenBuf)) ? 1UL : 0UL;
         KBDLAYER_TRACE("AddDevice: token validation result License=%lu\n", devExt->License);
     }
+#endif
 
     // License無効ならDeviceIdを0に設定して残りの処理をスキップ
     if (devExt->License == 0) {
