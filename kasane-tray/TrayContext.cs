@@ -180,12 +180,10 @@ public sealed class TrayContext : ApplicationContext
         }
     }
 
-    // ライセンス管理（kasane-license.exe）が見つからないとき（インストールしていない・消した）は、「ライセンス」を灰色にする。メニューを開くたびに調べる。
+    // ライセンス管理（kasane-license.exe）が見つからないとき（買い切り版 kasane Pro はこれを入れない）は、「ライセンス」を出さない。メニューを開くたびに調べる。
     private void UpdateLicenseItem()
     {
-        bool exists = AppLauncher.FindLicense() != null;
-        _licenseItem.Enabled = exists;
-        _licenseItem.ToolTipText = exists ? "" : Loc.T("ライセンス管理(kasane-license.exe)が見つかりません", "License manager (kasane-license.exe) not found");
+        _licenseItem.Visible = AppLauncher.FindLicense() != null;
     }
 
     private void OpenEditor()
