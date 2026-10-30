@@ -71,7 +71,7 @@
          手描きではないので、app.icoを差し替えたら再生成すること。 -->
     <WixVariable Id="WixUIBannerBmp" Value="$(var.MSBuildProjectDirectory)\Assets\banner.bmp" />
 
-    <Icon Id="ICO_App" SourceFile="$(var.MSBuildProjectDirectory)\..\kasane-license\Resources\app.ico" />
+    <Icon Id="ICO_App" SourceFile="$(var.MSBuildProjectDirectory)\..\kasane\Resources\app.ico" />
     <Property Id="ARPPRODUCTICON" Value="ICO_App" />
 
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />

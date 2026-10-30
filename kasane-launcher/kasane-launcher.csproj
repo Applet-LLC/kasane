@@ -19,8 +19,8 @@
     <Platforms>AnyCPU;x64</Platforms>
     <!-- app.manifest で requireAdministrator を指定（詳細はそちらのコメント参照） -->
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <!-- kasane-license\Resources\app.ico を共有（MSIのARPPRODUCTICONと同一素材） -->
-    <ApplicationIcon>..\kasane-license\Resources\app.ico</ApplicationIcon>
+    <!-- kasane\Resources\app.ico を共有（MSIのARPPRODUCTICONと同一素材） -->
+    <ApplicationIcon>..\kasane\Resources\app.ico</ApplicationIcon>
   </PropertyGroup>
 
 </Project>

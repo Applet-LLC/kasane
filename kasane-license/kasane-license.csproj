@@ -16,7 +16,7 @@
     <PublishReadyToRun>true</PublishReadyToRun>
     <StartupObject>KasaneLicense.App</StartupObject>
     <Platforms>AnyCPU;x64</Platforms>
-    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
+    <ApplicationIcon>..\kasane\Resources\app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -30,7 +30,7 @@
 
   <ItemGroup>
     <!-- Window.Icon のパック参照解決用（exeファイル自体のアイコンは ApplicationIcon が担当） -->
-    <Resource Include="Resources\app.ico" />
+    <Resource Include="..\kasane\Resources\app.ico" Link="Resources\app.ico" />
   </ItemGroup>
 
 </Project>
