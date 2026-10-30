@@ -24,10 +24,9 @@ builder.Services.AddSingleton<LicenseService>();
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<PipeServer>();
 
-builder.Logging.AddEventLog(settings =>
-{
-    settings.SourceName = "kasaneLicenseSvc";
-});
+// 標準の AddEventLog ではなく、書き込み失敗を握りつぶす版を使う(理由は SafeEventLogLoggerProvider 参照)。
+builder.Logging.AddProvider(new SafeEventLogLoggerProvider(
+    new Microsoft.Extensions.Logging.EventLog.EventLogSettings { SourceName = "kasaneLicenseSvc" }));
 
 var host = builder.Build();
 
