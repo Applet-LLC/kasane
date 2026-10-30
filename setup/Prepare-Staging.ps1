@@ -4,7 +4,18 @@
 # mouaddid handling removed entirely (kasane has no mouse component). DriverTestApp staging
 # removed (superseded by KeymapTool.exe, driver/KeymapTool/ -- staged below alongside DriverManager.exe).
 
+# -Edition Pro: 買い切り版(kasane Pro)。ドライバは driver/signed-pro/ の署名済みパッケージか、
+# KbdlayerEdition=Pro でビルドした Release-Pro の出力だけを使う（サブスク版のドライバを取り違えない）。
+# 省略時は環境変数 KASANE_EDITION、それも無ければ Subscription。
+param(
+    [ValidateSet("Subscription", "Pro")][string]$Edition = $(if ($env:KASANE_EDITION) { $env:KASANE_EDITION } else { "Subscription" })
+)
+
 $ErrorActionPreference = "Stop"
+
+# ドライバのビルド出力フォルダ名（Release / Release-Pro）と、WHQL署名済みパッケージの置き場所。
+$driverRelDir = if ($Edition -eq "Pro") { "Release-Pro" } else { "Release" }
+$driverSignedRoot = if ($Edition -eq "Pro") { "driver/signed-pro" } else { "driver/signed" }
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $stagingRoot = Join-Path $PSScriptRoot "staging"
@@ -135,14 +146,13 @@ function Copy-PdbToSymbol {
     $candidates = if ($Arch -eq "arm64") {
         @(
             (Join-Path $StagedDriverDir "$DriverName.pdb")
-            (Join-Path $RepoRoot "driver/$DriverName/ARM64/Release/$DriverName.pdb")
+            (Join-Path $RepoRoot "driver/$DriverName/ARM64/$driverRelDir/$DriverName.pdb")
         )
     } else {
         @(
             (Join-Path $StagedDriverDir "$DriverName.pdb")
-            (Join-Path $RepoRoot "x64/Release/$DriverName.pdb")
-            (Join-Path $RepoRoot "driver/$DriverName/x64/Release/$DriverName.pdb")
-        )
+            (Join-Path $RepoRoot "driver/$DriverName/x64/$driverRelDir/$DriverName.pdb")
+        ) + $(if ($Edition -eq "Pro") { @() } else { @((Join-Path $RepoRoot "x64/Release/$DriverName.pdb")) })
     }
     $symbolFileName = if ($Arch -eq "arm64") { "${DriverName}_arm64.pdb" } else { "$DriverName.pdb" }
     foreach ($src in $candidates) {
@@ -199,13 +209,21 @@ function Assert-KernelDriverPackage {
     # (x64\Release\<name>\) の両方があり得る。arm64: kbdlayer_arm64.vcxprojはOutDirを
     # MSBuildProjectDirectory相対に固定しているため、常に1箇所（driver/<name>/ARM64/Release/<name>/）。
     $sysFallbacks = if ($Arch -eq "arm64") {
-        @((Join-Path $RepoRoot "driver/$DriverName/ARM64/Release/$DriverName/$DriverName.sys"))
+        @((Join-Path $RepoRoot "driver/$DriverName/ARM64/$driverRelDir/$DriverName/$DriverName.sys"))
     } else {
-        @(
-            (Join-Path $RepoRoot "x64/Release/$DriverName/$DriverName.sys")
-            (Join-Path $RepoRoot "x64/Release/$DriverName.sys")
-            (Join-Path $RepoRoot "driver/x64/Release/$DriverName.sys")
-        )
+        # Pro はソリューション統一出力（x64/Release）を見ない。サブスク版のドライバを拾わないため。
+        if ($Edition -eq "Pro") {
+            @(
+                (Join-Path $RepoRoot "driver/$DriverName/x64/$driverRelDir/$DriverName/$DriverName.sys")
+                (Join-Path $RepoRoot "driver/$DriverName/x64/$driverRelDir/$DriverName.sys")
+            )
+        } else {
+            @(
+                (Join-Path $RepoRoot "x64/Release/$DriverName/$DriverName.sys")
+                (Join-Path $RepoRoot "x64/Release/$DriverName.sys")
+                (Join-Path $RepoRoot "driver/x64/Release/$DriverName.sys")
+            )
+        }
     }
     $sysSupplementedFromDir = $null
     if (-not (Test-Path -LiteralPath $sys)) {
@@ -235,14 +253,19 @@ If your layout outputs SYS elsewhere, add that path to sysFallbacks in Prepare-S
         $catFallbacks.Add((Join-Path $sysSupplementedFromDir "$DriverName.cat"))
     }
     if ($Arch -eq "arm64") {
-        $catFallbacks.Add((Join-Path $RepoRoot "driver/$DriverName/ARM64/Release/$DriverName/$DriverName.cat"))
+        $catFallbacks.Add((Join-Path $RepoRoot "driver/$DriverName/ARM64/$driverRelDir/$DriverName/$DriverName.cat"))
     } else {
-        foreach ($p in @(
-                (Join-Path $RepoRoot "driver/$DriverName/x64/Release/$DriverName/$DriverName.cat")
-                (Join-Path $RepoRoot "driver/$DriverName/x64/Release/$DriverName.cat")
+        $catCandidates = @(
+            (Join-Path $RepoRoot "driver/$DriverName/x64/$driverRelDir/$DriverName/$DriverName.cat")
+            (Join-Path $RepoRoot "driver/$DriverName/x64/$driverRelDir/$DriverName.cat")
+        )
+        if ($Edition -ne "Pro") {
+            $catCandidates += @(
                 (Join-Path $RepoRoot "x64/Release/$DriverName/$DriverName.cat")
                 (Join-Path $RepoRoot "x64/Release/$DriverName.cat")
-            )) {
+            )
+        }
+        foreach ($p in $catCandidates) {
             if ($catFallbacks -notcontains $p) { $catFallbacks.Add($p) }
         }
     }
@@ -279,7 +302,7 @@ function Get-KernelDriverSource {
         [Parameter(Mandatory = $true)][string]$Arch
     )
     $signedDirName = if ($Arch -eq "arm64") { "$DriverName-arm64" } else { $DriverName }
-    $signedDir = Join-Path $RepoRoot "driver/signed/$signedDirName"
+    $signedDir = Join-Path $RepoRoot "$driverSignedRoot/$signedDirName"
     $required = @("$DriverName.inf", "$DriverName.sys", "$DriverName.cat")
     if (Test-Path -LiteralPath $signedDir) {
         $missing = $required | Where-Object {
@@ -289,13 +312,13 @@ function Get-KernelDriverSource {
             Write-Host "[$DriverName/$Arch] WHQL-signed package found: $signedDir"
             return @{ Path = $signedDir; PreSigned = $true }
         }
-        Write-Warning "[$DriverName/$Arch] driver/signed/$signedDirName/ is incomplete (missing: $($missing -join ', ')) -- falling back to build output"
+        Write-Warning "[$DriverName/$Arch] $driverSignedRoot/$signedDirName/ is incomplete (missing: $($missing -join ', ')) -- falling back to build output"
     }
 
     if ($Arch -eq "arm64") {
         # kbdlayer_arm64.vcxprojはOutDirをMSBuildProjectDirectory相対に固定しているため、
         # ビルド出力は常にこの1箇所（ソリューション経由でもスタンドアロンでも同じ）。
-        $buildDir = Join-Path $RepoRoot "driver/$DriverName/ARM64/Release/$DriverName"
+        $buildDir = Join-Path $RepoRoot "driver/$DriverName/ARM64/$driverRelDir/$DriverName"
         $missing = $required | Where-Object { -not (Test-Path -LiteralPath (Join-Path $buildDir $_)) }
         if ($missing.Count -eq 0) {
             Write-Host "[$DriverName/arm64] Using build output: $buildDir"
@@ -310,10 +333,13 @@ function Get-KernelDriverSource {
     # 2. driver/<name>/x64/Release/         (プロジェクトローカルビルドのフラット出力。StampInf/Link 直後のコピーで .cat が無いことがある)
     # 3. x64/Release/<name>/               (ソリューション統一出力・コピー済みバイナリ)
     $buildCandidates = @(
-        (Join-Path $RepoRoot "driver/$DriverName/x64/Release/$DriverName")
-        (Join-Path $RepoRoot "driver/$DriverName/x64/Release")
-        (Join-Path $RepoRoot "x64/Release/$DriverName")
+        (Join-Path $RepoRoot "driver/$DriverName/x64/$driverRelDir/$DriverName")
+        (Join-Path $RepoRoot "driver/$DriverName/x64/$driverRelDir")
     )
+    if ($Edition -ne "Pro") {
+        # Pro はソリューション統一出力（x64/Release）を見ない。サブスク版のドライバを拾わないため。
+        $buildCandidates += (Join-Path $RepoRoot "x64/Release/$DriverName")
+    }
     # inf/sys/cat が揃っている候補を優先する（.cat が無いフラット出力を誤って選ばないように）
     foreach ($candidate in $buildCandidates) {
         $missing = $required | Where-Object { -not (Test-Path -LiteralPath (Join-Path $candidate $_)) }
@@ -330,7 +356,7 @@ function Get-KernelDriverSource {
         }
     }
     # フォールバック: .inf がなくても Assert-KernelDriverPackage が補完する
-    $buildDir = Join-Path $RepoRoot "driver/$DriverName/x64/Release"
+    $buildDir = Join-Path $RepoRoot "driver/$DriverName/x64/$driverRelDir"
     Write-Host "[$DriverName/x64] Using build output (fallback): $buildDir"
     return @{ Path = $buildDir; PreSigned = $false }
 }
