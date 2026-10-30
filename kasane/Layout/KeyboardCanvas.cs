@@ -115,8 +115,12 @@ public sealed class KeyboardCanvas : Canvas
         borders[^1].Child = MakeContent(slot, visual);
     }
 
-    public Rect GetKeyBounds(KeySlot slot) =>
-        new(slot.X * Unit + Gap, slot.Y * Unit + Gap, slot.W * Unit - Gap, slot.H * Unit - Gap);
+    /// <summary>キー（回転していれば回転後）を囲む、軸に平行な矩形（キャンバス座標）。</summary>
+    public Rect GetKeyBounds(KeySlot slot)
+    {
+        var b = slot.Bounds;
+        return new(b.MinX * Unit + Gap, b.MinY * Unit + Gap, (b.MaxX - b.MinX) * Unit - Gap, (b.MaxY - b.MinY) * Unit - Gap);
+    }
 
     private Border MakeRect(KeySlot slot, double x, double y, double w, double h, KeyVisual visual, bool isMain)
     {
@@ -138,6 +142,9 @@ public sealed class KeyboardCanvas : Canvas
         b.Cursor = Cursors.Hand;
         SetLeft(b, x * Unit + Gap);
         SetTop(b, y * Unit + Gap);
+        // 回転は、回転の中心（レイアウト座標）をこの矩形の座標に直して掛ける。ヒットテストも回転に従う。
+        if (slot.Angle != 0)
+            b.RenderTransform = new RotateTransform(slot.Angle, (slot.OriginX - x) * Unit, (slot.OriginY - y) * Unit);
         b.MouseLeftButtonUp += (_, e) => { KeyClicked?.Invoke(slot); e.Handled = true; };
         b.MouseRightButtonUp += (_, e) => { KeyRightClicked?.Invoke(slot); e.Handled = true; };
         Children.Add(b);

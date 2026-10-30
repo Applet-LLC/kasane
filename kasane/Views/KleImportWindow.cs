@@ -223,6 +223,10 @@ public sealed class KleImportWindow : Window
         _keyBoxes.Clear();
         if (_result == null) return;
         double maxX = 0, maxY = 0;
+        // 回転して座標が負になるキーがあるときは、全体を原点へずらす（KeyboardLayout.Load と同じ）。
+        var allBounds = _rows.Select(r => KeyGeometry.Bounds(r.Source.X, r.Source.Y, r.Source.W, r.Source.H, r.Source.Angle, r.Source.OriginX, r.Source.OriginY)).ToList();
+        double dx = allBounds.Count > 0 && allBounds.Min(b => b.MinX) < 0 ? -allBounds.Min(b => b.MinX) : 0;
+        double dy = allBounds.Count > 0 && allBounds.Min(b => b.MinY) < 0 ? -allBounds.Min(b => b.MinY) : 0;
         foreach (var r in _rows)
         {
             var k = r.Source;
@@ -240,14 +244,17 @@ public sealed class KleImportWindow : Window
             };
             System.Windows.Automation.AutomationProperties.SetAutomationId(box, $"KleKey{k.Slot + 1}");
             System.Windows.Automation.AutomationProperties.SetName(box, $"#{k.Slot + 1} {k.Label}");
-            Canvas.SetLeft(box, k.X * Scale + 4);
-            Canvas.SetTop(box, k.Y * Scale + 4);
+            Canvas.SetLeft(box, (k.X + dx) * Scale + 4);
+            Canvas.SetTop(box, (k.Y + dy) * Scale + 4);
+            if (k.Angle != 0)
+                box.RenderTransform = new RotateTransform(k.Angle, (k.OriginX - k.X) * Scale, (k.OriginY - k.Y) * Scale);
             int slot = k.Slot;
             box.Click += (_, _) => SelectRow(slot);
             _canvas.Children.Add(box);
             _keyBoxes[k.Slot] = box;
-            maxX = Math.Max(maxX, (k.X + k.W) * Scale);
-            maxY = Math.Max(maxY, (k.Y + k.H) * Scale);
+            var bb = KeyGeometry.Bounds(k.X, k.Y, k.W, k.H, k.Angle, k.OriginX, k.OriginY);
+            maxX = Math.Max(maxX, (bb.MaxX + dx) * Scale);
+            maxY = Math.Max(maxY, (bb.MaxY + dy) * Scale);
         }
         _canvas.Width = maxX + 12;
         _canvas.Height = maxY + 12;
@@ -316,7 +323,7 @@ public sealed class KleImportWindow : Window
     private void PickKeycode()
     {
         if (_grid.SelectedItem is not Row row) { MessageBox.Show(this, Loc.T("一覧のキーを選んでから押してください。", "Select a key in the list first."), Title); return; }
-        var slot = new KeySlot { Index = row.Slot, RawLabel = row.Label, X = row.Source.X, Y = row.Source.Y, W = row.Source.W, H = row.Source.H };
+        var slot = new KeySlot { Index = row.Slot, RawLabel = row.Label, X = row.Source.X, Y = row.Source.Y, W = row.Source.W, H = row.Source.H, Angle = row.Source.Angle, OriginX = row.Source.OriginX, OriginY = row.Source.OriginY };
         var dlg = new KeyAssignDialog(slot, 0, row.Keycode.Length > 0 ? row.Keycode : "KC_NO", 1) { Owner = this };
         if (dlg.ShowDialog() != true) return;
         if (!KeycodeTable.TryResolveBaseKey(dlg.ResultToken, out _))

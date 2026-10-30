@@ -110,13 +110,108 @@ public class KleImporterTests
         Assert.Contains(r.Warnings, w => w.Contains("決まらなかった"));
     }
 
+    private static KeyboardLayout LoadJson(string json)
+    {
+        string tmp = Path.Combine(Path.GetTempPath(), $"kle-test-{Guid.NewGuid():N}.json");
+        try { File.WriteAllText(tmp, json); return KeyboardLayout.Load(tmp); }
+        finally { File.Delete(tmp); }
+    }
+
     [Fact]
-    public void RotatedKeys_CannotBeImported()
+    public void RotatedKeys_CanBeImported_AndAreReported()
     {
         var r = KleImporter.Analyze("[[{\"r\":15,\"rx\":1,\"ry\":1},\"A\"]]");
         Assert.True(r.HasRotation);
-        Assert.False(r.CanSave);
-        Assert.Throws<FormatException>(() => KleImporter.Apply("[[{\"r\":15},\"A\"]]", new Dictionary<int, string> { [0] = "KC_A" }));
+        Assert.True(r.CanSave);
+        Assert.Contains(r.Warnings, w => w.Contains("回転したキー") || w.Contains("rotated"));
+        Assert.Equal(15, r.Keys[0].Angle);
+        Assert.Equal(1, r.Keys[0].OriginX);
+        Assert.Equal(1, r.Keys[0].OriginY);
+        string written = KleImporter.Apply("[[{\"r\":15,\"rx\":1,\"ry\":1},\"A\"]]", new Dictionary<int, string> { [0] = "KC_A" });
+        Assert.Contains("\"r\": 15", written); // 回転の指定を壊さない
+        Assert.Contains("\"rx\": 1", written);
+        Assert.Contains("A\\n\\n\\n\\nKC_A", written);
+        Assert.Equal("KC_A", LoadJson(written).Slots[0].DefaultKeycode);
+    }
+
+    [Fact]
+    public void Rotation_FollowsTheKleSite_CursorMovesToTheOrigin_AndCarriesOver()
+    {
+        // rx/ry でカーソルが (rx, ry) に移る。次の行の頭は x = rx。r は次の指定まで続く。r:0 で戻っても rx は残る。
+        var l = LoadJson("[[\"Z\"],[{\"r\":10,\"rx\":3,\"ry\":2},\"A\",\"B\"],[\"C\"],[{\"r\":0},\"D\"]]");
+        Assert.Equal(5, l.Slots.Count);
+        var (a, b, c, d) = (l.Slots[1], l.Slots[2], l.Slots[3], l.Slots[4]);
+        Assert.Equal((3.0, 2.0, 10.0), (a.X, a.Y, a.Angle));
+        Assert.Equal((4.0, 2.0), (b.X, b.Y));
+        Assert.Equal((3.0, 3.0, 10.0), (c.X, c.Y, c.Angle));
+        Assert.Equal((3.0, 4.0, 0.0), (d.X, d.Y, d.Angle));
+        Assert.Equal((3.0, 2.0), (a.OriginX, a.OriginY));
+        Assert.Equal(0, l.Slots[0].Angle);
+    }
+
+    [Fact]
+    public void RotatedKey_CornersAndLayoutSize_MatchHandCalculation()
+    {
+        // (1,1) の 1u キーを、左上 (1,1) を中心に 90 度(時計回り)回す → 四隅は (1,1)(1,2)(0,2)(0,1)。外接矩形は x 0〜1、y 1〜2。
+        var l = LoadJson("[[{\"r\":90,\"rx\":1,\"ry\":1},\"A\"]]");
+        var bb = l.Slots[0].Bounds;
+        Assert.Equal(0, bb.MinX, 9);
+        Assert.Equal(1, bb.MinY, 9);
+        Assert.Equal(1, bb.MaxX, 9);
+        Assert.Equal(2, bb.MaxY, 9);
+        Assert.Equal(1, l.Width, 9);
+        Assert.Equal(2, l.Height, 9);
+        var c = KeyGeometry.Corners(1, 1, 1, 1, 90, 1, 1);
+        double[][] want = { new[] { 1.0, 1 }, new[] { 1.0, 2 }, new[] { 0.0, 2 }, new[] { 0.0, 1 } };
+        for (int i = 0; i < 4; i++) { Assert.Equal(want[i][0], c[i].X, 9); Assert.Equal(want[i][1], c[i].Y, 9); }
+    }
+
+    [Fact]
+    public void NegativeCoordinates_AreShiftedToTheOrigin_WithoutChangingSlotNumbers()
+    {
+        // 原点まわりに 45 度回すと、左の角が x = -0.7071 になる → 全体を右へずらす。
+        var l = LoadJson("[[{\"r\":45,\"rx\":0,\"ry\":0},\"A\",\"B\"]]");
+        double s = Math.Sqrt(0.5);
+        Assert.Equal(2, l.Slots.Count);
+        Assert.Equal(0, l.Slots.Min(k => k.Bounds.MinX), 9);
+        Assert.Equal(0, l.Slots.Min(k => k.Bounds.MinY), 9);
+        Assert.Equal(s, l.Slots[0].X, 9);
+        Assert.Equal(s, l.Slots[0].OriginX, 9);
+        Assert.Equal(new[] { 0, 1 }, l.Slots.Select(k => k.Index).ToArray());
+    }
+
+    [Fact]
+    public void LoadAndAnalyze_NumberTheSlotsTheSame_ForARotatedLayout()
+    {
+        const string json = "[[\"Esc\",{\"x\":1},\"F1\"],[{\"r\":-20,\"rx\":6,\"ry\":2,\"x\":0.5},\"Y\",{\"d\":true},\"deco\",\"U\"],[\"H\",{\"w\":1.5},\"J\"],[{\"r\":0,\"rx\":0,\"ry\":5},\"Space\"]]";
+        var layout = LoadJson(json);
+        var result = KleImporter.Analyze(json);
+        Assert.Equal(layout.Slots.Count, result.Keys.Count);
+        for (int i = 0; i < layout.Slots.Count; i++)
+        {
+            Assert.Equal(layout.Slots[i].Index, result.Keys[i].Slot);
+            Assert.Equal(layout.Slots[i].Angle, result.Keys[i].Angle);
+        }
+    }
+
+    [Theory]
+    [InlineData("us104")]
+    [InlineData("jp109")]
+    [InlineData("10key")]
+    public void BundledLayouts_AreNotRotated_AndKeepTheirSize(string name)
+    {
+        var l = KeyboardLayout.Load(BundledPath(name));
+        Assert.All(l.Slots, k => { Assert.Equal(0, k.Angle); Assert.True(k.X >= 0 && k.Y >= 0); });
+        Assert.Equal(l.Slots.Max(k => Math.Max(k.X + k.W, k.X + (k.X2 ?? 0) + (k.W2 ?? 0))), l.Width);
+        Assert.Equal(l.Slots.Max(k => Math.Max(k.Y + k.H, k.Y + (k.Y2 ?? 0) + (k.H2 ?? 0))), l.Height);
+    }
+
+    [Fact]
+    public void SplitKeyboard_LeftRightModifiers_UseTheRotatedPosition()
+    {
+        // 左手側 (x 0〜) と右手側 (x 12〜) に Shift。右手側は回転しているが、回転後の位置で判定する。
+        var r = KleImporter.Analyze("[[\"Shift\"],[{\"r\":10,\"rx\":12,\"ry\":0},\"Shift\"]]");
+        Assert.Equal(new[] { "KC_LSHIFT", "KC_RSHIFT" }, r.Keys.Select(k => k.Keycode).ToArray());
     }
 
     [Fact]

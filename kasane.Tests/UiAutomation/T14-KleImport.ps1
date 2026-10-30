@@ -14,6 +14,9 @@ New-Item -ItemType Directory -Path $tmp | Out-Null
 $kle = Join-Path $tmp "t14-raw.json"
 # Esc, F1, Q (confirmed), a Shift in the bottom-left and one at the right (inferred), a wide unlabeled key (space), and "Fn" (unassigned).
 '[[{"c":"#96938e"},"Esc",{"x":1},"F1","Q"],[{"w":2},"Shift",{"w":6.25},"",{"w":2},"Shift","Fn"]]' | Set-Content -Path $kle -Encoding UTF8
+# A rotated cluster (r / rx / ry): a left half and a right half tilted by 15 degrees. It must be importable (save enabled) and keep its slots.
+$kleRot = Join-Path $tmp "t14-rotated.json"
+'[["Esc","Q"],[{"r":15,"rx":8,"ry":1},"Shift","W"],["A","S"]]' | Set-Content -Path $kleRot -Encoding UTF8
 $proc = $null
 try {
     $proc = Start-Process $EXE -PassThru
@@ -43,6 +46,17 @@ try {
     Set-ElementValue (Find-ChildByAutomationId $w "KleNameBox") "us104"
     Start-Sleep -Milliseconds 300
     Chk "a bundled name is accepted by the box (the window refuses it when saving)" ((Find-ChildByAutomationId $w "KleSaveButton").Current.IsEnabled)
+
+    # Rotated layout: 6 keys, still saveable, and the rotated keys are clickable boxes on the diagram.
+    Set-ElementValue (Find-ChildByAutomationId $w "KleNameBox") "rot-test"
+    Set-ElementValue (Find-ChildByAutomationId $w "KleFileBox") $kleRot
+    Invoke-Element (Find-ChildByAutomationId $w "KleLoadButton")
+    Start-Sleep -Milliseconds 700
+    $summary = (Find-ChildByAutomationId $w "KleSummary").Current.Name
+    "  summary (rotated): $summary"
+    Chk "the rotated layout shows 6 keys" ($summary -match "6 キー")
+    Chk "the rotated layout can be saved" ((Find-ChildByAutomationId $w "KleSaveButton").Current.IsEnabled)
+    Chk "the rotated keys have boxes on the diagram (Key3 and Key6)" ((Find-ChildByAutomationId $w "KleKey3") -and (Find-ChildByAutomationId $w "KleKey6"))
 
     Invoke-Element (Find-ChildByAutomationId $w "KleCancelButton")
     Start-Sleep -Milliseconds 400

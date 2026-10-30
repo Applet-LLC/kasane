@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Kasane.Keycodes;
 
 namespace Kasane.Layout;
@@ -21,6 +22,21 @@ public sealed class KeySlot
     public double? Y2 { get; init; }
     public double? W2 { get; init; }
     public double? H2 { get; init; }
+    // 回転（KLEのr/rx/ry）。Angleは度（時計回り）、OriginX/Yは回転の中心（レイアウト座標）。回転なしは0。
+    public double Angle { get; init; }
+    public double OriginX { get; init; }
+    public double OriginY { get; init; }
+
+    /// <summary>主矩形と2つ目の矩形をあわせた、回転後の外接矩形（レイアウト座標）。</summary>
+    public KeyBox Bounds
+    {
+        get
+        {
+            var b = KeyGeometry.Bounds(X, Y, W, H, Angle, OriginX, OriginY);
+            if (W2 != null) b = b.Union(KeyGeometry.Bounds(X + (X2 ?? 0), Y + (Y2 ?? 0), W2.Value, H2 ?? H, Angle, OriginX, OriginY));
+            return b;
+        }
+    }
 
     /// <summary>KLE凡例インデックス4に埋め込まれた既定キーコード（例: KC_CAPSLOCK）。</summary>
     public string? DefaultKeycode { get; init; }
@@ -81,8 +97,8 @@ public sealed class KeyboardLayout
         Name = name;
         FilePath = path;
         Slots = slots;
-        Width = slots.Count == 0 ? 0 : slots.Max(s => Math.Max(s.X + s.W, s.X + (s.X2 ?? 0) + (s.W2 ?? 0)));
-        Height = slots.Count == 0 ? 0 : slots.Max(s => Math.Max(s.Y + s.H, s.Y + (s.Y2 ?? 0) + (s.H2 ?? 0)));
+        Width = slots.Count == 0 ? 0 : slots.Max(s => s.Bounds.MaxX);
+        Height = slots.Count == 0 ? 0 : slots.Max(s => s.Bounds.MaxY);
     }
 
     /// <summary>同梱の（exe隣の）Layouts\*.json と、利用者が「KLEから追加」で保存したものを、あわせて列挙する（<see cref="LayoutFolders.EnumerateAll"/>）。</summary>
@@ -103,67 +119,33 @@ public sealed class KeyboardLayout
 
     /// <summary>
     /// KLEの生データ（keyboard-layout-editor.com の「Raw data」をJSON配列にしたもの）を読む。
-    /// 標準的なKLEの配置規則に従う: 行の中では x/y がカーソルを動かし、w/h/x2/y2/w2/h2 は
-    /// 直後の1キーだけに効く。行が終わると y+1、x=0。回転（r/rx/ry）は非対応。
-    /// d:true（装飾）の直後の文字列はキーとして扱わない。
+    /// 走査の規則は <see cref="KleWalker"/>（行の中では x/y がカーソルを動かし、w/h/x2/y2/w2/h2 は直後の1キーだけに効く。
+    /// 回転 r/rx/ry は次の指定まで続く。d:true（装飾）の直後の文字列はキーではない）。
+    /// 回転後に座標が負になるキーがあるときは、全体を原点へずらす（スロット番号は変わらない）。
     /// </summary>
     public static KeyboardLayout Load(string path)
     {
-        using var doc = JsonDocument.Parse(File.ReadAllText(path));
+        var walked = KleWalker.Walk(JsonNode.Parse(File.ReadAllText(path)));
+        double minX = walked.Count == 0 ? 0 : walked.Min(k => k.Bounds.MinX);
+        double minY = walked.Count == 0 ? 0 : walked.Min(k => k.Bounds.MinY);
+        double dx = minX < 0 ? -minX : 0, dy = minY < 0 ? -minY : 0;
+
         var slots = new List<KeySlot>();
-        double cy = 0;
-
-        foreach (var row in doc.RootElement.EnumerateArray())
+        foreach (var k in walked)
         {
-            if (row.ValueKind != JsonValueKind.Array) continue; // 先頭のメタデータオブジェクト等
-            double cx = 0;
-            double w = 1, h = 1;
-            double? x2 = null, y2 = null, w2 = null, h2 = null;
-            bool decal = false;
-
-            foreach (var item in row.EnumerateArray())
+            var legends = k.Raw.Split('\n');
+            string? kc = legends.Length > 4 && legends[4].Trim().Length > 0 ? legends[4].Trim() : null;
+            slots.Add(new KeySlot
             {
-                if (item.ValueKind == JsonValueKind.Object)
-                {
-                    if (item.TryGetProperty("x", out var v)) cx += v.GetDouble();
-                    if (item.TryGetProperty("y", out v)) cy += v.GetDouble();
-                    if (item.TryGetProperty("w", out v)) w = v.GetDouble();
-                    if (item.TryGetProperty("h", out v)) h = v.GetDouble();
-                    if (item.TryGetProperty("x2", out v)) x2 = v.GetDouble();
-                    if (item.TryGetProperty("y2", out v)) y2 = v.GetDouble();
-                    if (item.TryGetProperty("w2", out v)) w2 = v.GetDouble();
-                    if (item.TryGetProperty("h2", out v)) h2 = v.GetDouble();
-                    if (item.TryGetProperty("d", out v) && v.ValueKind == JsonValueKind.True) decal = true;
-                    continue;
-                }
-                if (item.ValueKind != JsonValueKind.String) continue;
-
-                if (!decal)
-                {
-                    string label = item.GetString() ?? "";
-                    var legends = label.Split('\n');
-                    string? kc = legends.Length > 4 && legends[4].Trim().Length > 0 ? legends[4].Trim() : null;
-                    bool hasSecond = w2 != null || h2 != null || x2 != null || y2 != null;
-                    slots.Add(new KeySlot
-                    {
-                        Index = slots.Count,
-                        RawLabel = label,
-                        X = cx, Y = cy, W = w, H = h,
-                        X2 = hasSecond ? x2 ?? 0 : null,
-                        Y2 = hasSecond ? y2 ?? 0 : null,
-                        W2 = hasSecond ? w2 ?? w : null,
-                        H2 = hasSecond ? h2 ?? h : null,
-                        DefaultKeycode = kc,
-                    });
-                }
-                cx += w;
-                w = 1; h = 1;
-                x2 = y2 = w2 = h2 = null;
-                decal = false;
-            }
-            cy += 1;
+                Index = k.Slot,
+                RawLabel = k.Raw,
+                X = k.X + dx, Y = k.Y + dy, W = k.W, H = k.H,
+                X2 = k.X2, Y2 = k.Y2, W2 = k.W2, H2 = k.H2,
+                Angle = k.Angle,
+                OriginX = k.OriginX + dx, OriginY = k.OriginY + dy,
+                DefaultKeycode = kc,
+            });
         }
-
         return new KeyboardLayout(NameFromPath(path), path, slots);
     }
 }

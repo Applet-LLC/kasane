@@ -22,18 +22,19 @@ public enum KleKeyStatus
 
 /// <param name="Slot">スロット番号（<see cref="KeyboardLayout.Load"/> と同じ、キーを平らにした順）。</param>
 /// <param name="Label">図に出すラベル（凡例をまとめたもの）。</param>
+/// <param name="Angle">回転（度、時計回り）。<paramref name="OriginX"/>・<paramref name="OriginY"/> は回転の中心。回転なしは 0。</param>
 public sealed record KleKeyResult(int Slot, string Label, double X, double Y, double W, double H,
-    string? Keycode, KleKeyStatus Status, string Note);
+    string? Keycode, KleKeyStatus Status, string Note, double Angle = 0, double OriginX = 0, double OriginY = 0);
 
 public sealed class KleImportResult
 {
     public IReadOnlyList<KleKeyResult> Keys { get; init; } = Array.Empty<KleKeyResult>();
     public IReadOnlyList<string> Warnings { get; init; } = Array.Empty<string>();
-    /// <summary>回転したキー（r/rx/ry）がある。kasane は対応しないので、取り込めない。</summary>
+    /// <summary>回転したキー（r/rx/ry）がある（情報。取り込みはできる）。</summary>
     public bool HasRotation { get; init; }
     /// <summary>日本語配列（¥・無変換・変換・カナ・半角/全角のキー）とみなした。</summary>
     public bool IsJis { get; init; }
-    public bool CanSave => !HasRotation && Keys.Count > 0 && Keys.Count <= KbdLayerLimits.MaxSlots;
+    public bool CanSave => Keys.Count > 0 && Keys.Count <= KbdLayerLimits.MaxSlots;
 }
 
 internal static class KbdLayerLimits
@@ -46,7 +47,7 @@ internal static class KbdLayerLimits
 ///  - 各キーの既定キーコードを、凡例のインデックス 4 に書く（同梱の Layouts\*.json と同じ。<see cref="KeyboardLayout.Load"/> が読む）。
 ///    インデックス 4 は、KLE の文字配置 <c>a</c> がどれでも「前面の凡例」（9 か 10）に当たるので、<c>a</c> は書き換えない。
 ///  - キーコードは、凡例（ラベル）と位置から推定する。決まらないものは未割り当てにして、利用者に選んでもらう。
-///  - 回転したキー（r/rx/ry）は対応しない（取り込めない）。
+///  - 回転したキー（r/rx/ry）も取り込める。左右の修飾キーなど位置で決めるものは、回転後の位置で判定する。
 /// 文字配置 <c>a</c> の並び替えの規則（<see cref="LabelMap"/>）は、KLE のファイル形式の仕様。
 /// </summary>
 public static class KleImporter
@@ -70,58 +71,6 @@ public static class KleImporter
 
     private const int KeycodeIndex = 4;
 
-    private sealed class WalkedKey
-    {
-        public int Slot;
-        public JsonArray Row = null!;
-        public int ItemIndex;
-        public string Raw = "";
-        public double X, Y, W = 1, H = 1;
-        public int Align = 4;
-    }
-
-    // KeyboardLayout.Load と同じ規則でキーを数える（スロット番号を一致させるため）。
-    private static List<WalkedKey> Walk(JsonNode? root, out bool rotation)
-    {
-        rotation = false;
-        if (root is not JsonArray rows) throw new FormatException(Loc.T("KLE の JSON は、行の配列である必要があります(Raw data のまま)。", "The KLE JSON must be an array of rows (use the Raw data as is)."));
-        var keys = new List<WalkedKey>();
-        double cy = 0;
-        int align = 4;
-        foreach (var rowNode in rows)
-        {
-            if (rowNode is not JsonArray row) continue; // 先頭のメタデータ
-            double cx = 0, w = 1, h = 1;
-            bool decal = false;
-            for (int i = 0; i < row.Count; i++)
-            {
-                var item = row[i];
-                if (item is JsonObject o)
-                {
-                    if (Num(o, "x") is double x) cx += x;
-                    if (Num(o, "y") is double y) cy += y;
-                    if (Num(o, "w") is double ww) w = ww;
-                    if (Num(o, "h") is double hh) h = hh;
-                    if (Num(o, "a") is double a) align = Math.Clamp((int)a, 0, 7);
-                    if (o.TryGetPropertyValue("d", out var d) && d is JsonValue dv && dv.TryGetValue<bool>(out var db) && db) decal = true;
-                    if (o.ContainsKey("r") || o.ContainsKey("rx") || o.ContainsKey("ry")) rotation = true;
-                    continue;
-                }
-                if (item is not JsonValue v || !v.TryGetValue<string>(out var s)) continue;
-                if (!decal)
-                    keys.Add(new WalkedKey { Slot = keys.Count, Row = row, ItemIndex = i, Raw = s ?? "", X = cx, Y = cy, W = w, H = h, Align = align });
-                cx += w;
-                w = 1; h = 1;
-                decal = false;
-            }
-            cy += 1;
-        }
-        return keys;
-    }
-
-    private static double? Num(JsonObject o, string name) =>
-        o.TryGetPropertyValue(name, out var n) && n is JsonValue v && v.TryGetValue<double>(out var d) ? d : null;
-
     // ---- 解析 ----
 
     /// <summary>KLE の JSON を読み、各キーの既定キーコードを推定する。形式が違えば <see cref="FormatException"/>。</summary>
@@ -130,9 +79,11 @@ public static class KleImporter
         JsonNode? root;
         try { root = JsonNode.Parse(json); }
         catch (JsonException ex) { throw new FormatException(Loc.T(("JSON として読めません: " + ex.Message), ("Cannot read it as JSON: " + ex.Message)), ex); }
-        var keys = Walk(root, out bool rotation);
+        var keys = KleWalker.Walk(root);
+        int rotated = keys.Count(k => k.Angle != 0);
+        bool rotation = rotated > 0;
         var warnings = new List<string>();
-        if (rotation) warnings.Add(Loc.T("回転したキー(r / rx / ry)があります。kasane は回転に対応しないので、取り込めません(KLE で回転を外してください)。", "The layout has rotated keys (r / rx / ry). kasane does not support rotation, so it cannot be imported (remove the rotation in KLE)."));
+        if (rotation) warnings.Add(Loc.T($"回転したキー(r / rx / ry)が {rotated} 個あります。左右の修飾キーなど、位置から決めたキーコードは、画面で確かめてください。", $"{rotated} keys are rotated (r / rx / ry). Check key codes decided from position, such as left/right modifiers."));
         if (keys.Count == 0) warnings.Add(Loc.T("キーがありません。", "There are no keys."));
         if (keys.Count > KbdLayerLimits.MaxSlots) warnings.Add(Loc.T($"キーが {keys.Count} 個あります。上限は {KbdLayerLimits.MaxSlots} 個です。", $"The layout has {keys.Count} keys. The limit is {KbdLayerLimits.MaxSlots}."));
 
@@ -144,7 +95,7 @@ public static class KleImporter
         foreach (var v in views)
         {
             var (kc, status, note) = Resolve(v, ctx);
-            results.Add(new KleKeyResult(v.Key.Slot, v.PrintedLabel, v.Key.X, v.Key.Y, v.Key.W, v.Key.H, kc, status, note));
+            results.Add(new KleKeyResult(v.Key.Slot, v.PrintedLabel, v.Key.X, v.Key.Y, v.Key.W, v.Key.H, kc, status, note, v.Key.Angle, v.Key.OriginX, v.Key.OriginY));
         }
 
         foreach (var g in results.Where(r => r.Keycode != null).GroupBy(r => r.Keycode!).Where(g => g.Count() > 1))
@@ -162,8 +113,7 @@ public static class KleImporter
     public static string Apply(string json, IReadOnlyDictionary<int, string> keycodes)
     {
         JsonNode? root = JsonNode.Parse(json);
-        var keys = Walk(root, out bool rotation);
-        if (rotation) throw new FormatException(Loc.T("回転したキーがあるので、取り込めません。", "The layout has rotated keys, so it cannot be imported."));
+        var keys = KleWalker.Walk(root);
         foreach (var k in keys)
         {
             if (!keycodes.TryGetValue(k.Slot, out var kc) || string.IsNullOrWhiteSpace(kc)) continue;
@@ -242,25 +192,25 @@ public static class KleImporter
         {
             Views = views;
             IsJis = isJis;
-            if (views.Count > 0) MidX = (views.Min(v => v.Key.X) + views.Max(v => v.Key.X + v.Key.W)) / 2;
+            if (views.Count > 0) MidX = (views.Min(v => v.Key.PosX) + views.Max(v => v.Key.PosX + v.Key.W)) / 2;
             var num = views.FirstOrDefault(v => v.Legends.Any(l => NumLockNames.Contains(Norm(l.Text))));
-            if (num != null) { NumPadX = num.Key.X; NumPadY = num.Key.Y; }
+            if (num != null) { NumPadX = num.Key.PosX; NumPadY = num.Key.PosY; }
         }
 
-        public bool InNumPad(KeyView v) => NumPadX != null && v.Key.X >= NumPadX - 0.01 && v.Key.Y >= NumPadY - 0.01;
+        public bool InNumPad(KeyView v) => NumPadX != null && v.Key.PosX >= NumPadX - 0.01 && v.Key.PosY >= NumPadY - 0.01;
 
-        private static bool SameRow(KeyView a, KeyView b) => Math.Abs(a.Key.Y - b.Key.Y) < 0.01;
+        private static bool SameRow(KeyView a, KeyView b) => Math.Abs(a.Key.PosY - b.Key.PosY) < 0.01;
 
         /// <summary>左右のある修飾キーが、左側か。同じ行にスペースバーがあれば、その左右。無ければ、同じ行の同じ種類のキーの両端。それも無ければ、配列の真ん中より左か。</summary>
         public bool IsLeftSide(KeyView v, int family)
         {
-            double center = v.Key.X + v.Key.W / 2;
+            double center = v.Key.PosX + v.Key.W / 2;
             var row = Views.Where(x => SameRow(x, v)).ToList();
             var space = row.FirstOrDefault(IsSpaceLike);
-            if (space != null) return center < space.Key.X + space.Key.W / 2;
-            var same = row.Where(x => x.Legends.Any(l => FamilyOf(Norm(l.Text)) == family)).OrderBy(x => x.Key.X).ToList();
+            if (space != null) return center < space.Key.PosX + space.Key.W / 2;
+            var same = row.Where(x => x.Legends.Any(l => FamilyOf(Norm(l.Text)) == family)).OrderBy(x => x.Key.PosX).ToList();
             if (same.Count >= 2)
-                return ReferenceEquals(same[0], v) || (!ReferenceEquals(same[^1], v) && center < (same[0].Key.X + same[^1].Key.X + same[^1].Key.W) / 2);
+                return ReferenceEquals(same[0], v) || (!ReferenceEquals(same[^1], v) && center < (same[0].Key.PosX + same[^1].Key.PosX + same[^1].Key.W) / 2);
             return center < MidX;
         }
     }
