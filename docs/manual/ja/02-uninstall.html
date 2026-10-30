@@ -39,14 +39,14 @@
 <div class="pagehead">かさね1.00 2026-10-31&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a></div>
 <h1 id="section">2. アンインストール</h1>
 <p>kasane をパソコンから取り除く手順です。ドライバはキーボードで使用中のため、完全に削除されるのは再起動した時点です。</p>
-<p>新しい版を入れ直すだけなら、アンインストールは要りません（<a href="01-install.html">1. インストール</a>の「上書きインストール」）。</p>
+<p>新しい版を入れ直すだけなら、アンインストールは要りません（<a href="01-install.html">1. インストール</a>の「上書きインストール」）。Subscription 版から Pro 版へ移るときは、アンインストールが要ります（<a href="01-install.html">1. インストール</a>の「Subscription 版から Pro 版へ移る」）。</p>
 <h2 id="section-1">手順</h2>
 <h3 id="off">1. リマップを OFF にする</h3>
 <p>kasane（エディタ）を開き、<strong>OFF(素通しに戻す)</strong> を押します。キーボードのリマップが止まり、キーが元の配置に戻ります。</p>
 <p><img src="../img/ja/uninstall-off.png" alt="OFF(素通しに戻す)を押した状態" /></p>
 <p>この手順を省くと、再起動するまでのあいだ、ドライバが動いたままになることがあります。手順 1 で OFF にしておけば、割り当ては効きません。</p>
 <h3 id="section-2">2. アプリと機能から削除する</h3>
-<p>Windows の設定の「アプリと機能」（「インストールされているアプリ」）で、「かさね Subscription」を探します。検索欄に「かさね」と入れると絞り込めます。右端の <strong>…</strong> を押すと、<strong>変更</strong> と <strong>アンインストール</strong> が出ます。<strong>アンインストール</strong> を選んでください。管理者の権限が必要です。</p>
+<p>Windows の設定の「アプリと機能」（「インストールされているアプリ」）で、「かさね Subscription」（Pro 版は「かさね Pro」）を探します。検索欄に「かさね」と入れると絞り込めます。右端の <strong>…</strong> を押すと、<strong>変更</strong> と <strong>アンインストール</strong> が出ます。<strong>アンインストール</strong> を選んでください。管理者の権限が必要です。</p>
 <p><img src="../img/ja/uninstall-apps.png" alt="Windows の設定でかさねを探す" /></p>
 <p><img src="../img/ja/uninstall-apps-menu.png" alt="… のメニュー" /></p>
 <p>確認の画面が出たら、<strong>はい</strong> を押します。</p>
@@ -75,7 +75,7 @@
 </tr>
 <tr>
 <td>ライセンス管理サービス</td>
-<td><code>kasaneLicenseSvc</code></td>
+<td><code>kasaneLicenseSvc</code>（Subscription 版のみ）</td>
 </tr>
 <tr>
 <td>ドライバ</td>
@@ -103,7 +103,7 @@
 <tbody>
 <tr>
 <td><code>%ProgramData%\kbdlayer-license</code></td>
-<td>ライセンスキーとログ。再インストールすると、このキーで自動的に再確認されるので、アクティベートし直す必要はありません</td>
+<td>ライセンスキーとログ（Subscription 版のみ）。再インストールすると、このキーで自動的に再確認されるので、アクティベートし直す必要はありません。Pro 版では作られません</td>
 </tr>
 <tr>
 <td><code>%LOCALAPPDATA%\applet\kasane</code></td>

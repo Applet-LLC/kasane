@@ -39,11 +39,12 @@
 <div class="pagehead">かさね1.00 2026-10-31&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a></div>
 <h1 id="section">1. インストール</h1>
 <p>kasane のインストーラーは、キーボードドライバ（kbdlayer）、ライセンス管理サービス、エディタ（kasane）、トレイ（常駐アプリ）をまとめて入れます。インストール先は <code>C:\Program Files\applet\kasane</code> に固定されていて、変更できません。</p>
+<p>この章は Subscription 版の手順で書いています。買い切り版（Pro）の違いは「Pro 版のインストール」に、Subscription 版からの移行は「Subscription 版から Pro 版へ移る」にまとめました。</p>
 <h2 id="section-1">準備するもの</h2>
 <ul>
 <li>Windows 11 25H2（x64 または ARM64）</li>
 <li>管理者権限のあるアカウント</li>
-<li>ダウンロードした <code>kasane-subscription.zip</code>（Gumroad のライブラリから、いつでも再ダウンロードできます）</li>
+<li>ダウンロードした <code>kasane-subscription.zip</code>（Pro 版は <code>kasane-pro.zip</code>）。Gumroad のライブラリから、いつでも再ダウンロードできます</li>
 </ul>
 <p>zip を展開すると、次のファイルが入っています。</p>
 <table>
@@ -158,6 +159,57 @@
 <h2 id="section-10">上書きインストール</h2>
 <p>新しい版は、そのまま上書きインストールできます。アンインストールは要りません。ドライバの設定もライセンスも、引き継がれます。</p>
 <p>上書き、アンインストール、修復の前には、インストーラーがトレイを自動で止めます。</p>
+<h2 id="pro">Pro 版のインストール</h2>
+<p>Pro 版は、<code>kasane-pro.zip</code> を展開して入れます。手順は Subscription 版とほぼ同じで、次の点が違います。</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>Pro 版</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>起動画面</td>
+<td><code>Install-kasane-pro.exe</code>。画面にライセンスキーの入力欄があります</td>
+</tr>
+<tr>
+<td>インストーラー本体</td>
+<td><code>KasaneProSetup-ja-JP.msi</code>、<code>KasaneProSetup-en-US.msi</code></td>
+</tr>
+<tr>
+<td>ライセンスキー</td>
+<td>入力欄に貼り付けて <strong>インストール</strong> を押すと、インストーラーが Gumroad に 1 回だけ確認します（<a href="03-license.html">3. ライセンスの認証</a>）</td>
+</tr>
+<tr>
+<td>機能の選択</td>
+<td>License Manager とライセンスサービスは入りません</td>
+</tr>
+<tr>
+<td>再起動後</td>
+<td>License Manager は開きません。再起動すれば、そのまま使えます</td>
+</tr>
+<tr>
+<td>スタートメニュー</td>
+<td><code>applet</code> フォルダの中の <code>かさね Pro</code> フォルダ</td>
+</tr>
+<tr>
+<td>サービス</td>
+<td>ライセンス管理サービスは入りません</td>
+</tr>
+</tbody>
+</table>
+<p>Subscription 版と Pro 版は、同じパソコンに両方入れられません。Subscription 版が入っているパソコンで Pro 版のインストールを始めると、案内が出て、先に進めません。</p>
+<h2 id="subscription-pro">Subscription 版から Pro 版へ移る</h2>
+<p>上書きインストールはできません。次の順で、いったんアンインストールしてから入れ直します。</p>
+<ol>
+<li>設定を残したいときは、kasane の設定をエクスポートします（<a href="14-import-export.html">14. インポート／エクスポート</a>）。</li>
+<li>Subscription 版をアンインストールして、再起動します（<a href="02-uninstall.html">2. アンインストール</a>）。</li>
+<li><code>Install-kasane-pro.exe</code> を実行し、Pro 版のライセンスキーを入力してインストールします。</li>
+<li>再起動します。</li>
+</ol>
+<p>アンインストールのあとに再起動しないまま Pro 版を入れると、ドライバの削除が終わっておらず、エラー（1722）で取りやめになることがあります。そのときは、再起動してからもう一度実行してください。</p>
+<p>キーボードごとの設定（<code>project.json</code>）や、トレイの設定は、そのまま引き継がれます。Subscription 版のライセンスの記録（<code>%ProgramData%\kbdlayer-license</code>）は、Pro 版のインストール時に削除されます。Pro 版では使わないからです。</p>
 <h2 id="section-11">サイレントインストール</h2>
 <p><code>msiexec</code> で、画面を出さずにインストールできます。設定フォルダと設定ファイルの取り込みは、次のプロパティで渡します。</p>
 <table>
@@ -187,6 +239,9 @@
 </tbody>
 </table>
 <pre><code>msiexec /i KasaneSetup-ja-JP.msi /qn KASANE_DIR=D:\kasane IMPORT_SETTINGS=1 IMPORT_SETTINGS_FILE=C:\work\settings.kasane.json
+</code></pre>
+<p>Pro 版では、<code>LICENSEKEY</code> にライセンスキーを渡します。サイレントインストールのログ（<code>/l*v</code>）には、キーの値は書かれません。</p>
+<pre><code>msiexec /i KasaneProSetup-ja-JP.msi /qn LICENSEKEY=XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX
 </code></pre>
 <h2 id="section-12">うまくいかないとき</h2>
 <table>

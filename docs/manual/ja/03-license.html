@@ -38,14 +38,54 @@
 <main>
 <div class="pagehead">かさね1.00 2026-10-31&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a></div>
 <h1 id="section">3. ライセンスの認証</h1>
+<p>kasane には、Gumroad のサブスクリプション版（Subscription）と、買い切り版（Pro）があります。ライセンスキーの扱いが違うので、この章に両方を書きます。</p>
+<p>どちらの版を入れているかは、Windows の「インストールされているアプリ」に出る名前（「かさね Subscription」または「かさね Pro」）で分かります。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Subscription 版</th>
+<th>Pro 版</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ライセンスキーを入れる場面</td>
+<td>インストール後に、License Manager で入力する</td>
+<td>インストールの途中で入力する</td>
+</tr>
+<tr>
+<td>キーの確認</td>
+<td>ライセンスサービスが、約 24 時間ごとに Gumroad へ問い合わせる</td>
+<td>インストール時に 1 回だけ問い合わせる</td>
+</tr>
+<tr>
+<td>解約・失効</td>
+<td>サブスクリプションが無効になると、リマップが止まる</td>
+<td>失効しない</td>
+</tr>
+<tr>
+<td>License Manager、ライセンスサービス</td>
+<td>入る</td>
+<td>入らない</td>
+</tr>
+<tr>
+<td>トレイの「ライセンス」</td>
+<td>ある</td>
+<td>ない</td>
+</tr>
+</tbody>
+</table>
+<p>Pro 版は、インストールが済んだあとにインターネットへ接続する必要がありません。</p>
+<h2 id="subscription">Subscription 版</h2>
 <p>kasane は、Gumroad のサブスクリプションに応じて機能が提供されます。インストールのあとは、License Manager でライセンスキーを入力し、アクティベートします。</p>
-<h2 id="license-manager">License Manager を開く</h2>
+<h3 id="license-manager">License Manager を開く</h3>
 <ul>
 <li>インストール後の再起動で、ログインすると一度だけ自動で開きます。</li>
 <li>後から開くときは、スタートメニューの <code>applet</code> フォルダにある <strong>kasane License Manager</strong> を選ぶか、トレイのアイコンを右クリックして <strong>ライセンス</strong> を選びます。</li>
 </ul>
 <p>右上のリストで、表示言語を日本語と English から選べます。</p>
-<h2 id="section-1">ライセンスキーを入力する</h2>
+<h3 id="section-1">ライセンスキーを入力する</h3>
 <p>ライセンスキーは、Gumroad で購入したときのメールか、Gumroad のライブラリで確認できます。</p>
 <p><img src="../img/ja/license-input.png" alt="ライセンスキーの入力" /></p>
 <ol>
@@ -56,7 +96,7 @@
 <p><img src="../img/ja/license-activated.png" alt="アクティベートが済んだ状態" /></p>
 <p>購入していない場合は、画面の <strong>Gumroad で購入する</strong> のリンクから購入ページを開けます。</p>
 <p>アクティベートのあと、もう一度再起動するか、キーボードを接続し直すと、リマップが使えるようになります。</p>
-<h2 id="section-2">画面の見方</h2>
+<h3 id="section-2">画面の見方</h3>
 <table>
 <thead>
 <tr>
@@ -93,13 +133,13 @@
 </table>
 <p><img src="../img/ja/license-diagnostics.png" alt="接続の診断" /></p>
 <p>ライセンスサービスは、約 24 時間ごとに Gumroad へ接続して、サブスクリプションが有効かどうかを確認します。直近の確認結果を使うので、ネットワークに接続できなくても、最大 7 日間はオフラインのまま使えます。</p>
-<h2 id="section-3">試用版</h2>
+<h3 id="section-3">試用版</h3>
 <p>試用ライセンスのキーを入れると、試用版として 6 日間使えます。画面には「試用版(残り 5 日)」と、試用の期限が出て、「6日間の試用版が有効になりました。」と表示されます。試用の期限が過ぎると、リマップは使えなくなります。</p>
 <p>試用版は、Gumroad の無料のトライアル商品に照合して成立します。</p>
 <p><img src="../img/ja/license-trial.png" alt="試用版の表示" /></p>
-<h2 id="section-4">ライセンスが無効になったとき</h2>
+<h3 id="section-4">ライセンスが無効になったとき</h3>
 <p>サブスクリプションが無効になると、レイヤーのリマップの機能が使えなくなります。キーボードの基本的な入力は、そのまま使えます。</p>
-<h2 id="section-5">エラーが出たとき</h2>
+<h3 id="section-5">エラーが出たとき</h3>
 <p>画面の赤字のメッセージで、原因が分かります。</p>
 <table>
 <thead>
@@ -129,6 +169,39 @@
 </table>
 <p><img src="../img/ja/license-error.png" alt="エラーの表示" /></p>
 <p>ログは <code>%ProgramData%\kbdlayer-license</code> の <code>debug.log</code> と <code>gui-debug.log</code> にあります。</p>
+<h2 id="pro">Pro 版</h2>
+<p>Pro 版のライセンスキーは、Gumroad の購入メールか、Gumroad のライブラリで確認できます。インストールの途中で入力すると、インストーラーが Gumroad に問い合わせ、有効なキーだけ先へ進みます。キーが無効だったときは、何もインストールされません。</p>
+<h3 id="section-6">キーを入力する</h3>
+<p><code>Install-kasane-pro.exe</code> を実行すると、最初の画面にキーの入力欄があります。キーを貼り付けて <strong>インストール</strong> を押します。この欄は右クリックでも貼り付けられます。</p>
+<p><code>.msi</code> を直接実行したときは、設定ファイルの取り込みの次に、キーの入力画面が出ます。この画面は右クリックが使えないので、キーボードで <code>Ctrl+V</code> を押して貼り付けてください。</p>
+<p>サイレントインストールでは、<code>LICENSEKEY</code> で渡します（<a href="01-install.html">1. インストール</a>の「サイレントインストール」）。</p>
+<h3 id="section-7">確認できなかったとき</h3>
+<p><code>Install-kasane-pro.exe</code> から始めたときは、理由が画面に出ます。確認に失敗すると、インストールは取りやめになり、パソコンは変更されません。</p>
+<table>
+<thead>
+<tr>
+<th>画面の内容</th>
+<th>原因と対処</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ライセンスキーが無効です</td>
+<td>キーの入力ミスか、別の商品のキーです。Gumroad のライブラリで確かめます。返金やチャージバックのあったキーも、この表示になります</td>
+</tr>
+<tr>
+<td>インターネットに接続できないため、確認できませんでした</td>
+<td>接続を確かめて、もう一度実行します</td>
+</tr>
+<tr>
+<td>使用台数が上限を超えています</td>
+<td>1 つのキーで確認できる回数は 100 回までです。上限を超えたときは、Gumroad のサポートに連絡してください</td>
+</tr>
+</tbody>
+</table>
+<p>詳しい経過は、<code>C:\Windows\Temp\kasane-pro-activator.log</code> に残ります。</p>
+<h3 id="section-8">再インストールするとき</h3>
+<p>Pro 版を入れ直すときは、キーをもう一度入力します。確認のたびに、そのキーの使用回数が 1 つ増えます。新しい版への上書きインストールでは、キーは要りません。</p>
 
 <div class="pager"><a href="02-uninstall.html">← 2. アンインストール</a><a href="04-tray.html">4. トレイ →</a></div>
 </main>

@@ -13,12 +13,12 @@ kasane（かさね）は、Windows のキーボードの割り当てを変える
 
 - Windows 11 25H2（x64 または ARM64）
 - インストールのための管理者権限
-- インターネット接続。ライセンス管理サービスが約24時間ごとに Gumroad へ接続し、サブスクリプションが有効かどうかを確認します。直近の確認結果を使うので、ネットワークに接続できなくても、最大7日間はオフラインのまま使えます。
+- インターネット接続。Subscription 版では、ライセンス管理サービスが約24時間ごとに Gumroad へ接続し、サブスクリプションが有効かどうかを確認します。直近の確認結果を使うので、ネットワークに接続できなくても、最大7日間はオフラインのまま使えます。 Pro 版では、インストール時にライセンスキーを確認するときだけ必要です。
 
 ## はじめての方へ
 
 1. [インストール](01-install.html)して、再起動します。
-2. [ライセンスの認証](03-license.html)をします。
+2. [ライセンスの認証](03-license.html)をします（Pro 版は、インストール中に済んでいます）。
 3. [エディタの基本画面](05-editor-basics.html)で、キーボードを選び、キーを入れ替えて、キーボードに適用します。
 4. 困ったときのために、[緊急解除](07-emergency.html)と[アンインストール](02-uninstall.html)の手順を先に見ておくと安心です。
 
@@ -30,8 +30,8 @@ kasane（かさね）は、Windows のキーボードの割り当てを変える
 | エディタ | kasane | `kasane.exe`（`keymap-gui` フォルダ） |
 | トレイ（常駐） | kasane-tray | `kasane-tray.exe`（`tray` フォルダ。ログオン時に自動起動）。UI アクセスのない版は `kasane-tray-nua.exe`（手動で起動する） |
 | デバイスドライバ | kbdlayer | `kbdlayer.sys`（内部名とサービス名は `kbdlayer`。`kbdlayer` フォルダ） |
-| ライセンス管理（License Manager） | kasane-license | `kasane-license.exe`（`license-gui` フォルダ） |
-| ライセンスサービス | kasaneLicenseSvc（表示名 kasane License Service） | `kasane-license-svc.exe`（`license-svc` フォルダ）。ライセンスの記録は `%ProgramData%\kbdlayer-license` |
+| ライセンス管理（License Manager、Subscription 版のみ） | kasane-license | `kasane-license.exe`（`license-gui` フォルダ） |
+| ライセンスサービス（Subscription 版のみ） | kasaneLicenseSvc（表示名 kasane License Service） | `kasane-license-svc.exe`（`license-svc` フォルダ）。ライセンスの記録は `%ProgramData%\kbdlayer-license` |
 | ドライバの管理ツール | DriverManager | `DriverManager.exe`（インストール先の直下） |
 | コマンド版の設定ツール | KeymapTool | `KeymapTool.exe`（インストール先の直下）。使い方は [17. KeymapTool とサンプル](17-keymaptool.html) |
 | インストーラー | Install-kasane | `Install-kasane.exe`、`KasaneSetup-ja-JP.msi`、`KasaneSetup-en-US.msi` |
@@ -45,7 +45,7 @@ kasane（かさね）は、Windows のキーボードの割り当てを変える
 | インストールする。設定の保存先を決める | [1. インストール](01-install.html) |
 | 以前の設定を、インストールのときに取り込む | [1. インストール](01-install.html)、[14. インポート／エクスポート](14-import-export.html) |
 | アンインストールする | [2. アンインストール](02-uninstall.html) |
-| ライセンスを認証する。試用版を使う | [3. ライセンスの認証](03-license.html) |
+| ライセンスを認証する。試用版を使う。Pro 版のキーを確認する | [3. ライセンスの認証](03-license.html) |
 | 一時的にキーの入れ替えを止める | [4. トレイ](04-tray.html)（一時停止）、[5. エディタの基本画面](05-editor-basics.html)（OFF） |
 | キーを入れ替える | [5. エディタの基本画面](05-editor-basics.html)、[12. 設定の例](12-recipes.html) |
 | 別のキーボードを使う（配列を追加する） | [5. エディタの基本画面](05-editor-basics.html)（KLE から追加） |
@@ -72,7 +72,7 @@ kasane（かさね）は、Windows のキーボードの割り当てを変える
 |---|---|
 | [1. インストール](01-install.html) | インストーラーの画面、設定フォルダの指定、設定ファイルの取り込み |
 | [2. アンインストール](02-uninstall.html) | 手順、削除されるもの、残るもの |
-| [3. ライセンスの認証](03-license.html) | License Manager、試用版 |
+| [3. ライセンスの認証](03-license.html) | License Manager、試用版、Pro 版のキー確認 |
 | [4. トレイ](04-tray.html) | 常駐するアイコン、一時停止、レイヤーの手動切り替え |
 | [5. エディタの基本画面](05-editor-basics.html) | 画面の各部、キーの入れ替え、適用と OFF |
 | [6. キャリブレーション](06-calibration.html) | キーの実測、入力確認 |
