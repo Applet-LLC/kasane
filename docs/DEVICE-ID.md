@@ -171,6 +171,7 @@ HardwareId や CompatibleId の文字列に対して、次を行う。
 
 - ライセンスが無効（`LicenseToken` が無い、または署名が合わない）なら、`DeviceId = 0`。ID の計算自体を行わない
   （上記の InstanceKey / ModelKey も 0）。キー入力は素通しで、`ExtraInformation` の上位16bitは書き込まれない。
+- 買い切り版（kasane Pro）のドライバは、`LicenseToken` を読まず、常にライセンス有効として扱う。ライセンスが理由で `DeviceId = 0` になることはない。
 - `DeviceId = 0` は「未識別」を表す特別値。他のアプリも、上位16bitが0なら「kasane が識別していない入力」として扱うこと。
 
 ## 7. 他のアプリでの使い方
