@@ -29,11 +29,15 @@ Requirements
 
 Installation
 ------------
+
+This edition and the Pro edition cannot be installed on the same PC at the same
+time.
+
 1. Run "Install-kasane.exe".
 
 2. Follow the instructions of the setup wizard. The keyboard driver, the
-   license management service (kasaneLicenseSvc), and the license management
-   tool are installed.
+   license management service (kasaneLicenseSvc), the license management tool,
+   and the apps are installed.
    The installation folder is fixed to C:\Program Files\applet\kasane.
 
 3. Settings folder (optional)

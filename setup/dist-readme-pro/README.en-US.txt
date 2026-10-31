@@ -13,27 +13,31 @@ kasane's device identification is forked from kbdaddid.sys and keeps its
 per-device identification mechanism as it is. A layer keymap can be applied to
 one specific keyboard even when several keyboards are connected at once.
 
-This edition's functionality is provided according to your Gumroad
-subscription.
+This edition is the one-time purchase edition. The license key you
+purchased on Gumroad is checked during installation.
 
 
 Requirements
 ------------
 - Windows 11 25H2 (x64 or ARM64)
 - Administrator privileges for installation
-- An internet connection. The license management service connects to Gumroad
-  about once every 24 hours to re-check whether your subscription is active.
-  It uses the last successful check, so the feature keeps working for up to 7
-  days even without a network connection.
+- An internet connection. During installation, the license key is checked with
+  Gumroad. This check happens only once; no connection is needed after
+  installation.
 
 
 Installation
 ------------
-1. Run "Install-kasane.exe".
 
-2. Follow the instructions of the setup wizard. The keyboard driver, the
-   license management service (kasaneLicenseSvc), and the license management
-   tool are installed.
+If you are switching from the Subscription edition, first uninstall the
+Subscription edition and restart. The two editions cannot be installed on the
+same PC.
+
+1. Run "Install-kasane-pro.exe". Paste the license key you purchased on
+   Gumroad into the license key box, and press "Install".
+
+2. Follow the instructions of the setup wizard. The keyboard driver and the
+   apps are installed.
    The installation folder is fixed to C:\Program Files\applet\kasane.
 
 3. Settings folder (optional)
@@ -48,11 +52,8 @@ Installation
 
 5. A system restart is required to complete the installation.
 
-6. After the restart, "kasane License Manager" starts automatically. Enter the
-   license key you purchased on Gumroad to activate it.
-
-7. Restart once more, or reconnect your keyboard, and the feature becomes
-   usable.
+6. After the restart, kasane is ready to use (the settings also take effect when
+   you reconnect your keyboard).
 
 
 Tray icon
@@ -61,7 +62,7 @@ After you sign in, the kasane icon appears in the notification area of the
 taskbar (inside the "^" flyout when hidden).
 - Left click: opens the kasane settings dialog.
 - Right click: a menu with 設定 (Settings), 一時停止 (Pause), レイヤー (Layer),
-  ライセンス (License), バージョン情報 (About), and 終了 (Exit).
+  バージョン情報 (About), and 終了 (Exit).
   "Pause" temporarily stops the remapping on all keyboards. Press it again to
   resume.
 - If you use NICOLA (thumb-shift input), NICOLA is switched on automatically
@@ -80,8 +81,8 @@ taskbar (inside the "^" flyout when hidden).
   move settings to another keyboard or another PC. A nodoka settings file can
   also be converted and imported.
 
-If your subscription license becomes inactive, the layer remapping feature
-stops working. Basic keyboard input keeps working as it is.
+While the driver is not loaded (for example, before the restart), remapping
+does not take effect. Basic keyboard input keeps working as it is.
 
 
 Help
@@ -94,16 +95,16 @@ feature. The screenshots in the help will remain in Japanese.
 
 Files in this package
 ---------------------
-- Install-kasane.exe
+- Install-kasane-pro.exe
   The installer launcher.
 
-- KasaneSetup-en-US.msi
-- KasaneSetup-ja-JP.msi
+- KasaneProSetup-en-US.msi
+- KasaneProSetup-ja-JP.msi
   The launcher automatically selects and runs the right one.
 
 - License.en-US.rtf
 - License.ja-JP.rtf
-  The license agreement covering your subscription.
+  The license agreement that applies to the Pro license key you purchased.
 
 - README.en-US.txt
 - README.ja-JP.txt
@@ -125,7 +126,7 @@ Uninstallation
 1. First open the kasane settings dialog and press "OFF (pass keys through)"
    (shown as "OFF(素通しに戻す)" in Japanese). The keyboard remapping is
    disabled.
-2. Remove "kasane Subscription" from "Apps & features" in Windows Settings
+2. Remove "kasane Pro" from "Apps & features" in Windows Settings
    (administrator rights are required).
 3. Restart your PC. The driver is in use by your keyboard, so its removal
    completes at the restart. Until then the driver may keep running (if you
@@ -133,30 +134,28 @@ Uninstallation
 
 What is removed:
 - The program (C:\Program Files\applet\kasane) and its Start menu entries
-- The license management service (kasaneLicenseSvc)
 - The driver (kbdlayer) and the settings stored in the driver (keymaps,
   macros, combos, timing, NICOLA, the emergency release key combination, and
   so on)
 
 What is kept:
   So that a reinstall picks them up again, the following are kept.
-- %ProgramData%\kbdlayer-license ... your license key and logs. After a
-  reinstall the license is re-verified automatically with this license key, so
-  you do not need to activate again.
 - The files in the %LOCALAPPDATA%\applet\kasane folder, or in the folder
   specified by the KASANE environment variable.
 
-To remove everything, delete these folders by hand after uninstalling and
+To remove everything, delete this folder by hand after uninstalling and
 restarting.
 
 Installing a newer version over an existing one (without uninstalling) keeps
-the driver settings and the license. You do not need to uninstall first.
+the driver settings, and you do not need to enter the license key again. You do
+not need to uninstall first. If you uninstall and then reinstall, enter the
+license key again.
 
 
 Support / Purchase
 ------------------
-You can check your purchased license key, manage your subscription, and
-re-download the zip file from your Gumroad library at any time.
+You can check your purchased license key and re-download the zip file from
+your Gumroad library at any time.
 
 
 License
