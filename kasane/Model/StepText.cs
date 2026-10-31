@@ -17,6 +17,9 @@ namespace Kasane.Model;
 /// moveto 100 200        マウスを画面（仮想デスクトップ）の座標へ動かす
 /// wheel -120            縦ホイール（120 で1ノッチ）
 /// hwheel 120            横ホイール
+/// ime off               IME を OFF にする（on / off / toggle。今の状態を見て、違うときだけ変える）
+/// ime on tsf            方式を固定する（imm / tsf / key / altkanji。書かなければ自動）
+/// ime off key abort     切り替えに失敗したら、この動作の残りをやめる（書かなければ続ける）
 /// </code>
 /// </summary>
 public static class StepText
@@ -47,6 +50,13 @@ public static class StepText
             }
             if (s.Wheel is int w && w != 0) sb.Append("wheel ").AppendLine(w.ToString(CultureInfo.InvariantCulture));
             if (s.HWheel is int h && h != 0) sb.Append("hwheel ").AppendLine(h.ToString(CultureInfo.InvariantCulture));
+            if (!string.IsNullOrEmpty(s.Ime))
+            {
+                sb.Append("ime ").Append(s.Ime.Trim().ToLowerInvariant());
+                if (ImeNames.TryParseMethod(s.ImeMethod, out var m) && m != ImeMethod.Auto) sb.Append(' ').Append(ImeNames.MethodName(m));
+                if (ImeNames.TryParseOnFail(s.ImeOnFail, out bool abort) && abort) sb.Append(" abort");
+                sb.AppendLine();
+            }
         }
         return sb.ToString();
     }
@@ -134,8 +144,35 @@ public static class StepText
                     if (!TryInt(arg, out int amount) || amount == 0) errors.Add(at + Loc.T($"{command} は 0 以外の整数で書きます", $"{command} takes a non-zero integer"));
                     else steps.Add(command == "wheel" ? new HelperStep { Wheel = amount } : new HelperStep { HWheel = amount });
                     break;
+                case "ime":
+                {
+                    var parts = arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length == 0 || !ImeNames.TryParseTarget(parts[0], out _))
+                    {
+                        errors.Add(at + Loc.T("ime は on / off / toggle のどれかで書きます(例: ime off、ime on tsf、ime off key abort)", "ime takes one of on / off / toggle (for example: ime off, ime on tsf, ime off key abort)"));
+                        break;
+                    }
+                    string? method = null;
+                    bool abort = false, bad = false;
+                    for (int i = 1; i < parts.Length; i++)
+                    {
+                        string p = parts[i].ToLowerInvariant();
+                        if (p == "abort") abort = true;
+                        else if (p == "continue") abort = false;
+                        else if (method == null && p != "auto" && ImeNames.TryParseMethod(p, out _)) method = p;
+                        else if (method == null && p == "auto") method = null;
+                        else { bad = true; break; }
+                    }
+                    if (bad)
+                    {
+                        errors.Add(at + Loc.T("ime の後ろは、方式(imm / tsf / key / altkanji)と abort だけ書けます(方式を書かないと、自動で選びます)", "After ime, only a method (imm / tsf / key / altkanji) and abort can be written (without a method, one is chosen automatically)"));
+                        break;
+                    }
+                    steps.Add(new HelperStep { Ime = parts[0].ToLowerInvariant(), ImeMethod = method, ImeOnFail = abort ? "abort" : null });
+                    break;
+                }
                 default:
-                    errors.Add(at + Loc.T($"'{command}' は命令ではありません(key / down / up / text / delay / mouse / move / moveto / wheel / hwheel)", $"'{command}' is not a command (key / down / up / text / delay / mouse / move / moveto / wheel / hwheel)"));
+                    errors.Add(at + Loc.T($"'{command}' は命令ではありません(key / down / up / text / delay / mouse / move / moveto / wheel / hwheel / ime)", $"'{command}' is not a command (key / down / up / text / delay / mouse / move / moveto / wheel / hwheel / ime)"));
                     break;
             }
         }

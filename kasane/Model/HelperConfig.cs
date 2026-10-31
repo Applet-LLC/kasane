@@ -316,6 +316,16 @@ public sealed class HelperActionBody
     public List<HelperStep>? Steps { get; set; }
     /// <summary>キーを離したときに実行する手順（マウスのボタンを押している間だけ押す、など）。</summary>
     public List<HelperStep>? ReleaseSteps { get; set; }
+    /// <summary>
+    /// true のとき、TextInput の入力の間だけ IME を OFF にして、終わったら元の状態に戻す（IME が OFF なら何もしない）。
+    /// 方式は <see cref="ImeMethod"/>、失敗したときの扱いは <see cref="ImeOnFail"/>。TextInput 以外には関係ない。
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool ImeOffDuring { get; set; }
+    /// <summary><see cref="ImeOffDuring"/> の方式。"Auto"（既定。IMM32 → IME キーの順に試す）か、固定する方式（"Imm" / "Tsf" / "Key" / "AltKanji"）。</summary>
+    public string? ImeMethod { get; set; }
+    /// <summary><see cref="ImeOffDuring"/> の IME の切り替えに失敗したときの扱い。"Continue"（既定。記録して入力を続ける）か "Abort"（入力しない）。</summary>
+    public string? ImeOnFail { get; set; }
 }
 
 /// <summary>
@@ -327,6 +337,9 @@ public sealed class HelperActionBody
 ///  - Mouse: ボタン（Left / Right / Middle / X1 / X2）を <see cref="MouseAction"/>（Click（既定）/ Down / Up）する。
 ///  - MoveX / MoveY: マウスを動かす。<see cref="Absolute"/> が true なら画面（仮想デスクトップ）の座標、そうでなければ今の位置からの相対。
 ///  - Wheel / HWheel: ホイール（120 で1ノッチ。縦は奥へ回すと正）。
+///  - Ime: IME を "On" / "Off" / "Toggle" にする（今の状態を見て、違うときだけ変える）。方式は <see cref="ImeMethod"/>（"Auto"（既定）は
+///    IMM32 → IME キーの順に試す。"Imm" / "Tsf" / "Key" / "AltKanji" は、その方式に固定して、ほかへは切り替えない）。
+///    失敗したときは <see cref="ImeOnFail"/>（"Continue"（既定。記録して続ける）か "Abort"（この動作の残りをやめる））。
 /// </summary>
 public sealed class HelperStep
 {
@@ -343,6 +356,9 @@ public sealed class HelperStep
     public bool Absolute { get; set; }
     public int? Wheel { get; set; }
     public int? HWheel { get; set; }
+    public string? Ime { get; set; }
+    public string? ImeMethod { get; set; }
+    public string? ImeOnFail { get; set; }
 }
 
 /// <summary>

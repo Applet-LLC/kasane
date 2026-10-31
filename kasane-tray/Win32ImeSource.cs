@@ -25,6 +25,7 @@ public sealed class Win32ImeSource : IImeSource
     private const uint WM_IME_CONTROL = 0x0283;
     private const int IMC_GETCONVERSIONMODE = 0x0001;
     private const int IMC_GETOPENSTATUS = 0x0005;
+    private const int IMC_SETOPENSTATUS = 0x0006;
     private const uint SMTO_ABORTIFHUNG = 0x0002;
     private const uint QueryTimeoutMs = 100;
 
@@ -87,6 +88,9 @@ public sealed class Win32ImeSource : IImeSource
         return ProcessNameCached(pid);
     }
 
+    /// <summary>前面のウィンドウ（IME を書き換えたあと、元へ戻す前に、前面が変わっていないかの確認用）。</summary>
+    internal IntPtr ForegroundWindow() => GetForegroundWindow();
+
     /// <summary>前面のアプリのプロセス名（ログ用。IME 連動のスレッドから呼ぶ。プロセス名は前に調べたものを使う）。</summary>
     internal string ForegroundLabel()
     {
@@ -129,6 +133,38 @@ public sealed class Win32ImeSource : IImeSource
         if (wantDetail)
             detail = Kasane.Model.Loc.T($"{process}({cls}): IME {(state.Open ? "ON" : "OFF")}、変換モード 0x{state.ConversionMode:X}、日本語入力モード {(state.IsKanaInput ? "はい" : "いいえ")}", $"{process} ({cls}): IME {(state.Open ? "ON" : "OFF")}, conversion mode 0x{state.ConversionMode:X}, Japanese input mode {(state.IsKanaInput ? "yes" : "no")}");
         return state;
+    }
+
+    /// <summary>
+    /// 前面のアプリの IME ウィンドウを取る（IME の ON/OFF を書く側が使う。<see cref="ReadCore"/> と同じ手順）。
+    /// 取れないときは false で、理由を <paramref name="reason"/> に入れる（トレイ自身・シェルのウィンドウ・IME のウィンドウが無いアプリなど）。
+    /// </summary>
+    internal bool TryGetImeWindow(out IntPtr imeWindow, out string reason)
+    {
+        imeWindow = IntPtr.Zero;
+        if (!TryGetTarget(wantDetail: true, out IntPtr foreground, out uint threadId, out string cls, out string process, out reason))
+            return false;
+
+        IntPtr target = foreground;
+        var info = new GUITHREADINFO { cbSize = (uint)Marshal.SizeOf<GUITHREADINFO>() };
+        if (GetGUIThreadInfo(threadId, ref info) && info.hwndFocus != IntPtr.Zero) target = info.hwndFocus;
+
+        imeWindow = ImmGetDefaultIMEWnd(target);
+        if (imeWindow == IntPtr.Zero)
+        {
+            reason = Kasane.Model.Loc.T($"{process}({cls}): IMEのウィンドウがありません", $"{process} ({cls}): no IME window");
+            return false;
+        }
+        reason = "";
+        return true;
+    }
+
+    /// <summary>IME ウィンドウに、ON/OFF を設定させる（IMC_SETOPENSTATUS）。メッセージが届いたら true（反映されたかは、読み直して確かめる）。</summary>
+    internal static bool SetOpenStatus(IntPtr imeWindow, bool open)
+    {
+        IntPtr result = SendMessageTimeout(imeWindow, WM_IME_CONTROL, (IntPtr)IMC_SETOPENSTATUS, (IntPtr)(open ? 1 : 0),
+            SMTO_ABORTIFHUNG, QueryTimeoutMs, out _);
+        return result != IntPtr.Zero;
     }
 
     /// <summary>前面でもIMEの状態を見ないウィンドウか（クラス名、またはプロセス名で判断する）。</summary>

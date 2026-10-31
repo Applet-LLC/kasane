@@ -14,12 +14,12 @@ namespace Kasane.Tray;
 /// </summary>
 internal static class TsfImeProbe
 {
-    private static readonly Guid ClsidThreadMgr = new("529A9E6B-6587-4F23-AB9E-9C7D683E3C50");
-    private static readonly Guid KeyboardOpenClose = new("58273AAD-01BB-4164-95C6-755BA0B5162D");
+    internal static readonly Guid ClsidThreadMgr = new("529A9E6B-6587-4F23-AB9E-9C7D683E3C50");
+    internal static readonly Guid KeyboardOpenClose = new("58273AAD-01BB-4164-95C6-755BA0B5162D");
     private static readonly Guid KeyboardInputModeConversion = new("CCF05DD8-4A87-11D7-A6E2-00065B84435C");
 
     [ComImport, Guid("AA80E801-2021-11D2-93E0-0060B067B86E"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface ITfThreadMgr
+    internal interface ITfThreadMgr
     {
         [PreserveSig] int Activate(out uint clientId);
         [PreserveSig] int Deactivate();
@@ -35,7 +35,7 @@ internal static class TsfImeProbe
     }
 
     [ComImport, Guid("7DCF57AC-18AD-438B-824D-979BFFB74B7C"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface ITfCompartmentMgr
+    internal interface ITfCompartmentMgr
     {
         [PreserveSig] int GetCompartment(ref Guid rguid, [MarshalAs(UnmanagedType.Interface)] out ITfCompartment ppcomp);
         [PreserveSig] int ClearCompartment(uint tid, ref Guid rguid);
@@ -43,7 +43,7 @@ internal static class TsfImeProbe
     }
 
     [ComImport, Guid("BB08F7A9-607A-4384-8623-056892B64371"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface ITfCompartment
+    internal interface ITfCompartment
     {
         [PreserveSig] int SetValue(uint tid, [MarshalAs(UnmanagedType.Struct)] ref object pvarValue);
         [PreserveSig] int GetValue([MarshalAs(UnmanagedType.Struct)] out object pvarValue);

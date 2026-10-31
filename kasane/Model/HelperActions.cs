@@ -6,7 +6,64 @@ namespace Kasane.Model;
 // （TriggerTable）、HLP(id) の引き当て（HelperActionResolver）、動作の実行（ActionExecutor。実際の入力・起動は
 // IActionEnvironment の向こう）。テストでは偽の IActionEnvironment を使う。
 
-public enum InputKind { Key, Unicode, MouseButton, MouseMove, Wheel, HWheel, Delay }
+public enum InputKind { Key, Unicode, MouseButton, MouseMove, Wheel, HWheel, Delay, Ime }
+
+/// <summary>IME をどうするか。OffRemember / Restore は Text の ImeOffDuring 用（OFF にする前の状態を覚え、あとで戻す）。</summary>
+public enum ImeTarget { Off, On, Toggle, OffRemember, Restore }
+
+/// <summary>IME の状態の読み書きの方式。Auto 以外は固定で、失敗しても別の方式へは切り替えない。</summary>
+public enum ImeMethod { Auto, Imm, Tsf, Key, AltKanji }
+
+public static class ImeNames
+{
+    public static bool TryParseTarget(string? text, out ImeTarget target)
+    {
+        target = ImeTarget.Off;
+        switch ((text ?? "").Trim().ToLowerInvariant())
+        {
+            case "on": target = ImeTarget.On; return true;
+            case "off": target = ImeTarget.Off; return true;
+            case "toggle": target = ImeTarget.Toggle; return true;
+            default: return false;
+        }
+    }
+
+    /// <summary>空・null は Auto。</summary>
+    public static bool TryParseMethod(string? text, out ImeMethod method)
+    {
+        method = ImeMethod.Auto;
+        switch ((text ?? "").Trim().ToLowerInvariant())
+        {
+            case "" or "auto": return true;
+            case "imm" or "imm32": method = ImeMethod.Imm; return true;
+            case "tsf": method = ImeMethod.Tsf; return true;
+            case "key": method = ImeMethod.Key; return true;
+            case "altkanji" or "alt-kanji" or "alt": method = ImeMethod.AltKanji; return true;
+            default: return false;
+        }
+    }
+
+    /// <summary>失敗したときの扱い。空・null・"continue" は続行（abort = false）。</summary>
+    public static bool TryParseOnFail(string? text, out bool abort)
+    {
+        abort = false;
+        switch ((text ?? "").Trim().ToLowerInvariant())
+        {
+            case "" or "continue": return true;
+            case "abort": abort = true; return true;
+            default: return false;
+        }
+    }
+
+    public static string MethodName(ImeMethod method) => method switch
+    {
+        ImeMethod.Imm => "imm",
+        ImeMethod.Tsf => "tsf",
+        ImeMethod.Key => "key",
+        ImeMethod.AltKanji => "altkanji",
+        _ => "auto",
+    };
+}
 
 /// <summary>
 /// 展開した入力1件。
@@ -16,6 +73,7 @@ public enum InputKind { Key, Unicode, MouseButton, MouseMove, Wheel, HWheel, Del
 ///  - MouseMove: Value = x、Value2 = y、Flag = 絶対座標（仮想デスクトップの画面座標）。
 ///  - Wheel / HWheel: Value = 量（120 で1ノッチ）。
 ///  - Delay: Value = ミリ秒。
+///  - Ime: Value = <see cref="ImeTarget"/>、Value2 = <see cref="ImeMethod"/>、Flag = 失敗したらこの動作の残りをやめる。
 /// </summary>
 public readonly record struct InputOp(InputKind Kind, int Value = 0, int Value2 = 0, bool Up = false, bool Flag = false);
 
@@ -107,6 +165,13 @@ public static class SequenceCompiler
             }
             if (step.Wheel is int wheel && wheel != 0) ops.Add(new InputOp(InputKind.Wheel, wheel));
             if (step.HWheel is int hwheel && hwheel != 0) ops.Add(new InputOp(InputKind.HWheel, hwheel));
+            if (!string.IsNullOrEmpty(step.Ime))
+            {
+                if (!ImeNames.TryParseTarget(step.Ime, out var target)) errors.Add(at + Loc.T($"Ime '{step.Ime}' を解決できません(On / Off / Toggle)", $"Cannot resolve Ime '{step.Ime}' (On / Off / Toggle)"));
+                else if (!ImeNames.TryParseMethod(step.ImeMethod, out var method)) errors.Add(at + Loc.T($"ImeMethod '{step.ImeMethod}' を解決できません(Auto / Imm / Tsf / Key / AltKanji)", $"Cannot resolve ImeMethod '{step.ImeMethod}' (Auto / Imm / Tsf / Key / AltKanji)"));
+                else if (!ImeNames.TryParseOnFail(step.ImeOnFail, out bool abort)) errors.Add(at + Loc.T($"ImeOnFail '{step.ImeOnFail}' を解決できません(Continue / Abort)", $"Cannot resolve ImeOnFail '{step.ImeOnFail}' (Continue / Abort)"));
+                else ops.Add(new InputOp(InputKind.Ime, (int)target, (int)method, Flag: abort));
+            }
         }
         return new CompileResult(ops, errors);
     }
@@ -335,6 +400,11 @@ public interface IActionEnvironment
     void TogglePause();
     void Layer(LayerRequest request);
     void Log(string message);
+    /// <summary>
+    /// 前面のアプリの IME を <paramref name="target"/> にする（今の状態を見て、違うときだけ変える）。<paramref name="method"/> が Auto 以外なら、
+    /// その方式だけを使う。変えられなかった（状態を読めない・反映されない等）ときは false（理由は <see cref="Log"/> に書く）。
+    /// </summary>
+    bool SetIme(ImeTarget target, ImeMethod method) => true;
     /// <summary>いま物理的に押されている修飾キー（<see cref="KeycodeTable.ModifierScanCodes"/> の並びのビット）。隠した修飾キーを戻すかの判断に使う。</summary>
     byte PhysicalKeys() => 0;
 }
@@ -381,8 +451,9 @@ public sealed class ActionExecutor
             {
                 if (r.IsBreak) return;
                 var steps = TextSteps(body);
-                if (r.SuppressKeys != 0) RunSuppressed(r, steps);
-                else RunSteps(steps);
+                var wrap = ImeWrapOf(body);
+                if (r.SuppressKeys != 0) RunSuppressed(r, steps, wrap);
+                else RunSteps(steps, wrap);
                 break;
             }
 
@@ -421,6 +492,25 @@ public sealed class ActionExecutor
     private static List<HelperStep>? TextSteps(HelperActionBody body) =>
         string.IsNullOrEmpty(body.Text) ? null : new List<HelperStep> { new() { Text = body.Text } };
 
+    /// <summary>Text の「入力の間だけ IME を OFF」の指定（<see cref="HelperActionBody.ImeOffDuring"/>）。</summary>
+    private sealed record ImeWrap(ImeMethod Method, bool Abort);
+
+    private ImeWrap? ImeWrapOf(HelperActionBody body)
+    {
+        if (!body.ImeOffDuring) return null;
+        if (!ImeNames.TryParseMethod(body.ImeMethod, out var method))
+        {
+            _env.Log(Loc.T($"Text: ImeMethod '{body.ImeMethod}' を解決できないため、Auto にします", $"Text: Cannot resolve ImeMethod '{body.ImeMethod}', using Auto"));
+            method = ImeMethod.Auto;
+        }
+        if (!ImeNames.TryParseOnFail(body.ImeOnFail, out bool abort))
+        {
+            _env.Log(Loc.T($"Text: ImeOnFail '{body.ImeOnFail}' を解決できないため、Continue にします", $"Text: Cannot resolve ImeOnFail '{body.ImeOnFail}', using Continue"));
+            abort = false;
+        }
+        return new ImeWrap(method, abort);
+    }
+
     private static string? Expand(string? s) => string.IsNullOrEmpty(s) ? null : Environment.ExpandEnvironmentVariables(s);
 
     // Alt・Win を離す／戻すと、単独で押して離したことになり、メニューやスタートが開く。間に入れるキー（F24。QMK の DUMMY_MOD_NEUTRALIZER と同じ考え）。
@@ -431,14 +521,14 @@ public sealed class ActionExecutor
     /// 手順の間だけ、トリガーの修飾キー（物理的に押している分）を OS から隠す。終わったら、まだ押している分だけ戻す。
     /// 手順の中で例外や打ち切りがあっても、必ず戻す。
     /// </summary>
-    private void RunSuppressed(ActionRequest r, List<HelperStep>? steps)
+    private void RunSuppressed(ActionRequest r, List<HelperStep>? steps, ImeWrap? wrap = null)
     {
         byte keys = r.SuppressKeys;
         try
         {
             NeutralizeIfNeeded(keys);
             SendMods(keys, up: true);
-            RunSteps(steps);
+            RunSteps(steps, wrap);
         }
         finally
         {
@@ -463,18 +553,44 @@ public sealed class ActionExecutor
         _env.Send(new InputOp(InputKind.Key, NeutralizerScanCode, Up: true));
     }
 
-    private void RunSteps(List<HelperStep>? steps)
+    private void RunSteps(List<HelperStep>? steps, ImeWrap? wrap = null)
     {
         if (steps == null || steps.Count == 0) return;
         var compiled = SequenceCompiler.Compile(steps);
         foreach (var e in compiled.Errors) _env.Log("Sequence: " + e);
-        foreach (var op in compiled.Ops)
+        bool restore = false;
+        try
         {
-            if (op.Kind == InputKind.Delay)
+            if (wrap != null)
             {
-                if (!_env.Sleep(op.Value)) return;
+                bool ok = _env.SetIme(ImeTarget.OffRemember, wrap.Method);
+                restore = true; // 戻せるものが無ければ、環境側が何もしない
+                if (!ok && wrap.Abort)
+                {
+                    _env.Log(Loc.T("Text: IME を OFF にできなかったため、入力をやめました", "Text: Could not turn the IME off, so the input was cancelled"));
+                    return;
+                }
             }
-            else _env.Send(op);
+            foreach (var op in compiled.Ops)
+            {
+                if (op.Kind == InputKind.Delay)
+                {
+                    if (!_env.Sleep(op.Value)) return;
+                }
+                else if (op.Kind == InputKind.Ime)
+                {
+                    if (!_env.SetIme((ImeTarget)op.Value, (ImeMethod)op.Value2) && op.Flag)
+                    {
+                        _env.Log(Loc.T("Sequence: IME を切り替えられなかったため、残りをやめました", "Sequence: Could not switch the IME, so the rest was cancelled"));
+                        return;
+                    }
+                }
+                else _env.Send(op);
+            }
+        }
+        finally
+        {
+            if (restore) _env.SetIme(ImeTarget.Restore, wrap!.Method);
         }
     }
 }

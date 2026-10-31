@@ -103,8 +103,11 @@ internal sealed class Win32ActionEnvironment : IActionEnvironment
     private readonly Action _togglePause;
     private readonly Func<byte> _physicalKeys;
 
+    private readonly ImeController _ime;
+
     public Win32ActionEnvironment(CancellationToken token, Action<LayerRequest> layer, Action togglePause, Func<byte> physicalKeys)
     {
+        _ime = new ImeController(new Win32ImeSource(), SendVirtualKey);
         _physicalKeys = physicalKeys;
         _token = token;
         _layer = layer;
@@ -112,6 +115,17 @@ internal sealed class Win32ActionEnvironment : IActionEnvironment
     }
 
     public byte PhysicalKeys() => _physicalKeys();
+
+    public bool SetIme(ImeTarget target, ImeMethod method) => _ime.Set(target, method);
+
+    // 仮想キーコードで1件送る（IME 用のキー。VK_IME_ON/OFF・VK_KANJI は、スキャンコードの列には入っていない）。
+    private static void SendVirtualKey(ushort vk, ushort scan, bool up)
+    {
+        var input = new INPUT { type = INPUT_KEYBOARD };
+        input.u.ki = new KEYBDINPUT { wVk = vk, wScan = scan, dwFlags = up ? KEYEVENTF_KEYUP : 0, dwExtraInfo = Marker };
+        if (SendInput(1, new[] { input }, Marshal.SizeOf<INPUT>()) != 1)
+            TrayLog.Write("SendInput に失敗: " + new Win32Exception(Marshal.GetLastWin32Error()).Message);
+    }
 
     public void Send(InputOp op)
     {

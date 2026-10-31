@@ -38,6 +38,16 @@ public sealed class HelperActionEditorWindow : Window
         Loc.T("Hold: 押している間だけ立てる", "Hold: on only while held"),
     };
 
+    private static readonly string[] ImeMethods = { "Auto", "Imm", "Tsf", "Key", "AltKanji" };
+    private static string[] ImeMethodLabels => new[]
+    {
+        Loc.T("自動(IMM32、だめなら IME キー)", "Auto (IMM32, then the IME key)"),
+        Loc.T("IMM32 に固定", "IMM32 only"),
+        Loc.T("TSF に固定(実験的)", "TSF only (experimental)"),
+        Loc.T("IME キーに固定", "IME key only"),
+        Loc.T("Alt+半角/全角に固定", "Alt+Hankaku/Zenkaku only"),
+    };
+
     private readonly HelperEditMode _mode;
     private readonly Func<int, bool> _idInUse;
     private readonly TextBox _id = Box("ActionId", 90);
@@ -55,6 +65,10 @@ public sealed class HelperActionEditorWindow : Window
     private readonly TextBox _releaseSteps = MultiLine("ActionReleaseSteps");
     private readonly TextBox _text = MultiLine("ActionText");
     private readonly StackPanel _textPanel = new();
+    private readonly CheckBox _imeOff = new() { Name = "ActionImeOffDuring", Content = Loc.T("入力の間だけ IME を OFF にして、終わったら元に戻す", "Turn the IME off while typing, then restore it"), Margin = new Thickness(0, 8, 0, 0) };
+    private readonly ComboBox _imeMethod = new() { Name = "ActionImeMethod", Width = 300 };
+    private readonly CheckBox _imeAbort = new() { Name = "ActionImeAbort", Content = Loc.T("IME を OFF にできなかったときは、入力しない", "Don't type if the IME can't be turned off"), Margin = new Thickness(0, 4, 0, 0) };
+    private readonly StackPanel _imeOptions = new();
     private readonly CheckBox[] _layers = new CheckBox[16];
     private readonly ComboBox _layerOp = new() { Name = "ActionLayerOp", Width = 300 };
     private readonly CheckBox _repeat = new() { Name = "ActionRepeat", Content = Loc.T("キーを押し続けたとき(オートリピート)も繰り返す", "Repeat while the key is held down (auto-repeat)"), Margin = new Thickness(0, 8, 0, 0) };
@@ -145,6 +159,8 @@ public sealed class HelperActionEditorWindow : Window
              "  mouse left / mouse right down / mouse x1 up   ボタン(left right middle x1 x2、click down up)\n" +
              "  move 10 -5 / moveto 100 200   マウスを動かす(今の位置から / 画面の座標へ)\n" +
              "  wheel -120 / hwheel 120   ホイール(120 で1ノッチ)\n" +
+             "  ime off / ime on / ime toggle   IME を OFF / ON / 切り替え(今の状態を見て、違うときだけ変えます)\n" +
+             "  ime off key / ime on tsf abort   方式を固定(imm tsf key altkanji。書かなければ自動)。abort は、失敗したら残りをやめる\n" +
              "# で始まる行は無視します。\n" +
              "欄の上のボタンで、キー名(キーを押して挿入／選んで挿入)やマウス操作を、カーソルのある行の次に1行挿入できます。"),
             ("One step per line. Syntax:\n" +
@@ -155,6 +171,8 @@ public sealed class HelperActionEditorWindow : Window
              "  mouse left / mouse right down / mouse x1 up   Buttons (left right middle x1 x2, click down up)\n" +
              "  move 10 -5 / moveto 100 200   Move the mouse (from the current position / to screen coordinates)\n" +
              "  wheel -120 / hwheel 120   Wheel (120 = one notch)\n" +
+             "  ime off / ime on / ime toggle   Turn the IME off / on / toggle it (changed only if the current state differs)\n" +
+             "  ime off key / ime on tsf abort   Fix the method (imm tsf key altkanji; automatic if omitted). abort stops the rest if it fails\n" +
              "Lines starting with # are ignored.\n" +
              "The buttons above the box insert one line after the cursor line: a key name (press a key to insert / pick one to insert) or a mouse action."))));
         _sequencePanel.Children.Add(new TextBlock { Text = Loc.T("キーを押したときの手順:", "Steps when the key is pressed:"), Margin = new Thickness(0, 4, 0, 2) });
@@ -173,6 +191,15 @@ public sealed class HelperActionEditorWindow : Window
              "Japanese characters and symbols are sent as they are. A line break is sent as Enter and a tab as Tab. Backslashes and similar characters have no special meaning (they are sent as they are). " +
              $"Up to {HelperActionBody.MaxTextLength} characters."))));
         _textPanel.Children.Add(_text);
+        _textPanel.Children.Add(_imeOff);
+        foreach (var label in ImeMethodLabels) _imeMethod.Items.Add(label);
+        _imeOptions.Margin = new Thickness(20, 0, 0, 0);
+        _imeOptions.Children.Add(Row(Loc.T("IME の方式", "IME method"), _imeMethod));
+        _imeOptions.Children.Add(Help(Loc.T(
+            "「固定」にした方式は、失敗しても別の方式に切り替えません。IME が OFF のときは、何も変えません。",
+            "A method set to \"only\" is not replaced by another one if it fails. If the IME is already off, nothing is changed.")));
+        _imeOptions.Children.Add(_imeAbort);
+        _textPanel.Children.Add(_imeOptions);
 
         // AppLayer
         _layerPanel.Children.Add(Help(Loc.T("アプリ管理レイヤーを操作します(IME連動・前面のアプリの規則と合わせて、ORで効きます)。対象は、そのキーを押したキーボードです。", "Controls app-managed layers (combined with IME link and per-app rules by OR). It applies to the keyboard on which the key was pressed.")));
@@ -215,6 +242,9 @@ public sealed class HelperActionEditorWindow : Window
         foreach (var t in new[] { _id, _name, _key, _path, _args, _workDir, _steps, _releaseSteps }) t.TextChanged += (_, _) => Revalidate();
         foreach (var c in new[] { _ctrl, _shift, _alt, _win }) c.Click += (_, _) => Revalidate();
         _layerOp.SelectionChanged += (_, _) => Revalidate();
+        _imeOff.Click += (_, _) => { _imeOptions.IsEnabled = _imeOff.IsChecked == true; Revalidate(); };
+        _imeMethod.SelectionChanged += (_, _) => Revalidate();
+        _imeAbort.Click += (_, _) => Revalidate();
         _loading = false;
         ShowPanels();
         Revalidate();
@@ -248,6 +278,11 @@ public sealed class HelperActionEditorWindow : Window
         _layerOp.SelectedIndex = op < 0 ? 0 : op;
         _repeat.IsChecked = body.Repeat;
         _keepMods.IsChecked = body.KeepMods;
+        _imeOff.IsChecked = body.ImeOffDuring;
+        int method = Array.FindIndex(ImeMethods, o => string.Equals(o, body.ImeMethod, StringComparison.OrdinalIgnoreCase));
+        _imeMethod.SelectedIndex = method < 0 ? 0 : method;
+        _imeAbort.IsChecked = string.Equals(body.ImeOnFail, "abort", StringComparison.OrdinalIgnoreCase);
+        _imeOptions.IsEnabled = body.ImeOffDuring;
     }
 
     private void ShowPanels()
@@ -317,6 +352,13 @@ public sealed class HelperActionEditorWindow : Window
                 break;
             case HelperActionBody.TextInput:
                 body.Text = _text.Text.Length > 0 ? _text.Text : null; // 前後の空白も含めて、そのまま
+                if (_imeOff.IsChecked == true)
+                {
+                    body.ImeOffDuring = true;
+                    string method = ImeMethods[Math.Max(0, _imeMethod.SelectedIndex)];
+                    body.ImeMethod = method == "Auto" ? null : method;
+                    body.ImeOnFail = _imeAbort.IsChecked == true ? "Abort" : null;
+                }
                 break;
             case HelperActionBody.AppLayer:
                 body.Layers = Enumerable.Range(0, _layers.Length).Where(i => _layers[i].IsChecked == true).ToList();

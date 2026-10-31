@@ -184,6 +184,13 @@ public sealed class HelperSettingsModel
                 if (string.IsNullOrEmpty(body.Text)) errors.Add(Loc.T($"{owner}: Text の文字列が空です", $"{owner}: Text is empty"));
                 else if (body.Text.Length > HelperActionBody.MaxTextLength)
                     errors.Add(Loc.T($"{owner}: Text の文字列が長すぎます({HelperActionBody.MaxTextLength} 文字まで)", $"{owner}: Text is too long (up to {HelperActionBody.MaxTextLength} characters)"));
+                if (body.ImeOffDuring)
+                {
+                    if (!ImeNames.TryParseMethod(body.ImeMethod, out _))
+                        errors.Add(Loc.T($"{owner}: ImeMethod '{body.ImeMethod}' は Auto / Imm / Tsf / Key / AltKanji のどれかです", $"{owner}: ImeMethod '{body.ImeMethod}' must be Auto, Imm, Tsf, Key or AltKanji"));
+                    if (!ImeNames.TryParseOnFail(body.ImeOnFail, out _))
+                        errors.Add(Loc.T($"{owner}: ImeOnFail '{body.ImeOnFail}' は Continue / Abort のどちらかです", $"{owner}: ImeOnFail '{body.ImeOnFail}' must be Continue or Abort"));
+                }
                 break;
 
             case HelperActionBody.AppLayer:
