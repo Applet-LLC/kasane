@@ -10,7 +10,9 @@ namespace Kasane.Model;
 /// key LCTL(KC_C)        キーを押して離す（"KC_A"、"LCTL(KC_C)"、"SC_E06A" など）
 /// down KC_A             キーを押す（修飾付きなら修飾キーも）
 /// up KC_A               キーを離す
-/// text こんにちは\n      文字列を打つ（\n = Enter、\t = Tab、\\ = バックスラッシュ）
+/// vk IME_ON             仮想キー（VK_*）を押して離す（"IME_ON"、"0x16"、"LSHIFT+F1" など。VK_ は付けなくてよい）
+/// vkdown IME_ON         仮想キーを押す。vkup IME_ON は離す
+/// text こんにちは\n     文字列を打つ（\n = Enter、\t = Tab、\\ = バックスラッシュ）
 /// delay 50              待つ（ミリ秒、0〜10000）
 /// mouse left            ボタン（left / right / middle / x1 / x2）をクリック。mouse left down / mouse left up も
 /// move 10 -5            マウスを今の位置から動かす
@@ -33,6 +35,9 @@ public static class StepText
             if (!string.IsNullOrEmpty(s.Key)) sb.Append("key ").AppendLine(s.Key);
             if (!string.IsNullOrEmpty(s.Down)) sb.Append("down ").AppendLine(s.Down);
             if (!string.IsNullOrEmpty(s.Up)) sb.Append("up ").AppendLine(s.Up);
+            if (!string.IsNullOrEmpty(s.Vk)) sb.Append("vk ").AppendLine(s.Vk);
+            if (!string.IsNullOrEmpty(s.VkDown)) sb.Append("vkdown ").AppendLine(s.VkDown);
+            if (!string.IsNullOrEmpty(s.VkUp)) sb.Append("vkup ").AppendLine(s.VkUp);
             if (!string.IsNullOrEmpty(s.Text)) sb.Append("text ").AppendLine(EscapeText(s.Text));
             if (s.DelayMs is int d) sb.Append("delay ").AppendLine(d.ToString(CultureInfo.InvariantCulture));
             if (!string.IsNullOrEmpty(s.Mouse))
@@ -98,6 +103,24 @@ public static class StepText
                     if (command == "key") step.Key = token;
                     else if (command == "down") step.Down = token;
                     else step.Up = token;
+                    steps.Add(step);
+                    break;
+                }
+                case "vk":
+                case "vkdown":
+                case "vkup":
+                {
+                    string token = arg.Trim();
+                    if (token.Length == 0) { errors.Add(at + Loc.T($"{command} に仮想キーがありません", $"{command} has no virtual key")); break; }
+                    if (!Keycodes.VkTable.TryResolve(token, out _, out _))
+                    {
+                        errors.Add(at + Loc.T($"'{token}' は仮想キーとして使えません(IME_ON、0x16、LSHIFT+F1 のような書き方)", $"'{token}' can't be used as a virtual key (write it like IME_ON, 0x16, or LSHIFT+F1)"));
+                        break;
+                    }
+                    var step = new HelperStep();
+                    if (command == "vk") step.Vk = token;
+                    else if (command == "vkdown") step.VkDown = token;
+                    else step.VkUp = token;
                     steps.Add(step);
                     break;
                 }
@@ -172,7 +195,7 @@ public static class StepText
                     break;
                 }
                 default:
-                    errors.Add(at + Loc.T($"'{command}' は命令ではありません(key / down / up / text / delay / mouse / move / moveto / wheel / hwheel / ime)", $"'{command}' is not a command (key / down / up / text / delay / mouse / move / moveto / wheel / hwheel / ime)"));
+                    errors.Add(at + Loc.T($"'{command}' は命令ではありません(key / down / up / vk / vkdown / vkup / text / delay / mouse / move / moveto / wheel / hwheel / ime)", $"'{command}' is not a command (key / down / up / vk / vkdown / vkup / text / delay / mouse / move / moveto / wheel / hwheel / ime)"));
                     break;
             }
         }

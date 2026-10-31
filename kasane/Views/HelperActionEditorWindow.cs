@@ -154,6 +154,7 @@ public sealed class HelperActionEditorWindow : Window
             ("1行が1手順です。書き方:\n" +
              "  key LCTL(KC_C)   キーを押して離す(KC_A、LCTL(KC_C)、SC_E06A など)\n" +
              "  down KC_A / up KC_A   押す / 離す\n" +
+             "  vk IME_ON / vk IME_OFF   仮想キー(VK_*)を押して離す。IME ON/OFF のキーなど、スキャンコードを持たないキー用(vk 0x16、vk LSHIFT+F1 のようにも書けます。押す / 離すは vkdown / vkup)\n" +
              "  text こんにちは\\n   文字列を打つ(\\n = Enter、\\t = Tab、\\\\ = バックスラッシュ。バックスラッシュは日本語のフォントでは円記号(¥)の形で表示されます。¥ キーで入力できます)\n" +
              "  delay 50   待つ(ミリ秒、0〜10000)\n" +
              "  mouse left / mouse right down / mouse x1 up   ボタン(left right middle x1 x2、click down up)\n" +
@@ -166,6 +167,7 @@ public sealed class HelperActionEditorWindow : Window
             ("One step per line. Syntax:\n" +
              "  key LCTL(KC_C)   Press and release a key (KC_A, LCTL(KC_C), SC_E06A, etc.)\n" +
              "  down KC_A / up KC_A   Press / release\n" +
+             "  vk IME_ON / vk IME_OFF   Press and release a virtual key (VK_*). For keys that have no scan code, such as the IME on/off keys (also vk 0x16, vk LSHIFT+F1; vkdown / vkup press / release)\n" +
              "  text Hello\\n   Type a string (\\n = Enter, \\t = Tab, \\\\ = backslash)\n" +
              "  delay 50   Wait (milliseconds, 0-10000)\n" +
              "  mouse left / mouse right down / mouse x1 up   Buttons (left right middle x1 x2, click down up)\n" +

@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Kasane.Keycodes;
 using Kasane.Model;
 
 namespace Kasane.Tray;
@@ -139,6 +140,13 @@ internal sealed class Win32ActionEnvironment : IActionEnvironment
                 uint flags = KEYEVENTF_SCANCODE | (op.Up ? KEYEVENTF_KEYUP : 0) | ((sc >> 8) == 0xE0 ? KEYEVENTF_EXTENDEDKEY : 0);
                 input.type = INPUT_KEYBOARD;
                 input.u.ki = new KEYBDINPUT { wScan = (ushort)(sc & 0xFF), dwFlags = flags, dwExtraInfo = Marker };
+                break;
+            }
+            case InputKind.Vk:
+            {
+                ushort vk = (ushort)op.Value;
+                input.type = INPUT_KEYBOARD;
+                input.u.ki = new KEYBDINPUT { wVk = vk, dwFlags = (op.Up ? KEYEVENTF_KEYUP : 0) | (VkTable.IsExtended(vk) ? KEYEVENTF_EXTENDEDKEY : 0), dwExtraInfo = Marker };
                 break;
             }
             case InputKind.Unicode:

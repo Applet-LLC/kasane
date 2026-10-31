@@ -332,6 +332,8 @@ public sealed class HelperActionBody
 /// <see cref="HelperActionBody.Steps"/> の1手順。指定した項目を、下の順に実行する（普通は1つだけ書く）。
 ///  - Key: キーを押して離す（"KC_A"、"LCTL(KC_C)"、"SC_E06A" など。ドライバのキーコードと同じ書き方）。
 ///  - Down / Up: キーを押す / 離す（修飾付きなら、修飾キーも）。
+///  - Vk / VkDown / VkUp: 仮想キー（VK_*）を押して離す / 押す / 離す。"IME_ON"、"0x16"、"LSHIFT+IME_ON" のように書く（名前は VK_ なし。
+///    + でつないだ左の分は修飾キー）。スキャンコードを持たないキー（VK_IME_ON / VK_IME_OFF など）用で、常に SendInput で送る。
 ///  - Text: 文字列を打つ（Unicode のまま。改行は Enter、タブは Tab）。
 ///  - DelayMs: 待つ（0〜10000ms）。
 ///  - Mouse: ボタン（Left / Right / Middle / X1 / X2）を <see cref="MouseAction"/>（Click（既定）/ Down / Up）する。
@@ -346,6 +348,9 @@ public sealed class HelperStep
     public string? Key { get; set; }
     public string? Down { get; set; }
     public string? Up { get; set; }
+    public string? Vk { get; set; }
+    public string? VkDown { get; set; }
+    public string? VkUp { get; set; }
     public string? Text { get; set; }
     public int? DelayMs { get; set; }
     public string? Mouse { get; set; }

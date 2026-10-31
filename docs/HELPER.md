@@ -65,10 +65,12 @@ F13〜F24 などのキーで動かしたいときは、**設定...** の **ヘ�
 - **選んで挿入...**: 画面のキーボードや一覧からキーを選びます（`LCTL(KC_C)` のような修飾つきも選べます）。
 - **マウス操作を挿入 ▾**: メニューから、ボタンのクリック・押す・離す、移動、ホイールの定型の行を選びます（`mouse left`、`mouse left down`、`move 10 0`、`wheel 120` など。数値は、挿入後に書き換えます）。
 - **IME 操作を挿入 ▾**: メニューから、IME を ON・OFF・切り替える行を選びます（`ime on`、`ime off`、`ime toggle`）。方式を固定した行（`ime off key` など）も選べます。
+- **仮想キーを挿入 ▾**: メニューから、日本語 IME 向けの仮想キーの行を選びます（`vk IME_ON`、`vk IME_OFF`、`vk KANJI`、`vk CONVERT`、`vk NONCONVERT` など）。
 
 ```
 key LCTL(KC_C)       キーを押して離す（KC_A、LCTL(KC_C)、SC_E06A など）
 down KC_A / up KC_A  押す / 離す
+vk IME_ON            仮想キー（VK_*）を押して離す（IME_ON、0x16、LSHIFT+F1 など。vkdown / vkup は押す / 離す）
 text こんにちは\n     文字列を打つ（\n = Enter、\t = Tab、\\ = バックスラッシュ）
 delay 50             待つ（ミリ秒、0〜10000）
 mouse left           ボタンをクリック（left right middle x1 x2。mouse left down / up も）
@@ -95,14 +97,32 @@ ime off key abort    切り替えに失敗したら、この動作の残りを�
 | `tsf` | TSF だけ（実験的）。別プロセスからは状態を読めないので、効くかどうかは IME とアプリ次第 |
 
 方式を書いたときは固定で、失敗しても別の方式に切り替えません。失敗したときは、記録して続けます（`abort` を付けると、その動作の残りをやめます）。
+#### 仮想キー（`vk`）
+
+`key` はスキャンコードで送るので、スキャンコードを持たないキーは送れません。Microsoft の日本語キーボード向けの IME ON/OFF キー（`VK_IME_ON`、`VK_IME_OFF`）がそうです。こうしたキーは `vk` で、仮想キーコードのまま送ります。
+
+```
+vk IME_ON            IME を ON にするキー（IME が OFF のときも ON のときも、ON にする）
+vk IME_OFF           IME を OFF にするキー
+vk KANJI             半角/全角（切り替えのキー。今の状態は見ない）
+vk 0x70              数値でも書ける（0x16 か 10 進。1〜254）
+vk LSHIFT+F1         + でつないだ左の分は修飾キー（LSHIFT RSHIFT LCTRL RCTRL LALT RALT LWIN RWIN。SHIFT CTRL ALT WIN は左の別名）
+vkdown LCTRL         押す。vkup LCTRL は離す
+```
+
+名前は `VK_` を付けても付けなくてもかまいません。日本語 IME 向けには `IME_ON`、`IME_OFF`、`KANJI`、`KANA`、`CONVERT`、`NONCONVERT`、`ACCEPT`、`MODECHANGE`、`DBE_HIRAGANA`、`DBE_KATAKANA`、`DBE_ALPHANUMERIC` などが使えます。
+`vk` は、`ime` と違って今の IME の状態を読みません。送ったキーに IME が応えるかどうかは、IME とアプリによります。`vk` は常に `SendInput` で送ります（ドライバは使いません）。
+
+通常のウィンドウでは、`vk IME_ON`、`vk IME_OFF`、`vk KANJI`、`vk LSHIFT+0x41` が期待どおりに働くことを確かめています（2026-10-31）。
+
 #### IME の ON/OFF の制限事項
 
 IME の ON/OFF は、効かないことがあります（2026-10-31 の実機試験。Microsoft IME。`.plans/handoff/ime-control-results.md`）。
 
 - アプリによっては切り替えられません。IME のウィンドウを持たない・応答しないアプリには、IMM32 の操作が届きません。失敗の理由は `tray.log` の `IME(...)` の行に残ります。自動は、IMM32 で変えられなければ IME キーを送ります。方式を固定した行は、切り替えません。
 - `tsf` は、ほとんど効きません（実験的）。テスト用のウィンドウでは効かず、メモ帳（新）では効いたように見えましたが、IME の読み取りが不安定で、確かではありません。
-- 新しく開いたウィンドウで、はじめて IME を実際に切り替えたとき、続く最初の `key` が入らないことがありました（試験で 3 回すべて。2 回目からは入る）。IME を切り替えたあとに出力がうまく出ないときは、`ime` の行のあとに `delay` を入れる方法も試せます（例: `delay 50`。効果は確かめていません）。
-- 管理者として動くウィンドウでは、uiAccess 版のトレイからでも IME は切り替わりますが、そのあとの `key` と `Text` は届きませんでした。uiAccess の無い版では、IME の切り替えも届きません。
+- 新しく開いたウィンドウでは、最初の 1 文字が入らないことがあります。IME の操作とは関係なく、トレイもドライバも通さない `SendInput` で `a` を押しても、6 窓中 4〜5 窓で最初の 1 文字が入りませんでした。試験用のウィンドウの性質と考えられます。`delay` を入れても直りませんでした。2 文字目以降は入ります（2026-10-31 の追試。`vk-first-key-results.md`）。
+- 管理者として動くウィンドウでは、uiAccess 版のトレイからでも、IME は IMM32 で切り替わります。`key`・`vk`・`Text` も届きますが、各動作の最初のキーが入らないことがありました（`key A` を先頭に置いた動作は、20 回中 0 回。2 つ目以降のキーと、Text の 2 文字目以降は入りました）。`delay` を 0〜1000 ms 入れても同じでした。原因は分かっていません。管理者のウィンドウで `vk IME_OFF` が効くかは、確かめられていません。uiAccess の無い版では、IME の切り替えも届きません。
 - IME の状態を読み取れないアプリでは、Text の「元に戻す」を確かめられません。
 - Microsoft IME 以外（Google 日本語入力など）と、ARM64 は、試験していません。
 
