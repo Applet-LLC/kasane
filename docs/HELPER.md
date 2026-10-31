@@ -111,6 +111,8 @@ vkdown LCTRL         押す。vkup LCTRL は離す
 ```
 
 名前は `VK_` を付けても付けなくてもかまいません。日本語 IME 向けには `IME_ON`、`IME_OFF`、`KANJI`、`KANA`、`CONVERT`、`NONCONVERT`、`ACCEPT`、`MODECHANGE`、`DBE_HIRAGANA`、`DBE_KATAKANA`、`DBE_ALPHANUMERIC` などが使えます。
+そのほかに、文字キー（`A`〜`Z`）、`F1`〜`F24`、テンキー（`NUMPAD0`〜`NUMPAD9`、`ADD`、`SUBTRACT`、`MULTIPLY`、`DIVIDE`、`DECIMAL`）、`NUMLOCK`、`SCROLL`、`CAPITAL`（CapsLock）、`PAUSE`、`SNAPSHOT`（PrintScreen）、矢印や編集のキー（`LEFT`、`HOME`、`DELETE` など）、記号キー（`OEM_1`〜`OEM_8`、`OEM_PLUS`、`OEM_COMMA`、`OEM_MINUS`、`OEM_PERIOD`、`OEM_102`）、音量・メディア・ブラウザのキー（`VOLUME_UP`、`MEDIA_PLAY_PAUSE`、`BROWSER_BACK` など）が使えます。
+数字キー（`0`〜`9`）は、数値と区別がつかないので、`vk 0x30`〜`vk 0x39` と書きます。`NUMPAD4` と `LEFT` は別のキーです（テンキーの 4 を、NumLock の状態に関わらず送ります）。
 `vk` は、`ime` と違って今の IME の状態を読みません。送ったキーに IME が応えるかどうかは、IME とアプリによります。`vk` は常に `SendInput` で送ります（ドライバは使いません）。
 
 通常のウィンドウでは、`vk IME_ON`、`vk IME_OFF`、`vk KANJI`、`vk LSHIFT+0x41` が期待どおりに働くことを確かめています（2026-10-31）。
