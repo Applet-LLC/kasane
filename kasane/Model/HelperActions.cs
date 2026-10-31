@@ -6,7 +6,7 @@ namespace Kasane.Model;
 // （TriggerTable）、HLP(id) の引き当て（HelperActionResolver）、動作の実行（ActionExecutor。実際の入力・起動は
 // IActionEnvironment の向こう）。テストでは偽の IActionEnvironment を使う。
 
-public enum InputKind { Key, Unicode, MouseButton, MouseMove, Wheel, HWheel, Delay, Ime }
+public enum InputKind { Key, Unicode, MouseButton, MouseMove, Wheel, HWheel, Delay, Ime, Vk }
 
 /// <summary>IME をどうするか。OffRemember / Restore は Text の ImeOffDuring 用（OFF にする前の状態を覚え、あとで戻す）。</summary>
 public enum ImeTarget { Off, On, Toggle, OffRemember, Restore }
@@ -74,6 +74,7 @@ public static class ImeNames
 ///  - Wheel / HWheel: Value = 量（120 で1ノッチ）。
 ///  - Delay: Value = ミリ秒。
 ///  - Ime: Value = <see cref="ImeTarget"/>、Value2 = <see cref="ImeMethod"/>、Flag = 失敗したらこの動作の残りをやめる。
+///  - Vk: Value = 仮想キーコード（VK_*）、Up。スキャンコードを持たないキー（VK_IME_ON など）用で、常に SendInput で送る。
 /// </summary>
 public readonly record struct InputOp(InputKind Kind, int Value = 0, int Value2 = 0, bool Up = false, bool Flag = false);
 
@@ -135,6 +136,21 @@ public static class SequenceCompiler
             {
                 if (TryResolveKey(step.Up, out byte mods, out ushort sc)) Release(ops, mods, sc);
                 else errors.Add(at + Loc.T($"Up '{step.Up}' を解決できません", $"Cannot resolve Up '{step.Up}'"));
+            }
+            if (!string.IsNullOrEmpty(step.Vk))
+            {
+                if (VkTable.TryResolve(step.Vk, out var mods, out ushort vk)) { PressVk(ops, mods, vk); ReleaseVk(ops, mods, vk); }
+                else errors.Add(at + Loc.T($"Vk '{step.Vk}' を解決できません", $"Cannot resolve Vk '{step.Vk}'"));
+            }
+            if (!string.IsNullOrEmpty(step.VkDown))
+            {
+                if (VkTable.TryResolve(step.VkDown, out var mods, out ushort vk)) PressVk(ops, mods, vk);
+                else errors.Add(at + Loc.T($"VkDown '{step.VkDown}' を解決できません", $"Cannot resolve VkDown '{step.VkDown}'"));
+            }
+            if (!string.IsNullOrEmpty(step.VkUp))
+            {
+                if (VkTable.TryResolve(step.VkUp, out var mods, out ushort vk)) ReleaseVk(ops, mods, vk);
+                else errors.Add(at + Loc.T($"VkUp '{step.VkUp}' を解決できません", $"Cannot resolve VkUp '{step.VkUp}'"));
             }
             if (!string.IsNullOrEmpty(step.Text)) AddText(ops, step.Text);
             if (step.DelayMs is int delay)
@@ -208,6 +224,18 @@ public static class SequenceCompiler
         ops.Add(new InputOp(InputKind.Key, sc, Up: true));
         for (int bit = 7; bit >= 0; bit--)
             if ((mods & (1 << bit)) != 0) ops.Add(new InputOp(InputKind.Key, KeycodeTable.ModifierScanCodes[bit], Up: true));
+    }
+
+    private static void PressVk(List<InputOp> ops, ushort[] mods, ushort vk)
+    {
+        foreach (ushort m in mods) ops.Add(new InputOp(InputKind.Vk, m));
+        ops.Add(new InputOp(InputKind.Vk, vk));
+    }
+
+    private static void ReleaseVk(List<InputOp> ops, ushort[] mods, ushort vk)
+    {
+        ops.Add(new InputOp(InputKind.Vk, vk, Up: true));
+        for (int i = mods.Length - 1; i >= 0; i--) ops.Add(new InputOp(InputKind.Vk, mods[i], Up: true));
     }
 
     private static void Tap(List<InputOp> ops, byte mods, ushort sc)

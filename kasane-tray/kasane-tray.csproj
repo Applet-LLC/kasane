@@ -32,6 +32,7 @@
     <Compile Include="..\kasane\Interop\KbdLayerClient.LayerWatch.cs" Link="Shared\KbdLayerClient.LayerWatch.cs" />
     <Compile Include="..\kasane\Interop\NativeMethods.cs" Link="Shared\NativeMethods.cs" />
     <Compile Include="..\kasane\Keycodes\KeycodeTable.cs" Link="Shared\KeycodeTable.cs" />
+    <Compile Include="..\kasane\Keycodes\VkTable.cs" Link="Shared\VkTable.cs" />
     <Compile Include="..\kasane\Model\TrayConfig.cs" Link="Shared\TrayConfig.cs" />
     <Compile Include="..\kasane\Model\ColorMode.cs" Link="Shared\ColorMode.cs" />
     <Compile Include="..\kasane\Model\UiLanguage.cs" Link="Shared\UiLanguage.cs" />

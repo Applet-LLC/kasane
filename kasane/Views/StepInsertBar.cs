@@ -53,6 +53,19 @@ public static class StepInsertBar
         (Loc.T("Alt+半角/全角に固定", "Alt+Hankaku/Zenkaku only"), "altkanji", "altkanji"),
     };
 
+    /// <summary>仮想キー（vk）のメニューに出す項目（表示, 挿入する行, Id）。日本語 IME 向けのキー。</summary>
+    internal static (string Label, string Line, string Id)[] VkItems => new (string Label, string Line, string Id)[]
+    {
+        (Loc.T("IME ON (VK_IME_ON)", "IME on (VK_IME_ON)"), "vk IME_ON", "ime_on"),
+        (Loc.T("IME OFF (VK_IME_OFF)", "IME off (VK_IME_OFF)"), "vk IME_OFF", "ime_off"),
+        (Loc.T("半角/全角 (VK_KANJI)", "Hankaku/Zenkaku (VK_KANJI)"), "vk KANJI", "kanji"),
+        (Loc.T("変換 (VK_CONVERT)", "Convert (VK_CONVERT)"), "vk CONVERT", "convert"),
+        (Loc.T("無変換 (VK_NONCONVERT)", "Non-convert (VK_NONCONVERT)"), "vk NONCONVERT", "nonconvert"),
+        (Loc.T("ひらがな (VK_DBE_HIRAGANA)", "Hiragana (VK_DBE_HIRAGANA)"), "vk DBE_HIRAGANA", "hiragana"),
+        (Loc.T("カタカナ (VK_DBE_KATAKANA)", "Katakana (VK_DBE_KATAKANA)"), "vk DBE_KATAKANA", "katakana"),
+        (Loc.T("英数 (VK_DBE_ALPHANUMERIC)", "Alphanumeric (VK_DBE_ALPHANUMERIC)"), "vk DBE_ALPHANUMERIC", "alphanumeric"),
+    };
+
     public static StackPanel Create(TextBox box)
     {
         void Insert(string line)
@@ -153,12 +166,37 @@ public static class StepInsertBar
             imeMenu.IsOpen = true;
         };
 
+        var vk = new Button
+        {
+            Name = box.Name + "Vk",
+            Content = Loc.T("仮想キーを挿入 ▾", "Insert virtual key ▾"),
+            Margin = new Thickness(6, 0, 0, 0),
+            Padding = new Thickness(8, 1, 8, 1),
+            ToolTip = Loc.T("スキャンコードを持たない仮想キー(VK_IME_ON など)を送る行を挿入します。ほかの仮想キーは vk 0x70 や vk LSHIFT+F1 のように直接書けます。", "Inserts a line that sends a virtual key that has no scan code (such as VK_IME_ON). Other virtual keys can be written directly, like vk 0x70 or vk LSHIFT+F1."),
+        };
+        var vkMenu = new ContextMenu();
+        foreach (var (label, line, id) in VkItems)
+        {
+            var item = new MenuItem { Name = box.Name + "Vk_" + id, Header = label, ToolTip = line };
+            string text = line;
+            item.Click += (_, _) => Insert(text);
+            vkMenu.Items.Add(item);
+        }
+        vk.ContextMenu = vkMenu;
+        vk.Click += (_, _) =>
+        {
+            vkMenu.PlacementTarget = vk;
+            vkMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            vkMenu.IsOpen = true;
+        };
+
         var panel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 3) };
         panel.Children.Add(command);
         panel.Children.Add(capture);
         panel.Children.Add(pick);
         panel.Children.Add(mouse);
         panel.Children.Add(ime);
+        panel.Children.Add(vk);
         return panel;
     }
 }

@@ -142,6 +142,7 @@
 <pre><code>key LCTL(KC_C)       キーを押して離す
 down KC_A            キーを押す
 up KC_A              キーを離す
+vk IME_ON            仮想キーを押して離す（IME_ON、IME_OFF、0x16、LSHIFT+F1 など）
 text こんにちは\n     文字列を打つ（\n は Enter、\t は Tab）
 delay 50             待つ（ミリ秒、0〜10000）
 mouse left           ボタンをクリック（left、right、middle、x1、x2）
@@ -178,6 +179,10 @@ ime off key abort    失敗したら、この動作の残りをやめる
 <tr>
 <td><strong>IME 操作を挿入 ▾</strong></td>
 <td>IME を ON にする、OFF にする、切り替える行を選ぶ。方式を固定した行も選べる</td>
+</tr>
+<tr>
+<td><strong>仮想キーを挿入 ▾</strong></td>
+<td>IME ON、IME OFF、半角/全角、変換、無変換など、日本語 IME 向けの仮想キーの行を選ぶ</td>
 </tr>
 </tbody>
 </table>
@@ -217,13 +222,21 @@ ime off key abort    失敗したら、この動作の残りをやめる
 </table>
 <p>方式を書いた行は固定です。失敗しても、ほかの方式には切り替えません。失敗したときは、ログに残して手順を続けます。<code>abort</code> を付けると、その動作の残りをやめます。</p>
 <p>文字列を入力する (Text) では、<strong>入力の間だけ IME を OFF にして、終わったら元に戻す</strong> にチェックを付けると、同じことができます。方式と、失敗したときに入力しないかも選べます。Text は文字を Unicode のまま送るので、ふだんは IME の状態に左右されません。崩れるアプリがあるときに使ってください。</p>
+<h4 id="vk">仮想キー（vk）で送る</h4>
+<p>IME ON と IME OFF のキー（Microsoft の日本語キーボード向けの <code>VK_IME_ON</code>、<code>VK_IME_OFF</code>）は、<code>key</code> では送れません。スキャンコードを持たないキーだからです。<code>vk</code> で送ります。</p>
+<pre><code>vk IME_ON            IME を ON にするキー
+vk IME_OFF           IME を OFF にするキー
+vk KANJI             半角/全角（切り替えのキー）
+vk LSHIFT+F1         修飾キーは + でつなぐ
+</code></pre>
+<p><code>vk</code> は、<code>ime</code> と違って IME の今の状態を読みません。キーを送るだけです。名前は <code>VK_</code> を付けても付けなくてもかまいません。数値（<code>vk 0x70</code>）でも書けます。押す、離すを分けるときは、<code>vkdown</code>、<code>vkup</code> を使います。</p>
 <h4 id="section-5">制限事項</h4>
 <p>IME の ON/OFF は、効かないことがあります。IME とアプリの組み合わせによります。</p>
 <ul>
 <li><strong>アプリによっては、IME を切り替えられません。</strong> IME のウィンドウを持たないアプリや、応答しないアプリには、IMM32 の操作が届きません。切り替えに失敗すると、ログ（<code>tray.log</code>）に理由が残ります。方式を固定していなければ、IME キーを送る方式に切り替えて、もう一度試します。</li>
 <li><strong><code>tsf</code> は、ほとんど効きません。</strong> 実験的な方式です。試験では、テスト用のウィンドウで効かず、効いたように見えたアプリでも、確かではありませんでした。ふだんは使わず、自動か <code>imm</code>、<code>key</code>、<code>altkanji</code> を選んでください。</li>
-<li><strong>IME を切り替えた直後の最初のキーが、入らないことがあります。</strong> 新しく開いたウィンドウで、はじめて IME を実際に切り替えたときに起きました。2 回目からは入ります。IME を切り替えたあとに出力がうまく出ないときは、<code>ime</code> の行のあとに <code>delay</code> を入れる方法も試せます（例: <code>delay 50</code>）。</li>
-<li><strong>管理者として動いているウィンドウでは、IME は切り替わりますが、そのあとの <code>key</code> や文字列が届かないことがあります。</strong> IME が OFF になっただけで、何も入力されません。</li>
+<li><strong>新しく開いたウィンドウでは、最初の 1 文字が入らないことがあります。</strong> IME の操作とは関係なく、kasane を通さずにキーを送っても同じことが起きました。ウィンドウ側の性質と考えられます。<code>delay</code> を入れても直りませんでした。2 文字目以降は入ります。</li>
+<li><strong>管理者として動いているウィンドウでは、<code>key</code>、<code>vk</code>、文字列が届かないことがあります。</strong> どのキーが届くかは、キーの種類と並びによって変わります。<code>delay</code> を入れても、ダミーのキーを先頭に置いても直りませんでした。IME は <code>ime</code>（自動か <code>imm</code>）で切り替えられます。通常のウィンドウでは、並びに関係なくすべて届きます。</li>
 <li><strong>Text の「元に戻す」は、アプリによっては確かめられません。</strong> IME の状態を読み取れないアプリでは、入力のあとに IME を元の状態へ戻せたかどうかを確認できません。</li>
 <li>Microsoft IME で確かめています。Google 日本語入力など、ほかの IME は確かめていません。</li>
 </ul>
