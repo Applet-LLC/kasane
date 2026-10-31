@@ -17,6 +17,7 @@ internal sealed class ImeController
 {
     private const ushort VkKanji = 0x19, VkImeOn = 0x16, VkImeOff = 0x1A, VkMenu = 0x12;
     private const ushort ScanKanji = 0x29, ScanAlt = 0x38;
+    private const byte ModLeftAlt = 0x04; // KBDLAYER_MOD_LALT
     private const int SettleTries = 8, SettleStepMs = 25;
 
     private readonly Win32ImeSource _imm;
@@ -27,10 +28,14 @@ internal sealed class ImeController
     private bool? _saved;
     private IntPtr _savedWindow;
 
-    public ImeController(Win32ImeSource imm, Action<ushort, ushort, bool> sendVk)
+    /// <summary>修飾キー（KBDLAYER_MOD_*）つきでスキャンコードのキーを1回送る。ドライバ経由（Debug 構成のドライバだけ）。送れたら true。</summary>
+    private readonly Func<ushort, byte, bool>? _sendScanThroughDriver;
+
+    public ImeController(Win32ImeSource imm, Action<ushort, ushort, bool> sendVk, Func<ushort, byte, bool>? sendScanThroughDriver = null)
     {
         _imm = imm;
         _sendVk = sendVk;
+        _sendScanThroughDriver = sendScanThroughDriver;
     }
 
     public bool Set(ImeTarget target, ImeMethod method)
@@ -131,9 +136,14 @@ internal sealed class ImeController
             return false;
         }
         if (current == open) return true;
-        _sendVk(VkMenu, ScanAlt, false);
-        Tap(VkKanji, ScanKanji);
-        _sendVk(VkMenu, ScanAlt, true);
+        // ドライバ経由で送れるなら、そちらを使う(SendInput が届かない管理者のウィンドウにも届くかを試すため)。
+        // 送れなければ(Release のドライバ・昇格していない等)、SendInput へ戻す。
+        if (_sendScanThroughDriver == null || !_sendScanThroughDriver(ScanKanji, ModLeftAlt))
+        {
+            _sendVk(VkMenu, ScanAlt, false);
+            Tap(VkKanji, ScanKanji);
+            _sendVk(VkMenu, ScanAlt, true);
+        }
         return Settle(open, unverifiableOk: false, "AltKanji");
     }
 

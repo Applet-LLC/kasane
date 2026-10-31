@@ -334,6 +334,18 @@ SetAppLayerStateForDevice(
     _Out_opt_ PKBDLAYER_LAYER_STATE Out
     );
 
+#if DBG
+// SEND_KEY（Debug構成のみ）: Modsの修飾キーを押したまま、ScanCode（Enc16）を1回押して離す。
+// 解釈（リマップ等）は通さない。OSでまだ押されていない修飾キーだけを押し、あとで離す。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SendKeyForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ USHORT ScanCode,
+    _In_ UCHAR Mods
+    );
+#endif
+
 // コントロールデバイスのハンドルがクローズされた（IRP_MJ_CLEANUP）ときに呼ぶ。そのハンドルが
 // 所有するアプリ管理レイヤーを全デバイスで下ろす（IMEのオン/オフキーは送らない）。
 _IRQL_requires_max_(PASSIVE_LEVEL)
