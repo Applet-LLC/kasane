@@ -121,11 +121,11 @@
 </tr>
 <tr>
 <td>操作の手順 (Sequence)</td>
-<td>キー、文字列、待ち、マウス、ホイールの手順を、順に実行する</td>
+<td>キー、文字列、待ち、マウス、ホイール、IME の ON/OFF の手順を、順に実行する</td>
 </tr>
 <tr>
 <td>文字列を入力する (Text)</td>
-<td>設定した文字列を、そのまま入力する。いま入力できる場所の、現在の位置に追記される。改行は Enter、タブは Tab として送る。最大 900 文字</td>
+<td>設定した文字列を、そのまま入力する。いま入力できる場所の、現在の位置に追記される。改行は Enter、タブは Tab として送る。最大 900 文字。入力の間だけ IME を OFF にすることもできる</td>
 </tr>
 <tr>
 <td>アプリ管理レイヤーの操作 (AppLayer)</td>
@@ -149,6 +149,9 @@ move 10 -5           マウスを今の位置から動かす
 moveto 100 200       マウスを画面の座標へ動かす
 wheel -120           縦ホイール（120 で 1 ノッチ）
 hwheel 120           横ホイール
+ime off              IME を OFF にする（on、off、toggle）
+ime on tsf           方式を固定する（imm、tsf、key、altkanji）
+ime off key abort    失敗したら、この動作の残りをやめる
 </code></pre>
 <p><img src="../img/ja/helper-sequence.png" alt="操作の手順の編集" /></p>
 <p>欄の上のボタンで、行を挿入できます（カーソルのある行の次に入ります）。</p>
@@ -172,9 +175,49 @@ hwheel 120           横ホイール
 <td><strong>マウス操作を挿入 ▾</strong></td>
 <td>ボタンのクリック、押す、離す、移動、ホイールの定型の行を選ぶ。数値は、挿入後に書き換える</td>
 </tr>
+<tr>
+<td><strong>IME 操作を挿入 ▾</strong></td>
+<td>IME を ON にする、OFF にする、切り替える行を選ぶ。方式を固定した行も選べる</td>
+</tr>
 </tbody>
 </table>
 <p>手順は最大 2000 件です。待ちは、1 回で 10 秒まで、1 つの動作の合計で 60 秒までです。マウスのボタンを押している間だけ押す（ドラッグ）には、手順に <code>mouse left down</code>、離したときの手順に <code>mouse left up</code> を書きます。</p>
+<h3 id="ime-onoff">IME の ON/OFF</h3>
+<p>日本語の IME が ON のとき、<code>key</code> で送るキーは、かな入力や変換の対象になります。意図した文字を出したい手順の前に、<code>ime off</code> を書いてください。IME の今の状態を読み、すでに OFF なら何もしません。ON のときだけ OFF にします。</p>
+<p>方式は、行の最後に書いて選びます。</p>
+<table>
+<thead>
+<tr>
+<th>書き方</th>
+<th>動作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>書かない（自動）</td>
+<td>IMM32 で変える。変えられなければ、IME キーを送る</td>
+</tr>
+<tr>
+<td><code>imm</code></td>
+<td>IMM32 だけを使う。IME のウィンドウに ON/OFF を設定する</td>
+</tr>
+<tr>
+<td><code>key</code></td>
+<td>IME キー（IME ON、IME OFF）だけを送る。状態を読めなくても送る</td>
+</tr>
+<tr>
+<td><code>altkanji</code></td>
+<td>Alt+半角/全角だけを送る。切り替えのキーなので、今の状態を読めないときは送らない</td>
+</tr>
+<tr>
+<td><code>tsf</code></td>
+<td>TSF だけを使う（実験的）。効くかどうかは、IME とアプリによる</td>
+</tr>
+</tbody>
+</table>
+<p>方式を書いた行は固定です。失敗しても、ほかの方式には切り替えません。失敗したときは、ログに残して手順を続けます。<code>abort</code> を付けると、その動作の残りをやめます。</p>
+<p>文字列を入力する (Text) では、<strong>入力の間だけ IME を OFF にして、終わったら元に戻す</strong> にチェックを付けると、同じことができます。方式と、失敗したときに入力しないかも選べます。Text は文字を Unicode のまま送るので、ふだんは IME の状態に左右されません。崩れるアプリがあるときに使ってください。</p>
+<p>管理者として動いているアプリには、uiAccess 版でない kasane-tray からは届きません。</p>
 <h2 id="ctrlf1">例: トリガーで、Ctrl+F1 から文字列を出す</h2>
 <p>「修飾キー＋キー」で、決めた手順を出します。適用は要りません。</p>
 <ol>

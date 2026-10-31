@@ -36,6 +36,23 @@ public static class StepInsertBar
         (Loc.T("横ホイール 左へ1ノッチ", "Horizontal wheel: left 1 notch"), "hwheel -120", "hwheel_left"),
     };
 
+    /// <summary>IME のメニューに出す項目（表示, 挿入する行, Id）。方式を書かない行は自動。</summary>
+    internal static (string Label, string Line, string Id)[] ImeItems => new (string Label, string Line, string Id)[]
+    {
+        (Loc.T("IME を ON にする", "Turn IME on"), "ime on", "on"),
+        (Loc.T("IME を OFF にする", "Turn IME off"), "ime off", "off"),
+        (Loc.T("IME を切り替える", "Toggle IME"), "ime toggle", "toggle"),
+    };
+
+    /// <summary>方式を固定する行（表示, 方式の書き方, Id）。ON と OFF のそれぞれの下に出す。</summary>
+    internal static (string Label, string Token, string Id)[] ImeFixedMethods => new (string Label, string Token, string Id)[]
+    {
+        (Loc.T("IMM32 に固定", "IMM32 only"), "imm", "imm"),
+        (Loc.T("TSF に固定(実験的)", "TSF only (experimental)"), "tsf", "tsf"),
+        (Loc.T("IME キーに固定", "IME key only"), "key", "key"),
+        (Loc.T("Alt+半角/全角に固定", "Alt+Hankaku/Zenkaku only"), "altkanji", "altkanji"),
+    };
+
     public static StackPanel Create(TextBox box)
     {
         void Insert(string line)
@@ -106,11 +123,42 @@ public static class StepInsertBar
             menu.IsOpen = true;
         };
 
+        var ime = new Button { Name = box.Name + "Ime", Content = Loc.T("IME 操作を挿入 ▾", "Insert IME action ▾"), Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(8, 1, 8, 1) };
+        var imeMenu = new ContextMenu();
+        foreach (var (label, line, id) in ImeItems)
+        {
+            var item = new MenuItem { Name = box.Name + "Ime_" + id, Header = label, ToolTip = line };
+            string text = line;
+            item.Click += (_, _) => Insert(text);
+            imeMenu.Items.Add(item);
+        }
+        foreach (var (target, targetLabel) in new[] { ("on", Loc.T("IME を ON にする", "Turn IME on")), ("off", Loc.T("IME を OFF にする", "Turn IME off")) })
+        {
+            if (imeMenu.Items.Count == ImeItems.Length) imeMenu.Items.Add(new Separator());
+            var parent = new MenuItem { Name = box.Name + "Ime_" + target + "_fixed", Header = Loc.T($"{targetLabel}(方式を固定)", $"{targetLabel} (fixed method)") };
+            foreach (var (label, token, id) in ImeFixedMethods)
+            {
+                string text = $"ime {target} {token}";
+                var item = new MenuItem { Name = box.Name + "Ime_" + target + "_" + id, Header = label, ToolTip = text };
+                item.Click += (_, _) => Insert(text);
+                parent.Items.Add(item);
+            }
+            imeMenu.Items.Add(parent);
+        }
+        ime.ContextMenu = imeMenu;
+        ime.Click += (_, _) =>
+        {
+            imeMenu.PlacementTarget = ime;
+            imeMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            imeMenu.IsOpen = true;
+        };
+
         var panel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 3) };
         panel.Children.Add(command);
         panel.Children.Add(capture);
         panel.Children.Add(pick);
         panel.Children.Add(mouse);
+        panel.Children.Add(ime);
         return panel;
     }
 }
