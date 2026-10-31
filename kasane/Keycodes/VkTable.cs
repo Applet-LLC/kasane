@@ -89,6 +89,8 @@ public static class VkTable
             vk = t[0];
             return true;
         }
+        // VK_ を付けたら名前だけ（VK_10 を数値の 10 と読み違えない）。数値は VK_ なしで書く。
+        if (prefixed) return false;
 
         int value;
         bool ok = t.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
