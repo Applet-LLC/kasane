@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    kasane Pro（買い切り版）のインストーラーを作るためのプロジェクト。ソリューションの構成マネージャーでは、
+    ビルド対象から外してある（ソリューションのビルドで Subscription 版を作るとき、Pro 版は作らない）。
+    Pro 版を作るときだけ、このプロジェクトを単独でビルドする。
+
+      Visual Studio: このプロジェクトを右クリックして「ビルド」（動かないときは、構成マネージャーで一時的に「ビルド」にチェック）
+      コマンド:      msbuild setup-pro/KasaneProSetup.csproj -restore
+
+    前提: 先に、ソリューションを Release|x64 でビルドして、Subscription 版を作ってあること（DriverManager.exe などを使う）。
+    このプロジェクトは、次の順に実行する。
+      1. Pro 用のドライバ（KbdlayerEdition=Pro）を、x64 と ARM64 でビルドする（Release-Pro）。
+         driver/signed-pro に WHQL 署名済みのパッケージがあるアーキテクチャは、ビルドしない。
+      2. setup/KasaneSetup.csproj を Edition=Pro でビルドする。setup/dist/kasane-pro.zip ができる。
+    構成（Debug/Release）にかかわらず、Release で作る。EV 署名のため、USB トークンの PIN の入力が要る。
+    スイッチ: -p:ProDriverBuild=false（ドライバのビルドを省く）、-p:ProInstallerBuild=false（インストーラーを省く）
+  -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <RootNamespace>KasaneProSetup</RootNamespace>
+    <AssemblyName>KasaneProSetup</AssemblyName>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <ProDriverBuild Condition="'$(ProDriverBuild)' == ''">true</ProDriverBuild>
+    <ProInstallerBuild Condition="'$(ProInstallerBuild)' == ''">true</ProInstallerBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="KasaneProSetup.Dummy.cs" />
+  </ItemGroup>
+
+  <Target Name="BuildProInstaller" AfterTargets="Build">
+    <PropertyGroup>
+      <RepoRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '..'))</RepoRoot>
+      <MsBuildExe>"$(MSBuildBinPath)\MSBuild.exe"</MsBuildExe>
+      <SignedProX64>$(RepoRoot)driver\signed-pro\kbdlayer</SignedProX64>
+      <SignedProArm64>$(RepoRoot)driver\signed-pro\kbdlayer-arm64</SignedProArm64>
+    </PropertyGroup>
+
+    <Error Condition="'$(ProDriverBuild)' != 'false' AND !Exists('$(RepoRoot)x64\Release\DriverManager.exe') AND !Exists('$(RepoRoot)driver\DriverManager\x64\Release\DriverManager.exe')"
+           Text="DriverManager.exe が見つかりません。先に、ソリューションを Release|x64 でビルド（Subscription 版を作る）してください。" />
+
+    <!-- Step 1: Pro 用のドライバ。署名済みのパッケージ（inf/sys/cat）があるアーキテクチャは、ビルドしない。 -->
+    <Exec Condition="'$(ProDriverBuild)' != 'false' AND !(Exists('$(SignedProX64)\kbdlayer.inf') AND Exists('$(SignedProX64)\kbdlayer.sys') AND Exists('$(SignedProX64)\kbdlayer.cat'))"
+          Command="$(MsBuildExe) &quot;$(RepoRoot)driver\kbdlayer\kbdlayer.vcxproj&quot; -nologo -p:Configuration=Release -p:Platform=x64 -p:KbdlayerEdition=Pro" />
+    <Exec Condition="'$(ProDriverBuild)' != 'false' AND !(Exists('$(SignedProArm64)\kbdlayer.inf') AND Exists('$(SignedProArm64)\kbdlayer.sys') AND Exists('$(SignedProArm64)\kbdlayer.cat'))"
+          Command="$(MsBuildExe) &quot;$(RepoRoot)driver\kbdlayer\kbdlayer_arm64.vcxproj&quot; -nologo -p:Configuration=Release -p:Platform=ARM64 -p:KbdlayerEdition=Pro" />
+
+    <!-- Step 2: Pro 版のインストーラー（KasaneProSetup-*.msi、Install-kasane-pro.exe、setup\dist\kasane-pro.zip） -->
+    <Exec Condition="'$(ProInstallerBuild)' != 'false'"
+          Command="$(MsBuildExe) &quot;$(RepoRoot)setup\KasaneSetup.csproj&quot; -restore -nologo -p:Configuration=Release -p:Platform=x64 -p:Edition=Pro" />
+  </Target>
+</Project>
