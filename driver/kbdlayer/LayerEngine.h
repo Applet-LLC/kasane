@@ -28,6 +28,13 @@
 
 #include "DeviceExtension.h"
 
+// キー送出 IOCTL(IOCTL_KBDLAYER_SEND_KEY)を持つビルドか。Debug 構成(DBG)か、試験用に Release のまま
+// 有効にしたビルド(vcxproj の KbdlayerSendKey=true が KBDLAYER_ENABLE_SEND_KEY を定義する)だけ。
+// 出荷用の Release には入れない(WHQL 署名済みのドライバは、この IOCTL を持たない)。
+#if DBG || defined(KBDLAYER_ENABLE_SEND_KEY)
+#define KBDLAYER_SEND_KEY_ENABLED 1
+#endif
+
 // --- ホットパス（ServiceCallbackから呼ばれる） ---
 
 // [InputDataStart, InputDataEnd) を devExt->LayerMap / devExt->LayerMapEnabled /
@@ -334,8 +341,8 @@ SetAppLayerStateForDevice(
     _Out_opt_ PKBDLAYER_LAYER_STATE Out
     );
 
-#if DBG
-// SEND_KEY（Debug構成のみ）: Modsの修飾キーを押したまま、ScanCode（Enc16）を1回押して離す。
+#ifdef KBDLAYER_SEND_KEY_ENABLED
+// SEND_KEY（試験用ビルドのみ）: Modsの修飾キーを押したまま、ScanCode（Enc16）を1回押して離す。
 // 解釈（リマップ等）は通さない。OSでまだ押されていない修飾キーだけを押し、あとで離す。
 _IRQL_requires_max_(PASSIVE_LEVEL)
 NTSTATUS

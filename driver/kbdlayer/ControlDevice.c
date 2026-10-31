@@ -1456,8 +1456,8 @@ HandleRevalidateLicense(
     return STATUS_SUCCESS;
 }
 
-#if DBG
-// キーを送出する（Debug構成のみ。KBDLAYER_SEND_KEY_INPUTのコメント参照）。同期で完了し、保留しない。
+#ifdef KBDLAYER_SEND_KEY_ENABLED
+// キーを送出する（試験用ビルドのみ。KBDLAYER_SEND_KEY_INPUTのコメント参照）。同期で完了し、保留しない。
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static NTSTATUS
 HandleSendKey(
@@ -1494,7 +1494,7 @@ HandleSendKey(
     IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
     return status;
 }
-#endif // DBG
+#endif // KBDLAYER_SEND_KEY_ENABLED
 
 NTSTATUS
 DispatchControlIoctl(
@@ -1630,7 +1630,7 @@ DispatchControlIoctl(
     case IOCTL_KBDLAYER_REVALIDATE_LICENSE:
         status = HandleRevalidateLicense(irpSp, systemBuffer, &bytesReturned);
         break;
-#if DBG
+#ifdef KBDLAYER_SEND_KEY_ENABLED
     case IOCTL_KBDLAYER_SEND_KEY:
         status = HandleSendKey(Irp, irpSp, systemBuffer, &bytesReturned);
         break;

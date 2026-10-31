@@ -83,3 +83,6 @@ kasane/Layouts/profile.json
 # WHQL署名済みドライバ(配布物。git には入れない)
 /driver/signed/
 /driver/signed-pro/
+
+# kbdlayer: キー送出 IOCTL を有効にする試験用ビルドの指定(driver/kbdlayer/SendKey.local.props)
+SendKey.local.props

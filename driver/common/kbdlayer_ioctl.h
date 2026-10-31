@@ -844,7 +844,7 @@ typedef struct _KBDLAYER_I8042_CONFIG {
     KBDLAYER_I8042_PROFILE Profiles[KBDLAYER_I8042_MAX_PROFILES];
 } KBDLAYER_I8042_CONFIG, *PKBDLAYER_I8042_CONFIG;
 
-// --- キー送出（IOCTL_KBDLAYER_SEND_KEY、2026-11-01。DBGビルド＝Debug構成のドライバだけ） ---
+// --- キー送出（IOCTL_KBDLAYER_SEND_KEY、2026-11-01。Debug構成か、KbdlayerSendKey=true の試験用ビルドだけ） ---
 //
 // 修飾キー（Mods）を押したまま ScanCode のキーを1回押して離す。ヘルパーのSequenceが、SendInputでは
 // 管理者のウィンドウへ確実に届かない（vk-admin-first-key-results.md）ので、ドライバ経由で送れるか
@@ -970,7 +970,7 @@ typedef struct _KBDLAYER_SEND_KEY_INPUT {
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x820, METHOD_BUFFERED, FILE_WRITE_ACCESS)
 
 // キー送出（2026-11-01）。任意のキーの注入になるので FILE_WRITE_ACCESS（管理者・SYSTEMのみ）。
-// DBGビルド（Debug構成）のドライバだけが処理する。入出力は KBDLAYER_SEND_KEY_INPUT（出力なし）。
+// Debug構成か、KbdlayerSendKey=true（KBDLAYER_ENABLE_SEND_KEY）で作った試験用ドライバだけが処理する。入出力は KBDLAYER_SEND_KEY_INPUT（出力なし）。
 #define IOCTL_KBDLAYER_SEND_KEY \
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x821, METHOD_BUFFERED, FILE_WRITE_ACCESS)
 
