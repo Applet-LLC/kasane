@@ -61,7 +61,7 @@ public static class VkTable
         };
         for (int i = 1; i <= 24; i++) d["F" + i] = (ushort)(0x6F + i);
         for (int i = 0; i <= 9; i++) d["NUMPAD" + i] = (ushort)(0x60 + i);
-        // 文字キー。数字キー（0〜9）は、数値と区別がつかないので名前は無い（vk 0x30〜0x39）。
+        // 文字キー。数字キー（0〜9）は、VK_0〜VK_9 と書く（TryResolveKey。VK_ なしの数字は数値になるため）。
         for (char c = 'A'; c <= 'Z'; c++) d[c.ToString()] = c;
         foreach (var (name, vk) in Modifiers) d[name] = vk;
         return d;
@@ -80,8 +80,15 @@ public static class VkTable
         vk = 0;
         string t = (token ?? "").Trim();
         if (t.Length == 0) return false;
-        if (t.StartsWith("VK_", StringComparison.OrdinalIgnoreCase)) t = t[3..];
+        bool prefixed = t.StartsWith("VK_", StringComparison.OrdinalIgnoreCase);
+        if (prefixed) t = t[3..];
         if (Names.TryGetValue(t, out vk)) return true;
+        // VK_0〜VK_9 は数字キー。VK_ なしの 0〜9 は数値（VK コード）として読むので、数字キーは VK_ を付けて書く。
+        if (prefixed && t.Length == 1 && t[0] is >= '0' and <= '9')
+        {
+            vk = t[0];
+            return true;
+        }
 
         int value;
         bool ok = t.StartsWith("0x", StringComparison.OrdinalIgnoreCase)

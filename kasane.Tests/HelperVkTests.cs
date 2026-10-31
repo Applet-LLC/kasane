@@ -27,6 +27,9 @@ public class HelperVkTests
     [InlineData("NUMLOCK", 0x90)]
     [InlineData("ENTER", 0x0D)]
     [InlineData("0x34", 0x34)]
+    [InlineData("VK_0", 0x30)]
+    [InlineData("vk_4", 0x34)]
+    [InlineData("VK_9", 0x39)]
     [InlineData("0x16", 0x16)]
     [InlineData("22", 22)]
     public void TryResolveKey_AcceptsNamesAndNumbers(string token, int expected)
@@ -42,6 +45,8 @@ public class HelperVkTests
     [InlineData("0xFF")]
     [InlineData("300")]
     [InlineData("-5")]
+    [InlineData("VK_10")]
+    [InlineData("VK_")]
     public void TryResolveKey_RejectsUnknown(string token)
     {
         Assert.False(VkTable.TryResolveKey(token, out _));
