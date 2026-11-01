@@ -1,8 +1,3 @@
-# Forked from kbdaddid_subscribe's .gitignore for this project (formerly LayerDriver, now kasane).
-# Renames: kbdaddid-license-svc/appsettings.json -> kbdlayer-license-svc/appsettings.json -> kasane-license-svc/appsettings.json (2026-10).
-# mouaddid-specific entry removed (kasane has no mouse component / no addid/signed tree).
-
-# Visual Studio / MSBuild
 .vs/
 bin/
 obj/
@@ -16,25 +11,19 @@ Release/
 *.userosscache
 *.sln.docstates
 
-# .NET publish output
 publish/
 
-# dotnet test / coverlet coverage output
 TestResults/
 
-# WiX / installer staging
 setup/staging/
 *.msi
 *.wixpdb
 *.wixobj
 
-# Package-Dist.ps1 output (distributable zip)
 setup/dist/
 
-# MS Office lock/temp files
 ~$*
 
-# WDK / driver build outputs
 *.cat
 *.pdb
 *.exp
@@ -43,46 +32,30 @@ setup/dist/
 *.tlog
 *.log
 
-# EWDK / SDK junctions (machine-specific, not part of source)
 *.lnk
 
-# Driver Verifier / static analysis output (generated, not source)
 DvlErrLog.txt
 *.DVL.XML
 *.sarif
 
-# specstory session history (local chat/tool history, not project source)
 .specstory/
 
-# Claude Code local session/runtime state (lock files, not project config)
 .claude/
 
-# Editor-local workspace settings (machine-specific, not project config)
 .vscode/
 
-# Licensing secrets — never commit the ECDSA signing private key or Gumroad access
-# token (see kasane-license-svc/TokenSigner.cs). Only
-# the *.Sample.json template is tracked; each environment supplies its own
-# appsettings.json locally (bootstrap-only, DPAPI-protected on first run).
 kasane-license-svc/appsettings.json
-# old folder name (before the 2026-10 rename to kasane); kept so a stale local copy is never committed
 kbdlayer-license-svc/appsettings.json
 
-# Perplexity research notes and the original planning doc are kept locally for
-# reference only and must never be committed (explicit user instruction).
 .plans/
 
-# Local agent instructions (points to the private dev-notes checklist); kept local, never committed.
 CLAUDE.md
 
-# 書き出しの試験でレイアウトの同梱フォルダに出力されたファイル（コミットしない）
 kasane/Layouts/*.kasane.json
 kasane/Layouts/keymap.json
 kasane/Layouts/profile.json
 
-# WHQL署名済みドライバ(配布物。git には入れない)
 /driver/signed/
 /driver/signed-pro/
 
-# kbdlayer: キー送出 IOCTL を有効にする試験用ビルドの指定(driver/kbdlayer/SendKey.local.props)
 SendKey.local.props
