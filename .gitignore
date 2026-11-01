@@ -58,3 +58,7 @@ kasane/Layouts/profile.json
 /driver/signed/
 /driver/signed-pro/
 
+worker/**/node_modules/
+worker/**/.wrangler/
+worker/**/.dev.vars
+*.jwk

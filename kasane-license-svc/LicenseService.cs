@@ -9,11 +9,9 @@ namespace KasaneLicenseSvc;
 public sealed class LicenseService
 {
     private readonly ILogger<LicenseService> _logger;
-    private readonly GumroadClient _gumroad;
-    private readonly TokenSigner _signer;
+    private readonly LicenseServerClient _server;
     private readonly RegistryAccess _registry;
     private readonly LicenseStateStore _state;
-    private readonly IConfiguration _config;
 
     // インメモリ状態（スレッドセーフのため lock で保護）
     private readonly object _lock = new();
@@ -29,31 +27,16 @@ public sealed class LicenseService
     // 存在しないため）。
     private bool _isTrial;
 
-    // トークン有効期限の設定値（デフォルト 7 日）
-    private int TokenExpiryDays =>
-        _config.GetValue<int>("TokenExpiryDays", 7);
-
-    // トライアル専用商品の設定（appsettings.json の Trial セクション）。
-    // GumroadProductId が未設定ならトライアル機能自体を無効化する（フォールバックしない）。
-    private string? TrialGumroadProductId => _config["Trial:GumroadProductId"];
-    private bool HasTrialProduct => !string.IsNullOrEmpty(TrialGumroadProductId);
-    private int TrialMaxActivations => _config.GetValue<int>("Trial:MaxActivations", 5);
-    private int TrialDays => _config.GetValue<int>("Trial:Days", 6);
-
     public LicenseService(
         ILogger<LicenseService> logger,
-        GumroadClient gumroad,
-        TokenSigner signer,
+        LicenseServerClient server,
         RegistryAccess registry,
-        LicenseStateStore state,
-        IConfiguration config)
+        LicenseStateStore state)
     {
         _logger = logger;
-        _gumroad = gumroad;
-        _signer = signer;
+        _server = server;
         _registry = registry;
         _state = state;
-        _config = config;
 
         string savedReason = _state.ReadLastRejectionReason();
         _lastRejectionReason = string.IsNullOrEmpty(savedReason) ? null : savedReason;
@@ -93,47 +76,22 @@ public sealed class LicenseService
         DebugTrace.Log($"ActivateAsync: received key={MaskKey(licenseKey)} len={licenseKey.Length}");
         _logger.LogInformation("Activating license key {Key}", MaskKey(licenseKey));
 
-        var result = await _gumroad.VerifyAsync(licenseKey, incrementUses: true, ct);
+        var result = await _server.VerifyAsync(licenseKey, _registry.ReadMachineGuid(), activate: true, ct);
 
         if (!result.IsValid)
         {
-            // 本番商品としては見つからなかった（＝そのキーはこの product_id には存在しない）場合に
-            // 限り、トライアル専用商品としても照合してみる。ネットワーク不調等の一時的失敗では
-            // そもそも Gumroad に到達できていないので、別 product_id で試しても無意味であり
-            // 試みない（既存のエラーメッセージをそのまま返す）。
-            if (result.FailureReason == VerifyFailureReason.GumroadRejected && HasTrialProduct)
-            {
-                DebugTrace.Log("ActivateAsync: primary product rejected, trying trial product");
-                var trialResult = await _gumroad.VerifyAsync(
-                    licenseKey, incrementUses: true, ct, TrialGumroadProductId, TrialMaxActivations);
-
-                if (trialResult.IsValid)
-                {
-                    DebugTrace.Log($"ActivateAsync: trial validation OK email={trialResult.Email} userId={trialResult.UserId}");
-                    return ApplyLicense(licenseKey, trialResult.Email, trialResult.UserId, TrialDays, isTrial: true);
-                }
-
-                DebugTrace.Log($"ActivateAsync: trial validation also failed reason={trialResult.FailureReason} message={trialResult.GumroadMessage}");
-                _logger.LogWarning("Trial validation also failed for key {Key}: reason={Reason} message={Message}",
-                    MaskKey(licenseKey), trialResult.FailureReason, trialResult.GumroadMessage);
-                string trialErrorCode = ToErrorCode(trialResult.FailureReason);
-                // トライアル商品としても明示的に拒否された場合のみ理由を保存する
-                // （例: 使用台数上限超過＝このトライアルキーは既に使用済み）。
-                ClearInternal(trialResult.FailureReason == VerifyFailureReason.GumroadRejected ? trialResult.GumroadMessage : null);
-                return new ActivateResult(false, trialErrorCode, trialResult.GumroadMessage, null, default);
-            }
-
+            // 本番商品とトライアル商品の照合は、ライセンスサーバーが行う。
             string errorCode = ToErrorCode(result.FailureReason);
-            DebugTrace.Log($"ActivateAsync: Gumroad validation failed reason={result.FailureReason} message={result.GumroadMessage} -> {errorCode}");
-            _logger.LogWarning("Gumroad validation failed for key {Key}: reason={Reason} message={Message}",
+            DebugTrace.Log($"ActivateAsync: validation failed reason={result.FailureReason} message={result.GumroadMessage} -> {errorCode}");
+            _logger.LogWarning("License validation failed for key {Key}: reason={Reason} message={Message}",
                 MaskKey(licenseKey), result.FailureReason, result.GumroadMessage);
             // Gumroad が明示的に拒否した場合のみ理由を保存する（ネットワーク不調等では保存しない）。
             ClearInternal(result.FailureReason == VerifyFailureReason.GumroadRejected ? result.GumroadMessage : null);
             return new ActivateResult(false, errorCode, result.GumroadMessage, null, default);
         }
 
-        DebugTrace.Log($"ActivateAsync: Gumroad validation OK email={result.Email} userId={result.UserId}");
-        return ApplyLicense(licenseKey, result.Email, result.UserId, TokenExpiryDays, isTrial: false);
+        DebugTrace.Log($"ActivateAsync: validation OK email={result.Email} userId={result.UserId} isTrial={result.IsTrial}");
+        return ApplyLicense(licenseKey, result);
     }
 
     private static string ToErrorCode(VerifyFailureReason reason) => reason switch
@@ -223,10 +181,10 @@ public sealed class LicenseService
         _logger.LogInformation("Refreshing license for key {Key} (source={Source})",
             MaskKey(savedKey), inMemoryKeyPresent ? "memory" : "registry");
 
-        var result = await _gumroad.VerifyAsync(savedKey, incrementUses: false, ct);
+        var result = await _server.VerifyAsync(savedKey, _registry.ReadMachineGuid(), activate: false, ct);
         if (result.IsValid)
         {
-            ApplyLicense(savedKey, result.Email, result.UserId, TokenExpiryDays, isTrial: false);
+            ApplyLicense(savedKey, result);
             _logger.LogInformation("RefreshAsync: result -> ACTIVE");
             return RefreshOutcome.Active;
         }
@@ -262,14 +220,14 @@ public sealed class LicenseService
     // 内部ヘルパー
     // ---------------------------------------------------------------
 
-    private ActivateResult ApplyLicense(string licenseKey, string? email, string? userId, int expiryDays, bool isTrial)
+    private ActivateResult ApplyLicense(string licenseKey, VerifyResult verified)
     {
-        var expiry = DateTimeOffset.UtcNow.AddDays(expiryDays);
-        long expUnix = expiry.ToUnixTimeSeconds();
-        string machineGuid = _registry.ReadMachineGuid();
-        string token = _signer.CreateToken(userId ?? email ?? "unknown", machineGuid, expUnix);
+        string? email = verified.Email;
+        bool isTrial = verified.IsTrial;
+        // 署名と有効期限は、ライセンスサーバーが決めたもの。
+        var expiry = DateTimeOffset.FromUnixTimeSeconds(verified.ExpiresAt);
 
-        _registry.WriteLicenseToken(token);
+        _registry.WriteLicenseToken(verified.Token!);
         _state.WriteLicenseKey(licenseKey);
         if (!string.IsNullOrEmpty(email))
             _state.WriteUserEmail(email);

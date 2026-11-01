@@ -9,6 +9,11 @@ AppDomain.CurrentDomain.UnhandledException += (_, e) =>
 try { ProtectedFolder.Ensure(); }
 catch (Exception ex) { DebugTrace.Log($"ProtectedFolder.Ensure failed: {ex}"); }
 
+// 1.00 までは、このサービスが署名鍵を持ち、DPAPI で保護して signingkey.dat に置いていた。1.01 から署名は
+// ライセンスサーバーだけが行うので、上書きインストールで残った古い鍵のファイルは消す。
+try { File.Delete(Path.Combine(ProtectedFolder.Dir, "signingkey.dat")); }
+catch (Exception ex) { DebugTrace.Log($"signingkey.dat cleanup failed: {ex.Message}"); }
+
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.AddWindowsService(options =>
@@ -18,8 +23,7 @@ builder.Services.AddWindowsService(options =>
 
 builder.Services.AddSingleton<RegistryAccess>();
 builder.Services.AddSingleton<LicenseStateStore>();
-builder.Services.AddSingleton<TokenSigner>();
-builder.Services.AddSingleton<GumroadClient>();
+builder.Services.AddSingleton<LicenseServerClient>();
 builder.Services.AddSingleton<LicenseService>();
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<PipeServer>();
