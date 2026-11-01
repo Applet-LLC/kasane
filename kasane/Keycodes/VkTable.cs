@@ -40,8 +40,29 @@ public static class VkTable
             ["LEFT"] = 0x25, ["UP"] = 0x26, ["RIGHT"] = 0x27, ["DOWN"] = 0x28,
             ["INSERT"] = 0x2D, ["DELETE"] = 0x2E,
             ["APPS"] = 0x5D,
+            ["CANCEL"] = 0x03, ["CLEAR"] = 0x0C, ["PAUSE"] = 0x13, ["CAPITAL"] = 0x14,
+            ["SELECT"] = 0x29, ["PRINT"] = 0x2A, ["EXECUTE"] = 0x2B, ["SNAPSHOT"] = 0x2C, ["HELP"] = 0x2F,
+            ["SLEEP"] = 0x5F, ["NUMLOCK"] = 0x90, ["SCROLL"] = 0x91,
+            // テンキー。NumLock の状態に関わらず、テンキーのキーとして送る（NUMPAD4 と LEFT は別のキー）。
+            ["MULTIPLY"] = 0x6A, ["ADD"] = 0x6B, ["SEPARATOR"] = 0x6C, ["SUBTRACT"] = 0x6D, ["DECIMAL"] = 0x6E, ["DIVIDE"] = 0x6F,
+            // 記号キー（配列によって刻印が違う。US 配列の刻印）。
+            ["OEM_1"] = 0xBA, ["OEM_PLUS"] = 0xBB, ["OEM_COMMA"] = 0xBC, ["OEM_MINUS"] = 0xBD, ["OEM_PERIOD"] = 0xBE,
+            ["OEM_2"] = 0xBF, ["OEM_3"] = 0xC0, ["OEM_4"] = 0xDB, ["OEM_5"] = 0xDC, ["OEM_6"] = 0xDD, ["OEM_7"] = 0xDE,
+            ["OEM_8"] = 0xDF, ["OEM_102"] = 0xE2,
+            // ブラウザ・音量・メディア・ランチャーのキー。
+            ["BROWSER_BACK"] = 0xA6, ["BROWSER_FORWARD"] = 0xA7, ["BROWSER_REFRESH"] = 0xA8, ["BROWSER_STOP"] = 0xA9,
+            ["BROWSER_SEARCH"] = 0xAA, ["BROWSER_FAVORITES"] = 0xAB, ["BROWSER_HOME"] = 0xAC,
+            ["VOLUME_MUTE"] = 0xAD, ["VOLUME_DOWN"] = 0xAE, ["VOLUME_UP"] = 0xAF,
+            ["MEDIA_NEXT_TRACK"] = 0xB0, ["MEDIA_PREV_TRACK"] = 0xB1, ["MEDIA_STOP"] = 0xB2, ["MEDIA_PLAY_PAUSE"] = 0xB3,
+            ["LAUNCH_MAIL"] = 0xB4, ["LAUNCH_MEDIA_SELECT"] = 0xB5, ["LAUNCH_APP1"] = 0xB6, ["LAUNCH_APP2"] = 0xB7,
+            // よく使う別名。
+            ["ENTER"] = 0x0D, ["ESC"] = 0x1B, ["DEL"] = 0x2E, ["INS"] = 0x2D,
+            ["PAGEUP"] = 0x21, ["PAGEDOWN"] = 0x22, ["CAPSLOCK"] = 0x14, ["PRINTSCREEN"] = 0x2C,
         };
         for (int i = 1; i <= 24; i++) d["F" + i] = (ushort)(0x6F + i);
+        for (int i = 0; i <= 9; i++) d["NUMPAD" + i] = (ushort)(0x60 + i);
+        // 文字キー。数字キー（0〜9）は、VK_0〜VK_9 と書く（TryResolveKey。VK_ なしの数字は数値になるため）。
+        for (char c = 'A'; c <= 'Z'; c++) d[c.ToString()] = c;
         foreach (var (name, vk) in Modifiers) d[name] = vk;
         return d;
     }
@@ -59,8 +80,17 @@ public static class VkTable
         vk = 0;
         string t = (token ?? "").Trim();
         if (t.Length == 0) return false;
-        if (t.StartsWith("VK_", StringComparison.OrdinalIgnoreCase)) t = t[3..];
+        bool prefixed = t.StartsWith("VK_", StringComparison.OrdinalIgnoreCase);
+        if (prefixed) t = t[3..];
         if (Names.TryGetValue(t, out vk)) return true;
+        // VK_0〜VK_9 は数字キー。VK_ なしの 0〜9 は数値（VK コード）として読むので、数字キーは VK_ を付けて書く。
+        if (prefixed && t.Length == 1 && t[0] is >= '0' and <= '9')
+        {
+            vk = t[0];
+            return true;
+        }
+        // VK_ を付けたら名前だけ（VK_10 を数値の 10 と読み違えない）。数値は VK_ なしで書く。
+        if (prefixed) return false;
 
         int value;
         bool ok = t.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
@@ -103,5 +133,6 @@ public static class VkTable
     public static bool IsExtended(ushort vk) => vk is
         0xA3 or 0xA5 or 0x5B or 0x5C or 0x5D          // 右Ctrl・右Alt・Win・Apps
         or (>= 0x21 and <= 0x28)                       // PgUp/PgDn/End/Home/矢印
-        or 0x2D or 0x2E or 0x6F or 0x90;               // Insert/Delete/テンキーの/ NumLock
+        or 0x2C or 0x2D or 0x2E or 0x6F or 0x90        // PrintScreen/Insert/Delete/テンキーの/ NumLock
+        or (>= 0xA6 and <= 0xB7);                      // ブラウザ・音量・メディア・ランチャー
 }

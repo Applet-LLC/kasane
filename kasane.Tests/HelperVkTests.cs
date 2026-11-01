@@ -15,6 +15,21 @@ public class HelperVkTests
     [InlineData("DBE_HIRAGANA", 0xF2)]
     [InlineData("F1", 0x70)]
     [InlineData("F24", 0x87)]
+    [InlineData("NUMPAD4", 0x64)]
+    [InlineData("numpad0", 0x60)]
+    [InlineData("VK_NUMPAD9", 0x69)]
+    [InlineData("ADD", 0x6B)]
+    [InlineData("DIVIDE", 0x6F)]
+    [InlineData("A", 0x41)]
+    [InlineData("z", 0x5A)]
+    [InlineData("OEM_3", 0xC0)]
+    [InlineData("VOLUME_UP", 0xAF)]
+    [InlineData("NUMLOCK", 0x90)]
+    [InlineData("ENTER", 0x0D)]
+    [InlineData("0x34", 0x34)]
+    [InlineData("VK_0", 0x30)]
+    [InlineData("vk_4", 0x34)]
+    [InlineData("VK_9", 0x39)]
     [InlineData("0x16", 0x16)]
     [InlineData("22", 22)]
     public void TryResolveKey_AcceptsNamesAndNumbers(string token, int expected)
@@ -30,9 +45,29 @@ public class HelperVkTests
     [InlineData("0xFF")]
     [InlineData("300")]
     [InlineData("-5")]
+    [InlineData("VK_10")]
+    [InlineData("VK_")]
     public void TryResolveKey_RejectsUnknown(string token)
     {
         Assert.False(VkTable.TryResolveKey(token, out _));
+    }
+
+    [Fact]
+    public void IsExtended_CoversNavigationAndMediaKeysButNotNumpadDigits()
+    {
+        Assert.True(VkTable.IsExtended(0x25));  // LEFT
+        Assert.True(VkTable.IsExtended(0x6F));  // DIVIDE（テンキーの /）
+        Assert.True(VkTable.IsExtended(0xAF));  // VOLUME_UP
+        Assert.False(VkTable.IsExtended(0x64)); // NUMPAD4
+        Assert.False(VkTable.IsExtended(0x41)); // A
+    }
+
+    [Fact]
+    public void Compile_VkNumpad4_IsNotLeftArrow()
+    {
+        var r = SequenceCompiler.Compile(new[] { new HelperStep { Vk = "NUMPAD4" } });
+        Assert.Empty(r.Errors);
+        Assert.Equal(new[] { new InputOp(InputKind.Vk, 0x64), new InputOp(InputKind.Vk, 0x64, Up: true) }, r.Ops);
     }
 
     [Fact]

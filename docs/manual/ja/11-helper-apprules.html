@@ -229,7 +229,7 @@ vk IME_OFF           IME を OFF にするキー
 vk KANJI             半角/全角（切り替えのキー）
 vk LSHIFT+F1         修飾キーは + でつなぐ
 </code></pre>
-<p><code>vk</code> は、<code>ime</code> と違って IME の今の状態を読みません。キーを送るだけです。名前は <code>VK_</code> を付けても付けなくてもかまいません。数値（<code>vk 0x70</code>）でも書けます。押す、離すを分けるときは、<code>vkdown</code>、<code>vkup</code> を使います。</p>
+<p><code>vk</code> は、<code>ime</code> と違って IME の今の状態を読みません。キーを送るだけです。名前は <code>VK_</code> を付けても付けなくてもかまいません。文字キー（<code>A</code>〜<code>Z</code>）、テンキー（<code>NUMPAD4</code>、<code>ADD</code> など）、<code>F1</code>〜<code>F24</code>、矢印や編集のキー（<code>LEFT</code>、<code>HOME</code>、<code>DELETE</code> など）、音量・メディアのキー（<code>VOLUME_UP</code> など）も名前で書けます。数字キー（<code>0</code>〜<code>9</code>）は <code>vk VK_4</code> のように <code>VK_</code> を付けて書きます（<code>VK_</code> を付けない <code>4</code> は数値として読みます）。そのほかのキーも数値（<code>vk 0x70</code>）で書けます。押す、離すを分けるときは、<code>vkdown</code>、<code>vkup</code> を使います。</p>
 <h4 id="section-5">制限事項</h4>
 <p>IME の ON/OFF は、効かないことがあります。IME とアプリの組み合わせによります。</p>
 <ul>
