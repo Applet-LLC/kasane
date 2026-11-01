@@ -12,12 +12,11 @@ namespace KasaneLicenseSvc;
 ///   署名対象    : SHA-256(base64url(payloadJSON) の ASCII バイト列)
 ///   署名形式    : IEEE P1363 raw r||s (64 bytes)
 ///
-/// 公開鍵は kbdlayer.sys の token.c に埋め込む（driver/kbdlayer/KEYS.md 参照）。
+/// 公開鍵は kbdlayer.sys の token.c に埋め込む。
 ///
 /// 秘密鍵の扱い（kbdaddid-license-svcのDPAPI移管方式をそのまま踏襲）:
 /// 秘密鍵の生の値はソースにもgit管理下のファイルにも置かない:
-///   1. appsettings.json はgitignore対象。appsettings.Sample.json がテンプレート
-///      （driver/kbdlayer/KEYS.md 参照）。
+///   1. appsettings.json はgitignore対象。appsettings.Sample.json がテンプレート。
 ///   2. 初回起動時のみ appsettings.json の SigningKey セクションから読み込み、
 ///      DPAPI（ProtectedData, LocalMachine スコープ）で暗号化して
 ///      %ProgramData%\kbdlayer-license\license-svc\signingkey.dat に保存する。
@@ -29,7 +28,7 @@ namespace KasaneLicenseSvc;
 /// 重要: この鍵ペアは kbdaddid のものを絶対に再利用してはならない（新規に生成すること）。
 /// kbdaddid の鍵を流用すると、kbdaddid が発行したライセンストークンが kbdlayer 側でも
 /// 検証を通ってしまい（逆方向も同様）、2製品のライセンスが実質的に共有されてしまう。
-/// 詳細は driver/kbdlayer/token.c のヘッダーコメントと driver/kbdlayer/KEYS.md を参照。
+/// 詳細は driver/kbdlayer/token.c のヘッダーコメントを参照。
 ///
 /// 残存する制約（正直に明記しておく）: DPAPI の LocalMachine スコープはマシンをまたいだ
 /// 持ち出しを無意味にする（そのマシン固有の鍵で暗号化されるため）が、初回起動前の
@@ -167,8 +166,8 @@ public sealed class TokenSigner : IDisposable
         {
             throw new InvalidOperationException(
                 "SigningKey:X/Y/D is not configured (or is still a placeholder) in appsettings.json, and no " +
-                $"protected key was found at {ProtectedKeyPath}. Generate a fresh ECDSA P-256 key pair per " +
-                "driver/kbdlayer/KEYS.md before first run -- do NOT reuse kbdaddid's key pair.");
+                $"protected key was found at {ProtectedKeyPath}. Generate a fresh ECDSA P-256 key pair " +
+                "before first run -- do NOT reuse kbdaddid's key pair.");
         }
 
         return new ECParameters

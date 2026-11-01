@@ -23,7 +23,7 @@
  - 公開鍵はtoken.cに埋め込み済み。秘密鍵はkasane-license-svcが保持する。
  - kbdaddid/token.hからのフォーク。検証ロジック自体は変更していない。
    埋め込み公開鍵はkbdaddidとは別の新規ECDSA鍵ペア（1st generation、
-   2026-09-22生成、KEYS.md参照）で、同じ鍵を使い回していない
+   2026-09-22生成）で、同じ鍵を使い回していない
    （使い回すと、kbdaddidが発行したトークンがkbdlayer側でも有効になってしまい、
    別製品としてのライセンス分離が壊れる）。
  - 呼び出しはPASSIVE_LEVELを前提とする（BCrypt要件）。

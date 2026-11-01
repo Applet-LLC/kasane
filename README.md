@@ -12,6 +12,9 @@ kasane は、Windows のキーボードの割り当てを変えるツールで�
 
 - Subscription 版（サブスクリプション）: https://applet.gumroad.com/l/crijiq
 - Pro 版（買い切り）: https://applet.gumroad.com/l/icbqj
+- 評価版（Subscription 版の評価用ライセンスキーと zip ファイル）: https://applet.gumroad.com/l/nbmmf
+
+評価版は 6 日間だけ使えます。あとで Subscription 版のライセンスキーを購入して設定すると、Subscription 版になります。
 
 動作環境は次のとおりです。
 
@@ -46,7 +49,7 @@ Visual Studio 2022 と WDK を使います。`kasane.sln` を Release|x64 でビ
 dotnet test kasane.Tests
 ```
 
-ビルドしたドライバを実機で読み込むには、署名が必要です。署名と配布物の作り方は [docs/RELEASE-CHECKLIST.md](docs/RELEASE-CHECKLIST.md) にあります。
+ビルドしたドライバを実機で読み込むには、署名が必要です。
 
 ## ライセンス
 
@@ -64,6 +67,6 @@ dotnet test kasane.Tests
 
 kasane is a Windows keyboard remapping tool built on a keyboard filter driver (`kbdlayer.sys`). It supports key swaps, layers, Mod-Tap and Layer-Tap, macros, combos, tap dance and NICOLA (thumb-shift), configured per keyboard. It can also import nodoka configuration files.
 
-Prebuilt binaries (version 1.00) are sold on Gumroad: [Subscription](https://applet.gumroad.com/l/crijiq) and [Pro (one-time purchase)](https://applet.gumroad.com/l/icbqj). It requires Windows 11 25H2 (x64 or ARM64). The help pages are currently available in Japanese only.
+Prebuilt binaries (version 1.00) are sold on Gumroad: [Subscription](https://applet.gumroad.com/l/crijiq) and [Pro (one-time purchase)](https://applet.gumroad.com/l/icbqj). A [trial version](https://applet.gumroad.com/l/nbmmf) (a Subscription evaluation license key and zip file) works for 6 days; if you later buy a Subscription license key and enter it, it becomes the Subscription edition. It requires Windows 11 25H2 (x64 or ARM64). The help pages are currently available in Japanese only.
 
 The source code in this repository is licensed under the [Apache License 2.0](LICENSE). The prebuilt binaries are covered by a separate end-user license, some files derived from nodoka4 are under the Eclipse Public License 2.0, and other third-party components are listed in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
