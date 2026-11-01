@@ -36,7 +36,7 @@
 
 </nav>
 <main>
-<div class="pagehead">かさね1.00 2026-10-31&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a></div>
+<div class="pagehead">かさね1.00 2026-11-01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a></div>
 <h1 id="section">1. インストール</h1>
 <p>kasane のインストーラーは、キーボードドライバ（kbdlayer）、ライセンス管理サービス、エディタ（kasane）、トレイ（常駐アプリ）をまとめて入れます。インストール先は <code>C:\Program Files\applet\kasane</code> に固定されていて、変更できません。</p>
 <p>この章は Subscription 版の手順で書いています。買い切り版（Pro）の違いは「Pro 版のインストール」に、Subscription 版からの移行は「Subscription 版から Pro 版へ移る」にまとめました。</p>
@@ -44,7 +44,7 @@
 <ul>
 <li>Windows 11 25H2（x64 または ARM64）</li>
 <li>管理者権限のあるアカウント</li>
-<li>ダウンロードした <code>kasane-subscription.zip</code>（Pro 版は <code>kasane-pro.zip</code>）。Gumroad のライブラリから、いつでも再ダウンロードできます</li>
+<li>ダウンロードした <code>kasane-subscription_1.00.zip</code>（Pro 版は <code>kasane-pro_1.00.zip</code>）。Gumroad のライブラリから、いつでも再ダウンロードできます</li>
 </ul>
 <p>zip を展開すると、次のファイルが入っています。</p>
 <table>
@@ -101,13 +101,13 @@
 <p>設定ファイル（キーボードごとの設定、トレイの設定、ログ）の保存先を指定します。環境変数 <code>KASANE</code> として、マシン全体に設定されます。</p>
 <p><img src="../img/ja/install-wizard-datadir.png" alt="設定フォルダの指定" /></p>
 <ul>
-<li>空欄のままにすると、各ユーザーの <code>%LOCALAPPDATA%\applet\kasane</code> に保存されます。ほとんどの場合は、空欄で構いません。</li>
+<li>空欄のままにすると、各ユーザーの <code>%LOCALAPPDATA%\applet\kasane</code> に保存されます。</li>
 <li>指定するときは、<code>D:\kasane</code> のように、ドライブ文字から始まるフルパスにします。エクスプローラーでコピーしたパスのように、前後に <code>&quot;</code> が付いていても、インストーラーが外します。</li>
 <li>指定したフォルダが無ければ、インストーラーが作ります。すでにあるフォルダの権限は変えません。</li>
 <li>設定フォルダを同じ場所に指定しても、i8042prt の設定は戻りません。ドライバに保存されていて、アンインストールで消えるためです。残したいときは、アンインストールの前に、復旧用の設定を含めてエクスポートしてください（<a href="02-uninstall.html">2. アンインストール</a>）。</li>
 <li>管理者保護（Windows 11 の機能）を使っているときは、ここで指定してください。昇格したエディタと通常のトレイが、同じフォルダを見るようになります。書き込めないときの直し方は、<a href="15-backup-migrate.html">15. バックアップと移行</a>を見てください。</li>
 </ul>
-<p>後から変える場合は、インストーラーをもう一度実行します（<a href="13-settings.html">13. 設定ダイアログ</a>の「保存先」タブには、現在の値が表示されます）。変更した後は、サインインし直してください。</p>
+<p>後から変える場合は、インストーラーをもう一度実行します（<a href="13-settings.html">13. 設定ダイアログ</a>の「保存先」タブには、現在の値が表示されます）。変更した後は、必要に応じて、再起動、またはサインアウトとサインインをしてください。</p>
 <h4 id="section-5">設定ファイルの取り込み</h4>
 <p>以前の環境から書き出した設定ファイル（<code>*.kasane.json</code>）を、インストール時にドライバへ反映します。既定ではオフです。</p>
 <p><img src="../img/ja/install-wizard-import.png" alt="設定ファイルの取り込み" /></p>
@@ -118,7 +118,7 @@
 </ol>
 <p><img src="../img/ja/install-wizard-import-filled.png" alt="設定ファイルの入力" /></p>
 <p><img src="../img/ja/install-wizard-import-missing.png" alt="設定ファイルが見つかりません" /></p>
-<p>新規にインストールするとき、設定フォルダ（前の画面で指定したフォルダ）に <code>kasane-recovery.kasane.json</code> があれば、このファイルが自動で選ばれ、<strong>設定ファイルを取り込む</strong> にチェックが入った状態で表示されます。不要なら、チェックを外してください。このファイルは、エクスポートで <strong>復旧用の設定も含める</strong> を選ぶと、設定フォルダに作られます（<a href="14-import-export.html">14. インポート／エクスポート</a>）。画面を出さないインストールでも、<code>KASANE_DIR</code> で指定した設定フォルダに同じファイルが見つかれば取り込みます。止めるときは、<code>IMPORT_SETTINGS=0</code> を渡してください。kasane がすでに入っている状態での上書きインストール（更新や修復）では、ファイルを探さないので、自動では選ばれません。設定はそのまま残っており、古いファイルで置き換えてしまうのを避けるためです。取り込みたいときは、<strong>設定ファイルを取り込む</strong> にチェックを入れて、ファイルのパスを入力してください。</p>
+<p>新規にインストールするとき、設定フォルダ（前の画面で指定したフォルダ）に <code>kasane-recovery.kasane.json</code> があれば、このファイルが自動で選ばれ、<strong>設定ファイルを取り込む</strong> にチェックが入った状態で表示されます。不要なら、チェックを外してください。このファイルは、エクスポートで <strong>復旧用の設定も含める</strong> を選ぶと、設定フォルダに作られます（<a href="14-import-export.html">14. インポート／エクスポート</a>）。画面を出さないインストールでも、<code>KASANE_DIR</code> で指定した設定フォルダに同じファイルが見つかれば取り込みます。止めるときは、「サイレントインストール」の項を参照して、<code>IMPORT_SETTINGS=0</code> を渡してください。kasane がすでに入っている状態での上書きインストール（更新や修復）では、ファイルを探さないので、自動では選ばれません。設定はそのまま残っており、古いファイルで置き換えてしまうのを避けるためです。取り込みたいときは、<strong>設定ファイルを取り込む</strong> にチェックを入れて、ファイルのパスを入力してください。</p>
 <p>復旧用の設定が入ったファイルを取り込むと、緊急解除の組み合わせ、i8042prt の設定、キーボードごとの共有範囲も、ドライバへ戻ります。トレイの設定（色、言語、デスクトップのアイコンの表示方法など）と、自分で追加したレイアウトは、トレイが最初に起動したときに、まだ無いものだけが戻ります。</p>
 <p>取り込んだ設定は、再起動後（またはキーボードを接続し直したとき）から有効になります。すでに設定のある型番は置き換わり、前の設定は 1 世代だけ退避されます。退避した設定は、設定ダイアログの「保存先」タブから戻せます（<a href="14-import-export.html">14. インポート／エクスポート</a>）。結果は <code>%ProgramData%\applet\kasane\import.log</code> に残ります。</p>
 <h3 id="section-6">3. インストールを実行する</h3>
@@ -163,7 +163,7 @@
 <p>新しい版は、そのまま上書きインストールできます。アンインストールは要りません。ドライバの設定もライセンスも、引き継がれます。</p>
 <p>上書き、アンインストール、修復の前には、インストーラーがトレイを自動で止めます。</p>
 <h2 id="pro">Pro 版のインストール</h2>
-<p>Pro 版は、<code>kasane-pro.zip</code> を展開して入れます。手順は Subscription 版とほぼ同じで、次の点が違います。</p>
+<p>Pro 版は、<code>kasane-pro_1.00.zip</code> を展開して入れます。手順は Subscription 版とほぼ同じで、次の点が違います。</p>
 <table>
 <thead>
 <tr>
@@ -178,7 +178,7 @@
 </tr>
 <tr>
 <td>インストーラー本体</td>
-<td><code>KasaneProSetup-ja-JP.msi</code>、<code>KasaneProSetup-en-US.msi</code></td>
+<td><code>KasaneProSetup-ja-JP.msi</code>、<code>KasaneProSetup-en-US.msi</code>。<code>.msi</code> を単独で起動してもインストールできます。上書きインストールでは、ライセンスキーを入れずにインストールできます。ただし、ライセンスキーの情報が残っていないときは、<code>.msi</code> を単独で起動した場合でも、ライセンスキーの入力が必要です</td>
 </tr>
 <tr>
 <td>ライセンスキー</td>

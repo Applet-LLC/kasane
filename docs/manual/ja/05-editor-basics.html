@@ -36,16 +36,16 @@
 
 </nav>
 <main>
-<div class="pagehead">かさね1.00 2026-10-31&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a></div>
+<div class="pagehead">かさね1.00 2026-11-01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a></div>
 <h1 id="section">5. エディタの基本画面</h1>
 <p>kasane（エディタ）は、キーボードのキーに割り当てる動作を編集して、キーボードに適用するアプリです。この章では、メイン画面の各部と、キーを入れ替えて動作を確かめるまでの基本の流れを説明します。キーの割り当ての画面や、マクロなどの編集は、後の章で説明します。</p>
 <h2 id="section-1">起動する</h2>
-<p>スタートメニューの <code>applet</code> フォルダにある <strong>かさね</strong> を右クリックし、<strong>管理者として実行</strong> で起動します。トレイのアイコンを左クリックしても開けます。</p>
+<p>スタートメニューの <code>applet</code> フォルダにある <strong>かさね</strong> を左クリックして起動します。最初から管理者権限で起動したいときは、右クリックして、<strong>管理者として実行</strong> で起動します。トレイのアイコンを左クリックしても開けます。</p>
 <p>キーボードへの適用、キャリブレーション（個別キーと全体）、キーボードの特定には、管理者権限が必要です。一般ユーザー権限のアプリに、キー入力を盗み見られたり、勝手にキー入力を仕込まれたりしないよう、ドライバが制限しているためです。</p>
 <h3 id="section-2">閲覧専用モード</h3>
 <p>管理者でなく普通に起動すると、画面の上部に黄色い帯が出て、「閲覧専用モード」と表示されます。このとき、キーボードへの適用、キャリブレーション、キーボードの特定のボタンは使えません。編集、エクスポート、OFF は、閲覧専用モードでもできます。</p>
 <p><img src="../img/ja/editor-readonly.png" alt="閲覧専用モードの帯" /></p>
-<p>帯の <strong>管理者として再起動</strong> を押すと、管理者権限で開き直します。確認の画面（UAC）が出たら、許可してください。</p>
+<p>帯の <strong>管理者として再起動</strong> を押すと、管理者権限で開き直します。確認の画面（UAC）が出たら、許可してください。未保存の設定がある場合は、確認のダイアログが表示されることがあります。必要に応じて、<strong>OK</strong> または <strong>キャンセル</strong> で進めてください。</p>
 <p>開き直すと、帯が消えて、<strong>キャリブレーション...</strong> や <strong>押して特定...</strong>、<strong>キーボードに適用(ON)</strong> が押せるようになります。</p>
 <p><img src="../img/ja/editor-main-admin.png" alt="管理者として開いたメイン画面" /></p>
 <h2 id="section-3">画面の各部</h2>
@@ -154,7 +154,7 @@
 <h3 id="kle">KLE から配列を追加する</h3>
 <p>同梱のレイアウトにない配列（ISO、60%、特殊な配列など）は、<a href="https://www.keyboard-layout-editor.com/">Keyboard Layout Editor</a>（KLE）で作った配列を取り込んで使えます。</p>
 <ol>
-<li>KLE のサイトで配列を作ります。<strong>Raw data</strong> タブの内容を、JSON ファイルに保存します（<strong>Download JSON</strong> でも構いません）。キーの回転（Rotate）は使えません。</li>
+<li>KLE のサイトで配列を作ります。<strong>Raw data</strong> タブの内容を、JSON ファイルに保存します（<strong>Download JSON</strong> でも構いません）。キーを回転（Rotate）させた配列も取り込めます。</li>
 <li><strong>KLEから追加...</strong> を押します。「KLE の配列を取り込む」の画面で、<strong>ファイルを選ぶ...</strong> からそのファイルを選び、<strong>読み込む</strong> を押します。</li>
 <li>一覧に、各キーの既定のキーコードを、ラベルと位置から推定した結果が出ます（列は、ラベル、キーコード、状態、メモ）。緑は確定、黄色は推定、赤は未割り当てです。推定が違うキーや赤のキーは、一覧の <strong>キーコード</strong> を書き換えるか、<strong>一覧から選ぶ...</strong> で選びます。赤のまま保存しても使えますが、そのキーはキャリブレーションが必要です。</li>
 <li><strong>名前</strong>（英数字とハイフン）を付けて、<strong>保存して使う</strong> を押します。<strong>レイアウト</strong> の一覧に出ます。</li>
