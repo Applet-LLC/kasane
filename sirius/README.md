@@ -23,7 +23,7 @@ kasane-tray が、前面のアプリの IME の状態を、IMM32 に加えて TS
 `SiriusSetupHook` が、`SetWindowsHookEx` のグローバルフック（`WH_CALLWNDPROCRET`・`WH_CALLWNDPROC`・`WH_GETMESSAGE`）を入れる。
 同じデスクトップの GUI スレッドに DLL が読み込まれ、そのスレッドで TSF のコンパートメント
 （`KEYBOARD_OPENCLOSE`・`INPUTMODE_CONVERSION`）を監視して、値を共有メモリ（`CcommonValues`）に書く。
-別プロセスの TSF の値は、プロセスの外からは読めないため（`docs/KNOWN-ISSUES.md` 項目4）、この方式をとる。
+別プロセスの TSF の値は、プロセスの外からは読めないため、この方式をとる。
 
 ## のどかの元のソースとの違い
 

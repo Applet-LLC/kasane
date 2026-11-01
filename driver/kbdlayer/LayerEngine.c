@@ -6706,8 +6706,7 @@ ApplyAppLayerChange(
     LayerNotifyIfChanged(devExt);
 }
 
-#ifdef KBDLAYER_SEND_KEY_ENABLED
-// IOCTL_KBDLAYER_SEND_KEY（試験用ビルドのみ）。Modsの修飾キーを押したまま、ScanCode（Enc16）のキーを1回
+// IOCTL_KBDLAYER_SEND_KEY。Modsの修飾キーを押したまま、ScanCode（Enc16）のキーを1回
 // 押して離す。リマップ・タップホールドなどの解釈（Resolve*）は通さず、マクロと同じSendDecodedEvent→
 // ForwardToClassでOSへ出す。
 // - OSでまだ押されていない修飾キーだけを押し、キーを離したあとに離す（物理的に押されている修飾キーは、
@@ -6750,7 +6749,6 @@ SendKeyForDevice(
     KeReleaseSpinLock(&devExt->OutputLock, outputIrql);
     return status;
 }
-#endif // KBDLAYER_SEND_KEY_ENABLED
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
 NTSTATUS

@@ -844,13 +844,13 @@ typedef struct _KBDLAYER_I8042_CONFIG {
     KBDLAYER_I8042_PROFILE Profiles[KBDLAYER_I8042_MAX_PROFILES];
 } KBDLAYER_I8042_CONFIG, *PKBDLAYER_I8042_CONFIG;
 
-// --- キー送出（IOCTL_KBDLAYER_SEND_KEY、2026-11-01。Debug構成か、KbdlayerSendKey=true の試験用ビルドだけ） ---
+// --- キー送出（IOCTL_KBDLAYER_SEND_KEY、2026-11-01。1.01 から Release のドライバも処理する） ---
 //
 // 修飾キー（Mods）を押したまま ScanCode のキーを1回押して離す。ヘルパーのSequenceが、SendInputでは
 // 管理者のウィンドウへ確実に届かない（vk-admin-first-key-results.md）ので、ドライバ経由で送れるか
 // 試すためのもの。リマップ・タップホールド・コンボなどの解釈は通さず、OSへそのまま出す（修飾キーの
 // 押下状態の記録だけ更新する）。make と break を、1つのOutputLockの区間で送り切る。
-// ReleaseのドライバにはこのIOCTLは無い（STATUS_INVALID_DEVICE_REQUEST＝Win32のERROR_INVALID_FUNCTION）。
+// 1.00 までのドライバにはこのIOCTLが無い（STATUS_INVALID_DEVICE_REQUEST＝Win32のERROR_INVALID_FUNCTION）。
 // クライアントはそれを「未対応」とみなし、SendInputへ戻ること。
 // 入力:
 //   Target   送出先のキーボード（LIST_DEVICESのUniqId）。
@@ -970,7 +970,7 @@ typedef struct _KBDLAYER_SEND_KEY_INPUT {
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x820, METHOD_BUFFERED, FILE_WRITE_ACCESS)
 
 // キー送出（2026-11-01）。任意のキーの注入になるので FILE_WRITE_ACCESS（管理者・SYSTEMのみ）。
-// Debug構成か、KbdlayerSendKey=true（KBDLAYER_ENABLE_SEND_KEY）で作った試験用ドライバだけが処理する。入出力は KBDLAYER_SEND_KEY_INPUT（出力なし）。
+// 1.01以降のドライバが処理する。入出力は KBDLAYER_SEND_KEY_INPUT（出力なし）。
 #define IOCTL_KBDLAYER_SEND_KEY \
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x821, METHOD_BUFFERED, FILE_WRITE_ACCESS)
 

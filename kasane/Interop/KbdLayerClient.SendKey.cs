@@ -4,7 +4,7 @@ namespace Kasane.Interop;
 
 public sealed partial class KbdLayerClient
 {
-    // 2026-11-01。Debug構成のドライバだけが処理する（Releaseのドライバは ErrorInvalidFunction を返す）。
+    // 2026-11-01。1.01 以降のドライバが処理する（1.00 までのドライバは ErrorInvalidFunction を返す）。
     // 任意のキーの注入になるので FILE_WRITE_ACCESS（管理者・SYSTEMだけ。昇格していないと読み取り専用で開くので使えない）。
     private static readonly uint IOCTL_SEND_KEY = CtlCode(0x821, FILE_WRITE_ACCESS);
 

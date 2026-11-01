@@ -28,7 +28,7 @@ internal sealed class ImeController
     private bool? _saved;
     private IntPtr _savedWindow;
 
-    /// <summary>修飾キー（KBDLAYER_MOD_*）つきでスキャンコードのキーを1回送る。ドライバ経由（Debug 構成のドライバだけ）。送れたら true。</summary>
+    /// <summary>修飾キー（KBDLAYER_MOD_*）つきでスキャンコードのキーを1回送る。ドライバ経由（1.01 以降のドライバ）。送れたら true。</summary>
     private readonly Func<ushort, byte, bool>? _sendScanThroughDriver;
 
     public ImeController(Win32ImeSource imm, Action<ushort, ushort, bool> sendVk, Func<ushort, byte, bool>? sendScanThroughDriver = null)

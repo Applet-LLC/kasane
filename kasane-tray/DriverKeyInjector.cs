@@ -4,9 +4,9 @@ using Kasane.Model;
 namespace Kasane.Tray;
 
 /// <summary>
-/// ドライバ経由でキーを送る（IOCTL_KBDLAYER_SEND_KEY。Debug 構成のドライバだけが持つ）。SendInput が管理者のウィンドウへ
-/// 確実に届かないことへの対策の試験用で、使えないときは false を返す。呼び出し側は SendInput へ戻すこと。
-///  - 使えない理由は <see cref="Status"/>。Release のドライバ（IOCTL なし）、昇格していないトレイ（書き込み権限なし）、ドライバなし。
+/// ドライバ経由でキーを送る（IOCTL_KBDLAYER_SEND_KEY。1.01 以降のドライバが持つ）。SendInput が管理者のウィンドウへ
+/// 確実に届かないことへの対策で、使えないときは false を返す。呼び出し側は SendInput へ戻すこと。
+///  - 使えない理由は <see cref="Status"/>。1.00 までのドライバ（IOCTL なし）、昇格していないトレイ（書き込み権限なし）、ドライバなし。
 ///  - 使えないと分かったら、一定時間は試さない（ドライバの入れ替え・昇格の変更に追従するため、時間が経ったら試し直す）。
 ///  - 状態が変わったときだけ、ログに1行出す。
 /// 1つのスレッド（ActionRunner のスレッド）から順に呼ぶこと。
@@ -45,7 +45,7 @@ internal sealed class DriverKeyInjector
         }
         catch (KbdLayerException ex) when (ex.Win32Error == KbdLayerClient.ErrorInvalidFunction)
         {
-            return Fail(InjectorStatus.Unsupported, Loc.T("このドライバはキー送出に対応していません(Debug 構成のドライバだけです)", "This driver does not support sending keys (only the Debug driver does)"));
+            return Fail(InjectorStatus.Unsupported, Loc.T("このドライバはキー送出に対応していません(1.00 までのドライバです)", "This driver does not support sending keys (version 1.00 or earlier)"));
         }
         catch (Exception ex)
         {
