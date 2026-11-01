@@ -852,6 +852,7 @@ typedef struct _KBDLAYER_I8042_CONFIG {
 // 押下状態の記録だけ更新する）。make と break を、1つのOutputLockの区間で送り切る。
 // 1.00 までのドライバにはこのIOCTLが無い（STATUS_INVALID_DEVICE_REQUEST＝Win32のERROR_INVALID_FUNCTION）。
 // クライアントはそれを「未対応」とみなし、SendInputへ戻ること。
+// ライセンスが実効でないときは、STATUS_ACCESS_DENIEDで失敗する（リマップなどと同じ扱い）。これも、SendInputへ戻ること。
 // 入力:
 //   Target   送出先のキーボード（LIST_DEVICESのUniqId）。
 //   ScanCode Enc16形式（上位がE0なら拡張キー）。0とE1プレフィックスは不可。

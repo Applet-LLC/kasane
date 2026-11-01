@@ -1478,6 +1478,11 @@ HandleSendKey(
     }
     params = *(PKBDLAYER_SEND_KEY_INPUT)SystemBuffer;
 
+    // リマップなどと同じく、ライセンスが実効でない間は処理しない（クライアントは SendInput へ戻る）。
+    if (!LicenseIsEffective()) {
+        return STATUS_ACCESS_DENIED;
+    }
+
     // Enc16: 上位バイトは0（通常のキー）かE0（拡張キー）だけ。E1（Pause）は単独のmakeにならない。
     if (params.Flags != 0 ||
         (params.ScanCode & 0x00FF) == 0 ||
