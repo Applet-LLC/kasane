@@ -105,10 +105,11 @@ internal sealed class Win32ActionEnvironment : IActionEnvironment
     private readonly Func<byte> _physicalKeys;
 
     private readonly ImeController _ime;
+    private readonly DriverKeyInjector _driverKey = new();
 
     public Win32ActionEnvironment(CancellationToken token, Action<LayerRequest> layer, Action togglePause, Func<byte> physicalKeys)
     {
-        _ime = new ImeController(new Win32ImeSource(), SendVirtualKey);
+        _ime = new ImeController(new Win32ImeSource(), SendVirtualKey, _driverKey.TrySend);
         _physicalKeys = physicalKeys;
         _token = token;
         _layer = layer;

@@ -41,7 +41,7 @@ $chapters = @(
 $htmlLang = if ($Lang -eq 'ja') { 'ja' } else { $Lang }
 $productName = 'かさね ヘルプ'
 # 各ページの右上に出す、バージョンと著作権の表示。
-$pageHead = 'かさね1.00 2026-10-31&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a>'
+$pageHead = 'かさね1.00 2026-11-01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a>'
 
 function Escape-Html([string]$s) { [System.Net.WebUtility]::HtmlEncode($s) }
 

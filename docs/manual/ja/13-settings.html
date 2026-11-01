@@ -36,7 +36,7 @@
 
 </nav>
 <main>
-<div class="pagehead">かさね1.00 2026-10-31&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a></div>
+<div class="pagehead">かさね1.00 2026-11-01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a></div>
 <h1 id="section">13. 設定ダイアログ</h1>
 <p>エディタの画面下の <strong>設定...</strong> で、タブ形式の設定ダイアログが開きます。</p>
 <p><img src="../img/ja/settings-general.png" alt="設定ダイアログ" /></p>
@@ -273,7 +273,7 @@
 <p><img src="../img/ja/settings-datadir-admin.png" alt="保存先" /></p>
 <ul>
 <li><code>KASANE</code> に絶対パスが設定されていれば、そのフォルダを使います。なければ、<code>%LOCALAPPDATA%\applet\kasane</code> を使います。</li>
-<li>値の変更は、インストーラーの「設定フォルダの指定」で行います（<a href="01-install.html">1. インストール</a>）。変更後は、サインインし直してください。</li>
+<li>値の変更は、インストーラーの「設定フォルダの指定」で行います（<a href="01-install.html">1. インストール</a>）。変更後は、必要に応じて、再起動、またはサインアウトとサインインをしてください。</li>
 <li><strong>フォルダを開く</strong> で、エクスプローラーで開けます。</li>
 </ul>
 <h3 id="section-9">取り込み前の設定に戻す</h3>
@@ -281,6 +281,7 @@
 <p>ドライバのレジストリを書くので、<strong>管理者として再起動</strong> したときだけ押せます。反映は、キーボードを接続し直したあと（またはパソコンの再起動後）です。</p>
 <h2 id="i8042prt">i8042prt</h2>
 <p>PS/2（ACPI）キーボードのレイアウトは、レジストリ <code>HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\i8042prt\Parameters</code> の値でしか指定できません。HID キーボードでは、これらの値が残っていると、個別の指定が無効になります。</p>
+<p>この設定は、ノート PC の内蔵キーボードが PS/2（ACPI）キーボードで、外部キーボードも併用するときに使います。内蔵キーボードと外部キーボードで、異なるキーボードレイアウトを使いたい場合です。有効にすると、PC の起動時に PS/2（ACPI）キーボードを認識するタイミングで、指定のレイアウトにします。Windows の「言語と地域」のオプションで、キーボードのレイアウトを「接続されているキーボード」にしても、PS/2（ACPI）キーボードのレイアウトが JIS にならないときに、試してください。</p>
 <p><img src="../img/ja/settings-i8042-admin.png" alt="i8042prt（管理者として開いたとき）" /></p>
 <p>管理者でないときは、入力欄と <strong>反映する</strong> が押せません。</p>
 <p><img src="../img/ja/settings-i8042.png" alt="i8042prt（閲覧専用モード）" /></p>

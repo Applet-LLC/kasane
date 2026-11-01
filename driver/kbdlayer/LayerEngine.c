@@ -6706,6 +6706,52 @@ ApplyAppLayerChange(
     LayerNotifyIfChanged(devExt);
 }
 
+#ifdef KBDLAYER_SEND_KEY_ENABLED
+// IOCTL_KBDLAYER_SEND_KEY（試験用ビルドのみ）。Modsの修飾キーを押したまま、ScanCode（Enc16）のキーを1回
+// 押して離す。リマップ・タップホールドなどの解釈（Resolve*）は通さず、マクロと同じSendDecodedEvent→
+// ForwardToClassでOSへ出す。
+// - OSでまだ押されていない修飾キーだけを押し、キーを離したあとに離す（物理的に押されている修飾キーは、
+//   押し直さず、離さない。OutputModsDownで判断する）。
+// - make/breakのすべてを、OutputLockの1区間で送り切る（D-5）。途中で止まる経路が無いので、修飾キーを
+//   取り残さない（D-6）。待機・タイマー・DPCは使わない。
+// - OutputLockはDISPATCH_LEVELに上げるので、kbdclassのサービスコールバックをport driverと同じIRQLで
+//   呼べる（A-3）。ロック順序はOutputLock→EngineLockで、EngineLockは取らない（ForwardToClassの先で
+//   必要なものは、関数の中で取る）。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+SendKeyForDevice(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ USHORT ScanCode,
+    _In_ UCHAR Mods
+    )
+{
+    KIRQL outputIrql;
+    UCHAR pressed = 0;
+    NTSTATUS status = STATUS_SUCCESS;
+
+    KeAcquireSpinLock(&devExt->OutputLock, &outputIrql);
+    if (devExt->OriginalClassService == NULL) {
+        status = STATUS_DEVICE_NOT_READY;
+    } else {
+        pressed = (UCHAR)(Mods & ~devExt->OutputModsDown);
+        for (ULONG bit = 0; bit < RTL_NUMBER_OF(s_ModifierScanCodes); bit++) {
+            if (pressed & (1u << bit)) {
+                SendDecodedEvent(devExt, s_ModifierScanCodes[bit], KEY_MAKE);
+            }
+        }
+        SendDecodedEvent(devExt, ScanCode, KEY_MAKE);
+        SendDecodedEvent(devExt, ScanCode, KEY_BREAK);
+        for (ULONG bit = RTL_NUMBER_OF(s_ModifierScanCodes); bit-- > 0;) {
+            if (pressed & (1u << bit)) {
+                SendDecodedEvent(devExt, s_ModifierScanCodes[bit], KEY_BREAK);
+            }
+        }
+    }
+    KeReleaseSpinLock(&devExt->OutputLock, outputIrql);
+    return status;
+}
+#endif // KBDLAYER_SEND_KEY_ENABLED
+
 _IRQL_requires_max_(PASSIVE_LEVEL)
 NTSTATUS
 SetAppLayerStateForDevice(

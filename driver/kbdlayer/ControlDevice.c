@@ -1456,6 +1456,46 @@ HandleRevalidateLicense(
     return STATUS_SUCCESS;
 }
 
+#ifdef KBDLAYER_SEND_KEY_ENABLED
+// キーを送出する（試験用ビルドのみ。KBDLAYER_SEND_KEY_INPUTのコメント参照）。同期で完了し、保留しない。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static NTSTATUS
+HandleSendKey(
+    _In_ PIRP Irp,
+    _In_ PIO_STACK_LOCATION IrpSp,
+    _In_opt_ PVOID SystemBuffer,
+    _Out_ PULONG BytesReturned
+    )
+{
+    ULONG inputLen = IrpSp->Parameters.DeviceIoControl.InputBufferLength;
+    KBDLAYER_SEND_KEY_INPUT params;
+    PDEVICE_EXTENSION devExt;
+    NTSTATUS status;
+
+    *BytesReturned = 0;
+
+    if (SystemBuffer == NULL || inputLen < sizeof(KBDLAYER_SEND_KEY_INPUT)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+    params = *(PKBDLAYER_SEND_KEY_INPUT)SystemBuffer;
+
+    // Enc16: 上位バイトは0（通常のキー）かE0（拡張キー）だけ。E1（Pause）は単独のmakeにならない。
+    if (params.Flags != 0 ||
+        (params.ScanCode & 0x00FF) == 0 ||
+        ((params.ScanCode & 0xFF00) != 0x0000 && (params.ScanCode & 0xFF00) != 0xE000)) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    devExt = FindDeviceExtensionByUniqId(params.Target.UniqId, Irp);
+    if (devExt == NULL) {
+        return STATUS_NOT_FOUND;
+    }
+    status = SendKeyForDevice(devExt, params.ScanCode, params.Mods);
+    IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
+    return status;
+}
+#endif // KBDLAYER_SEND_KEY_ENABLED
+
 NTSTATUS
 DispatchControlIoctl(
     IN PDEVICE_OBJECT DeviceObject,
@@ -1590,6 +1630,11 @@ DispatchControlIoctl(
     case IOCTL_KBDLAYER_REVALIDATE_LICENSE:
         status = HandleRevalidateLicense(irpSp, systemBuffer, &bytesReturned);
         break;
+#ifdef KBDLAYER_SEND_KEY_ENABLED
+    case IOCTL_KBDLAYER_SEND_KEY:
+        status = HandleSendKey(Irp, irpSp, systemBuffer, &bytesReturned);
+        break;
+#endif
     default:
         status = STATUS_INVALID_DEVICE_REQUEST;
         break;

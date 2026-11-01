@@ -45,6 +45,11 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <!-- 試験用: キー送出 IOCTL(IOCTL_KBDLAYER_SEND_KEY)を、Release のままで有効にする(KBDLAYER_ENABLE_SEND_KEY を定義する)。
+       msbuild /p:KbdlayerSendKey=true、またはこのフォルダに SendKey.local.props(git 管理外。下の内容)を置く。
+         <Project><PropertyGroup><KbdlayerSendKey>true</KbdlayerSendKey></PropertyGroup></Project>
+       出荷用のビルドでは、このファイルを置かない・指定しない。 -->
+  <Import Project="$(MSBuildProjectDirectory)\SendKey.local.props" Condition="Exists('$(MSBuildProjectDirectory)\SendKey.local.props')" />
   <!-- 買い切り版(kasane Pro)のドライバ: msbuild /p:KbdlayerEdition=Pro で、KBDLAYER_PRO を定義し、token.c を除き、
        出力先を Release-Pro に分ける（サブスク版の x64\Release と取り違えない）。 -->
   <PropertyGroup Condition="'$(KbdlayerEdition)'=='Pro'">
@@ -114,6 +119,14 @@
       <PreprocessorDefinitions>KBDLAYER_PRO;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(KbdlayerSendKey)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>KBDLAYER_ENABLE_SEND_KEY;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <Target Name="KbdlayerSendKeyNotice" BeforeTargets="ClCompile" Condition="'$(KbdlayerSendKey)'=='true'">
+    <Message Importance="high" Text="kbdlayer: IOCTL_KBDLAYER_SEND_KEY を有効にしてビルドします(試験用。出荷用ではありません)" />
+  </Target>
   <ItemGroup>
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>

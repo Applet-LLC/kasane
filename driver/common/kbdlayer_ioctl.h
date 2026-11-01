@@ -844,6 +844,27 @@ typedef struct _KBDLAYER_I8042_CONFIG {
     KBDLAYER_I8042_PROFILE Profiles[KBDLAYER_I8042_MAX_PROFILES];
 } KBDLAYER_I8042_CONFIG, *PKBDLAYER_I8042_CONFIG;
 
+// --- キー送出（IOCTL_KBDLAYER_SEND_KEY、2026-11-01。Debug構成か、KbdlayerSendKey=true の試験用ビルドだけ） ---
+//
+// 修飾キー（Mods）を押したまま ScanCode のキーを1回押して離す。ヘルパーのSequenceが、SendInputでは
+// 管理者のウィンドウへ確実に届かない（vk-admin-first-key-results.md）ので、ドライバ経由で送れるか
+// 試すためのもの。リマップ・タップホールド・コンボなどの解釈は通さず、OSへそのまま出す（修飾キーの
+// 押下状態の記録だけ更新する）。make と break を、1つのOutputLockの区間で送り切る。
+// ReleaseのドライバにはこのIOCTLは無い（STATUS_INVALID_DEVICE_REQUEST＝Win32のERROR_INVALID_FUNCTION）。
+// クライアントはそれを「未対応」とみなし、SendInputへ戻ること。
+// 入力:
+//   Target   送出先のキーボード（LIST_DEVICESのUniqId）。
+//   ScanCode Enc16形式（上位がE0なら拡張キー）。0とE1プレフィックスは不可。
+//   Mods     KBDLAYER_MOD_*（左右の区別あり）。立てたビットのうち、OSでまだ押されていないものだけを
+//            押し、キーを離したあとに離す（物理的に押されている修飾キーは、押し直さず、離さない）。
+//   Flags    予約。0であること。
+typedef struct _KBDLAYER_SEND_KEY_INPUT {
+    KBDLAYER_TARGET Target;
+    USHORT ScanCode;
+    UCHAR Mods;
+    UCHAR Flags;
+} KBDLAYER_SEND_KEY_INPUT, *PKBDLAYER_SEND_KEY_INPUT;
+
 #pragma pack(pop)
 
 // IOCTL_INTERNAL_KEYBOARD_CONNECT 等の既存IOCTLと衝突しないよう、
@@ -947,6 +968,11 @@ typedef struct _KBDLAYER_I8042_CONFIG {
 // ライセンスの設定そのものを変えるので FILE_WRITE_ACCESS（管理者・SYSTEMのみ）。
 #define IOCTL_KBDLAYER_REVALIDATE_LICENSE \
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x820, METHOD_BUFFERED, FILE_WRITE_ACCESS)
+
+// キー送出（2026-11-01）。任意のキーの注入になるので FILE_WRITE_ACCESS（管理者・SYSTEMのみ）。
+// Debug構成か、KbdlayerSendKey=true（KBDLAYER_ENABLE_SEND_KEY）で作った試験用ドライバだけが処理する。入出力は KBDLAYER_SEND_KEY_INPUT（出力なし）。
+#define IOCTL_KBDLAYER_SEND_KEY \
+    CTL_CODE(FILE_DEVICE_KBDLAYER, 0x821, METHOD_BUFFERED, FILE_WRITE_ACCESS)
 
 // ライセンスの状態（KBDLAYER_REVALIDATE_LICENSE_OUTPUT::State）。
 #define KBDLAYER_LICENSE_STATE_INVALID      0UL // 無効

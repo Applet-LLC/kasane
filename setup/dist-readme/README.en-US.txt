@@ -1,4 +1,4 @@
-kasane Subscription - Installation Guide 1.00 2026-10-31 Applet LLC
+kasane Subscription - Installation Guide 1.00 2026-11-01 Applet LLC
 ==============================================================
 
 This package installs a key remapping tool named kasane. The installer
