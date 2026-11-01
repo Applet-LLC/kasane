@@ -86,3 +86,7 @@ kasane/Layouts/profile.json
 
 # kbdlayer: キー送出 IOCTL を有効にする試験用ビルドの指定(driver/kbdlayer/SendKey.local.props)
 SendKey.local.props
+
+# 公開しない内部資料。手元には残し、commit しない（鍵の運用メモと、内部設計書）
+driver/kbdlayer/KEYS.md
+docs/ARCHITECTURE.md
