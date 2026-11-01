@@ -22,7 +22,7 @@ namespace KasaneLicenseSvc;
 /// ライセンスサービス側は WiX の宣言的な ServiceInstall/ServiceControl に処理を任せきりで、
 /// 同等の保護が効いていなかった。
 ///
-/// TokenSigner.cs の signingkey.dat と同じ %ProgramData% 配下は、どの WiX Component からも
+/// この %ProgramData% 配下（ProtectedFolder.Dir）は、どの WiX Component からも
 /// 一切書き込み・削除の対象にされていないため、MSI のアップグレードをまたいで確実に永続化できる。
 /// </summary>
 public sealed class LicenseStateStore
