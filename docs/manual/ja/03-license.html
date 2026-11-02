@@ -168,14 +168,38 @@
 </tbody>
 </table>
 <p><img src="../img/ja/license-error.png" alt="エラーの表示" /></p>
+<h3 id="section-6">ライセンスサーバーに接続できないとき</h3>
+<p>社内のネットワークやセキュリティソフトで、次の宛先への通信（HTTPS、443 番）が止められていないかを確認してください。</p>
+<table>
+<thead>
+<tr>
+<th>版</th>
+<th>宛先</th>
+<th>通信するとき</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Subscription</td>
+<td><code>https://kasane-license.applet-llc.workers.dev</code></td>
+<td>アクティベートのときと、約 24 時間ごとの確認</td>
+</tr>
+<tr>
+<td>Pro</td>
+<td><code>https://api.gumroad.com/v2/licenses/verify</code></td>
+<td>インストールのとき（1 回だけ）</td>
+</tr>
+</tbody>
+</table>
+<p>Subscription 版は、アクティベートのあとに通信が止まっても、最大 7 日間は使えます。</p>
 <p>ログは <code>%ProgramData%\kbdlayer-license</code> の <code>debug.log</code> と <code>gui-debug.log</code> にあります。</p>
 <h2 id="pro">Pro 版</h2>
 <p>Pro 版のライセンスキーは、Gumroad の購入メールか、Gumroad のライブラリで確認できます。インストールの途中で入力すると、インストーラーが Gumroad に問い合わせ、有効なキーだけ先へ進みます。キーが無効だったときは、何もインストールされません。</p>
-<h3 id="section-6">キーを入力する</h3>
+<h3 id="section-7">キーを入力する</h3>
 <p><code>Install-kasane-pro.exe</code> を実行すると、最初の画面にキーの入力欄があります。キーを貼り付けて <strong>インストール</strong> を押します。この欄は右クリックでも貼り付けられます。</p>
 <p><code>.msi</code> を直接実行したときは、設定ファイルの取り込みの次に、キーの入力画面が出ます。この画面は右クリックが使えないので、キーボードで <code>Ctrl+V</code> を押して貼り付けてください。</p>
 <p>サイレントインストールでは、<code>LICENSEKEY</code> で渡します（<a href="01-install.html">1. インストール</a>の「サイレントインストール」）。</p>
-<h3 id="section-7">確認できなかったとき</h3>
+<h3 id="section-8">確認できなかったとき</h3>
 <p><code>Install-kasane-pro.exe</code> から始めたときは、理由が画面に出ます。確認に失敗すると、インストールは取りやめになり、パソコンは変更されません。</p>
 <table>
 <thead>
@@ -200,7 +224,7 @@
 </tbody>
 </table>
 <p>詳しい経過は、<code>C:\Windows\Temp\kasane-pro-activator.log</code> に残ります。</p>
-<h3 id="section-8">再インストールするとき</h3>
+<h3 id="section-9">再インストールするとき</h3>
 <p>Pro 版を入れ直すときは、キーをもう一度入力します。確認のたびに、そのキーの使用回数が 1 つ増えます。新しい版への上書きインストールでは、キーは要りません。</p>
 
 <div class="pager"><a href="02-uninstall.html">← 2. アンインストール</a><a href="04-tray.html">4. トレイ →</a></div>

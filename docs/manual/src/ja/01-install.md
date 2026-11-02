@@ -195,7 +195,7 @@ msiexec /i KasaneProSetup-ja-JP.msi /qn LICENSEKEY=XXXXXXXX-XXXXXXXX-XXXXXXXX-XX
 
 1. `Install-kasane-pro.exe` から始めたときは、失敗の理由が画面に出ます。画面の文言は [3. ライセンスの認証](03-license.html)の「確認できなかったとき」の表で引けます。
 2. `.msi` を直接実行したときは、理由が画面に出ず、1722 だけが表示されます。この場合は、`C:\Windows\Temp\kasane-pro-activator.log` を開いてください。照会の経過と失敗の理由が残っています。
-3. ネットワークが原因だったときは、接続を確かめてから、`Install-kasane-pro.exe` をもう一度実行します。社内のネットワークなどで、Gumroad（`gumroad.com`）への通信が止められていないかも確認してください。
+3. ネットワークが原因だったときは、接続を確かめてから、`Install-kasane-pro.exe` をもう一度実行します。社内のネットワークなどで、Gumroad（`https://api.gumroad.com`）への通信が止められていないかも確認してください。宛先の一覧は、[3. ライセンスの認証](03-license.html)の「ライセンスサーバーに接続できないとき」にあります。
 
 インターネットに接続できず、Gumroad に通信が届かなかったときは、キーの使用回数は増えません。接続を直したあとで、同じキーをそのまま入力できます。
 

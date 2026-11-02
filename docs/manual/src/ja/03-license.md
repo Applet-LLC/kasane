@@ -81,6 +81,17 @@ kasane は、Gumroad のサブスクリプションに応じて機能が提供�
 
 ![エラーの表示](../img/ja/license-error.png)
 
+### ライセンスサーバーに接続できないとき
+
+社内のネットワークやセキュリティソフトで、次の宛先への通信（HTTPS、443 番）が止められていないかを確認してください。
+
+| 版 | 宛先 | 通信するとき |
+|---|---|---|
+| Subscription | `https://kasane-license.applet-llc.workers.dev` | アクティベートのときと、約 24 時間ごとの確認 |
+| Pro | `https://api.gumroad.com/v2/licenses/verify` | インストールのとき（1 回だけ） |
+
+Subscription 版は、アクティベートのあとに通信が止まっても、最大 7 日間は使えます。
+
 ログは `%ProgramData%\kbdlayer-license` の `debug.log` と `gui-debug.log` にあります。
 
 ## Pro 版
