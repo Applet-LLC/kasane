@@ -21,8 +21,10 @@ Requirements
 ------------
 - Windows 11 25H2 (x64 or ARM64)
 - Administrator privileges for installation
-- An internet connection. The license management service connects to Gumroad
-  about once every 24 hours to re-check whether your subscription is active.
+- An internet connection. The license management service connects to the license server
+  (operated by Applet LLC) about once every 24 hours to re-check whether your
+  subscription is active. Your license key and a computer identifier are sent;
+  the server neither stores nor logs them.
   It uses the last successful check, so the feature keeps working for up to 7
   days even without a network connection.
 
