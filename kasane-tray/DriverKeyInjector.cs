@@ -47,6 +47,10 @@ internal sealed class DriverKeyInjector
         {
             return Fail(InjectorStatus.Unsupported, Loc.T("このドライバはキー送出に対応していません(1.00 までのドライバです)", "This driver does not support sending keys (version 1.00 or earlier)"));
         }
+        catch (KbdLayerException ex) when (ex.Win32Error == 5) // ERROR_ACCESS_DENIED。書き込み権限は確認済みなので、ドライバ側のライセンスが有効でない
+        {
+            return Fail(InjectorStatus.Failed, Loc.T("ドライバのライセンスが有効でないため、キーを送れません", "The driver can't send keys because its license is not in effect"));
+        }
         catch (Exception ex)
         {
             return Fail(InjectorStatus.Failed, ex.Message);
