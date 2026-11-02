@@ -21,6 +21,9 @@ kasane は、Windows のキーボードの割り当てを変えるツールで�
 - Windows 11 25H2（x64 または ARM64）
 - インストールのための管理者権限
 - インターネット接続（ライセンスキーの確認に使います。詳しくはヘルプの「ライセンスの認証」を参照）
+  - Subscription 版の接続先: `https://kasane-license.applet-llc.workers.dev`
+  - Pro 版の接続先（インストール時の 1 回だけ）: `https://api.gumroad.com/v2/licenses/verify`
+  - どちらも HTTPS（443 番）です。社内のネットワークなどで止められていると、確認できません。
 
 インストールから全機能の使い方までは、ヘルプにまとめています。ヘルプは日本語です。
 

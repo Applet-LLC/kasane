@@ -24,6 +24,8 @@ Requirements
 - An internet connection. During installation, the license key is checked with
   Gumroad. This check happens only once; no connection is needed after
   installation.
+  It connects to https://api.gumroad.com/v2/licenses/verify (HTTPS, port 443).
+  If a corporate network or security software blocks it, installation fails.
 
 
 Installation
