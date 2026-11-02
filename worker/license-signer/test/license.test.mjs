@@ -135,3 +135,12 @@ test("secret が無い、または署名鍵が壊れているときは 500", asy
   assert.equal((await handle(req(good), { ...env, SIGNING_KEY_JWK: "" }, g, NOW)).status, 500);
   assert.equal((await handle(req(good), { ...env, SIGNING_KEY_JWK: "{}" }, g, NOW)).status, 500);
 });
+
+test("レート制限に掛かったら 429 を返し、Gumroad は呼ばない", async () => {
+  let called = false;
+  const limited = { ...env, RATE_LIMITER: { limit: async () => ({ success: false }) } };
+  const res = await handle(req(good), limited, async () => { called = true; throw new Error("unreachable"); }, NOW);
+  assert.equal(res.status, 429);
+  assert.equal((await res.json()).reason, "rate_limited");
+  assert.equal(called, false);
+});

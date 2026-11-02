@@ -9,3 +9,9 @@ MAX_ACTIVATIONS = "100"
 TRIAL_MAX_ACTIVATIONS = "5"
 TOKEN_EXPIRY_DAYS = "7"
 TRIAL_DAYS = "6"
+
+# 1 つの IP あたり、60 秒に 20 回まで。
+[[ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 20, period = 60 }

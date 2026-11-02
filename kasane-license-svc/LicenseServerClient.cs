@@ -39,7 +39,7 @@ public readonly record struct VerifyResult(
 public sealed class LicenseServerClient
 {
     // 本番のライセンスサーバーの URL。appsettings.json の LicenseServer:Url で上書きできる(試験用)。
-    private const string DefaultUrl = "https://REPLACE-WITH-LICENSE-SERVER-URL";
+    private const string DefaultUrl = "https://kasane-license.applet-llc.workers.dev";
 
     private readonly HttpClient _http;
     private readonly ILogger<LicenseServerClient> _logger;

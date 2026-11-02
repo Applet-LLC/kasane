@@ -26,6 +26,15 @@ export async function handle(request, env, gumroadFetch = fetch, nowMs = Date.no
     return json(405, { success: false, reason: "method_not_allowed" });
   }
 
+  // 同じ IP からの連続リクエストを絞る(総当たりでキーを試されるのを防ぐ)。バインディングが無い環境(試験)では何もしない。
+  if (env.RATE_LIMITER) {
+    const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
+    const { success } = await env.RATE_LIMITER.limit({ key: ip });
+    if (!success) {
+      return json(429, { success: false, reason: "rate_limited" });
+    }
+  }
+
   const text = await request.text();
   if (text.length > MAX_BODY_BYTES) {
     return json(400, { success: false, reason: "bad_request", message: "request too large" });
