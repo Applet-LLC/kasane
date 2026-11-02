@@ -4,7 +4,7 @@ Class=Keyboard
 ClassGuid={4D36E96B-E325-11CE-BFC1-08002BE10318}
 Provider=%ProviderName%
 CatalogFile=kbdlayer.cat
-DriverVer=01/01/2026,1.0.0.1
+DriverVer=01/01/2026,1.1.0.0
 PnpLockdown=1
 
 
