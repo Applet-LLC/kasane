@@ -87,3 +87,25 @@ Driver Verifier（`/standard`）の下で試験 1〜2 を繰り返す。BSOD が
 | 回帰 | C3〜C5、W1・W2、Z1・Z2 は変わらない。最後に Ctrl・Shift・Alt・Win が押されたまま残らない |
 
 加えて、マクロの実行中に物理の Ctrl を離す場合（Ctrl+K を押してすぐ Ctrl を離す、リピート付き `MACRO` の Param2=1 で押し続けて離す）で、Ctrl が OS で押されたままにならないこと。
+
+## 試験6: レイヤーの MACRO(n) が、物理で押している Ctrl を戻さない不具合の修正（`key-override-v2-results.md` の S5b の再試験）
+
+修正: `SendMacroStepsKeepingHeldMods`（`LayerEngine.c`）。OSで押されている修飾キー（`RealModsDown & OutputModsDown & ~SuppressedMods`）を、マクロの中で押すステップと、それに対応する離すステップを、送らない。レイヤーのキーの `MACRO(n)`、コンボ、タップダンスの出力に効く。キー置換の置き換え先の `MACRO(n)` は、別の経路（試験5）のまま。
+
+`m-v2s.ps1 -Part B2` の S5b・S5b2 を繰り返す。期待:
+
+| No | 期待 |
+|---|---|
+| S5b（レイヤー1 の S = `MACRO(2)`[`LCTL(KC_S)`]。Ctrl を押したまま X、S、Z） | マクロの Ctrl+S が出て（`1fd 1fu`）、**Z に Ctrl が付く**（`… 1fd 1fu 2cd 2cu 1du`。マクロの中に `1dd`・`1du` が出ない） |
+| S5b2（Ctrl+S → `LCTL(KC_F)`） | 変わらない |
+
+追加の確認:
+
+| No | 内容 | 期待 |
+|---|---|---|
+| M1 | Ctrl を押さずに、レイヤーの `MACRO(2)`（`LCTL(KC_S)`）を使う | Ctrl が押されて離される（`1dd 1fd 1fu 1du`）。変わらない |
+| M2 | Shift を押したまま、`LSFT(KC_A)` のマクロ | Shift が余計に押されも離されもしない。あとのキーに Shift が付く |
+| M3 | Ctrl を押したまま、Ctrl を含むマクロ（リピートあり）を押し続ける | 解放のあと、Ctrl が OS で押されたままにならない |
+| M4 | タップダンスのタップが `MACRO(n)`（Ctrl を含む）で、Ctrl を押したまま | M1〜S5b と同じく、Ctrl が戻る |
+| M5 | コンボの出力が `MACRO(n)`（Ctrl を含む）で、Ctrl を押したまま | 同上 |
+| 回帰 | 試験2（S1〜S10）、試験5（C1〜C6、X1、Y1）、K6 | 変わらない |
