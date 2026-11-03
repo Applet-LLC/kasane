@@ -6,22 +6,58 @@
   "Keyboards": [
     {
       "Name": "Emacs 風のキー操作",
-      "Macros": [
-        { "Id": 126, "Keys": [ "LSFT(KC_END)", "LCTL(KC_X)" ] },
-        { "Id": 127, "Keys": [ "KC_ENTER", "KC_LEFT" ] }
+      "Layers": [
+        { "Index": 0, "Keys": {
+          "SC_0010": "KC_Q", "SC_0011": "KC_W", "SC_0012": "KC_E", "SC_0013": "KC_R",
+          "SC_0014": "KC_T", "SC_0015": "KC_Y", "SC_0016": "KC_U", "SC_0017": "KC_I",
+          "SC_0018": "KC_O", "SC_0019": "KC_P", "SC_001E": "KC_A", "SC_001F": "KC_S",
+          "SC_0020": "KC_D", "SC_0021": "KC_F", "SC_0022": "KC_G", "SC_0023": "KC_H",
+          "SC_0024": "KC_J", "SC_0025": "KC_K", "SC_0026": "KC_L", "SC_002C": "KC_Z",
+          "SC_002D": "KC_X", "SC_002E": "KC_C", "SC_002F": "KC_V", "SC_0030": "KC_B",
+          "SC_0031": "KC_N", "SC_0032": "KC_M", "SC_0039": "KC_SPACE"
+        } },
+        { "Index": 1, "Keys": {
+          "SC_001F": "MACRO(120)", "SC_0021": "MACRO(121)", "SC_0011": "MACRO(122)", "SC_0030": "MACRO(123)",
+          "SC_0025": "MACRO(124)", "SC_0023": "MACRO(125)", "SC_0016": "MACRO(119)"
+        } },
+        { "Index": 2, "Keys": {
+          "SC_0021": "KC_F13", "SC_0030": "KC_F14", "SC_0031": "KC_F15", "SC_0019": "KC_F16",
+          "SC_001E": "KC_F17", "SC_0012": "KC_F18", "SC_002F": "KC_F19", "SC_0022": "TG(2)"
+        } }
       ],
-      "MacroNames": { "126": "Emacs C-k 行末まで切り取り", "127": "Emacs C-o 下に空行を開く" },
+      "Macros": [
+        {"Id": 119, "Keys": ["LCTL(KC_Z)"]},
+        {"Id": 120, "Keys": ["LCTL(KC_S)"]},
+        {"Id": 121, "Keys": ["LCTL(KC_O)"]},
+        {"Id": 122, "Keys": ["KC_F12"]},
+        {"Id": 123, "Keys": ["LCTL(KC_TAB)"]},
+        {"Id": 124, "Keys": ["LCTL(KC_W)"]},
+        {"Id": 125, "Keys": ["LCTL(KC_A)"]},
+        {"Id": 126, "Keys": ["LSFT(KC_END)", "LCTL(KC_X)"]},
+        {"Id": 127, "Keys": ["KC_ENTER", "KC_LEFT"]}
+      ],
+      "MacroNames": {
+        "119": "Emacs C-x u 元に戻す",
+        "120": "Emacs C-x C-s 保存",
+        "121": "Emacs C-x C-f ファイルを開く",
+        "122": "Emacs C-x C-w 名前を付けて保存",
+        "123": "Emacs C-x b 次のタブ",
+        "124": "Emacs C-x k タブを閉じる",
+        "125": "Emacs C-x h 全選択",
+        "126": "Emacs C-k 行末まで切り取り",
+        "127": "Emacs C-o 下に空行を開く"
+      },
       "KeyOverrides": [
-        { "Id": 0,  "Mods": "MOD_LCTL|MOD_LSFT", "Key": "KC_F", "Replacement": "LSFT(KC_RIGHT)" },
-        { "Id": 1,  "Mods": "MOD_LCTL|MOD_LSFT", "Key": "KC_B", "Replacement": "LSFT(KC_LEFT)" },
-        { "Id": 2,  "Mods": "MOD_LCTL|MOD_LSFT", "Key": "KC_N", "Replacement": "LSFT(KC_DOWN)" },
-        { "Id": 3,  "Mods": "MOD_LCTL|MOD_LSFT", "Key": "KC_P", "Replacement": "LSFT(KC_UP)" },
-        { "Id": 4,  "Mods": "MOD_LCTL|MOD_LSFT", "Key": "KC_A", "Replacement": "LSFT(KC_HOME)" },
-        { "Id": 5,  "Mods": "MOD_LCTL|MOD_LSFT", "Key": "KC_E", "Replacement": "LSFT(KC_END)" },
-        { "Id": 6,  "Mods": "MOD_LCTL", "Key": "KC_F", "Replacement": "KC_RIGHT" },
-        { "Id": 7,  "Mods": "MOD_LCTL", "Key": "KC_B", "Replacement": "KC_LEFT" },
-        { "Id": 8,  "Mods": "MOD_LCTL", "Key": "KC_N", "Replacement": "KC_DOWN" },
-        { "Id": 9,  "Mods": "MOD_LCTL", "Key": "KC_P", "Replacement": "KC_UP" },
+        { "Id": 0, "Mods": "MOD_LCTL|MOD_LSFT", "Key": "KC_F", "Replacement": "LSFT(KC_RIGHT)" },
+        { "Id": 1, "Mods": "MOD_LCTL|MOD_LSFT", "Key": "KC_B", "Replacement": "LSFT(KC_LEFT)" },
+        { "Id": 2, "Mods": "MOD_LCTL|MOD_LSFT", "Key": "KC_N", "Replacement": "LSFT(KC_DOWN)" },
+        { "Id": 3, "Mods": "MOD_LCTL|MOD_LSFT", "Key": "KC_P", "Replacement": "LSFT(KC_UP)" },
+        { "Id": 4, "Mods": "MOD_LCTL|MOD_LSFT", "Key": "KC_A", "Replacement": "LSFT(KC_HOME)" },
+        { "Id": 5, "Mods": "MOD_LCTL|MOD_LSFT", "Key": "KC_E", "Replacement": "LSFT(KC_END)" },
+        { "Id": 6, "Mods": "MOD_LCTL", "Key": "KC_F", "Replacement": "KC_RIGHT" },
+        { "Id": 7, "Mods": "MOD_LCTL", "Key": "KC_B", "Replacement": "KC_LEFT" },
+        { "Id": 8, "Mods": "MOD_LCTL", "Key": "KC_N", "Replacement": "KC_DOWN" },
+        { "Id": 9, "Mods": "MOD_LCTL", "Key": "KC_P", "Replacement": "KC_UP" },
         { "Id": 10, "Mods": "MOD_LCTL", "Key": "KC_A", "Replacement": "KC_HOME" },
         { "Id": 11, "Mods": "MOD_LCTL", "Key": "KC_E", "Replacement": "KC_END" },
         { "Id": 12, "Mods": "MOD_LCTL", "Key": "KC_V", "Replacement": "KC_PGDN" },
@@ -43,7 +79,19 @@
         { "Id": 28, "Mods": "MOD_LALT", "Key": "KC_V", "Replacement": "KC_PGUP" },
         { "Id": 29, "Mods": "MOD_LALT", "Key": "KC_W", "Replacement": "LCTL(KC_C)" },
         { "Id": 30, "Mods": "MOD_LALT|MOD_LSFT", "Key": "KC_COMMA", "Replacement": "LCTL(KC_HOME)" },
-        { "Id": 31, "Mods": "MOD_LALT|MOD_LSFT", "Key": "KC_DOT", "Replacement": "LCTL(KC_END)" }
+        { "Id": 31, "Mods": "MOD_LALT|MOD_LSFT", "Key": "KC_DOT", "Replacement": "LCTL(KC_END)" },
+        { "Id": 32, "Mods": "MOD_LCTL", "Key": "KC_X", "Replacement": "OSL(1)" },
+        { "Id": 33, "Mods": "MOD_LCTL", "Key": "KC_SPACE", "Replacement": "TG(2)" },
+        { "Id": 34, "Mods": "MOD_LCTL", "Key": "KC_F13", "Replacement": "LSFT(KC_RIGHT)" },
+        { "Id": 35, "Mods": "MOD_LCTL", "Key": "KC_F14", "Replacement": "LSFT(KC_LEFT)" },
+        { "Id": 36, "Mods": "MOD_LCTL", "Key": "KC_F15", "Replacement": "LSFT(KC_DOWN)" },
+        { "Id": 37, "Mods": "MOD_LCTL", "Key": "KC_F16", "Replacement": "LSFT(KC_UP)" },
+        { "Id": 38, "Mods": "MOD_LCTL", "Key": "KC_F17", "Replacement": "LSFT(KC_HOME)" },
+        { "Id": 39, "Mods": "MOD_LCTL", "Key": "KC_F18", "Replacement": "LSFT(KC_END)" },
+        { "Id": 40, "Mods": "MOD_LCTL", "Key": "KC_F19", "Replacement": "LSFT(KC_PGDN)" },
+        { "Id": 41, "Mods": "MOD_LALT", "Key": "KC_F13", "Replacement": "LCTL(LSFT(KC_RIGHT))" },
+        { "Id": 42, "Mods": "MOD_LALT", "Key": "KC_F14", "Replacement": "LCTL(LSFT(KC_LEFT))" },
+        { "Id": 43, "Mods": "MOD_LALT", "Key": "KC_F19", "Replacement": "LSFT(KC_PGUP)" }
       ]
     }
   ]
