@@ -257,6 +257,14 @@ ParseLayerMapBlob(
                 }
                 needsSingleEvents = TRUE;
             }
+            // MARK（マークモード）: Param1はKBDLAYER_MARK_*、Param2は0。マークが有効の間に届く移動キーに
+            // Shiftを足す処理（ResolveModdedKey）が1件ずつ要るので、1件ずつ処理する。
+            if (a->Type == KBDLAYER_ACTION_MARK) {
+                if (a->Param1 > KBDLAYER_MARK_TOGGLE || a->Param2 != 0) {
+                    return STATUS_INVALID_PARAMETER;
+                }
+                needsSingleEvents = TRUE;
+            }
             // CUSTOM（ヘルパーイベント）: Param1は予約で0。Param2（ヘルパー動作のID）は任意。
             if (a->Type == KBDLAYER_ACTION_CUSTOM && a->Param1 != 0) {
                 return STATUS_INVALID_PARAMETER;
@@ -632,7 +640,7 @@ IsStateReplacementType(
 {
     return Type == KBDLAYER_ACTION_ONESHOT_LAYER || Type == KBDLAYER_ACTION_TOGGLE ||
            Type == KBDLAYER_ACTION_LAYER_TO || Type == KBDLAYER_ACTION_DEFAULT ||
-           Type == KBDLAYER_ACTION_CUSTOM;
+           Type == KBDLAYER_ACTION_CUSTOM || Type == KBDLAYER_ACTION_MARK;
 }
 
 // TG・DF・OSL・TO・CUSTOMの副作用（レイヤーの状態・ヘルパーイベント）を行う。EngineLock保持中、
@@ -684,6 +692,26 @@ ApplyStateActionLocked(
             devExt->ActiveLayerMask = 1UL << action->Param1;
             devExt->OneShotLayerPending = FALSE;
             devExt->TtToggledLayers = 0;
+        }
+        break;
+
+    case KBDLAYER_ACTION_MARK:
+        // マークモード（Emacs）。押したときだけ状態を変える（リピートと解放では変えない）。キーは出力しない。
+        // 状態はOutputLockで保護する（この関数の呼び出し元はすべてOutputLock保持中）。
+        if (!isBreak && !isRepeat) {
+            switch (action->Param1) {
+            case KBDLAYER_MARK_ON:
+                devExt->MarkActive = TRUE;
+                break;
+            case KBDLAYER_MARK_OFF:
+                devExt->MarkActive = FALSE;
+                break;
+            case KBDLAYER_MARK_TOGGLE:
+                devExt->MarkActive = (BOOLEAN)!devExt->MarkActive;
+                break;
+            default:
+                break;
+            }
         }
         break;
 
@@ -812,6 +840,7 @@ apply:
     case KBDLAYER_ACTION_DEFAULT:
     case KBDLAYER_ACTION_ONESHOT_LAYER:
     case KBDLAYER_ACTION_LAYER_TO:
+    case KBDLAYER_ACTION_MARK:
         ApplyStateActionLocked(devExt, action, isBreak, isRepeat);
         return TRUE; // 出力しない
 
@@ -1066,6 +1095,47 @@ BatchHasOtherKeyMake(
     return FALSE;
 }
 
+// マークモード（MARK）で、Shiftを足す対象の「移動キー」か。←↑→↓・Home・End・PageUp・PageDown
+// （拡張キー。Enc16形式）。テンキーのNumLock OFF側（E0なし）は含めない。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static BOOLEAN
+IsMarkMovementScanCode(
+    _In_ USHORT ScanCode16
+    )
+{
+    switch (ScanCode16) {
+    case 0xE04B: // Left
+    case 0xE04D: // Right
+    case 0xE048: // Up
+    case 0xE050: // Down
+    case 0xE047: // Home
+    case 0xE04F: // End
+    case 0xE049: // PageUp
+    case 0xE051: // PageDown
+        return TRUE;
+    default:
+        return FALSE;
+    }
+}
+
+// バッチに、修飾キーでも移動キーでもないキーのmakeがあるか（マークモードを終わらせるキー）。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static BOOLEAN
+BatchHasNonMovementKeyMake(
+    _In_ PKEYBOARD_INPUT_DATA InputDataStart,
+    _In_ PKEYBOARD_INPUT_DATA InputDataEnd
+    )
+{
+    for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
+        if (!(p->Flags & KEY_BREAK) &&
+            ModifierMaskOf(p->MakeCode, p->Flags) == 0 &&
+            !IsMarkMovementScanCode(EncodeScancode16(p->MakeCode, p->Flags))) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
 // [D-12] 修飾付きキー（LSFT(KC_1)等）を押したまま別のキーを押したら、その修飾付きキーが
 // 足した修飾キーを外す（QMKのweak modsの考え方。のどかも、キーを押すたびに修飾キーを
 // 物理的な状態に合わせ直すので同じ動作になる）。こうしないと、「!」を打つキーを離す前に
@@ -1180,6 +1250,9 @@ ForwardToClass(
     PKEYBOARD_INPUT_DATA writePtr = InputDataStart;
     // 修飾キーでないキーのmakeがあるか（スキャンコード0は実在しないので、どのキーとも「別のキー」）。
     BOOLEAN hasKeyMake = BatchHasOtherKeyMake(InputDataStart, InputDataEnd, 0);
+    // マークモード: 移動キーと修飾キー以外のキーを送ったら、そのキーを送ったあとでマークを終わらせる
+    // （配列は下で詰めるので、先に見ておく）。
+    BOOLEAN endsMark = devExt->MarkActive && BatchHasNonMovementKeyMake(InputDataStart, InputDataEnd);
 
     if (hasKeyMake) {
         // OSMを押している間に別のキーを押した → そのOSMは離したときに普通の修飾キーとして戻す
@@ -1245,6 +1318,9 @@ ForwardToClass(
     // breakは下の安全網が送る（マクロ・コンボの出力なら、最初のキー1つにだけ掛かる）。
     if (hasKeyMake && devExt->OneShotMods != 0) {
         devExt->OneShotMods = 0;
+    }
+    if (endsMark) {
+        devExt->MarkActive = FALSE;
     }
 
     ReleaseLeakedModifiers(devExt);
@@ -2364,6 +2440,11 @@ ResolveModdedKey(
                 action = *resolved;
                 mask = (action.Type == KBDLAYER_ACTION_MODDED_KEY || action.Type == KBDLAYER_ACTION_ONESHOT_MOD)
                            ? action.Param1 : (UCHAR)(action.Param2 & 0xFF);
+                // マークモード: 移動キーの出力にShiftを足す。
+                if (devExt->MarkActive && action.Type == KBDLAYER_ACTION_MODDED_KEY &&
+                    IsMarkMovementScanCode(action.Param2)) {
+                    mask |= KBDLAYER_MOD_LSFT;
+                }
             }
         } else {
             // Key Override: 解決した出力キー（KEYアクション。マップに無いキーは物理スキャンコード）が
@@ -2375,11 +2456,23 @@ ResolveModdedKey(
             } else if (resolved != NULL && resolved->Type == KBDLAYER_ACTION_KEY) {
                 outScanCode = resolved->Param2;
             }
-            if (outScanCode == 0 || !MatchKeyOverrideLocked(devExt, outScanCode, &action, &suppress)) {
+            if (outScanCode == 0) {
                 KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
                 return FALSE;
             }
-            overridden = TRUE;
+            if (MatchKeyOverrideLocked(devExt, outScanCode, &action, &suppress)) {
+                overridden = TRUE;
+            } else if (devExt->MarkActive && IsMarkMovementScanCode(outScanCode)) {
+                // マークモード: 置き換えの無い移動キーも、Shift付きの修飾付きキー（LSFT(kc)）として押す。
+                RtlZeroMemory(&action, sizeof(action));
+                action.Type = KBDLAYER_ACTION_MODDED_KEY;
+                action.Param1 = KBDLAYER_MOD_LSFT;
+                action.Param2 = outScanCode;
+                mask = KBDLAYER_MOD_LSFT;
+            } else {
+                KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+                return FALSE;
+            }
         }
         if (overridden && IsStateReplacementType(action.Type)) {
             // 置き換え先が、状態だけを動かす動作（レイヤー操作・ヘルパーイベント。2026-11-03）。キーは出力しない。
@@ -2416,6 +2509,10 @@ ResolveModdedKey(
             }
             mask = action.Param1;
             isOverride = TRUE;
+            // マークモード: 置き換え先が移動キーなら、Shiftも足す（Ctrl+F → → が、Shift+→ になる）。
+            if (devExt->MarkActive && IsMarkMovementScanCode(action.Param2)) {
+                mask |= KBDLAYER_MOD_LSFT;
+            }
         }
 
         // 普通の出力として押されている修飾キーは足さない（離しもしない。QMKのweak mods相当）。
@@ -3939,6 +4036,21 @@ ClearLayerMapForDevice(
     return STATUS_SUCCESS;
 }
 
+// マークモードを終わらせる（IOCTL_KBDLAYER_CLEAR_MARK。前面のウィンドウが変わったとき）。
+// 押している移動キーの解放は、押下記録どおりに処理されるので、ここでは状態だけを戻す。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+ClearMarkForDevice(
+    _In_ PDEVICE_EXTENSION devExt
+    )
+{
+    KIRQL outputIrql;
+
+    KeAcquireSpinLock(&devExt->OutputLock, &outputIrql);
+    devExt->MarkActive = FALSE;
+    KeReleaseSpinLock(&devExt->OutputLock, outputIrql);
+}
+
 // 生きた状態の中止（SetLayerMapEnabledForDevice(FALSE)とAbortLiveStateForDeviceが共有する）。
 // 前半: OutputLockとEngineLockを保持して呼ぶ。保留/確定/ドレイン中の判定を打ち切り、送出済みの
 // makeのbreakをReleasesへ集め、まだ押されている物理キーの解放は後から捨てるよう記録する
@@ -3971,6 +4083,8 @@ AbortLiveStateLocked(
     // 押しているOSMは、離したときに普通の修飾キーとして戻す（One Shotにしない）。
     devExt->OneShotMods = 0;
     devExt->OsmUsedWhileHeld = TRUE;
+    // マークモードも終わらせる（OFF・緊急解除・ライセンス無効のあと、次にONにしたとき選択範囲を広げ続けないため）。
+    devExt->MarkActive = FALSE;
 }
 
 // 後半: OutputLockだけを保持し（EngineLockは放した状態で）呼ぶ。タイマーを止め、集めたbreakを送る。
@@ -5170,6 +5284,9 @@ IsValidKeyOverrideEntry(
     case KBDLAYER_ACTION_CUSTOM:
         // ヘルパーのイベント（2026-11-03）。Param1は予約で0、Param2がヘルパー動作のID（ParseLayerMapBlobと同じ）。
         return Entry->Replacement.Param1 == 0;
+    case KBDLAYER_ACTION_MARK:
+        // マークモード（2026-11-03）。Param1はKBDLAYER_MARK_*、Param2は0（ParseLayerMapBlobと同じ）。
+        return Entry->Replacement.Param1 <= KBDLAYER_MARK_TOGGLE && Entry->Replacement.Param2 == 0;
     default:
         return FALSE;
     }

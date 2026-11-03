@@ -169,6 +169,12 @@ typedef struct _DEVICE_EXTENSION {
     USHORT OsmHeldScanCode;
     BOOLEAN OsmUsedWhileHeld;
 
+    // --- マークモード（MARK、2026-11-03。LayerEngine.cのApplyStateActionLocked・ResolveModdedKey・ForwardToClass参照） ---
+    // TRUEの間、移動キー（←↑→↓・Home・End・PageUp・PageDown）の出力にShiftを足す。移動キーと修飾キー以外の
+    // キーのmakeを送ると（ForwardToClass）FALSEに戻す。OFF・緊急解除・ライセンス無効（AbortLiveStateLocked）と、
+    // 前面ウィンドウの変更（IOCTL_KBDLAYER_CLEAR_MARK）でも戻す。OutputLockで保護する（書くのはすべてOutputLock保持中）。
+    BOOLEAN MarkActive;
+
     // コンボの出力・タップダンスの長押しが修飾付きキー（とLM）のとき、押している間足している修飾キー
     // （2026-10-02。押下記録ではなく、それぞれの判定状態に結び付く）。AddedModsUnionに含まれる。
     // 解除・打ち切りで0にし、安全網（ReleaseLeakedModifiers）がbreakを送る。OutputLockで保護する。

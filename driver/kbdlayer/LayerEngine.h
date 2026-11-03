@@ -568,6 +568,20 @@ AbortLiveStateForDevice(
     _In_ PDEVICE_EXTENSION devExt
     );
 
+// マークモード（KBDLAYER_ACTION_MARK）を終わらせる。IOCTL_KBDLAYER_CLEAR_MARK から、全キーボードに対して呼ぶ
+// （ClearMarkAllDevices。License.c）。状態だけを戻し、キーは送らない。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+VOID
+ClearMarkForDevice(
+    _In_ PDEVICE_EXTENSION devExt
+    );
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+ClearMarkAllDevices(
+    VOID
+    );
+
 // GET_LAYERMAP: 現在のblob（SETで渡したのと同じバイト列）とEnabled状態を返す。
 // マップ未設定の場合は *BytesReturned=0, *OutEnabled=FALSE で成功する。
 _IRQL_requires_max_(PASSIVE_LEVEL)

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Kasane.Interop;
 using Kasane.Model;
 using Microsoft.Win32;
 
@@ -30,6 +31,23 @@ public sealed class ImeLinkHost : IDisposable
 
     private readonly ImeLinkService _service;
     private readonly WinEventProc _winEventProc; // GCされないよう保持する
+    private readonly WinEventProc _foregroundProc; // 同上（前面のウィンドウの変化用。マークモードの解除も行う）
+
+    // ドライバのマークモードを終わらせる（IOCTL_KBDLAYER_CLEAR_MARK）。フックのスレッド（UI）を止めないよう、別のスレッドで行う。
+    // ドライバに接続できない・古くてIOCTLを知らないときは、何もしない（マークを使っていなければ要らない操作なので、記録もしない）。
+    private static void ClearMarkInBackground()
+    {
+        ThreadPool.QueueUserWorkItem(_ =>
+        {
+            try
+            {
+                using var client = KbdLayerClient.TryOpen(out string? error);
+                client?.ClearMark();
+            }
+            catch (KbdLayerException) { }
+            catch (InvalidOperationException) { }
+        });
+    }
     private readonly IntPtr _foregroundHook;
     private readonly IntPtr _focusHook;
     private readonly WinEventProc _nameChangeProc;
@@ -76,7 +94,9 @@ public sealed class ImeLinkHost : IDisposable
             _ruleTick);
 
         _winEventProc = (_, _, _, _, _, _, _) => _service.Poke();
-        _foregroundHook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, _winEventProc, 0, 0, WINEVENT_OUTOFCONTEXT);
+        // 前面のウィンドウが変わったら、Emacs のマークモード（MARK）を終わらせる。フォーカスの変化（同じウィンドウの中）では終わらせない。
+        _foregroundProc = (_, _, _, _, _, _, _) => { _service.Poke(); ClearMarkInBackground(); };
+        _foregroundHook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, _foregroundProc, 0, 0, WINEVENT_OUTOFCONTEXT);
         _focusHook = SetWinEventHook(EVENT_OBJECT_FOCUS, EVENT_OBJECT_FOCUS, IntPtr.Zero, _winEventProc, 0, 0, WINEVENT_OUTOFCONTEXT);
         // タイトルの変化（ブラウザのタブの切り替えなど）。前面のウィンドウ自身のものだけで起こす（頻繁に来るので、規則が無ければ見ない）。
         _nameChangeProc = (_, _, hwnd, idObject, _, _, _) =>

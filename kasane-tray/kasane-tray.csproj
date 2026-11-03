@@ -31,6 +31,7 @@
     <Compile Include="..\kasane\Interop\KbdLayerClient.HelperEvents.cs" Link="Shared\KbdLayerClient.HelperEvents.cs" />
     <Compile Include="..\kasane\Interop\KbdLayerClient.LayerWatch.cs" Link="Shared\KbdLayerClient.LayerWatch.cs" />
     <Compile Include="..\kasane\Interop\KbdLayerClient.SendKey.cs" Link="Shared\KbdLayerClient.SendKey.cs" />
+    <Compile Include="..\kasane\Interop\KbdLayerClient.ClearMark.cs" Link="Shared\KbdLayerClient.ClearMark.cs" />
     <Compile Include="..\kasane\Interop\NativeMethods.cs" Link="Shared\NativeMethods.cs" />
     <Compile Include="..\kasane\Keycodes\KeycodeTable.cs" Link="Shared\KeycodeTable.cs" />
     <Compile Include="..\kasane\Keycodes\VkTable.cs" Link="Shared\VkTable.cs" />

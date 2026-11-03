@@ -31,6 +31,11 @@ public static class ActionType
     public const byte LayerTo = 15;
     /// <summary>TT(layer): 押している間はMO、5回続けてタップするとTGと同じく固定・解除。</summary>
     public const byte LayerTapToggle = 16;
+    /// <summary>MARK(on|off|toggle): Emacs のマークモード。Param1=<see cref="MarkOn"/>/<see cref="MarkOff"/>/<see cref="MarkToggle"/>。</summary>
+    public const byte Mark = 17;
+    public const byte MarkOn = 0;
+    public const byte MarkOff = 1;
+    public const byte MarkToggle = 2;
 
     /// <summary>Param1がレイヤー番号のアクションか（存在しないレイヤーへの参照を調べるのに使う）。</summary>
     public static bool ReferencesLayer(byte type) => type is Momentary or Toggle or Default or OneShotLayer
@@ -358,6 +363,22 @@ public static class KeycodeTable
                     action = new KeyAction(type, layer, 0);
                     return true;
                 }
+                case "MARK" when parts.Length == 1:
+                {
+                    byte mode;
+                    switch (parts[0].Trim().ToLowerInvariant())
+                    {
+                        case "on": mode = ActionType.MarkOn; break;
+                        case "off": mode = ActionType.MarkOff; break;
+                        case "toggle": mode = ActionType.MarkToggle; break;
+                        default:
+                            error = Kasane.Model.Loc.T($"MARK の指定「{parts[0]}」は on、off、toggle のどれかにしてください",
+                                                       $"The MARK mode \"{parts[0]}\" must be on, off or toggle");
+                            return false;
+                    }
+                    action = new KeyAction(ActionType.Mark, mode, 0);
+                    return true;
+                }
                 case "MT" when parts.Length == 2:
                 {
                     int bit = Array.IndexOf(ModifierNames, parts[0]);
@@ -473,6 +494,7 @@ public static class KeycodeTable
             ActionType.Macro => $"MACRO({a.Param1})",
             ActionType.TapDance => $"TAPDANCE({a.Param1})",
             ActionType.Custom => $"HLP({a.Param2})",
+            ActionType.Mark => a.Param1 switch { ActionType.MarkOff => "MARK(off)", ActionType.MarkToggle => "MARK(toggle)", _ => "MARK(on)" },
             ActionType.ModdedKey => WrapWithMods(a.Param1, Key(a.Param2)),
             ActionType.LayerMod => $"LM({a.Param1},{ModMaskToNames((byte)(a.Param2 & 0xFF))})",
             _ => "KC_NO",

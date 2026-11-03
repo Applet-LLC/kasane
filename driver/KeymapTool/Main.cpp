@@ -656,13 +656,14 @@ int CmdSetKeyOverride(IoctlClient* client, ULONG uniqId, ULONG id, int argc, cha
                             replacement.ActionType == KBDLAYER_ACTION_TOGGLE ||
                             replacement.ActionType == KBDLAYER_ACTION_LAYER_TO ||
                             replacement.ActionType == KBDLAYER_ACTION_DEFAULT ||
-                            replacement.ActionType == KBDLAYER_ACTION_CUSTOM);
+                            replacement.ActionType == KBDLAYER_ACTION_CUSTOM ||
+                            replacement.ActionType == KBDLAYER_ACTION_MARK);
     if (!replacementResolved ||
         (replacement.ActionType != KBDLAYER_ACTION_KEY && replacement.ActionType != KBDLAYER_ACTION_MODDED_KEY &&
          replacement.ActionType != KBDLAYER_ACTION_MACRO && !stateType) ||
         (replacement.ActionType == KBDLAYER_ACTION_KEY && replacement.Param2 == 0) ||
         (replacement.ActionType == KBDLAYER_ACTION_MODDED_KEY && replacement.Param2 == 0)) {
-        fprintf(stderr, "--set-key-override: Replacement \"%s\" must be a plain key, a modified key (LCTL(kc)), MACRO(n), OSL(n), TG(n), TO(n), DF(n) or HLP(id)\n", argv[2]);
+        fprintf(stderr, "--set-key-override: Replacement \"%s\" must be a plain key, a modified key (LCTL(kc)), MACRO(n), OSL(n), TG(n), TO(n), DF(n), HLP(id) or MARK(on|off|toggle)\n", argv[2]);
         return 1;
     }
     if (repeat && replacement.ActionType != KBDLAYER_ACTION_MACRO) {
@@ -1271,6 +1272,9 @@ void PrintUsage() {
         "      OSL(n), TG(n), TO(n), DF(n) (layer operations) and HLP(id) (helper event),\n"
         "      which behave as if assigned to the key in a layer. Example: MOD_LCTL KC_X OSL(1)\n"
         "      (the next key only is resolved in layer 1; a C-x prefix).\n"
+        "      MARK(on|off|toggle) turns Emacs mark mode on or off: while it is on, the arrow keys,\n"
+        "      Home, End, PageUp and PageDown get Shift (extend the selection), and any other\n"
+        "      key (except modifiers) ends it. Example: MOD_LCTL KC_SPACE MARK(on).\n"
         "      Omit the last three arguments to clear it.\n"
         "  KeymapTool.exe --get-key-override <UniqIdHex> <Id>\n"
         "      Show the current definition of a key override.\n"

@@ -1636,6 +1636,11 @@ DispatchControlIoctl(
     case IOCTL_KBDLAYER_SEND_KEY:
         status = HandleSendKey(Irp, irpSp, systemBuffer, &bytesReturned);
         break;
+    case IOCTL_KBDLAYER_CLEAR_MARK:
+        // 入出力なし。全キーボードのマークモードを終わらせる（前面のウィンドウが変わったとき、トレイが送る）。
+        ClearMarkAllDevices();
+        status = STATUS_SUCCESS;
+        break;
     default:
         status = STATUS_INVALID_DEVICE_REQUEST;
         break;

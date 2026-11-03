@@ -21,6 +21,9 @@ public class KeyOverrideStateReplacementTests
     [InlineData("DF(1)", ActionType.Default, 1, 0)]
     [InlineData("HLP(7)", ActionType.Custom, 0, 7)]
     [InlineData("HLP(0)", ActionType.Custom, 0, 0)]
+    [InlineData("MARK(on)", ActionType.Mark, 0, 0)]
+    [InlineData("MARK(off)", ActionType.Mark, 1, 0)]
+    [InlineData("MARK(toggle)", ActionType.Mark, 2, 0)]
     public void StateReplacement_IsAccepted(string replacement, byte type, int param1, int param2)
     {
         var errors = new List<string>();
@@ -49,9 +52,32 @@ public class KeyOverrideStateReplacementTests
         Assert.Contains(errors, e => e.Contains("置き換え先"));
     }
 
+    [Theory]
+    [InlineData("MARK(on)")]
+    [InlineData("MARK(off)")]
+    [InlineData("MARK(toggle)")]
+    public void Mark_RoundTripsThroughTheTokenText(string token)
+    {
+        Assert.True(KeycodeTable.TryResolve(token, out var action, out var error), error);
+        Assert.Equal(token, KeycodeTable.ToToken(action));
+    }
+
+    [Theory]
+    [InlineData("MARK(set)")]
+    [InlineData("MARK()")]
+    [InlineData("MARK(on, off)")]
+    public void Mark_WithAWrongModeIsRejected(string token)
+    {
+        Assert.False(KeycodeTable.TryResolve(token, out _, out var error));
+        Assert.False(string.IsNullOrEmpty(error));
+    }
+
     [Fact]
     public void ValidityCheck_MatchesTheDriversRanges()
     {
+        Assert.True(ProjectService.IsValidOverrideReplacement(new KeyAction(ActionType.Mark, 2, 0)));
+        Assert.False(ProjectService.IsValidOverrideReplacement(new KeyAction(ActionType.Mark, 3, 0)));
+        Assert.False(ProjectService.IsValidOverrideReplacement(new KeyAction(ActionType.Mark, 0, 1)));
         // ドライバの IsValidKeyOverrideEntry と同じ: レイヤー番号は 0〜15、Param2 は 0。HLP は Param1 が 0。
         Assert.True(ProjectService.IsValidOverrideReplacement(new KeyAction(ActionType.OneShotLayer, 15, 0)));
         Assert.False(ProjectService.IsValidOverrideReplacement(new KeyAction(ActionType.OneShotLayer, 16, 0)));

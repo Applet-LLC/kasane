@@ -164,7 +164,8 @@
 <ul>
 <li>置き換えている間、条件の修飾キーは、一時的に離されます。</li>
 <li>置き換え先には、<code>MACRO(n)</code> も指定できます。</li>
-<li>置き換え先には、レイヤー操作（<code>OSL(n)</code>、<code>TG(n)</code>、<code>TO(n)</code>、<code>DF(n)</code>）とヘルパー動作（<code>HLP(n)</code>）も指定できます。キーは出さず、キーの割り当てに同じ動作を置いたときと同じ処理をします。条件の修飾キーは離しません。例: Ctrl+X を <code>OSL(1)</code> にすると、次に押す 1 キーだけが、レイヤー 1 の割り当てになります。</li>
+<li>置き換え先には、レイヤー操作（<code>OSL(n)</code>、<code>TG(n)</code>、<code>TO(n)</code>、<code>DF(n)</code>）、ヘルパー動作（<code>HLP(n)</code>）、マークモード（<code>MARK(on)</code>、<code>MARK(off)</code>、<code>MARK(toggle)</code>）も指定できます。キーは出さず、キーの割り当てに同じ動作を置いたときと同じ処理をします。条件の修飾キーは離しません。例: Ctrl+X を <code>OSL(1)</code> にすると、次に押す 1 キーだけが、レイヤー 1 の割り当てになります。</li>
+<li><code>MARK(on)</code> は、Emacs のマークモードに入ります（<code>MARK(off)</code> で終わり、<code>MARK(toggle)</code> で切り替えます）。入っている間は、移動のキー（←↑→↓、Home、End、PageUp、PageDown）に Shift が付き、移動のたびに選択範囲が広がります。移動のキーと修飾キー以外のキーを押すと、そのキーを送ったあとで終わります。前面のウィンドウが変わったときも終わります（トレイが動いているとき）。例: Ctrl+Space を <code>MARK(on)</code> にします。</li>
 <li><code>OSL(n)</code> などで切り替えた先のレイヤーに、<code>LCTL(KC_S)</code> のような修飾付きキーを置くと、出力のキー（この例は Ctrl+S）が、別のキー置換に当たることがあります。当たらないようにするには、そのキーに <code>MACRO(n)</code> を割り当てます。</li>
 <li><code>MO(n)</code>、<code>LT(n, kc)</code>、<code>KC_NO</code> などは、置き換え先に使えません。</li>
 <li>古いドライバ（キー置換が 32 個までのもの）では、33 個目以降と、レイヤー操作・ヘルパー動作の置き換え先は適用されません。</li>

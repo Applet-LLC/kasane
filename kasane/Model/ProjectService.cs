@@ -698,6 +698,8 @@ public static class ProjectService
             a.Param1 < KbdLayerClient.MaxLayers && a.Param2 == 0,
         // ヘルパー動作 HLP(id): Param1は予約で0、Param2がID。
         ActionType.Custom => a.Param1 == 0,
+        // マークモード MARK(on|off|toggle): Param1はモード、Param2は0。
+        ActionType.Mark => a.Param1 <= ActionType.MarkToggle && a.Param2 == 0,
         _ => false,
     };
 

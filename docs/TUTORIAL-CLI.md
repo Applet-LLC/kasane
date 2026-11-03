@@ -344,8 +344,8 @@ PCを再起動し、ログイン後にもう一度手順8を試します。設�
   - 置き換え先には `MACRO(n)` も書けます（押したときにマクロnを1回実行。実行の間だけ条件の修飾キーを離し、終わったときに戻します）。
     例: `KeymapTool --set-key-override <ID> 1 MOD_LCTL KC_F1 "MACRO(0)"`（Ctrl+F1 でマクロ0）。マクロの機能が ON のときだけ動きます。
     キーを押し続けたときもマクロを繰り返したいときは、最後に `repeat` を付けます（既定は繰り返しません）。
-  - 置き換え先には、レイヤー操作（`OSL(n)`、`TG(n)`、`TO(n)`、`DF(n)`）とヘルパー動作（`HLP(n)`）も書けます。キーは出さず、キーの割り当てに同じ動作を置いたときと同じ処理をします。
-    例: `KeymapTool --set-key-override <ID> 2 MOD_LCTL KC_X "OSL(1)"`（Ctrl+X のあと、次の 1 キーだけレイヤー 1 の割り当てになります）。古いドライバでは適用されません。
+  - 置き換え先には、レイヤー操作（`OSL(n)`、`TG(n)`、`TO(n)`、`DF(n)`）、ヘルパー動作（`HLP(n)`）、マークモード（`MARK(on)`、`MARK(off)`、`MARK(toggle)`）も書けます。キーは出さず、キーの割り当てに同じ動作を置いたときと同じ処理をします。
+    例: `KeymapTool --set-key-override <ID> 2 MOD_LCTL KC_X "OSL(1)"`（Ctrl+X のあと、次の 1 キーだけレイヤー 1 の割り当てになります）、`KeymapTool --set-key-override <ID> 3 MOD_LCTL KC_SPACE "MARK(on)"`（Ctrl+Space でマークモードに入り、移動のキーに Shift が付きます）。古いドライバでは適用されません。
 - MT/LT の判定方式は `--set-config` で変えられます（既定は `mode=hold`）。
   - `KeymapTool --set-config <ID> 200 50 200 mode=permissive` … 別のキーを押して離したら長押し扱い
   - `mode=tap` … 時間内（TapTerm）に MT/LT を離せば短押し扱い

@@ -76,8 +76,16 @@ typedef struct _KBDLAYER_ACTION {
 // TT(layer)（QMKのTT相当）: Param1=レイヤー番号。押している間はMOと同じ。続けて
 // TappingToggle回（既定KBDLAYER_DEFAULT_TAPPING_TOGGLE）タップするとTGと同じくON/OFFを切り替え、そのままにする。
 #define KBDLAYER_ACTION_LAYER_TAP_TOGGLE 16
+// MARK(mode)（Emacsのマークモード、2026-11-03）: Param1=KBDLAYER_MARK_*、Param2=0。キーは出力しない。
+// マークが有効の間（devExt->MarkActive）、移動キー（←↑→↓・Home・End・PageUp・PageDown）の出力にShiftを足す。
+// 移動キーと修飾キー以外のキーを出力すると（C-w・Esc・文字など）、そのキーの出力のあとでマークが終わる。
+// Key Overrideの置き換え先にも使える（IsStateReplacementType）。
+#define KBDLAYER_ACTION_MARK          17
+#define KBDLAYER_MARK_ON              0 // マークを有効にする。すでに有効なら、有効のまま（のどかの &Prefix(EmacsMark) と同じ）
+#define KBDLAYER_MARK_OFF             1 // マークを終わらせる
+#define KBDLAYER_MARK_TOGGLE          2 // 有効なら終わらせ、無効なら有効にする
 // ParseLayerMapBlobが受け付けるTypeの上限（古いドライバは、これより大きいTypeを含むマップを拒否する）。
-#define KBDLAYER_ACTION_TYPE_MAX      KBDLAYER_ACTION_LAYER_TAP_TOGGLE
+#define KBDLAYER_ACTION_TYPE_MAX      KBDLAYER_ACTION_MARK
 
 // TT(layer)でレイヤーを切り替えるのに必要な連続タップ回数の既定値（QMKの既定値と同じ）。
 // SET_CONFIGのTappingToggleで変えられる（1〜KBDLAYER_MAX_TAPPING_TOGGLE）。
@@ -982,6 +990,12 @@ typedef struct _KBDLAYER_SEND_KEY_INPUT {
 // 1.01以降のドライバが処理する。入出力は KBDLAYER_SEND_KEY_INPUT（出力なし）。
 #define IOCTL_KBDLAYER_SEND_KEY \
     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x821, METHOD_BUFFERED, FILE_WRITE_ACCESS)
+
+// マークの解除（2026-11-03）。全キーボードのマークモード（KBDLAYER_ACTION_MARK）を終わらせる。
+// 前面のウィンドウが変わったときに、トレイが送る（のどかの、フォーカスが変わるとマークを解除する動作に当たる）。
+// 入出力なし。キー入力は読めず、できるのは選択範囲を広げる動作を止めることだけなので、
+// 昇格していないトレイから呼べるよう FILE_READ_ACCESS にする（WAIT_HELPER_EVENTと同じ考え方）。
+#define IOCTL_KBDLAYER_CLEAR_MARK     CTL_CODE(FILE_DEVICE_KBDLAYER, 0x822, METHOD_BUFFERED, FILE_READ_ACCESS)
 
 // ライセンスの状態（KBDLAYER_REVALIDATE_LICENSE_OUTPUT::State）。
 #define KBDLAYER_LICENSE_STATE_INVALID      0UL // 無効

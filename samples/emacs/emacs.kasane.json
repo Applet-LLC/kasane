@@ -19,10 +19,6 @@
         { "Index": 1, "Keys": {
           "SC_001F": "MACRO(120)", "SC_0021": "MACRO(121)", "SC_0011": "MACRO(122)", "SC_0030": "MACRO(123)",
           "SC_0025": "MACRO(124)", "SC_0023": "MACRO(125)", "SC_0016": "MACRO(119)"
-        } },
-        { "Index": 2, "Keys": {
-          "SC_0021": "KC_F13", "SC_0030": "KC_F14", "SC_0031": "KC_F15", "SC_0019": "KC_F16",
-          "SC_001E": "KC_F17", "SC_0012": "KC_F18", "SC_002F": "KC_F19", "SC_0022": "TG(2)"
         } }
       ],
       "Macros": [
@@ -81,17 +77,7 @@
         { "Id": 30, "Mods": "MOD_LALT|MOD_LSFT", "Key": "KC_COMMA", "Replacement": "LCTL(KC_HOME)" },
         { "Id": 31, "Mods": "MOD_LALT|MOD_LSFT", "Key": "KC_DOT", "Replacement": "LCTL(KC_END)" },
         { "Id": 32, "Mods": "MOD_LCTL", "Key": "KC_X", "Replacement": "OSL(1)" },
-        { "Id": 33, "Mods": "MOD_LCTL", "Key": "KC_SPACE", "Replacement": "TG(2)" },
-        { "Id": 34, "Mods": "MOD_LCTL", "Key": "KC_F13", "Replacement": "LSFT(KC_RIGHT)" },
-        { "Id": 35, "Mods": "MOD_LCTL", "Key": "KC_F14", "Replacement": "LSFT(KC_LEFT)" },
-        { "Id": 36, "Mods": "MOD_LCTL", "Key": "KC_F15", "Replacement": "LSFT(KC_DOWN)" },
-        { "Id": 37, "Mods": "MOD_LCTL", "Key": "KC_F16", "Replacement": "LSFT(KC_UP)" },
-        { "Id": 38, "Mods": "MOD_LCTL", "Key": "KC_F17", "Replacement": "LSFT(KC_HOME)" },
-        { "Id": 39, "Mods": "MOD_LCTL", "Key": "KC_F18", "Replacement": "LSFT(KC_END)" },
-        { "Id": 40, "Mods": "MOD_LCTL", "Key": "KC_F19", "Replacement": "LSFT(KC_PGDN)" },
-        { "Id": 41, "Mods": "MOD_LALT", "Key": "KC_F13", "Replacement": "LCTL(LSFT(KC_RIGHT))" },
-        { "Id": 42, "Mods": "MOD_LALT", "Key": "KC_F14", "Replacement": "LCTL(LSFT(KC_LEFT))" },
-        { "Id": 43, "Mods": "MOD_LALT", "Key": "KC_F19", "Replacement": "LSFT(KC_PGUP)" }
+        { "Id": 33, "Mods": "MOD_LCTL", "Key": "KC_SPACE", "Replacement": "MARK(on)" }
       ]
     }
   ]

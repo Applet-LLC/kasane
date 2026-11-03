@@ -422,6 +422,17 @@ bool KeycodeTable::Resolve(const std::string& token, KeycodeMapping* out) {
             out->Param2 = 0;
             return true;
         }
+        if (name == "MARK" && parts.size() == 1) {
+            // MARK(on|off|toggle): Emacs のマークモード。Param1=KBDLAYER_MARK_*。
+            const std::string& m = parts[0];
+            if (m == "on") out->Param1 = KBDLAYER_MARK_ON;
+            else if (m == "off") out->Param1 = KBDLAYER_MARK_OFF;
+            else if (m == "toggle") out->Param1 = KBDLAYER_MARK_TOGGLE;
+            else return false;
+            out->ActionType = KBDLAYER_ACTION_MARK;
+            out->Param2 = 0;
+            return true;
+        }
         if (name == "OSM" && parts.size() == 1) {
             UCHAR mask;
             if (!ResolveModMask(parts[0], &mask) || mask == 0) return false;
