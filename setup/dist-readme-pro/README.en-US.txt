@@ -1,4 +1,4 @@
-kasane Pro - Installation Guide 1.00 2026-11-01 Applet LLC
+kasane Pro - Installation Guide 1.01 2026-11-02 Applet LLC
 ==============================================================
 
 This package installs a key remapping tool named kasane. The installer
@@ -24,6 +24,8 @@ Requirements
 - An internet connection. During installation, the license key is checked with
   Gumroad. This check happens only once; no connection is needed after
   installation.
+  It connects to https://api.gumroad.com/v2/licenses/verify (HTTPS, port 443).
+  If a corporate network or security software blocks it, installation fails.
 
 
 Installation

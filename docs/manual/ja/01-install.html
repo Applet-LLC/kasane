@@ -36,7 +36,7 @@
 
 </nav>
 <main>
-<div class="pagehead">かさね1.00 2026-11-01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a></div>
+<div class="pagehead">かさね1.01 2026-11-02&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a></div>
 <h1 id="section">1. インストール</h1>
 <p>kasane のインストーラーは、キーボードドライバ（kbdlayer）、ライセンス管理サービス、エディタ（kasane）、トレイ（常駐アプリ）をまとめて入れます。インストール先は <code>C:\Program Files\applet\kasane</code> に固定されていて、変更できません。</p>
 <p>この章は Subscription 版の手順で書いています。買い切り版（Pro）の違いは「Pro 版のインストール」に、Subscription 版からの移行は「Subscription 版から Pro 版へ移る」にまとめました。</p>
@@ -44,7 +44,7 @@
 <ul>
 <li>Windows 11 25H2（x64 または ARM64）</li>
 <li>管理者権限のあるアカウント</li>
-<li>ダウンロードした <code>kasane-subscription_1.00.zip</code>（Pro 版は <code>kasane-pro_1.00.zip</code>）。Gumroad のライブラリから、いつでも再ダウンロードできます</li>
+<li>ダウンロードした <code>kasane-subscription_1.01.zip</code>（Pro 版は <code>kasane-pro_1.01.zip</code>）。Gumroad のライブラリから、いつでも再ダウンロードできます</li>
 </ul>
 <p>zip を展開すると、次のファイルが入っています。</p>
 <table>
@@ -163,7 +163,7 @@
 <p>新しい版は、そのまま上書きインストールできます。アンインストールは要りません。ドライバの設定もライセンスも、引き継がれます。</p>
 <p>上書き、アンインストール、修復の前には、インストーラーがトレイを自動で止めます。</p>
 <h2 id="pro">Pro 版のインストール</h2>
-<p>Pro 版は、<code>kasane-pro_1.00.zip</code> を展開して入れます。手順は Subscription 版とほぼ同じで、次の点が違います。</p>
+<p>Pro 版は、<code>kasane-pro_1.01.zip</code> を展開して入れます。手順は Subscription 版とほぼ同じで、次の点が違います。</p>
 <table>
 <thead>
 <tr>
@@ -298,7 +298,7 @@
 <ol>
 <li><code>Install-kasane-pro.exe</code> から始めたときは、失敗の理由が画面に出ます。画面の文言は <a href="03-license.html">3. ライセンスの認証</a>の「確認できなかったとき」の表で引けます。</li>
 <li><code>.msi</code> を直接実行したときは、理由が画面に出ず、1722 だけが表示されます。この場合は、<code>C:\Windows\Temp\kasane-pro-activator.log</code> を開いてください。照会の経過と失敗の理由が残っています。</li>
-<li>ネットワークが原因だったときは、接続を確かめてから、<code>Install-kasane-pro.exe</code> をもう一度実行します。社内のネットワークなどで、Gumroad（<code>gumroad.com</code>）への通信が止められていないかも確認してください。</li>
+<li>ネットワークが原因だったときは、接続を確かめてから、<code>Install-kasane-pro.exe</code> をもう一度実行します。社内のネットワークなどで、Gumroad（<code>https://api.gumroad.com</code>）への通信が止められていないかも確認してください。宛先の一覧は、<a href="03-license.html">3. ライセンスの認証</a>の「ライセンスサーバーに接続できないとき」にあります。</li>
 </ol>
 <p>インターネットに接続できず、Gumroad に通信が届かなかったときは、キーの使用回数は増えません。接続を直したあとで、同じキーをそのまま入力できます。</p>
 <p><img src="../img/ja/install-launcher-failed.png" alt="インストールに失敗したときの画面" /></p>

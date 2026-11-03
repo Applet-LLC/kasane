@@ -1,4 +1,4 @@
-kasane Subscription - Installation Guide 1.00 2026-11-01 Applet LLC
+kasane Subscription - Installation Guide 1.01 2026-11-02 Applet LLC
 ==============================================================
 
 This package installs a key remapping tool named kasane. The installer
@@ -21,10 +21,14 @@ Requirements
 ------------
 - Windows 11 25H2 (x64 or ARM64)
 - Administrator privileges for installation
-- An internet connection. The license management service connects to Gumroad
-  about once every 24 hours to re-check whether your subscription is active.
+- An internet connection. The license management service connects to the license server
+  (operated by Applet LLC) about once every 24 hours to re-check whether your
+  subscription is active. Your license key and a computer identifier are sent;
+  the server neither stores nor logs them.
   It uses the last successful check, so the feature keeps working for up to 7
   days even without a network connection.
+  It connects to https://kasane-license.applet-llc.workers.dev (HTTPS, port 443).
+  If a corporate network or security software blocks it, activation fails.
 
 
 Installation

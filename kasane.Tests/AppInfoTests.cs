@@ -8,6 +8,7 @@ public class AppInfoTests
     [Theory]
     [InlineData("1.0.0", "1.00")]
     [InlineData("1.0.1", "1.00")]
+    [InlineData("1.1.0", "1.01")]
     [InlineData("1.2.0", "1.02")]
     [InlineData("1.12.3", "1.12")]
     [InlineData("2.0.0.0", "2.00")]

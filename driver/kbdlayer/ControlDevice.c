@@ -1456,8 +1456,7 @@ HandleRevalidateLicense(
     return STATUS_SUCCESS;
 }
 
-#ifdef KBDLAYER_SEND_KEY_ENABLED
-// キーを送出する（試験用ビルドのみ。KBDLAYER_SEND_KEY_INPUTのコメント参照）。同期で完了し、保留しない。
+// キーを送出する（KBDLAYER_SEND_KEY_INPUTのコメント参照）。同期で完了し、保留しない。
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static NTSTATUS
 HandleSendKey(
@@ -1479,6 +1478,11 @@ HandleSendKey(
     }
     params = *(PKBDLAYER_SEND_KEY_INPUT)SystemBuffer;
 
+    // リマップなどと同じく、ライセンスが実効でない間は処理しない（クライアントは SendInput へ戻る）。
+    if (!LicenseIsEffective()) {
+        return STATUS_ACCESS_DENIED;
+    }
+
     // Enc16: 上位バイトは0（通常のキー）かE0（拡張キー）だけ。E1（Pause）は単独のmakeにならない。
     if (params.Flags != 0 ||
         (params.ScanCode & 0x00FF) == 0 ||
@@ -1494,7 +1498,6 @@ HandleSendKey(
     IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
     return status;
 }
-#endif // KBDLAYER_SEND_KEY_ENABLED
 
 NTSTATUS
 DispatchControlIoctl(
@@ -1630,11 +1633,9 @@ DispatchControlIoctl(
     case IOCTL_KBDLAYER_REVALIDATE_LICENSE:
         status = HandleRevalidateLicense(irpSp, systemBuffer, &bytesReturned);
         break;
-#ifdef KBDLAYER_SEND_KEY_ENABLED
     case IOCTL_KBDLAYER_SEND_KEY:
         status = HandleSendKey(Irp, irpSp, systemBuffer, &bytesReturned);
         break;
-#endif
     default:
         status = STATUS_INVALID_DEVICE_REQUEST;
         break;

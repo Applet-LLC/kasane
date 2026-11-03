@@ -65,7 +65,7 @@
     <value>Re-check license</value>
   </data>
   <data name="Btn_Refresh_ToolTip" xml:space="preserve">
-    <value>Re-checks with Gumroad using the saved information, e.g. if the network became available later</value>
+    <value>Re-checks with the license server using the saved information, e.g. if the network became available later</value>
   </data>
   <data name="Label_LicenseKey" xml:space="preserve">
     <value>License key</value>
@@ -80,7 +80,7 @@
     <value>Service connection</value>
   </data>
   <data name="Diag_GumroadLabel" xml:space="preserve">
-    <value>Gumroad connection</value>
+    <value>License server</value>
   </data>
   <data name="Diag_Dash" xml:space="preserve">
     <value>-</value>
@@ -135,7 +135,7 @@ Details: {0}</value>
     <value>Unreachable (check your internet connection)</value>
   </data>
   <data name="Msg_GumroadUnreachable" xml:space="preserve">
-    <value>Could not connect to Gumroad. Please check your network connection and try again.</value>
+    <value>Could not connect to the license server. Please check your network connection and try again.</value>
   </data>
   <data name="Diag_Timeout" xml:space="preserve">
     <value>Timed out</value>
@@ -162,13 +162,13 @@ Details: {0}</value>
     <value>Could not connect to the internet. Please check your network environment.</value>
   </data>
   <data name="Err_Timeout" xml:space="preserve">
-    <value>The connection to Gumroad timed out. Please try again later.</value>
+    <value>The connection to the license server timed out. Please try again later.</value>
   </data>
   <data name="Err_ServerError" xml:space="preserve">
-    <value>An unexpected error occurred on Gumroad's side. Please try again later.</value>
+    <value>An unexpected error occurred on the license server. Please try again later.</value>
   </data>
   <data name="Err_ParseError" xml:space="preserve">
-    <value>Could not process the response from Gumroad. Please try again later.</value>
+    <value>Could not process the response from the license server. Please try again later.</value>
   </data>
   <data name="Err_Generic" xml:space="preserve">
     <value>Activation failed: {0}</value>

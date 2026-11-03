@@ -65,7 +65,7 @@
     <value>ライセンスを再確認</value>
   </data>
   <data name="Btn_Refresh_ToolTip" xml:space="preserve">
-    <value>ネットワークに後から接続できた場合などに、保存済みの情報でGumroadに再確認します</value>
+    <value>ネットワークに後から接続できた場合などに、保存済みの情報でライセンスサーバーに再確認します</value>
   </data>
   <data name="Label_LicenseKey" xml:space="preserve">
     <value>ライセンスキー</value>
@@ -80,7 +80,7 @@
     <value>サービス接続</value>
   </data>
   <data name="Diag_GumroadLabel" xml:space="preserve">
-    <value>Gumroad 接続</value>
+    <value>ライセンスサーバー</value>
   </data>
   <data name="Diag_Dash" xml:space="preserve">
     <value>-</value>
@@ -135,7 +135,7 @@
     <value>接続できません(インターネット接続を確認してください)</value>
   </data>
   <data name="Msg_GumroadUnreachable" xml:space="preserve">
-    <value>Gumroad に接続できませんでした。ネットワーク接続を確認してもう一度お試しください。</value>
+    <value>ライセンスサーバーに接続できませんでした。ネットワーク接続を確認してもう一度お試しください。</value>
   </data>
   <data name="Diag_Timeout" xml:space="preserve">
     <value>タイムアウトしました</value>
@@ -162,13 +162,13 @@
     <value>インターネットに接続できません。ネットワークの接続を確認してください。</value>
   </data>
   <data name="Err_Timeout" xml:space="preserve">
-    <value>Gumroad への接続がタイムアウトしました。しばらくしてからもう一度お試しください。</value>
+    <value>ライセンスサーバーへの接続がタイムアウトしました。しばらくしてからもう一度お試しください。</value>
   </data>
   <data name="Err_ServerError" xml:space="preserve">
-    <value>Gumroad 側で予期しないエラーが発生しました。しばらくしてからもう一度お試しください。</value>
+    <value>ライセンスサーバー側で予期しないエラーが発生しました。しばらくしてからもう一度お試しください。</value>
   </data>
   <data name="Err_ParseError" xml:space="preserve">
-    <value>Gumroad からの応答を処理できませんでした。しばらくしてからもう一度お試しください。</value>
+    <value>ライセンスサーバーからの応答を処理できませんでした。しばらくしてからもう一度お試しください。</value>
   </data>
   <data name="Err_Generic" xml:space="preserve">
     <value>アクティベートに失敗しました: {0}</value>
