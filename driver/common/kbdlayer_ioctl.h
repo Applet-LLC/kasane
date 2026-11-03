@@ -351,7 +351,15 @@ typedef struct _KBDLAYER_GET_MACRO_OUTPUT {
 //     オートリピートでは、既定では何もしない。KBDLAYER_KEY_OVERRIDE_FLAG_REPEATを立てたときだけ、
 //     リピートのたびに同じマクロを再実行する（マクロキー MACRO(n) のオートリピートと同じ）。
 //   - 機能別ON/OFFのKBDLAYER_FEATURE_KEYOVERRIDEで無効にできる。
-#define KBDLAYER_MAX_KEY_OVERRIDE_COUNT 32
+//   - ReplacementにレイヤーとヘルパーのイベントKBDLAYER_ACTION_ONESHOT_LAYER（OSL）・TOGGLE（TG）・
+//     LAYER_TO（TO）・DEFAULT（DF）・CUSTOM（HLP）を許す（2026-11-03）。キーは出力せず、押したときに
+//     レイヤーマップのキーに同じ動作を割り当てたのと同じ処理をする（条件の修飾キーは離さない）。
+//     例: Ctrl+X → OSL(1) で、次の1キーだけをレイヤー1で解決する（C-x の前置キー）。
+//     CUSTOMは押下・リピート・解放を、そのキーの押下の記録から、ヘルパーのイベントとして通知する。
+//   - 件数は2026-11-03に32→128へ増やした。保存形式（"KeyOverrides"値）は1件12バイトのまま、件数だけが
+//     増える。旧ドライバが書いた32件分（384バイト）の値も読む。旧ドライバに戻すと、128件分の値は読めない
+//     （マクロの32→128と同じ扱い）。
+#define KBDLAYER_MAX_KEY_OVERRIDE_COUNT 128
 
 // KBDLAYER_KEY_OVERRIDE_ENTRY.Flags のビット。ReplacementがMACROのときだけ指定できる。
 #define KBDLAYER_KEY_OVERRIDE_FLAG_REPEAT 0x01 // オートリピートでマクロを繰り返す
@@ -360,7 +368,7 @@ typedef struct _KBDLAYER_KEY_OVERRIDE_ENTRY {
     UCHAR TriggerMods;            // KBDLAYER_MOD_* のOR（0以外）
     UCHAR Flags;                  // KBDLAYER_KEY_OVERRIDE_FLAG_*のOR。未定義のビットは0
     USHORT TriggerScanCode;       // Enc16（0以外）
-    KBDLAYER_ACTION Replacement;  // KEY / MODDED_KEY / MACRO
+    KBDLAYER_ACTION Replacement;  // KEY / MODDED_KEY / MACRO / ONESHOT_LAYER / TOGGLE / LAYER_TO / DEFAULT / CUSTOM
 } KBDLAYER_KEY_OVERRIDE_ENTRY, *PKBDLAYER_KEY_OVERRIDE_ENTRY;
 
 // IOCTL_KBDLAYER_SET_KEY_OVERRIDE の入力バッファ。

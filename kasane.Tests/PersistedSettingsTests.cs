@@ -50,7 +50,7 @@ public class PersistedSettingsTests : IDisposable
         Assert.Equal(33280, PersistedSettings.SerializeMacros(new Dictionary<int, List<MacroStep>>()).Length);
         Assert.Equal(192, PersistedSettings.SerializeCombos(new Dictionary<int, ComboEntry?>()).Length);
         Assert.Equal(320, PersistedSettings.SerializeTapDances(new Dictionary<int, TapDanceEntry?>()).Length);
-        Assert.Equal(384, PersistedSettings.SerializeKeyOverrides(new Dictionary<int, KeyOverrideEntry?>()).Length);
+        Assert.Equal(1536, PersistedSettings.SerializeKeyOverrides(new Dictionary<int, KeyOverrideEntry?>()).Length);
     }
 
     [Fact]

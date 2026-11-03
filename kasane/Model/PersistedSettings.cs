@@ -11,7 +11,7 @@ namespace Kasane.Model;
 /// 書いた設定は、キーボードが接続されたとき（再接続・再起動）にドライバが読み込む。
 ///
 /// 形式は driver/kbdlayer/LayerEngine.c の PersistAll* / Set*ForDevice と同じ（実機のレジストリのサイズで確認済み:
-/// Macros 33280 / Combos 192 / TapDances 320 / KeyOverrides 384 バイト）。
+/// Macros 33280 / Combos 192 / TapDances 320 バイト。KeyOverrides は 128 件ぶんの 1536 バイトで、旧ドライバの 384 バイト〔32 件ぶん〕も読める）。
 /// 置き換える前の値は、1世代だけ「&lt;名前&gt;.bak」に退避する（ドライバは読まない名前）。復元は <see cref="Restore"/>。
 /// </summary>
 public sealed class PersistedSettings
@@ -117,7 +117,7 @@ public sealed class PersistedSettings
         return buffer;
     }
 
-    /// <summary>"KeyOverrides" 値: 32個ぶん固定長（Used + 修飾キー + 予約 + スキャンコード + 置き換え先の動作）。</summary>
+    /// <summary>"KeyOverrides" 値: 128個ぶん固定長（Used + 修飾キー + 予約 + スキャンコード + 置き換え先の動作）。</summary>
     public static byte[] SerializeKeyOverrides(IReadOnlyDictionary<int, KeyOverrideEntry?> keyOverrides)
     {
         var buffer = new byte[KbdLayerClient.MaxKeyOverrideCount * KeyOverrideEntryBytes];

@@ -648,11 +648,21 @@ int CmdSetKeyOverride(IoctlClient* client, ULONG uniqId, ULONG id, int argc, cha
         fprintf(stderr, "--set-key-override: TriggerKey \"%s\" must be a plain key (KC_xxx)\n", argv[1]);
         return 1;
     }
-    if (!KeycodeTable::Resolve(argv[2], &replacement) ||
+    // 置き換え先: 単純キー、修飾付きキー、MACRO(n)、レイヤー操作（OSL・TG・TO・DF）、HLP(id)（ヘルパーイベント）。
+    // レイヤー操作とHLPは、キーを出力せず、レイヤーマップのキーに割り当てたのと同じ動作をする。
+    bool replacementResolved = KeycodeTable::Resolve(argv[2], &replacement);
+    const bool stateType = replacementResolved &&
+                           (replacement.ActionType == KBDLAYER_ACTION_ONESHOT_LAYER ||
+                            replacement.ActionType == KBDLAYER_ACTION_TOGGLE ||
+                            replacement.ActionType == KBDLAYER_ACTION_LAYER_TO ||
+                            replacement.ActionType == KBDLAYER_ACTION_DEFAULT ||
+                            replacement.ActionType == KBDLAYER_ACTION_CUSTOM);
+    if (!replacementResolved ||
         (replacement.ActionType != KBDLAYER_ACTION_KEY && replacement.ActionType != KBDLAYER_ACTION_MODDED_KEY &&
-         replacement.ActionType != KBDLAYER_ACTION_MACRO) ||
-        (replacement.ActionType != KBDLAYER_ACTION_MACRO && replacement.Param2 == 0)) {
-        fprintf(stderr, "--set-key-override: Replacement \"%s\" must be a plain key, a modified key (LCTL(kc)) or MACRO(n)\n", argv[2]);
+         replacement.ActionType != KBDLAYER_ACTION_MACRO && !stateType) ||
+        (replacement.ActionType == KBDLAYER_ACTION_KEY && replacement.Param2 == 0) ||
+        (replacement.ActionType == KBDLAYER_ACTION_MODDED_KEY && replacement.Param2 == 0)) {
+        fprintf(stderr, "--set-key-override: Replacement \"%s\" must be a plain key, a modified key (LCTL(kc)), MACRO(n), OSL(n), TG(n), TO(n), DF(n) or HLP(id)\n", argv[2]);
         return 1;
     }
     if (repeat && replacement.ActionType != KBDLAYER_ACTION_MACRO) {
@@ -1252,11 +1262,15 @@ void PrintUsage() {
         "  KeymapTool.exe --get-features <UniqIdHex>\n"
         "      Show which optional features are enabled on this keyboard.\n"
         "  KeymapTool.exe --set-key-override <UniqIdHex> <Id> [<TriggerMods> <TriggerKey> <Replacement> [repeat]]\n"
-        "      Define key override <Id> (0-31): while all modifier kinds in <TriggerMods>\n"
+        "      Define key override <Id> (0-127; older drivers accept 0-31): while all modifier kinds in <TriggerMods>\n"
         "      (e.g. MOD_LSFT, MOD_LCTL|MOD_LSFT; left/right are not distinguished) are held,\n"
         "      the key that outputs <TriggerKey> (KC_xxx, after layers) sends <Replacement>\n"
         "      (KC_xxx or a modified key such as LCTL(KC_Z)) instead, with the trigger\n"
         "      modifiers temporarily released. Example: MOD_LSFT KC_BSPC KC_DEL.\n"
+        "      <Replacement> may also be MACRO(n), or a state action that outputs no key:\n"
+        "      OSL(n), TG(n), TO(n), DF(n) (layer operations) and HLP(id) (helper event),\n"
+        "      which behave as if assigned to the key in a layer. Example: MOD_LCTL KC_X OSL(1)\n"
+        "      (the next key only is resolved in layer 1; a C-x prefix).\n"
         "      Omit the last three arguments to clear it.\n"
         "  KeymapTool.exe --get-key-override <UniqIdHex> <Id>\n"
         "      Show the current definition of a key override.\n"

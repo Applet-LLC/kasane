@@ -112,7 +112,7 @@ public sealed partial class KbdLayerClient : IDisposable
     private static readonly uint IOCTL_GET_KEY_OVERRIDE = CtlCode(0x81B, FILE_READ_ACCESS);
     private static readonly uint IOCTL_GET_I8042_CONFIG = CtlCode(0x81C, FILE_READ_ACCESS);
     private static readonly uint IOCTL_SET_I8042_CONFIG = CtlCode(0x81D, FILE_WRITE_ACCESS);
-    public const int MaxKeyOverrideCount = 32;  // KBDLAYER_MAX_KEY_OVERRIDE_COUNT
+    public const int MaxKeyOverrideCount = 128; // KBDLAYER_MAX_KEY_OVERRIDE_COUNT（ドライバの値と必ず一致させる。旧ドライバは32）
 
     public const int MaxLayers = 16;            // KBDLAYER_MAX_LAYERS（ドライバの値と必ず一致させる）
     public const int MaxKeys = 256;             // KBDLAYER_MAX_KEYS

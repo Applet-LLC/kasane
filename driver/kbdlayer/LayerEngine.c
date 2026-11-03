@@ -117,6 +117,28 @@ typedef struct _KBDLAYER_KEY_OVERRIDE_PERSIST_ENTRY {
 #define KBDLAYER_KEY_OVERRIDE_PERSIST_BLOB_BYTES \
     (KBDLAYER_MAX_KEY_OVERRIDE_COUNT * sizeof(KBDLAYER_KEY_OVERRIDE_PERSIST_ENTRY))
 
+// 2026-11-03にKey Overrideの最大数を32→128へ上げる前の保存サイズ（32件分、384バイト）。マクロの
+// 32→128と同じく、読み込み（LoadPersistedKeyOverridesForDevice）とE-2の設定コピー
+// （CopyPersistedSettings）の両方でこのサイズも受け付ける（アップグレードで既存の設定が消えないように）。
+// 次のSET_KEY_OVERRIDEで新しいサイズに書き直される。
+#define KBDLAYER_KEY_OVERRIDE_PERSIST_LEGACY_COUNT 32
+
+// "KeyOverrides"値のバイト数から、何件分が入っているかを返す。受け付けないサイズなら0。
+_IRQL_requires_max_(PASSIVE_LEVEL)
+static ULONG
+KeyOverridePersistCountFromLength(
+    _In_ ULONG Length
+    )
+{
+    if (Length == KBDLAYER_KEY_OVERRIDE_PERSIST_BLOB_BYTES) {
+        return KBDLAYER_MAX_KEY_OVERRIDE_COUNT;
+    }
+    if (Length == KBDLAYER_KEY_OVERRIDE_PERSIST_LEGACY_COUNT * sizeof(KBDLAYER_KEY_OVERRIDE_PERSIST_ENTRY)) {
+        return KBDLAYER_KEY_OVERRIDE_PERSIST_LEGACY_COUNT;
+    }
+    return 0;
+}
+
 // ---------------------------------------------------------------------------
 // スキャンコードの16bitエンコード/デコード（OS標準Scancode Mapと同じ規約。
 // kbdaddid/RemapTable.c の EncodeScancode16/DecodeScancode16 と同一実装）
@@ -600,6 +622,91 @@ ResolveEffectiveAction(
     return NULL; // どのレイヤーでも透過のまま -> 実質KC_NO
 }
 
+// Key Overrideの置き換え先に使える、キーを出力せず状態だけを動かす型か（2026-11-03）。
+// 型を足すときは、IsValidKeyOverrideEntry・ApplyStateActionLocked・MatchKeyOverrideLocked・
+// ResolveModdedKeyの分岐も合わせる。
+static BOOLEAN
+IsStateReplacementType(
+    _In_ UCHAR Type
+    )
+{
+    return Type == KBDLAYER_ACTION_ONESHOT_LAYER || Type == KBDLAYER_ACTION_TOGGLE ||
+           Type == KBDLAYER_ACTION_LAYER_TO || Type == KBDLAYER_ACTION_DEFAULT ||
+           Type == KBDLAYER_ACTION_CUSTOM;
+}
+
+// TG・DF・OSL・TO・CUSTOMの副作用（レイヤーの状態・ヘルパーイベント）を行う。EngineLock保持中、
+// かつOutputLock保持中に呼ぶ前提（CUSTOMのModifiersに使うRealModsDownがOutputLock保護のため）。
+// レイヤーマップに割り当てたとき（LayerEngineShouldDropEntry）と、Key Overrideの置き換え先に
+// したとき（ResolveModdedKey）の両方が使うので、2か所で動作が分かれないようにここへ集めた。
+// キーは出力しない（呼び出し側が、押下の記録と戻り値を決める）。
+static VOID
+ApplyStateActionLocked(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_ const KBDLAYER_ACTION* action,
+    _In_ BOOLEAN isBreak,
+    _In_ BOOLEAN isRepeat
+    )
+{
+    switch (action->Type) {
+    case KBDLAYER_ACTION_TOGGLE:
+        if (!isBreak && action->Param1 < KBDLAYER_MAX_LAYERS) {
+            devExt->ActiveLayerMask ^= (1UL << action->Param1);
+        }
+        break;
+
+    case KBDLAYER_ACTION_DEFAULT:
+        if (!isBreak && action->Param1 < KBDLAYER_MAX_LAYERS) {
+            devExt->DefaultLayer = action->Param1;
+        }
+        break;
+
+    case KBDLAYER_ACTION_ONESHOT_LAYER:
+        if (!isBreak && action->Param1 < KBDLAYER_MAX_LAYERS) {
+            ULONG bit = 1UL << action->Param1;
+            if (devExt->OneShotLayerPending) {
+                // 前のOSLがまだ次のキーを待っているときは、そのレイヤーを先に落とす。落とさずに
+                // OneShotLayerBitを上書きすると、前のレイヤーのビットが誰にも消されずに残る
+                // （2026-11-03。キー置換からOSLを使えるようにして、C-x のあとに別の前置キーを押す形が起きやすくなった）。
+                devExt->ActiveLayerMask &= ~devExt->OneShotLayerBit;
+            }
+            devExt->ActiveLayerMask |= bit;
+            devExt->OneShotLayerPending = TRUE;
+            devExt->OneShotLayerBit = bit;
+        }
+        break;
+
+    case KBDLAYER_ACTION_LAYER_TO:
+        // キーボード側のレイヤーをこのレイヤーだけにする（DefaultLayerとAppLayerMaskは別に持つので
+        // そのまま）。OSLの待ちとTTで固定したレイヤーも消える。押している間に押されていたMOの
+        // 解放は、落とすビットがもう無いだけなので問題ない。解放では何もしない。
+        if (!isBreak && action->Param1 < KBDLAYER_MAX_LAYERS) {
+            devExt->ActiveLayerMask = 1UL << action->Param1;
+            devExt->OneShotLayerPending = FALSE;
+            devExt->TtToggledLayers = 0;
+        }
+        break;
+
+    case KBDLAYER_ACTION_CUSTOM:
+        // ヘルパーイベント: キーは出力せず、押下（オートリピートを含む）と解放をHelperNotify.cの
+        // キューに積む。解放とリピートは押下時の記録（HeldKeys）から来るので、押している間に
+        // レイヤーが変わっても、マップをOFFにしても、同じIDで届く。待っているIRPの完了は、
+        // ServiceCallback・DPCの末尾のLayerNotifyIfChanged（→HelperNotifyFlushIfNeeded）で行う。
+        // Modifiersは、普通の出力として押されている修飾キー（RealModsDown。OutputLockで保護され、
+        // 呼び出し元はすべてOutputLock保持中）。
+        HelperNotifyQueueEvent(devExt->DeviceId, action->Param2, isBreak, isRepeat, devExt->RealModsDown);
+        if (!isBreak && devExt->OneShotLayerPending) {
+            // KEYと同じく、OSL(layer)発動後に最初に解決された実キーとしてワンショットを消費する。
+            devExt->ActiveLayerMask &= ~devExt->OneShotLayerBit;
+            devExt->OneShotLayerPending = FALSE;
+        }
+        break;
+
+    default:
+        break;
+    }
+}
+
 // devExt->EngineLock保持中に呼ばれる前提。CompactInputDataArrayのコールバックとして
 // 1エントリずつ処理し、MO/TG/DF/OSLの副作用（ActiveLayerMask等の更新）もここで行う。
 //
@@ -702,35 +809,10 @@ apply:
         return TRUE; // 出力しない
 
     case KBDLAYER_ACTION_TOGGLE:
-        if (!isBreak && action->Param1 < KBDLAYER_MAX_LAYERS) {
-            devExt->ActiveLayerMask ^= (1UL << action->Param1);
-        }
-        return TRUE; // 出力しない
-
     case KBDLAYER_ACTION_DEFAULT:
-        if (!isBreak && action->Param1 < KBDLAYER_MAX_LAYERS) {
-            devExt->DefaultLayer = action->Param1;
-        }
-        return TRUE; // 出力しない
-
     case KBDLAYER_ACTION_ONESHOT_LAYER:
-        if (!isBreak && action->Param1 < KBDLAYER_MAX_LAYERS) {
-            ULONG bit = 1UL << action->Param1;
-            devExt->ActiveLayerMask |= bit;
-            devExt->OneShotLayerPending = TRUE;
-            devExt->OneShotLayerBit = bit;
-        }
-        return TRUE; // 出力しない
-
     case KBDLAYER_ACTION_LAYER_TO:
-        // キーボード側のレイヤーをこのレイヤーだけにする（DefaultLayerとAppLayerMaskは別に持つので
-        // そのまま）。OSLの待ちとTTで固定したレイヤーも消える。押している間に押されていたMOの
-        // 解放は、落とすビットがもう無いだけなので問題ない。解放では何もしない。
-        if (!isBreak && action->Param1 < KBDLAYER_MAX_LAYERS) {
-            devExt->ActiveLayerMask = 1UL << action->Param1;
-            devExt->OneShotLayerPending = FALSE;
-            devExt->TtToggledLayers = 0;
-        }
+        ApplyStateActionLocked(devExt, action, isBreak, isRepeat);
         return TRUE; // 出力しない
 
     case KBDLAYER_ACTION_LAYER_TAP_TOGGLE:
@@ -787,19 +869,9 @@ apply:
         return FALSE;
 
     case KBDLAYER_ACTION_CUSTOM:
-        // ヘルパーイベント: キーは出力せず、押下（オートリピートを含む）と解放をHelperNotify.cの
-        // キューに積む。解放とリピートは押下時の記録（HeldKeys）から来るので、押している間に
-        // レイヤーが変わっても、マップをOFFにしても、同じIDで届く。待っているIRPの完了は、
-        // ServiceCallback・DPCの末尾のLayerNotifyIfChanged（→HelperNotifyFlushIfNeeded）で行う。
-        // Modifiersは、普通の出力として押されている修飾キー（RealModsDown。OutputLockで保護され、
-        // 呼び出し元はすべてOutputLock保持中）。
-        HelperNotifyQueueEvent(devExt->DeviceId, action->Param2, isBreak, isRepeat, devExt->RealModsDown);
-        if (!isBreak && devExt->OneShotLayerPending) {
-            // KEYと同じく、OSL(layer)発動後に最初に解決された実キーとしてワンショットを消費する。
-            devExt->ActiveLayerMask &= ~devExt->OneShotLayerBit;
-            devExt->OneShotLayerPending = FALSE;
-        }
-        return TRUE; // 出力しない（解放も対で出力しない）
+        // ヘルパーイベント（処理はApplyStateActionLocked）。キーは出力しない（解放も対で出力しない）。
+        ApplyStateActionLocked(devExt, action, isBreak, isRepeat);
+        return TRUE;
 
     default:
         // MACROはResolveMacro、TAPDANCEはResolveTapDance
@@ -1942,6 +2014,15 @@ MatchKeyOverrideLocked(
             return TRUE;
         }
 
+        if (IsStateReplacementType(entry->Replacement.Type)) {
+            // 状態だけを動かす置き換え先（レイヤー操作・ヘルパーイベント。2026-11-03）。キーは出力せず、
+            // 条件の修飾キーもOS上で離さない（何も出力しないので、離す必要がない）。戻り値の形（呼び出し側の
+            // ResolveModdedKeyだけが見る）: 置き換え先の動作をそのまま返す。
+            *OutAction = entry->Replacement;
+            *OutSuppress = 0;
+            return TRUE;
+        }
+
         replacementMods = (entry->Replacement.Type == KBDLAYER_ACTION_MODDED_KEY) ? entry->Replacement.Param1 : 0;
         OutAction->Type = KBDLAYER_ACTION_INTERNAL_KEY_OVERRIDE;
         OutAction->Param1 = replacementMods;
@@ -2050,6 +2131,11 @@ SendKeyOverrideMacro(
     )
 {
     const UCHAR menuMods = KBDLAYER_MOD_LALT | KBDLAYER_MOD_RALT | KBDLAYER_MOD_LGUI | KBDLAYER_MOD_RGUI;
+    // マクロを送る前の、物理的に押されている修飾キー。マクロの中に条件と同じ修飾キー（Ctrl+KのマクロにLCTL(KC_X)）が
+    // あると、そのbreakでRealModsDownのビットが落ちる（ForwardToClass）。物理では押したままなので、送った後に戻す。
+    // 戻さないと、restoreが空になって、続くキーにCtrlが掛からず、次のキー置換の判定（down）にも見えなくなる。
+    // 物理の押下・解放はOutputLockで直列なので、送っている間に変わらない。
+    const UCHAR realBefore = devExt->RealModsDown;
     UCHAR restore;
 
     // 条件の修飾キーをOS上で離す（あるべき状態からSuppressedModsが外れたので、安全網がbreakを送る。
@@ -2062,6 +2148,7 @@ SendKeyOverrideMacro(
 
     // 今回離した分のうち、まだ物理的に押されているものを戻す（OSで押されていないビットだけを送る）。
     devExt->SuppressedMods = Previous;
+    devExt->RealModsDown = (UCHAR)((devExt->RealModsDown & ~Hide) | (realBefore & Hide));
     restore = (UCHAR)(Hide & devExt->RealModsDown);
     if (restore != 0) {
         SendAddedModifiers(devExt, restore, KEY_MAKE);
@@ -2251,6 +2338,22 @@ ResolveModdedKey(
                 return FALSE;
             }
             overridden = TRUE;
+        }
+        if (overridden && IsStateReplacementType(action.Type)) {
+            // 置き換え先が、状態だけを動かす動作（レイヤー操作・ヘルパーイベント。2026-11-03）。キーは出力しない。
+            // レイヤーマップのキーに同じ動作を割り当てたときと同じ処理（ApplyStateActionLocked）をする。
+            // 押下の記録: CUSTOMは、リピートと解放をヘルパーイベントとして通知するので動作を記録する
+            // （以後はLayerEngineShouldDropEntryが記録どおりに処理する）。それ以外は、リピートと解放を飲み込む。
+            BOOLEAN isCustom = (action.Type == KBDLAYER_ACTION_CUSTOM);
+
+            ApplyStateActionLocked(devExt, &action, FALSE, FALSE);
+            SetHeldKeyLocked(devExt, scanCode, isCustom ? KBDLAYER_HELD_ACTION : KBDLAYER_HELD_SWALLOWED,
+                             isCustom ? &action : NULL);
+            KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
+            if (SystemArgument3 != NULL) {
+                *(PULONG)SystemArgument3 = 1;
+            }
+            return TRUE;
         }
         if (overridden) {
             if (action.Type == KBDLAYER_ACTION_MACRO) {
@@ -3503,10 +3606,19 @@ CopyPersistedSettings(
     }
 
     {
-        static const PCWSTR fixedNames[] = { KBDLAYER_COMBOS_VALUE_NAME, KBDLAYER_TAPDANCES_VALUE_NAME,
-                                             KBDLAYER_KEYOVERRIDES_VALUE_NAME };
-        static const ULONG fixedSizes[] = { KBDLAYER_COMBO_PERSIST_BLOB_BYTES, KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES,
-                                            KBDLAYER_KEY_OVERRIDE_PERSIST_BLOB_BYTES };
+        // Key Overrideも旧サイズ（32件分）を受け付け、読んだバイト列のままコピーする（Macrosと同じ）。
+        actualLength = 0;
+        if (NT_SUCCESS(RegReadBinary(KBDLAYER_SERVICE_NAME, srcPath, KBDLAYER_KEYOVERRIDES_VALUE_NAME,
+                                      scratch, scratchBytes, &actualLength)) &&
+            KeyOverridePersistCountFromLength(actualLength) > 0) {
+            CheckPersistResult(devExt, KBDLAYER_KEYOVERRIDES_VALUE_NAME,
+                RegWriteBinary(KBDLAYER_SERVICE_NAME, dstPath, KBDLAYER_KEYOVERRIDES_VALUE_NAME, scratch, actualLength));
+        }
+    }
+
+    {
+        static const PCWSTR fixedNames[] = { KBDLAYER_COMBOS_VALUE_NAME, KBDLAYER_TAPDANCES_VALUE_NAME };
+        static const ULONG fixedSizes[] = { KBDLAYER_COMBO_PERSIST_BLOB_BYTES, KBDLAYER_TAPDANCE_PERSIST_BLOB_BYTES };
         for (ULONG i = 0; i < RTL_NUMBER_OF(fixedNames); i++) {
             actualLength = 0;
             if (NT_SUCCESS(RegReadBinary(KBDLAYER_SERVICE_NAME, srcPath, fixedNames[i],
@@ -5007,6 +5119,15 @@ IsValidKeyOverrideEntry(
         return Entry->Replacement.Param1 != 0 && Entry->Replacement.Param2 != 0;
     case KBDLAYER_ACTION_MACRO:
         return Entry->Replacement.Param1 < KBDLAYER_MAX_MACRO_COUNT;
+    case KBDLAYER_ACTION_ONESHOT_LAYER:
+    case KBDLAYER_ACTION_TOGGLE:
+    case KBDLAYER_ACTION_LAYER_TO:
+    case KBDLAYER_ACTION_DEFAULT:
+        // レイヤー操作（2026-11-03）。レイヤー番号は範囲内、Param2は0。
+        return Entry->Replacement.Param1 < KBDLAYER_MAX_LAYERS && Entry->Replacement.Param2 == 0;
+    case KBDLAYER_ACTION_CUSTOM:
+        // ヘルパーのイベント（2026-11-03）。Param1は予約で0、Param2がヘルパー動作のID（ParseLayerMapBlobと同じ）。
+        return Entry->Replacement.Param1 == 0;
     default:
         return FALSE;
     }
@@ -5088,6 +5209,7 @@ LoadPersistedKeyOverridesForDevice(
     WCHAR subKeyPath[64];
     PKBDLAYER_KEY_OVERRIDE_PERSIST_ENTRY buffer;
     ULONG actualLength = 0;
+    ULONG persistedCount = 0;
     NTSTATUS status;
 
     buffer = (PKBDLAYER_KEY_OVERRIDE_PERSIST_ENTRY)ExAllocatePool2(
@@ -5098,10 +5220,12 @@ LoadPersistedKeyOverridesForDevice(
     BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
     status = RegReadBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_KEYOVERRIDES_VALUE_NAME,
                             buffer, KBDLAYER_KEY_OVERRIDE_PERSIST_BLOB_BYTES, &actualLength);
-    if (NT_SUCCESS(status) && actualLength == KBDLAYER_KEY_OVERRIDE_PERSIST_BLOB_BYTES) {
+    persistedCount = NT_SUCCESS(status) ? KeyOverridePersistCountFromLength(actualLength) : 0;
+    if (persistedCount > 0) {
         ULONG count = 0;
         for (ULONG i = 0; i < KBDLAYER_MAX_KEY_OVERRIDE_COUNT; i++) {
-            BOOLEAN used = (buffer[i].Used != 0) && IsValidKeyOverrideEntry(&buffer[i].Entry);
+            // 旧サイズ（32件分）の値は、先頭の件数ぶんだけ読み、残りは未設定にする。
+            BOOLEAN used = (i < persistedCount) && (buffer[i].Used != 0) && IsValidKeyOverrideEntry(&buffer[i].Entry);
             devExt->KeyOverrideUsed[i] = used;
             if (used) {
                 devExt->KeyOverrides[i] = buffer[i].Entry;

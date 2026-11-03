@@ -325,8 +325,12 @@ public static class ProjectService
         // キー置換の置き換え先が、無効にしたマクロのとき（中身が未設定のマクロは、今までどおり警告しない）。
         foreach (var ko in project.KeyOverrides.Where(k => !k.Disabled))
         {
-            if (KeycodeTable.TryResolve(ko.Replacement, out var a) && a.Type == ActionType.Macro && disabledMacroIds.Contains(a.Param1))
+            if (!KeycodeTable.TryResolve(ko.Replacement, out var a)) continue;
+            if (a.Type == ActionType.Macro && disabledMacroIds.Contains(a.Param1))
                 warnings.Add(NothingSet(ko.Replacement, a.Param1, disabledMacroIds, Loc.T($"キー置換{ko.Id}: ", $"Key override {ko.Id}: "), "そこでは何も起きません", "nothing happens there"));
+            // 置き換え先のレイヤー操作（OSL・TG・TO・DF）が、存在しないレイヤーを指しているとき。
+            if (ActionType.ReferencesLayer(a.Type) && a.Param1 >= project.Layers.Count)
+                errors.Add(Loc.T($"キー置換{ko.Id}: {ko.Replacement} のレイヤー{a.Param1}がありません(レイヤーを追加してください)", $"Key override {ko.Id}: {ko.Replacement} refers to layer {a.Param1}, which does not exist (add the layer)"));
         }
     }
 
@@ -667,7 +671,8 @@ public static class ProjectService
 
     /// <summary>
     /// キー置換1件をドライバへ送る形にする。条件の修飾キー（MOD_*を|でつなぐ）・条件のキー（KC_*）・
-    /// 置き換え先（KC_* か LCTL(KC_Z) のような修飾付きキー）がそろっていなければエラー。
+    /// 置き換え先（KC_*、LCTL(KC_Z) のような修飾付きキー、MACRO(n)、レイヤー操作 OSL・TG・TO・DF、ヘルパー動作 HLP）が
+    /// そろっていなければエラー。レイヤー操作とヘルパー動作は、キーを出力せず、レイヤーのキーに割り当てたのと同じ動作をする。
     /// </summary>
     public static KeyOverrideEntry? KeyOverrideToEntry(KeyOverrideDef ko, List<string> errors)
     {
@@ -676,14 +681,25 @@ public static class ProjectService
             errors.Add(Loc.T($"キー置換{ko.Id}: 修飾キー「{ko.Mods}」は MOD_LSFT や MOD_LCTL|MOD_LSFT のように書いてください", $"Key override {ko.Id}: write the modifier \"{ko.Mods}\" like MOD_LSFT or MOD_LCTL|MOD_LSFT"));
         if (!KeycodeTable.TryResolve(ko.Key.Trim(), out var key) || key.Type != ActionType.Key || key.Param2 == 0)
             errors.Add(Loc.T($"キー置換{ko.Id}: キー「{ko.Key}」は単純なキー(KC_*)にしてください", $"Key override {ko.Id}: the key \"{ko.Key}\" must be a simple key (KC_*)"));
-        if (!KeycodeTable.TryResolve(ko.Replacement.Trim(), out var replacement) ||
-            replacement.Type is not (ActionType.Key or ActionType.ModdedKey or ActionType.Macro) ||
-            (replacement.Type != ActionType.Macro && replacement.Param2 == 0))
-            errors.Add(Loc.T($"キー置換{ko.Id}: 置き換え先「{ko.Replacement}」はキー(KC_*)、修飾付きキー(LCTL(KC_Z)等)、マクロ(MACRO(n))にしてください", $"Key override {ko.Id}: the replacement \"{ko.Replacement}\" must be a key (KC_*), a key with modifiers (such as LCTL(KC_Z)), or a macro (MACRO(n))"));
+        if (!KeycodeTable.TryResolve(ko.Replacement.Trim(), out var replacement) || !IsValidOverrideReplacement(replacement))
+            errors.Add(Loc.T($"キー置換{ko.Id}: 置き換え先「{ko.Replacement}」はキー(KC_*)、修飾付きキー(LCTL(KC_Z)等)、マクロ(MACRO(n))、レイヤー操作(OSL(n)・TG(n)・TO(n)・DF(n))、ヘルパー動作(HLP(n))のどれかにしてください", $"Key override {ko.Id}: the replacement \"{ko.Replacement}\" must be a key (KC_*), a key with modifiers (such as LCTL(KC_Z)), a macro (MACRO(n)), a layer operation (OSL(n), TG(n), TO(n), DF(n)) or a helper action (HLP(n))"));
         // オートリピートの印は、置き換え先がマクロのときだけ有効（ドライバも、マクロ以外では受け付けない）。
         byte flags = ko.RepeatMacro && replacement.Type == ActionType.Macro ? KeyOverrideEntry.FlagRepeat : (byte)0;
         return errors.Count == before ? new KeyOverrideEntry(mods, key.Param2, replacement, flags) : null;
     }
+
+    /// <summary>キー置換の置き換え先に使える動作か（ドライバの IsValidKeyOverrideEntry と同じ範囲）。</summary>
+    public static bool IsValidOverrideReplacement(KeyAction a) => a.Type switch
+    {
+        ActionType.Key or ActionType.ModdedKey => a.Param2 != 0,
+        ActionType.Macro => true,
+        // レイヤー操作: レイヤー番号は範囲内、Param2は0（ドライバと同じ）。
+        ActionType.OneShotLayer or ActionType.Toggle or ActionType.LayerTo or ActionType.Default =>
+            a.Param1 < KbdLayerClient.MaxLayers && a.Param2 == 0,
+        // ヘルパー動作 HLP(id): Param1は予約で0、Param2がID。
+        ActionType.Custom => a.Param1 == 0,
+        _ => false,
+    };
 
     /// <summary>
     /// CLI（KeymapTool --apply-simple）でそのまま使える keymap.json と profile.json を書き出す。
