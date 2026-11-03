@@ -282,6 +282,8 @@ public sealed class HelperTrigger
 ///  - AppLayer: <see cref="Layers"/> のアプリ管理レイヤーを、<see cref="LayerOp"/>（On / Off / Toggle / Hold）で操作する
 ///    （Hold は、キーを押している間だけ立てる）。対象は、そのキーを押したキーボード。
 ///  - PauseToggle: トレイの一時停止・再開を切り替える（一時停止中でも効く）。
+///  - KillLine: Emacs の C-k（行末までの切り取り）。Shift+End、Ctrl+X で行末まで切り取り、続けて実行した分をクリップボードに連結する
+///    （のどかの &amp;EmacsEditKillLine と同じ）。行末なら改行を連結して Delete を送る。設定は要らない。
 /// <see cref="Repeat"/> が true のときだけ、キーのオートリピートで繰り返し実行する。
 /// </summary>
 public sealed class HelperActionBody
@@ -291,6 +293,8 @@ public sealed class HelperActionBody
     public const string Sequence = "Sequence";
     public const string AppLayer = "AppLayer";
     public const string PauseToggle = "PauseToggle";
+    /// <summary>Emacs の C-k（行末までを切り取り、連続した分をクリップボードに連結する）。</summary>
+    public const string KillLine = "KillLine";
     /// <summary>文字列（<see cref="Text"/>）を、そのまま入力する（"Apple 漢字" など。エディタの現在位置に追記される）。種類名は "Text"。</summary>
     public const string TextInput = "Text";
 

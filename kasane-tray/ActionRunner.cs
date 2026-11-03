@@ -116,7 +116,75 @@ internal sealed class Win32ActionEnvironment : IActionEnvironment
         _togglePause = togglePause;
     }
 
-    public byte PhysicalKeys() => _physicalKeys();
+    // キーフックの値に、KillLine 用の見張りの値を足す（見張りは、初めて使うまで張らない）。
+    public byte PhysicalKeys() => (byte)(_physicalKeys() | _monitor.PhysicalKeys);
+
+    private readonly KeyActivityMonitor _monitor = new();
+
+    public byte HeldModifiers()
+    {
+        _monitor.EnsureStarted();
+        return _monitor.PhysicalKeys;
+    }
+
+    public bool TakeKeyActivity() => _monitor.TakeKeyActivity();
+
+    public long TickMs() => Environment.TickCount64;
+
+    public long ForegroundWindow() => GetForegroundWindow().ToInt64();
+
+    public uint ClipboardSequence() => GetClipboardSequenceNumber();
+
+    // クリップボードは、ほかのアプリが開いていると開けない。短く待って数回試す。
+    public bool TryGetClipboardText(out string text)
+    {
+        text = "";
+        if (!OpenClipboardRetry()) return false;
+        try
+        {
+            IntPtr h = GetClipboardData(CF_UNICODETEXT);
+            if (h == IntPtr.Zero) return false;
+            IntPtr p = GlobalLock(h);
+            if (p == IntPtr.Zero) return false;
+            try { text = Marshal.PtrToStringUni(p) ?? ""; }
+            finally { GlobalUnlock(h); }
+            return true;
+        }
+        finally { CloseClipboard(); }
+    }
+
+    public bool SetClipboardText(string? text)
+    {
+        if (!OpenClipboardRetry()) { TrayLog.Write("KillLine: クリップボードを開けません"); return false; }
+        try
+        {
+            EmptyClipboard();
+            if (string.IsNullOrEmpty(text)) return true;
+            int bytes = (text.Length + 1) * 2;
+            IntPtr h = GlobalAlloc(GMEM_MOVEABLE, (UIntPtr)bytes);
+            if (h == IntPtr.Zero) return false;
+            IntPtr p = GlobalLock(h);
+            if (p == IntPtr.Zero) { GlobalFree(h); return false; }
+            Marshal.Copy(text.ToCharArray(), 0, p, text.Length);
+            Marshal.WriteInt16(p, text.Length * 2, 0);
+            GlobalUnlock(h);
+            if (SetClipboardData(CF_UNICODETEXT, h) == IntPtr.Zero) { GlobalFree(h); return false; }
+            return true; // 渡した領域は、クリップボードのものになる
+        }
+        finally { CloseClipboard(); }
+    }
+
+    private bool OpenClipboardRetry()
+    {
+        for (int i = 0; i < 10; i++)
+        {
+            if (OpenClipboard(IntPtr.Zero)) return true;
+            if (!Sleep(10)) return false;
+        }
+        return false;
+    }
+
+    private const uint CF_UNICODETEXT = 13, GMEM_MOVEABLE = 0x0002;
 
     public bool SetIme(ImeTarget target, ImeMethod method) => _ime.Set(target, method);
 
@@ -267,4 +335,16 @@ internal sealed class Win32ActionEnvironment : IActionEnvironment
 
     [DllImport("user32.dll")]
     private static extern int GetSystemMetrics(int index);
+
+    [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] private static extern uint GetClipboardSequenceNumber();
+    [DllImport("user32.dll", SetLastError = true)] private static extern bool OpenClipboard(IntPtr owner);
+    [DllImport("user32.dll", SetLastError = true)] private static extern bool CloseClipboard();
+    [DllImport("user32.dll", SetLastError = true)] private static extern bool EmptyClipboard();
+    [DllImport("user32.dll", SetLastError = true)] private static extern IntPtr GetClipboardData(uint format);
+    [DllImport("user32.dll", SetLastError = true)] private static extern IntPtr SetClipboardData(uint format, IntPtr mem);
+    [DllImport("kernel32.dll", SetLastError = true)] private static extern IntPtr GlobalAlloc(uint flags, UIntPtr bytes);
+    [DllImport("kernel32.dll", SetLastError = true)] private static extern IntPtr GlobalFree(IntPtr mem);
+    [DllImport("kernel32.dll", SetLastError = true)] private static extern IntPtr GlobalLock(IntPtr mem);
+    [DllImport("kernel32.dll", SetLastError = true)] private static extern bool GlobalUnlock(IntPtr mem);
 }

@@ -202,10 +202,11 @@ public sealed class HelperSettingsModel
                 break;
 
             case HelperActionBody.PauseToggle:
+            case HelperActionBody.KillLine:
                 break;
 
             default:
-                errors.Add(Loc.T($"{owner}: 種類 '{body.Type}' は未対応です(Launch / Open / Sequence / Text / AppLayer / PauseToggle)", $"{owner}: type '{body.Type}' is not supported (Launch / Open / Sequence / Text / AppLayer / PauseToggle)"));
+                errors.Add(Loc.T($"{owner}: 種類 '{body.Type}' は未対応です(Launch / Open / Sequence / Text / AppLayer / PauseToggle / KillLine)", $"{owner}: type '{body.Type}' is not supported (Launch / Open / Sequence / Text / AppLayer / PauseToggle / KillLine)"));
                 break;
         }
     }
@@ -236,6 +237,7 @@ public static class HelperSummary
         HelperActionBody.TextInput => Loc.T("文字列: ", "Text: ") + ShortText(b.Text),
         HelperActionBody.AppLayer => Loc.T($"レイヤー {string.Join(",", b.Layers ?? new List<int>())} を {(string.IsNullOrWhiteSpace(b.LayerOp) ? "On" : b.LayerOp)}", $"Layer {string.Join(",", b.Layers ?? new List<int>())}: {(string.IsNullOrWhiteSpace(b.LayerOp) ? "On" : b.LayerOp)}"),
         HelperActionBody.PauseToggle => Loc.T("一時停止・再開", "Pause / resume"),
+        HelperActionBody.KillLine => Loc.T("行末まで切り取り (C-k)", "Kill to end of line (C-k)"),
         _ => Loc.T($"(不明な種類 '{b.Type}')", $"(unknown type '{b.Type}')"),
     } + (b.Repeat ? Loc.T("(繰り返す)", " (repeat)") : "");
 

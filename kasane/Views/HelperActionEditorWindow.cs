@@ -28,6 +28,7 @@ public sealed class HelperActionEditorWindow : Window
         (HelperActionBody.AppLayer, Loc.T("アプリ管理レイヤーの操作 (AppLayer)", "Control app-managed layers (AppLayer)")),
         (HelperActionBody.PauseToggle, Loc.T("一時停止・再開 (PauseToggle)", "Pause / resume (PauseToggle)")),
         (HelperActionBody.TextInput, Loc.T("文字列を入力する (Text)", "Type text (Text)")), // 末尾に足す（UI Automation 試験が種類を番号で選ぶため）
+        (HelperActionBody.KillLine, Loc.T("行末まで切り取る (KillLine)", "Cut to end of line (KillLine)")),
     };
 
     private static readonly string[] LayerOps = { "On", "Off", "Toggle", "Hold" };

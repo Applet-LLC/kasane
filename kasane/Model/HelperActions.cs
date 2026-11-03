@@ -435,12 +435,106 @@ public interface IActionEnvironment
     bool SetIme(ImeTarget target, ImeMethod method) => true;
     /// <summary>いま物理的に押されている修飾キー（<see cref="KeycodeTable.ModifierScanCodes"/> の並びのビット）。隠した修飾キーを戻すかの判断に使う。</summary>
     byte PhysicalKeys() => 0;
+
+    // ---- KillLine（Emacs の C-k）用。既定の実装は、クリップボードが空で何も起きない環境（テストで必要なものだけ上書きする）。
+    /// <summary>OS から見て、いま押されている修飾キー（<see cref="KeycodeTable.ModifierScanCodes"/> の並びのビット）。</summary>
+    byte HeldModifiers() => 0;
+    /// <summary>クリップボードの文字列を読む。文字列が無い・読めないときは false。</summary>
+    bool TryGetClipboardText(out string text) { text = ""; return false; }
+    /// <summary>クリップボードを文字列にする。null は空にする。</summary>
+    bool SetClipboardText(string? text) => true;
+    /// <summary>クリップボードの更新番号（中身が変わるたびに増える）。</summary>
+    uint ClipboardSequence() => 0;
+    /// <summary>単調に増える時刻（ミリ秒）。</summary>
+    long TickMs() => Environment.TickCount64;
+    /// <summary>前面のウィンドウの識別（ウィンドウハンドルの数値）。</summary>
+    long ForegroundWindow() => 0;
+    /// <summary>前回の呼び出しのあとに、修飾キー以外の（実際の）キーが押されたか。呼ぶたびに戻す。</summary>
+    bool TakeKeyActivity() => false;
+}
+
+/// <summary>
+/// Emacs の C-k（行末までの切り取り）の状態（のどかの &amp;EmacsEditKillLine と同じ）。切り取った内容を連続して連結し、クリップボードに書き戻す。
+/// 連結をやめるのは、前の結果と違う内容がクリップボードにあるとき、前面のウィンドウが変わったとき、C-k 以外のキーを押したとき、60 秒たったとき。
+/// 1つのスレッドから順に呼ぶこと。
+/// </summary>
+public sealed class KillLineState
+{
+    public const int ExpireMs = 60_000;
+    private const int CutWaitMs = 400, PollMs = 10;
+
+    private string _buf = "";
+    private long _lastMs;
+    private long _hwnd;
+
+    /// <summary>いま連結している内容（テスト用）。</summary>
+    public string Buffer => _buf;
+
+    /// <summary>
+    /// 1回分を実行する。<paramref name="send"/> はキー手順（"LSFT(KC_END)" など）を送る。
+    /// 修飾キーを隠す・戻すのは呼び出し側の仕事。
+    /// </summary>
+    public void Run(IActionEnvironment env, Action<string> send)
+    {
+        long now = env.TickMs();
+        long hwnd = env.ForegroundWindow();
+        bool otherKey = env.TakeKeyActivity();
+        if (_buf.Length > 0)
+        {
+            if (otherKey || hwnd != _hwnd || now - _lastMs > ExpireMs) _buf = "";
+            else if (!env.TryGetClipboardText(out string cur) || cur != _buf) _buf = "";
+        }
+
+        env.SetClipboardText(null);
+        uint seq0 = env.ClipboardSequence();
+        send("LSFT(KC_END)");
+        send("LCTL(KC_X)");
+        for (int waited = 0; env.ClipboardSequence() == seq0 && waited < CutWaitMs; waited += PollMs)
+            if (!env.Sleep(PollMs)) return;
+
+        string text = "";
+        for (int i = 0; i < 5; i++)
+        {
+            if (env.TryGetClipboardText(out text)) break;
+            text = "";
+            if (!env.Sleep(PollMs)) return;
+        }
+
+        string next;
+        string[] after;
+        if (text.Length >= 3 && text.EndsWith("\r\n", StringComparison.Ordinal))
+        {
+            // 改行まで切り取られた（IE のテキスト欄など）。改行は連結に入れず、戻す。
+            next = _buf + text[..^2];
+            after = new[] { "KC_ENTER", "KC_LEFT" };
+        }
+        else if (text.Length == 0)
+        {
+            // 何も切り取れなかった（行末）。改行を連結に足し、次の行との境を削除する。
+            next = _buf + "\r\n";
+            after = new[] { "KC_DELETE" };
+        }
+        else
+        {
+            next = _buf + text;
+            after = Array.Empty<string>();
+        }
+
+        _buf = next;
+        env.SetClipboardText(_buf);
+        foreach (var k in after) send(k);
+
+        _lastMs = env.TickMs();
+        _hwnd = env.ForegroundWindow();
+        env.TakeKeyActivity(); // 実行中の分は、連結をやめる理由にしない
+    }
 }
 
 /// <summary>動作を実行する。1つのスレッドから順に呼ぶこと。</summary>
 public sealed class ActionExecutor
 {
     private readonly IActionEnvironment _env;
+    private readonly KillLineState _killLine = new();
 
     public ActionExecutor(IActionEnvironment env) => _env = env;
 
@@ -510,9 +604,31 @@ public sealed class ActionExecutor
                 if (!r.IsBreak) _env.TogglePause();
                 break;
 
+            case HelperActionBody.KillLine:
+                if (!r.IsBreak) RunKillLine();
+                break;
+
             default:
                 if (!r.IsBreak) _env.Log(Loc.T($"未対応の動作の種類: '{body.Type}'", $"Unsupported action type: '{body.Type}'"));
                 break;
+        }
+    }
+
+    // 押している修飾キー（C-k の Ctrl）を隠してから送る。Ctrl を残すと、Shift+End が Ctrl+Shift+End（文書の末尾まで選択）になる。
+    private void RunKillLine()
+    {
+        byte held = _env.HeldModifiers();
+        try
+        {
+            NeutralizeIfNeeded(held);
+            SendMods(held, up: true);
+            _killLine.Run(_env, key => RunSteps(new List<HelperStep> { new() { Key = key } }));
+        }
+        finally
+        {
+            byte restore = (byte)(held & _env.PhysicalKeys());
+            SendMods(restore, up: false);
+            NeutralizeIfNeeded(restore);
         }
     }
 
