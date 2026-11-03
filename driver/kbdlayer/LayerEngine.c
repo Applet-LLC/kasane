@@ -4051,6 +4051,39 @@ ClearMarkForDevice(
     KeReleaseSpinLock(&devExt->OutputLock, outputIrql);
 }
 
+// 接続中の全キーボードのマークモードを終わらせる（IOCTL_KBDLAYER_CLEAR_MARK）。サブスク版と買い切り版の
+// 両方でビルドするので、License.c（サブスク版だけ）には置かない。デバイスの収集とremove lockの扱いは、
+// ライセンスの中止（License.cのAbortAllDevicesForLicense）と同じ（B-1: remove lockはg_listLockを保持したまま取る）。
+#define KBDLAYER_CLEAR_MARK_MAX_TARGETS 64
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+ClearMarkAllDevices(
+    VOID
+    )
+{
+    PDEVICE_EXTENSION targets[KBDLAYER_CLEAR_MARK_MAX_TARGETS];
+    ULONG count = 0;
+    KIRQL oldIrql;
+    PLIST_ENTRY entry;
+
+    KeAcquireSpinLock(&g_listLock, &oldIrql);
+    for (entry = g_deviceList.Flink;
+         entry != &g_deviceList && count < KBDLAYER_CLEAR_MARK_MAX_TARGETS;
+         entry = entry->Flink) {
+        PDEVICE_EXTENSION devExt = CONTAINING_RECORD(entry, DEVICE_EXTENSION, ListEntry);
+        if (NT_SUCCESS(IoAcquireRemoveLock(&devExt->RemoveLock, NULL))) {
+            targets[count++] = devExt;
+        }
+    }
+    KeReleaseSpinLock(&g_listLock, oldIrql);
+
+    for (ULONG i = 0; i < count; i++) {
+        ClearMarkForDevice(targets[i]);
+        IoReleaseRemoveLock(&targets[i]->RemoveLock, NULL);
+    }
+}
+
 // 生きた状態の中止（SetLayerMapEnabledForDevice(FALSE)とAbortLiveStateForDeviceが共有する）。
 // 前半: OutputLockとEngineLockを保持して呼ぶ。保留/確定/ドレイン中の判定を打ち切り、送出済みの
 // makeのbreakをReleasesへ集め、まだ押されている物理キーの解放は後から捨てるよう記録する

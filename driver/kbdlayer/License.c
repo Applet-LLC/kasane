@@ -102,23 +102,6 @@ AbortAllDevicesForLicense(
     }
 }
 
-// 接続中の全キーボードのマークモードを終わらせる（IOCTL_KBDLAYER_CLEAR_MARK）。デバイスの収集と
-// remove lockの扱いは、ライセンスの中止（AbortAllDevicesForLicense）と同じ。
-_IRQL_requires_max_(PASSIVE_LEVEL)
-VOID
-ClearMarkAllDevices(
-    VOID
-    )
-{
-    PDEVICE_EXTENSION targets[KBDLAYER_LICENSE_MAX_TARGETS];
-    ULONG count = CollectLicenseTargets(targets);
-
-    for (ULONG i = 0; i < count; i++) {
-        ClearMarkForDevice(targets[i]);
-        IoReleaseRemoveLock(&targets[i]->RemoveLock, NULL);
-    }
-}
-
 // LicenseTokenを読んで検証する。PASSIVE_LEVEL。
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static BOOLEAN
