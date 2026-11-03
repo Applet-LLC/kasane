@@ -1739,6 +1739,48 @@ SendMacroSteps(
     }
 }
 
+// レイヤーのキーのMACRO(n)・コンボ・タップダンスが使うマクロの送出。SendMacroStepsに加えて、
+// 物理で押されている修飾キー（OSでも押されている普通の出力）が、マクロの中で押され、離されるとき、
+// その2つのステップを送らない。送ると、マクロの中のCtrlのbreakで、OSのCtrlが離れ、RealModsDownからも
+// 落ちて、続くキー（と次のキー置換の判定）にCtrlが掛からなくなる（Ctrl+KのMACRO(LCTL(KC_X))と同じ原因）。
+// OSでもう押されている修飾キーは押しも離しもしない考え方は、EmitTapDanceTapのMODDED_KEYと同じ。
+// キー置換の置き換え先のMACRO(n)（SendKeyOverrideMacro）は、条件の修飾キーをOS上で離してから送る必要が
+// あるので、これは使わない。EngineLock非保持で呼ぶこと。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static VOID
+SendMacroStepsKeepingHeldMods(
+    _In_ PDEVICE_EXTENSION devExt,
+    _In_reads_(StepCount) const KBDLAYER_MACRO_STEP* Steps,
+    _In_ ULONG StepCount
+    )
+{
+    const UCHAR alreadyDown = (UCHAR)(devExt->RealModsDown & devExt->OutputModsDown & ~devExt->SuppressedMods);
+    UCHAR skipped = 0; // 押しを送らなかった修飾キー（対応する離しも送らない）
+
+    for (ULONG i = 0; i < StepCount; i++) {
+        UCHAR mod = 0;
+
+        for (ULONG bit = 0; bit < RTL_NUMBER_OF(s_ModifierScanCodes); bit++) {
+            if (s_ModifierScanCodes[bit] == Steps[i].ScanCode) {
+                mod = (UCHAR)(1u << bit);
+                break;
+            }
+        }
+        if (mod != 0) {
+            if (!Steps[i].IsBreak) {
+                if (alreadyDown & mod) {
+                    skipped |= mod;
+                    continue;
+                }
+            } else if (skipped & mod) {
+                skipped &= (UCHAR)~mod;
+                continue;
+            }
+        }
+        SendDecodedEvent(devExt, Steps[i].ScanCode, Steps[i].IsBreak ? KEY_BREAK : KEY_MAKE);
+    }
+}
+
 _IRQL_requires_max_(DISPATCH_LEVEL)
 BOOLEAN
 ResolveMacro(
@@ -1833,7 +1875,7 @@ run:
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
     // OriginalClassServiceはEngineLockを解放してから呼ぶ（既存の規律を踏襲）。
-    SendMacroSteps(devExt, localSteps, stepCount);
+    SendMacroStepsKeepingHeldMods(devExt, localSteps, stepCount);
 
     if (SystemArgument3 != NULL) {
         *(PULONG)SystemArgument3 = 1;
@@ -1914,7 +1956,7 @@ EmitTapDanceTap(
     }
 
     case KBDLAYER_ACTION_MACRO:
-        SendMacroSteps(devExt, Out->Steps, Out->StepCount);
+        SendMacroStepsKeepingHeldMods(devExt, Out->Steps, Out->StepCount);
         break;
 
     default:
