@@ -1095,6 +1095,20 @@ BatchHasOtherKeyMake(
     return FALSE;
 }
 
+// 疑似Shift（E0 2A / E0 36）。PrintScreenの前置きや、PS/2キーボードがナビゲーションキー（矢印・Home・End等）の前に
+// 付けて届く（NumLockがONのときなど）。本物の左右ShiftはE0無しの0x2A/0x36なので、E0付きだけを除外すれば
+// 実キーとは衝突しない。キャリブレーション（CalibrationShouldDropEntry）と、マークモードの「別のキー」の判定
+// （BatchHasNonMovementKeyMake。D-23）が使う。
+_IRQL_requires_max_(DISPATCH_LEVEL)
+static BOOLEAN
+IsFakeShift(
+    _In_ PKEYBOARD_INPUT_DATA Entry
+    )
+{
+    return (Entry->Flags & KEY_E0) &&
+           ((Entry->MakeCode & 0xFF) == 0x2A || (Entry->MakeCode & 0xFF) == 0x36);
+}
+
 // マークモード（MARK）で、Shiftを足す対象の「移動キー」か。←↑→↓・Home・End・PageUp・PageDown
 // （拡張キー。Enc16形式）。テンキーのNumLock OFF側（E0なし）は含めない。
 _IRQL_requires_max_(DISPATCH_LEVEL)
@@ -1119,6 +1133,8 @@ IsMarkMovementScanCode(
 }
 
 // バッチに、修飾キーでも移動キーでもないキーのmakeがあるか（マークモードを終わらせるキー）。
+// 疑似Shift（E0 2A / E0 36）は、キーとして数えない（D-23）。数えると、疑似Shiftを前置きするPS/2キーボードで、
+// 矢印キーを押すたびに、先に疑似Shiftでマークが終わる。
 _IRQL_requires_max_(DISPATCH_LEVEL)
 static BOOLEAN
 BatchHasNonMovementKeyMake(
@@ -1128,6 +1144,7 @@ BatchHasNonMovementKeyMake(
 {
     for (PKEYBOARD_INPUT_DATA p = InputDataStart; p < InputDataEnd; p++) {
         if (!(p->Flags & KEY_BREAK) &&
+            !IsFakeShift(p) &&
             ModifierMaskOf(p->MakeCode, p->Flags) == 0 &&
             !IsMarkMovementScanCode(EncodeScancode16(p->MakeCode, p->Flags))) {
             return TRUE;
@@ -5906,18 +5923,6 @@ SuppressBitIndex(
         index |= 0x100;
     }
     return index;
-}
-
-// PrintScreen等の前置きとして届く疑似Shift（E0 2A / E0 36）。本物の左右Shiftは
-// E0無しの0x2A/0x36なので、E0付きだけを除外すれば実キーとは衝突しない。
-_IRQL_requires_max_(DISPATCH_LEVEL)
-static BOOLEAN
-IsFakeShift(
-    _In_ PKEYBOARD_INPUT_DATA Entry
-    )
-{
-    return (Entry->Flags & KEY_E0) &&
-           ((Entry->MakeCode & 0xFF) == 0x2A || (Entry->MakeCode & 0xFF) == 0x36);
 }
 
 // devExt->EngineLock保持中にCompactInputDataArrayから1エントリずつ呼ばれる。
