@@ -682,7 +682,7 @@ public static class ProjectService
         if (!KeycodeTable.TryResolve(ko.Key.Trim(), out var key) || key.Type != ActionType.Key || key.Param2 == 0)
             errors.Add(Loc.T($"キー置換{ko.Id}: キー「{ko.Key}」は単純なキー(KC_*)にしてください", $"Key override {ko.Id}: the key \"{ko.Key}\" must be a simple key (KC_*)"));
         if (!KeycodeTable.TryResolve(ko.Replacement.Trim(), out var replacement) || !IsValidOverrideReplacement(replacement))
-            errors.Add(Loc.T($"キー置換{ko.Id}: 置き換え先「{ko.Replacement}」はキー(KC_*)、修飾付きキー(LCTL(KC_Z)等)、マクロ(MACRO(n))、レイヤー操作(OSL(n)・TG(n)・TO(n)・DF(n))、ヘルパー動作(HLP(n))のどれかにしてください", $"Key override {ko.Id}: the replacement \"{ko.Replacement}\" must be a key (KC_*), a key with modifiers (such as LCTL(KC_Z)), a macro (MACRO(n)), a layer operation (OSL(n), TG(n), TO(n), DF(n)) or a helper action (HLP(n))"));
+            errors.Add(Loc.T($"キー置換{ko.Id}: 置き換え先「{ko.Replacement}」はキー(KC_*)、修飾付きキー(LCTL(KC_Z)等)、マクロ(MACRO(n))、レイヤー操作(OSL(n)・TG(n)・TO(n)・DF(n))、ヘルパー動作(HLP(n))、マークモード(MARK(on)・MARK(off)・MARK(toggle))のどれかにしてください", $"Key override {ko.Id}: the replacement \"{ko.Replacement}\" must be a key (KC_*), a key with modifiers (such as LCTL(KC_Z)), a macro (MACRO(n)), a layer operation (OSL(n), TG(n), TO(n), DF(n)) a helper action (HLP(n)) or mark mode (MARK(on), MARK(off), MARK(toggle))"));
         // オートリピートの印は、置き換え先がマクロのときだけ有効（ドライバも、マクロ以外では受け付けない）。
         byte flags = ko.RepeatMacro && replacement.Type == ActionType.Macro ? KeyOverrideEntry.FlagRepeat : (byte)0;
         return errors.Count == before ? new KeyOverrideEntry(mods, key.Param2, replacement, flags) : null;
