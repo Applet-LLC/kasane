@@ -36,7 +36,7 @@ function Run([string[]]$ToolArgs, [switch]$IgnoreError) {
     if ($LASTEXITCODE -ne 0 -and -not $IgnoreError) { throw "KeymapTool が失敗しました(終了コード $LASTEXITCODE): $($ToolArgs -join ' ')" }
 }
 
-# トレイの設定の置き場所（環境変数 KASANE が絶対パスならそれ、なければ %LOCALAPPDATA%\appletkasane）。
+# トレイの設定の置き場所（環境変数 KASANE が絶対パスならそれ、なければ %LOCALAPPDATA%\applet\kasane）。
 $dataDir = if ($env:KASANE -and [IO.Path]::IsPathRooted($env:KASANE)) { $env:KASANE } else { Join-Path $env:LOCALAPPDATA 'applet\kasane' }
 $helperPath = Join-Path $dataDir (Join-Path $Id 'helper.json')
 $KillLineId = 100
