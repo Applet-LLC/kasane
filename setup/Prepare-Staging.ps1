@@ -499,7 +499,13 @@ New-Item -ItemType Directory -Path $samplesStaging -Force | Out-Null
 Get-ChildItem -LiteralPath (Join-Path $repoRoot "driver/KeymapTool/samples") -File |
     Where-Object { $_.Extension -in @('.json', '.md') } |
     ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $samplesStaging -Force }
-Write-Host "[samples] staged: $((Get-ChildItem $samplesStaging).Count) files"
+# Emacs 風のキー操作の設定例（エディタのインポート画面から読める。samples\emacs\ に入る）。
+$emacsStaging = Join-Path $samplesStaging "emacs"
+New-Item -ItemType Directory -Path $emacsStaging -Force | Out-Null
+foreach ($f in 'emacs.kasane.json', 'apply-emacs.ps1') {
+    Copy-Item -LiteralPath (Join-Path $repoRoot "samples/emacs/$f") -Destination $emacsStaging -Force
+}
+Write-Host "[samples] staged: $((Get-ChildItem $samplesStaging -Recurse -File).Count) files"
 
 # サードパーティノーティス: リポジトリ直下の THIRD-PARTY-NOTICES.txt はインストール先の直下に、third-party\ の各ライセンスのファイルは
 # インストール先の third-party\ に入る（MSI は KasaneSetup.wixproj の HarvestDirectory で収穫する。配布の zip にも同じものを入れる: Package-Dist.ps1）。

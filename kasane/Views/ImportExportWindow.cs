@@ -578,9 +578,12 @@ public sealed class ImportExportWindow : Window
         pick.Click += (_, _) => PickFile();
         var nodoka = new Button { Name = "ImportNodokaButton", Content = Loc.T("のどかの設定を取り込む...", "Import Nodoka Settings..."), Width = 190, Margin = new Thickness(8, 0, 0, 0) };
         nodoka.Click += (_, _) => PickNodoka();
+        var emacs = new Button { Name = "ImportEmacsButton", Content = Loc.T("Emacs の設定例...", "Emacs Example..."), Width = 150, Margin = new Thickness(8, 0, 0, 0) };
+        emacs.Click += (_, _) => PickEmacsExample();
         var pickRow = new StackPanel { Orientation = Orientation.Horizontal };
         pickRow.Children.Add(pick);
         pickRow.Children.Add(nodoka);
+        pickRow.Children.Add(emacs);
         pickRow.Children.Add(_imPath);
         p.Children.Add(pickRow);
         p.Children.Add(_imSummary);
@@ -628,6 +631,21 @@ public sealed class ImportExportWindow : Window
         };
         if (dlg.ShowDialog(this) != true) return;
         LoadFile(dlg.FileName);
+    }
+
+    // 同梱の Emacs 風の設定例を読み込む（読み込む項目と読み込み方は、画面で確かめてから「読み込む」）。
+    private void PickEmacsExample()
+    {
+        string? path = SampleLocator.FindEmacs(AppContext.BaseDirectory);
+        if (path == null)
+        {
+            _file = null;
+            _imSummary.Text = Loc.T("Emacs の設定例が見つかりません(インストールし直してください)。", "The Emacs example was not found (please reinstall).");
+            _imSummary.Foreground = Brushes.Firebrick;
+            _imPreview.IsEnabled = _imDo.IsEnabled = false;
+            return;
+        }
+        LoadFile(path);
     }
 
     private void LoadFile(string path)
