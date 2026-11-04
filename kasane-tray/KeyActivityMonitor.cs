@@ -15,6 +15,7 @@ internal sealed class KeyActivityMonitor : IDisposable
 {
     private const uint WM_QUIT = 0x0012;
     private const uint PM_NOREMOVE = 0;
+    private const uint EVENT_SYSTEM_FOREGROUND = 0x0003, WINEVENT_OUTOFCONTEXT = 0;
     private static readonly int[] ModifierVks = { 0xA2, 0xA0, 0xA4, 0x5B, 0xA3, 0xA1, 0xA5, 0x5C };
 
     private readonly NativeMethods.LowLevelKeyboardProc _proc;
@@ -25,9 +26,15 @@ internal sealed class KeyActivityMonitor : IDisposable
     private IntPtr _hook;
     private volatile byte _physKeys;
     private volatile bool _activity;
+    private IntPtr _winEventHook;
+    private readonly WinEventProc _winEventProc;
     private bool _disposed;
 
-    public KeyActivityMonitor() => _proc = HookProc;
+    public KeyActivityMonitor()
+    {
+        _proc = HookProc;
+        _winEventProc = (_, _, _, _, _, _, _) => _activity = true; // 前面のウィンドウが変わった（A→B→A と戻っても分かる）
+    }
 
     /// <summary>フックを張る（初回だけ。張れるまで少し待つ）。</summary>
     public void EnsureStarted()
@@ -44,7 +51,7 @@ internal sealed class KeyActivityMonitor : IDisposable
     /// <summary>いま物理的に押している修飾キー（フックが見た分）。</summary>
     public byte PhysicalKeys => _physKeys;
 
-    /// <summary>修飾キー以外のキーが押されたか。呼ぶたびに戻す。</summary>
+    /// <summary>修飾キー以外のキーが押された、または前面のウィンドウが変わったか。呼ぶたびに戻す。</summary>
     public bool TakeKeyActivity()
     {
         bool v = _activity;
@@ -62,8 +69,10 @@ internal sealed class KeyActivityMonitor : IDisposable
         _physKeys = keys;
         _hook = NativeMethods.SetWindowsHookExW(NativeMethods.WH_KEYBOARD_LL, _proc, NativeMethods.GetModuleHandleW(null), 0);
         if (_hook == IntPtr.Zero) TrayLog.Write("KeyActivityMonitor: SetWindowsHookEx に失敗 (" + Marshal.GetLastWin32Error() + ")");
+        _winEventHook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, _winEventProc, 0, 0, WINEVENT_OUTOFCONTEXT);
         _ready.Set();
         while (GetMessage(out _, IntPtr.Zero, 0, 0) > 0) { }
+        if (_winEventHook != IntPtr.Zero) { UnhookWinEvent(_winEventHook); _winEventHook = IntPtr.Zero; }
         if (_hook != IntPtr.Zero) { NativeMethods.UnhookWindowsHookEx(_hook); _hook = IntPtr.Zero; }
     }
 
@@ -114,6 +123,9 @@ internal sealed class KeyActivityMonitor : IDisposable
         public int y;
     }
 
+    private delegate void WinEventProc(IntPtr hook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint thread, uint time);
+    [DllImport("user32.dll")] private static extern IntPtr SetWinEventHook(uint min, uint max, IntPtr mod, WinEventProc proc, uint pid, uint tid, uint flags);
+    [DllImport("user32.dll")] private static extern bool UnhookWinEvent(IntPtr hook);
     [DllImport("user32.dll")] private static extern int GetMessage(out MSG msg, IntPtr hwnd, uint min, uint max);
     [DllImport("user32.dll")] private static extern bool PeekMessage(out MSG msg, IntPtr hwnd, uint min, uint max, uint remove);
     [DllImport("user32.dll", SetLastError = true)] private static extern bool PostThreadMessage(uint threadId, uint msg, UIntPtr wParam, IntPtr lParam);
