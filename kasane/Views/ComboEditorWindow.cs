@@ -38,6 +38,20 @@ public sealed class ComboEditorWindow : IdListEditorWindow
         LoadNames(project.ComboNames);
     }
 
+    /// <summary>
+    /// 最初の空き番号に、キー1 を <paramref name="slot"/> にしたコンボを作って選ぶ（キー2 と送るキーは利用者が選ぶ。送るキーの既定は KC_ESC）。
+    /// プロジェクトは、適用・OK まで変わらない。空き番号が無ければ -1。
+    /// </summary>
+    public int StartNew(int slot)
+    {
+        int id = FreeId();
+        if (id < 0) return -1;
+        _combos[id] = new ComboDef { Id = id, Slot1 = slot, Slot2 = -1, Output = "KC_ESC" };
+        RefreshItem(id);
+        ShowId(id);
+        return id;
+    }
+
     private string SlotName(int slot) => slot >= 0 && slot < _layout.Slots.Count ? _layout.Slots[slot].PrintedLabel : "?";
 
     protected override string Summary(int id) =>

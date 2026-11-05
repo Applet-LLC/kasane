@@ -121,8 +121,34 @@ public abstract class IdListEditorWindow : Window
         Loaded += (_, _) =>
         {
             for (int i = 0; i < _count; i++) _list.Items.Add(ItemText(i));
-            _list.SelectedIndex = 0;
+            _loaded = true;
+            _list.SelectedIndex = _pendingSelect is int id && id >= 0 && id < _count ? id : 0;
+            if (_list.SelectedItem != null) _list.ScrollIntoView(_list.SelectedItem);
         };
+    }
+
+    private bool _loaded;
+    private int? _pendingSelect;
+
+    /// <summary>
+    /// 番号 <paramref name="id"/> を選んで、右側にその中身を出す（2026-11-05、GUI 計画 1-2。割り当て画面・右クリックの「開く」から）。
+    /// 開く前（Show の前）に呼べば、開いたときに選ぶ。範囲外の番号は先頭。
+    /// </summary>
+    public void ShowId(int id)
+    {
+        if (id < 0 || id >= _count) id = 0;
+        if (!_loaded) { _pendingSelect = id; return; }
+        _list.SelectedIndex = -1; // 同じ番号を選び直しても、右側を作り直すように
+        _list.SelectedIndex = id;
+        _list.ScrollIntoView(_list.SelectedItem);
+    }
+
+    /// <summary>最初の空き番号（中身も名前も無い番号）。無ければ -1。</summary>
+    protected int FreeId()
+    {
+        for (int i = 0; i < _count; i++)
+            if (string.IsNullOrEmpty(Summary(i)) && string.IsNullOrWhiteSpace(Names[i])) return i;
+        return -1;
     }
 
     // 検証し、通れば名前の表を確定して Applied を起こす（「適用」・OK 共通）。通らなければ画面にエラーを出して false。

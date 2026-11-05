@@ -476,6 +476,7 @@ public partial class MainWindow : Window
     // 行のダブルクリックで MACRO(n) を入れたりできる。1つだけ（開いている間にほかのキーを押すと、その画面が前に出る）。
     // 開いている間は、編集画面と同じく、キーボード・レイアウトの切り替えなどを無効にする（UpdateEditorLock）。
     private KeyAssignDialog? _keyAssign;
+    private (int Slot, int Layer)? _keyAssignTarget; // 開いている割り当て画面のキーとレイヤー
 
     private void Keyboard_KeyClicked(KeySlot slot)
     {
@@ -487,7 +488,7 @@ public partial class MainWindow : Window
         }
         int layer = _layer;
         string current = _project.Layers[layer][slot.Index];
-        var dlg = new KeyAssignDialog(slot, layer, current, _project.Layers.Count, _project.UniqId, _project) { Owner = this, NonModal = true };
+        var dlg = new KeyAssignDialog(slot, layer, current, _project.Layers.Count, _project.UniqId, _project, _layout, HandleEditorRequest) { Owner = this, NonModal = true };
         // 高さはメイン画面と同じにする（「画面のキーボード」で、キーボード全体が縦に収まるように）。画面の外に出ないよう収める。
         var work = SystemParameters.WorkArea;
         dlg.Height = Math.Min(ActualHeight, work.Height);
@@ -504,9 +505,11 @@ public partial class MainWindow : Window
         dlg.Closed += (_, _) =>
         {
             _keyAssign = null;
+            _keyAssignTarget = null;
             UpdateEditorLock();
         };
         _keyAssign = dlg;
+        _keyAssignTarget = (slot.Index, layer);
         UpdateEditorLock();
         dlg.Show();
     }
@@ -568,7 +571,7 @@ public partial class MainWindow : Window
 
         menu.Items.Add(new Separator());
         string resetTo = _layer == 0 ? slot.DefaultKeycode ?? "KC_TRNS" : "KC_TRNS";
-        var reset = new MenuItem { Header = Loc.T($"このレイヤーの割り当てを戻す({resetTo})", $"Reset assignment on this layer ({resetTo})") };
+        var reset = new MenuItem { Header = NoAccessKey(Loc.T($"このレイヤーの割り当てを戻す({resetTo})", $"Reset assignment on this layer ({resetTo})")) };
         reset.Click += (_, _) =>
         {
             _project.Layers[_layer][slot.Index] = resetTo;
@@ -577,7 +580,69 @@ public partial class MainWindow : Window
         };
         menu.Items.Add(reset);
 
+        if (_layout != null) AddEditorItems(menu, slot);
         menu.IsOpen = true;
+    }
+
+    // メニューの項目の文字列は、_ をアクセスキーの印として扱う（KC_J が「KCJ」と出る）。キーコードや名前を出すときは、_ を重ねて文字のまま出す。
+    private static string NoAccessKey(string header) => header.Replace("_", "__");
+
+    // 右クリックのメニューの、コンボ・キー置換・マクロ・タップダンスの項目（GUI 計画 1-2）。割り当て画面のパネルと同じ判定（KeyMarks.Find）で出し分ける:
+    // 関わる定義があれば「〜を開く」、無ければ「このキーで〜を作る...」。どれも編集画面を開くだけで、このキーの割り当ては変えない。
+    private void AddEditorItems(ContextMenu menu, KeySlot slot)
+    {
+        if (_project == null) return;
+        var r = KeyMarks.Find(_project, _layer, slot);
+        menu.Items.Add(new Separator());
+        string Suffix(bool disabled) => disabled ? Loc.T("(無効)", " (disabled)") : "";
+        MenuItem Item(string name, string header, EditorRequest request, bool enabled = true)
+        {
+            var item = new MenuItem { Name = name, Header = NoAccessKey(header), IsEnabled = enabled }; // 名前に _ があっても消えないように
+            item.Click += (_, _) => HandleEditorRequest(request);
+            return item;
+        }
+
+        foreach (var c in r.Combos)
+            menu.Items.Add(Item($"MenuOpenCombo{c.Id}", Loc.T($"{KeyMarks.Describe("コンボ", c.Id, _project.ComboNames)}{Suffix(c.Disabled)} を開く...",
+                                                              $"Open {KeyMarks.Describe("Combo", c.Id, _project.ComboNames)}{Suffix(c.Disabled)}..."),
+                                new EditorRequest(EditorTarget.Combo, c.Id, slot.Index, null)));
+        // 1つのキーは有効なコンボ1つにしか使えないので、有効なコンボがあれば「作る」は出さない。
+        if (!r.Combos.Any(c => !c.Disabled))
+            menu.Items.Add(Item("MenuCreateCombo", Loc.T("このキーでコンボを作る...", "Create a combo with this key..."), new EditorRequest(EditorTarget.Combo, null, slot.Index, null)));
+
+        foreach (var k in r.KeyOverrides)
+            menu.Items.Add(Item($"MenuOpenKeyOverride{k.Id}", Loc.T($"{KeyMarks.Describe("キー置換", k.Id, _project.KeyOverrideNames)}{Suffix(k.Disabled)} を開く...",
+                                                                    $"Open {KeyMarks.Describe("Key override", k.Id, _project.KeyOverrideNames)}{Suffix(k.Disabled)}..."),
+                                new EditorRequest(EditorTarget.KeyOverride, k.Id, slot.Index, null)));
+        string? overrideKey = KeyMarks.OverrideKeyFor(r.Token);
+        menu.Items.Add(Item("MenuCreateKeyOverride", Loc.T("このキーでキー置換を作る...", "Create a key override with this key..."),
+                            new EditorRequest(EditorTarget.KeyOverride, null, slot.Index, overrideKey), enabled: overrideKey != null));
+
+        if (r.MacroId is int macro)
+            menu.Items.Add(Item("MenuOpenMacro", Loc.T($"{KeyMarks.Describe("マクロ", macro, _project.MacroNames)} を開く...", $"Open {KeyMarks.Describe("Macro", macro, _project.MacroNames)}..."),
+                                new EditorRequest(EditorTarget.Macro, macro, slot.Index, null)));
+        if (r.TapDanceId is int td)
+            menu.Items.Add(Item("MenuOpenTapDance", Loc.T($"{KeyMarks.Describe("タップダンス", td, _project.TapDanceNames)} を開く...", $"Open {KeyMarks.Describe("Tap dance", td, _project.TapDanceNames)}..."),
+                                new EditorRequest(EditorTarget.TapDance, td, slot.Index, null)));
+        else
+        {
+            // タップダンスは、作ったあと TAPDANCE(n) をこのキーに割り当てるので、このキーの割り当て画面も開く（タップダンスの画面の「入れる」の入れ先）。
+            // 別のキーの割り当て画面が開いているときは、そちらに入ってしまうので、押せなくする。
+            bool otherOpen = _keyAssign != null && _keyAssignTarget != (slot.Index, _layer);
+            var create = new MenuItem
+            {
+                Name = "MenuCreateTapDance",
+                Header = otherOpen ? Loc.T("このキーでタップダンスを作る...(開いているキーの割り当て画面を閉じてから)", "Create a tap dance with this key... (close the open key assignment window first)")
+                                   : Loc.T("このキーでタップダンスを作る...", "Create a tap dance with this key..."),
+                IsEnabled = !otherOpen,
+            };
+            create.Click += (_, _) =>
+            {
+                if (_keyAssign == null) Keyboard_KeyClicked(slot);
+                HandleEditorRequest(new EditorRequest(EditorTarget.TapDance, null, slot.Index, KeyMarks.KeyLikeToken(r.Token)));
+            };
+            menu.Items.Add(create);
+        }
     }
 
     // ------------------------------------------------------------------
@@ -609,11 +674,13 @@ public partial class MainWindow : Window
 
     private readonly Dictionary<string, IdListEditorWindow> _editors = new();
 
-    private void OpenEditor<T>(string key, Func<T> create, Action<T> apply) where T : IdListEditorWindow
+    /// <param name="request">開いた画面（すでに開いていればその画面）に対して行うこと（番号を選ぶ・空き番号に初期値を入れる。GUI 計画 1-2）。</param>
+    private void OpenEditor<T>(string key, Func<T> create, Action<T> apply, Action<T>? request = null) where T : IdListEditorWindow
     {
         if (_editors.TryGetValue(key, out var existing))
         {
             if (existing.WindowState == WindowState.Minimized) existing.WindowState = WindowState.Normal;
+            if (request != null && existing is T same) request(same);
             existing.Activate();
             return;
         }
@@ -629,6 +696,7 @@ public partial class MainWindow : Window
         {
             apply(window);
             RenderKeyboard(); // コンボ・キー置換の印が変わる
+            _keyAssign?.RefreshRelated(); // 開いている割り当て画面のコンボ・キー置換の一覧も
             MarkDirty();
         };
         window.Closed += (_, _) =>
@@ -638,6 +706,7 @@ public partial class MainWindow : Window
         };
         _editors[key] = window;
         UpdateEditorLock();
+        request?.Invoke(window);
         window.Show();
     }
 
@@ -658,44 +727,79 @@ public partial class MainWindow : Window
                                    "While an editor (macros, combos, tap dances, key overrides, key assignment) is open, you cannot switch keyboards or layouts, import, or add or delete layers."));
     }
 
-    private void BtnMacros_Click(object sender, RoutedEventArgs e)
+    private void BtnMacros_Click(object sender, RoutedEventArgs e) => OpenMacros();
+    private void BtnCombos_Click(object sender, RoutedEventArgs e) => OpenCombos();
+    private void BtnTapDances_Click(object sender, RoutedEventArgs e) => OpenTapDances();
+    private void BtnKeyOverrides_Click(object sender, RoutedEventArgs e) => OpenKeyOverrides();
+
+    private void OpenMacros(Action<MacroEditorWindow>? request = null)
     {
         if (_project == null) return;
         OpenEditor("macros", () => new MacroEditorWindow(_project.Macros, _project.MacroNames), w =>
         {
             _project.Macros = w.Result;
             _project.MacroNames = w.ResultNames;
-        });
+        }, request);
     }
 
-    private void BtnCombos_Click(object sender, RoutedEventArgs e)
+    private void OpenCombos(Action<ComboEditorWindow>? request = null)
     {
         if (_project == null || _layout == null) return;
         OpenEditor("combos", () => new ComboEditorWindow(_project, _layout), w =>
         {
             _project.Combos = w.Result;
             _project.ComboNames = w.ResultNames;
-        });
+        }, request);
     }
 
-    private void BtnTapDances_Click(object sender, RoutedEventArgs e)
+    private void OpenTapDances(Action<TapDanceEditorWindow>? request = null)
     {
         if (_project == null) return;
         OpenEditor("tapdances", () => new TapDanceEditorWindow(_project.TapDances, _project.TapDanceNames), w =>
         {
             _project.TapDances = w.Result;
             _project.TapDanceNames = w.ResultNames;
-        });
+        }, request);
     }
 
-    private void BtnKeyOverrides_Click(object sender, RoutedEventArgs e)
+    private void OpenKeyOverrides(Action<KeyOverrideEditorWindow>? request = null)
     {
         if (_project == null) return;
         OpenEditor("keyoverrides", () => new KeyOverrideEditorWindow(_project.KeyOverrides, _project.KeyOverrideNames), w =>
         {
             _project.KeyOverrides = w.Result;
             _project.KeyOverrideNames = w.ResultNames;
-        });
+        }, request);
+    }
+
+    /// <summary>
+    /// 割り当て画面・右クリックのメニューからの「編集画面を開く」（GUI 計画 1-2）。番号があればその番号を選び、無ければ空き番号に
+    /// このキーの初期値を入れる。プロジェクトは、編集画面の適用・OK まで変わらない。空き番号が無ければ、そう伝える。
+    /// </summary>
+    private void HandleEditorRequest(EditorRequest r)
+    {
+        void NoFree(int id)
+        {
+            if (id >= 0) return;
+            MessageBox.Show(this, Loc.T("空いている番号がありません。使っていない番号の中身と名前を消してから、もう一度試してください。",
+                                        "There is no free number. Clear the content and name of an unused number, then try again."),
+                            AppInfo.DisplayName, MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        switch (r.Target)
+        {
+            case EditorTarget.Combo:
+                OpenCombos(w => { if (r.Id is int id) w.ShowId(id); else NoFree(w.StartNew(r.Slot)); });
+                break;
+            case EditorTarget.KeyOverride:
+                OpenKeyOverrides(w => { if (r.Id is int id) w.ShowId(id); else NoFree(w.StartNew(r.Key ?? "")); });
+                break;
+            case EditorTarget.Macro:
+                OpenMacros(w => { if (r.Id is int id) w.ShowId(id); else NoFree(w.StartNew()); });
+                break;
+            case EditorTarget.TapDance:
+                OpenTapDances(w => { if (r.Id is int id) w.ShowId(id); else NoFree(w.StartNew(r.Key)); });
+                break;
+        }
     }
 
     private void BtnSettings_Click(object sender, RoutedEventArgs e) => OpenSettings(null);

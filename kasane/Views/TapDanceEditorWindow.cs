@@ -39,6 +39,24 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
 
     protected override string? InsertKind => "TAPDANCE";
 
+    /// <summary>
+    /// 最初の空き番号を選ぶ。<paramref name="singleTap"/> があれば、1回タップに入れたタップダンスを作る（ほかの欄は利用者が書く）。
+    /// 作ったときは、「入れる」ボタンを強調する（キーの割り当て画面に TAPDANCE(n) を入れ忘れないように）。空き番号が無ければ -1。
+    /// </summary>
+    public int StartNew(string? singleTap)
+    {
+        int id = FreeId();
+        if (id < 0) return -1;
+        if (!string.IsNullOrWhiteSpace(singleTap))
+        {
+            _defs[id] = new TapDanceDef { Id = id, SingleTap = singleTap.Trim(), SingleHold = "", DoubleTap = "", TripleTap = "" };
+            RefreshItem(id);
+            NoteEdited(id);
+        }
+        ShowId(id);
+        return id;
+    }
+
     protected override string Summary(int id) =>
         _defs[id] is { } t ? Loc.T($"{t.SingleTap} / 長押し {t.SingleHold} / {t.DoubleTap} / {t.TripleTap}", $"{t.SingleTap} / hold {t.SingleHold} / {t.DoubleTap} / {t.TripleTap}") : "";
 

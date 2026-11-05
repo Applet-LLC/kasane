@@ -104,6 +104,68 @@ public class KeyMarksTests
         Assert.Equal("MCR", KeyMarks.For(p, Layout, 0, Slot(0)).Marks);
     }
 
+    // ---- Find（割り当て画面・右クリックの「開く」。GUI 計画 1-2） ----
+
+    [Fact]
+    public void Find_Combo_EitherMember_IncludesDisabled()
+    {
+        var p = NewProject();
+        p.Combos.Add(new ComboDef { Id = 4, Slot1 = 1, Slot2 = 0, Output = "KC_ESC" });
+        p.Combos.Add(new ComboDef { Id = 2, Slot1 = 0, Slot2 = 2, Output = "KC_TAB", Disabled = true });
+
+        var r = KeyMarks.Find(p, 0, Slot(0));
+        Assert.Equal(new[] { 2, 4 }, r.Combos.Select(c => c.Id));       // 番号の順。無効も返す
+        Assert.Equal(new[] { 4 }, KeyMarks.Find(p, 0, Slot(1)).Combos.Select(c => c.Id)); // キー2 の側でも
+        Assert.Equal("C", KeyMarks.For(p, Layout, 0, Slot(0)).Marks);   // 印は有効なものだけ（従来どおり）
+        Assert.DoesNotContain("KC_TAB", KeyMarks.For(p, Layout, 0, Slot(0)).ToolTip);
+        Assert.Equal("", KeyMarks.For(p, Layout, 0, Slot(2)).Marks);    // 無効のコンボだけのキーは印なし
+        Assert.Single(KeyMarks.Find(p, 0, Slot(2)).Combos);              // でも Find は返す
+    }
+
+    [Fact]
+    public void Find_KeyOverride_MatchesLikeFor_IncludesDisabled()
+    {
+        var p = NewProject();
+        p.Layers[0][0] = "LALT(KC_ZKHK)";
+        p.Layers.Add(Enumerable.Repeat("KC_TRNS", p.Layers[0].Count).ToList());
+        p.KeyOverrides.Add(new KeyOverrideDef { Id = 1, Mods = "MOD_LSFT", Key = "KC_ZKHK", Replacement = "KC_CAPSLOCK" });
+        p.KeyOverrides.Add(new KeyOverrideDef { Id = 0, Mods = "MOD_LCTL", Key = "KC_ZKHK", Replacement = "KC_A", Disabled = true });
+
+        var r = KeyMarks.Find(p, 1, Slot(0)); // 透過のレイヤー1でも、下の LALT(KC_ZKHK) の出力キーで照合
+        Assert.Equal("LALT(KC_ZKHK)", r.Token);
+        Assert.Equal(new[] { 0, 1 }, r.KeyOverrides.Select(k => k.Id));
+        Assert.Equal("R", KeyMarks.For(p, Layout, 1, Slot(0)).Marks);
+    }
+
+    [Fact]
+    public void Find_MacroAndTapDance()
+    {
+        var p = NewProject();
+        p.Layers[0][0] = "MACRO(7)";
+        p.Layers[0][1] = "TAPDANCE(3)";
+        Assert.Equal(7, KeyMarks.Find(p, 0, Slot(0)).MacroId);
+        Assert.Null(KeyMarks.Find(p, 0, Slot(0)).TapDanceId);
+        Assert.Equal(3, KeyMarks.Find(p, 0, Slot(1)).TapDanceId);
+        Assert.Null(KeyMarks.Find(p, 0, Slot(2)).MacroId);
+    }
+
+    [Theory]
+    [InlineData("KC_A", "KC_A")]
+    [InlineData("LALT(KC_ZKHK)", "KC_ZKHK")]   // 修飾付きは出力キー
+    [InlineData("MO(1)", null)]
+    [InlineData("MACRO(2)", null)]
+    [InlineData("KC_NO", null)]
+    [InlineData("MT(MOD_LSFT,KC_A)", null)]
+    public void OverrideKeyFor(string token, string? expected) => Assert.Equal(expected, KeyMarks.OverrideKeyFor(token));
+
+    [Theory]
+    [InlineData("KC_A", "KC_A")]
+    [InlineData("LCTL(KC_C)", "LCTL(KC_C)")]   // タップダンスの1回タップには修飾付きも入る
+    [InlineData("MO(1)", null)]
+    [InlineData("KC_NO", null)]
+    [InlineData("KC_TRNS", null)]
+    public void KeyLikeToken(string token, string? expected) => Assert.Equal(expected, KeyMarks.KeyLikeToken(token));
+
     [Theory]
     [InlineData(0, true, "マクロ...")]
     [InlineData(2, true, "マクロ(2)...")]
