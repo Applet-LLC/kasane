@@ -55,6 +55,9 @@ public partial class KeyAssignDialog : Window
 
     private readonly KeymapProject? _project; // レイヤー・マクロ・タップダンスの名前を選択肢に出すため（無ければ番号だけ）
 
+    // 開いたときの各パネルの初期値（今の割り当てを戻したもの。GUI 計画 1-1）。パネルを作るたびに使う。
+    private readonly KeyAssignPrefill _prefill;
+
     public KeyAssignDialog(KeySlot slot, int layer, string currentToken, int layerCount, uint uniqId = 0, KeymapProject? project = null)
     {
         InitializeComponent();
@@ -69,6 +72,7 @@ public partial class KeyAssignDialog : Window
         _layerCount = layerCount;
         _uniqId = uniqId;
         _project = project;
+        _prefill = KeyAssignPrefill.From(currentToken, slot.DefaultKeycode, KbdLayerClient.MaxLayers);
         ResultToken = currentToken;
         // 非モーダルのときは、IsCancel だけでは閉じない（ShowDialog 用の動き）ので、自分で閉じる。
         BtnCancel.Click += (_, _) => { if (NonModal) Close(); };
@@ -98,7 +102,17 @@ public partial class KeyAssignDialog : Window
         LstCategories.Items.Add(CatMacro);
         LstCategories.Items.Add(CatHelper);
         LstCategories.Items.Add(CatSoftKeyboard);
-        LstCategories.SelectedIndex = 0;
+        // 今の割り当てが MT / LT / レイヤー操作 / マクロ / ヘルパーなら、そのパネルを開いておく（中身は _prefill で今の値になる）。
+        string? first = _prefill.Panel switch
+        {
+            KeyAssignPanel.Layer => CatLayer,
+            KeyAssignPanel.ModTap => CatModTap,
+            KeyAssignPanel.LayerTap => CatLayerTap,
+            KeyAssignPanel.Macro => CatMacro,
+            KeyAssignPanel.Helper => CatHelper,
+            _ => null,
+        };
+        LstCategories.SelectedIndex = first == null ? 0 : Math.Max(0, LstCategories.Items.IndexOf(first));
 
         Loaded += (_, _) => { TxtToken.Focus(); TxtToken.SelectAll(); };
     }
@@ -191,8 +205,9 @@ public partial class KeyAssignDialog : Window
     private UIElement LayerPanel()
     {
         var func = Combo(new[] { "MO", "TG", "DF", "OSL", "TO", "TT", "LM", "OSM" }, "FuncCombo");
+        func.SelectedItem = _prefill.LayerFunc;
         var layer = NamedCombo(NamedChoice.Layers(_project), "LayerCombo");
-        layer.SelectedIndex = Math.Min(1, KbdLayerClient.MaxLayers - 1);
+        SelectNumber(layer, _prefill.Layer);
         return Form(
             Loc.T(
             "MO (Momentary): 押している間だけレイヤーnを有効にする\nTG (Toggle): 押すたびにレイヤーnをON/OFFする\n" +
@@ -232,7 +247,9 @@ public partial class KeyAssignDialog : Window
     private UIElement ModTapPanel()
     {
         var mod = Combo(KeycodeTable.ModifierNames, "ModCombo");
-        var tap = Id(new TextBox { Text = "KC_A", Width = 160, FontFamily = new FontFamily("Consolas") }, "TapKeyBox");
+        mod.SelectedItem = _prefill.ModName;
+        // タップのキーは、今の割り当て（MT のタップ側、または普通のキー）か、キーの刻印。どちらも無ければ KC_A。
+        var tap = Id(new TextBox { Text = _prefill.ModTapKey, Width = 160, FontFamily = new FontFamily("Consolas") }, "TapKeyBox");
         return Form(Loc.T("短く押すとタップのキー、長押し(または他のキーと同時押し)で修飾キーになる。",
                           "A short press sends the tap key; holding it (or pressing it with another key) acts as the modifier key."),
             (Loc.T("修飾キー", "Modifier"), mod), (Loc.T("タップのキー", "Tap key"), tap),
@@ -242,8 +259,9 @@ public partial class KeyAssignDialog : Window
     private UIElement LayerTapPanel()
     {
         var layer = NamedCombo(NamedChoice.Layers(_project), "LayerCombo");
-        layer.SelectedIndex = Math.Min(1, KbdLayerClient.MaxLayers - 1);
-        var tap = Id(new TextBox { Text = "KC_SPACE", Width = 160, FontFamily = new FontFamily("Consolas") }, "TapKeyBox");
+        SelectNumber(layer, _prefill.Layer);
+        // タップのキーは、今の割り当て（LT のタップ側、または普通のキー）か、キーの刻印。どちらも無ければ KC_SPACE。
+        var tap = Id(new TextBox { Text = _prefill.LayerTapKey, Width = 160, FontFamily = new FontFamily("Consolas") }, "TapKeyBox");
         return Form(Loc.T("短く押すとタップのキー、長押し(または他のキーと同時押し)でレイヤーを有効にする。",
                           "A short press sends the tap key; holding it (or pressing it with another key) enables the layer."),
             (Loc.T("レイヤー", "Layer"), layer), (Loc.T("タップのキー", "Tap key"), tap),
@@ -270,6 +288,9 @@ public partial class KeyAssignDialog : Window
             kind.SelectedItem = m.Kind;                   // 種類を変えると番号の一覧が作り直される
             id.SelectedIndex = Math.Min(m.Id, id.Items.Count - 1);
         };
+        // 今の割り当てが MACRO(n) / TAPDANCE(n) なら、その種類と番号にしておく（種類を変えると番号の一覧が作り直されるので、種類が先）。
+        kind.SelectedItem = _prefill.MacroKind;
+        SelectNumber(id, _prefill.MacroId);
         var idRow = new ContentControl { Content = new StackPanel { Orientation = Orientation.Horizontal, Children = { id, pick } } };
         return Form(Loc.T("MACRO(n): マクロnを実行する(中身は「マクロ...」で編集)\n" +
                           "TAPDANCE(n): タップ回数・長押しで動作を変える(中身は「タップダンス...」で編集)",
@@ -305,32 +326,46 @@ public partial class KeyAssignDialog : Window
         });
 
         var list = Id(new ListBox { Height = 230, FontFamily = new FontFamily("Consolas") }, "HelperActionList");
-        var ids = new List<int>();
-        void Fill()
+        var items = new List<(HelperScope Scope, HelperAction Action)>();
+        void Fill(int? selectId)
         {
             list.Items.Clear();
-            ids.Clear();
+            items.Clear();
             if (Helper.DeviceWritable)
-                foreach (var a in Helper.Device.Actions) { list.Items.Add(Loc.T("[このキーボード] ", "[This keyboard] ") + HelperSummary.Action(a)); ids.Add(a.Id); }
-            foreach (var a in Helper.Global.Actions) { list.Items.Add(Loc.T("[共通] ", "[Shared] ") + HelperSummary.Action(a)); ids.Add(a.Id); }
+                foreach (var a in Helper.Device.Actions) { list.Items.Add(Loc.T("[このキーボード] ", "[This keyboard] ") + HelperSummary.Action(a)); items.Add((HelperScope.Device, a)); }
+            foreach (var a in Helper.Global.Actions) { list.Items.Add(Loc.T("[共通] ", "[Shared] ") + HelperSummary.Action(a)); items.Add((HelperScope.Global, a)); }
+            // 今の割り当てが HLP(n) なら、その動作を選んでおく（同じ Id がこのキーボード用と共通にあれば、このキーボード用。トレイも先に引く）。
+            if (selectId is { } sel) list.SelectedIndex = items.FindIndex(x => x.Action.Id == sel);
         }
-        Fill();
+        Fill(_prefill.HelperId);
         panel.Children.Add(list);
 
         var assign = Id(new Button { Content = Loc.T("選んだ動作を割り当てる", "Assign selected action"), Width = 190, Margin = new Thickness(0, 0, 8, 0) }, "AssignHelperButton");
+        var edit = Id(new Button { Content = Loc.T("編集...", "Edit..."), Width = 90, Margin = new Thickness(0, 0, 8, 0) }, "EditHelperActionButton");
         var create = Id(new Button { Content = Loc.T("新しい動作...", "New action..."), Width = 120 }, "NewHelperActionButton");
         void Assign()
         {
-            if (list.SelectedIndex >= 0 && list.SelectedIndex < ids.Count) TxtToken.Text = $"HLP({ids[list.SelectedIndex]})";
+            if (list.SelectedIndex >= 0 && list.SelectedIndex < items.Count) TxtToken.Text = $"HLP({items[list.SelectedIndex].Action.Id})";
         }
+        // 「割り当てる」と「編集...」は、一覧で動作を選んでいるときだけ押せる。
+        void UpdateEdit() => assign.IsEnabled = edit.IsEnabled = list.SelectedIndex >= 0 && list.SelectedIndex < items.Count;
         assign.Click += (_, _) => Assign();
         list.MouseDoubleClick += (_, _) => { Assign(); Confirm(); };
+        list.SelectionChanged += (_, _) => UpdateEdit();
+        edit.Click += (_, _) =>
+        {
+            int i = list.SelectedIndex;
+            if (i < 0 || i >= items.Count) return;
+            if (EditHelperAction(items[i].Scope, items[i].Action) is { } id) { Fill(id); UpdateEdit(); }
+        };
         create.Click += (_, _) =>
         {
-            if (NewHelperAction()) Fill();
+            if (NewHelperAction()) { Fill(null); list.SelectedIndex = -1; UpdateEdit(); }
         };
+        UpdateEdit();
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
         buttons.Children.Add(assign);
+        buttons.Children.Add(edit);
         buttons.Children.Add(create);
         panel.Children.Add(buttons);
         if (Helper.DeviceLoadError != null)
@@ -374,6 +409,34 @@ public partial class KeyAssignDialog : Window
         return true;
     }
 
+    /// <summary>
+    /// 選んだ動作を編集して、すぐ helper.json に保存する（新しい動作と同じく、OK を待たない）。保存したら、その動作の Id。
+    /// 割り当て（キーコード欄）は変えない。Id を変えたときは、このキーの HLP(n) も自分で選び直す。
+    /// </summary>
+    private int? EditHelperAction(HelperScope scope, HelperAction action)
+    {
+        var actions = Helper.Config(scope).Actions;
+        int index = actions.IndexOf(action);
+        if (index < 0) return null;
+        var dlg = new HelperActionEditorWindow(Loc.T("動作の編集", "Edit Action"), HelperEditMode.Action, action.Id, action.Name, null, null,
+            HelperSummary.CloneAction(action).Action, otherId => actions.Where((a, i) => i != index).Any(a => a.Id == otherId)) { Owner = this };
+        if (dlg.ShowDialog() != true) return null;
+
+        var before = HelperSummary.CloneAction(action);
+        action.Id = dlg.ResultId;
+        action.Name = dlg.ResultName;
+        action.Action = dlg.ResultBody;
+        if (!Helper.TrySave(out var error))
+        {
+            action.Id = before.Id;
+            action.Name = before.Name;
+            action.Action = before.Action;
+            MessageBox.Show(this, Loc.T($"保存できませんでした: {error}", $"Couldn't save: {error}"), Loc.T("動作の編集", "Edit Action"), MessageBoxButton.OK, MessageBoxImage.Warning);
+            return null;
+        }
+        return action.Id;
+    }
+
     private static ComboBox Combo(IEnumerable<string> items, string automationId)
     {
         var c = Id(new ComboBox { Width = 160, ItemsSource = items.ToList() }, automationId);
@@ -390,6 +453,15 @@ public partial class KeyAssignDialog : Window
     }
 
     private static int Num(ComboBox combo) => ((NamedChoice)combo.SelectedItem).Number;
+
+    /// <summary>番号の欄で、その番号を選ぶ（一覧に無ければ、今の選択のまま）。</summary>
+    private static void SelectNumber(ComboBox combo, int number)
+    {
+        for (int i = 0; i < combo.Items.Count; i++)
+        {
+            if (combo.Items[i] is NamedChoice c && c.Number == number) { combo.SelectedIndex = i; return; }
+        }
+    }
 
     private UIElement Form(string help, (string Label, Control Input) a, (string Label, Control Input) b, Func<string?> build)
     {

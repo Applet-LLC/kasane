@@ -93,7 +93,7 @@ internal sealed class AppRulesTab : HelperTabBase
     {
         if (!Selected(out int i)) return;
         var copy = HelperSummary.CloneRule(Config.AppLayerRules[i]);
-        copy.Name = string.IsNullOrWhiteSpace(copy.Name) ? null : copy.Name + "(複製)";
+        copy.Name = string.IsNullOrWhiteSpace(copy.Name) ? null : copy.Name + Loc.T("(複製)", " (copy)");
         Config.AppLayerRules.Insert(i + 1, copy);
         Refresh(i + 1);
     }
