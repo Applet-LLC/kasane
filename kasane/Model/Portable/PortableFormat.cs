@@ -63,6 +63,8 @@ public sealed class PortableRecovery
 public sealed class PortableTraySettings
 {
     public string? ImeSource { get; set; }
+    /// <summary>ヘルパー動作の IME の切り替え方（<see cref="ImeSwitch"/> の名前。2026-11-05）。無い（以前のエクスポート）なら変えない。</summary>
+    public string? ImeSwitch { get; set; }
     public string? ColorMode { get; set; }
     public string? UiLanguage { get; set; }
     public bool? ShowLayerOnIcon { get; set; }

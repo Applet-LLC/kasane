@@ -126,6 +126,26 @@ public class RecoveryTests : IDisposable
         Assert.False(report.HasErrors);
     }
 
+    [Fact]
+    public void ImeSwitch_RoundTrips_AndMissingFieldKeepsCurrent()
+    {
+        WriteTray(t => t.ImeSwitchName = "Henkan");
+        var r = RecoveryExporter.Collect(null, Array.Empty<uint>(), _dir, new PortableReport());
+        Assert.Equal("Henkan", r.TraySettings!.ImeSwitch);
+
+        // 以前のエクスポート（項目なし）は、今の値を変えない。
+        RecoveryImporter.ApplyFiles(new PortableRecovery { TraySettings = new PortableTraySettings { ColorMode = "Dark" } }, _dir, new PortableReport());
+        Assert.Equal(ImeSwitch.Henkan, TrayConfig.Load(Path.Combine(_dir, "tray.json")).ImeSwitchValue);
+
+        // 既定（Auto）に戻すときは、項目を書かない。知らない値は読み込まない。
+        RecoveryImporter.ApplyFiles(new PortableRecovery { TraySettings = new PortableTraySettings { ImeSwitch = "NoSuch" } }, _dir, new PortableReport());
+        Assert.Equal(ImeSwitch.Henkan, TrayConfig.Load(Path.Combine(_dir, "tray.json")).ImeSwitchValue);
+        RecoveryImporter.ApplyFiles(new PortableRecovery { TraySettings = new PortableTraySettings { ImeSwitch = "Auto" } }, _dir, new PortableReport());
+        var tray = TrayConfig.Load(Path.Combine(_dir, "tray.json"));
+        Assert.Equal(ImeSwitch.Auto, tray.ImeSwitchValue);
+        Assert.Null(tray.ImeSwitchName);
+    }
+
     [Theory]
     [InlineData("..")]
     [InlineData("a/b")]

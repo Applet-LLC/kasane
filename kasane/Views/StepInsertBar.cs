@@ -44,14 +44,8 @@ public static class StepInsertBar
         (Loc.T("IME を切り替える", "Toggle IME"), "ime toggle", "toggle"),
     };
 
-    /// <summary>方式を固定する行（表示, 方式の書き方, Id）。ON と OFF のそれぞれの下に出す。</summary>
-    internal static (string Label, string Token, string Id)[] ImeFixedMethods => new (string Label, string Token, string Id)[]
-    {
-        (Loc.T("IMM32 に固定", "IMM32 only"), "imm", "imm"),
-        (Loc.T("TSF に固定(実験的)", "TSF only (experimental)"), "tsf", "tsf"),
-        (Loc.T("IME キーに固定", "IME key only"), "key", "key"),
-        (Loc.T("Alt+半角/全角に固定", "Alt+Hankaku/Zenkaku only"), "altkanji", "altkanji"),
-    };
+    // 方式を固定する行（ime on imm など）は、2026-11-05 にメニューから外した。切り替え方はトレイが決める
+    // （ImeRoutePlanner）。書いた行は、以前の設定との互換のために読める。切り替わらないときは vk IME_ON / vk IME_OFF を使う。
 
     /// <summary>仮想キー（vk）のメニューに出す項目（表示, 挿入する行, Id）。日本語 IME 向けのキー。</summary>
     internal static (string Label, string Line, string Id)[] VkItems => new (string Label, string Line, string Id)[]
@@ -136,7 +130,15 @@ public static class StepInsertBar
             menu.IsOpen = true;
         };
 
-        var ime = new Button { Name = box.Name + "Ime", Content = Loc.T("IME 操作を挿入 ▾", "Insert IME action ▾"), Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(8, 1, 8, 1) };
+        var ime = new Button
+        {
+            Name = box.Name + "Ime",
+            Content = Loc.T("IME 操作を挿入 ▾", "Insert IME action ▾"),
+            Margin = new Thickness(6, 0, 0, 0),
+            Padding = new Thickness(8, 1, 8, 1),
+            ToolTip = Loc.T("IME を ON / OFF にする行を挿入します。今の状態を見て、違うときだけ変えます。切り替え方は、設定の「IME連動」タブの「IME の切り替え方」で選べます。",
+                            "Inserts a line that turns the IME on or off. It changes the IME only if the current state differs. Choose how it is switched under \"How to switch the IME\" on the IME link tab in Settings."),
+        };
         var imeMenu = new ContextMenu();
         foreach (var (label, line, id) in ImeItems)
         {
@@ -144,19 +146,6 @@ public static class StepInsertBar
             string text = line;
             item.Click += (_, _) => Insert(text);
             imeMenu.Items.Add(item);
-        }
-        foreach (var (target, targetLabel) in new[] { ("on", Loc.T("IME を ON にする", "Turn IME on")), ("off", Loc.T("IME を OFF にする", "Turn IME off")) })
-        {
-            if (imeMenu.Items.Count == ImeItems.Length) imeMenu.Items.Add(new Separator());
-            var parent = new MenuItem { Name = box.Name + "Ime_" + target + "_fixed", Header = Loc.T($"{targetLabel}(方式を固定)", $"{targetLabel} (fixed method)") };
-            foreach (var (label, token, id) in ImeFixedMethods)
-            {
-                string text = $"ime {target} {token}";
-                var item = new MenuItem { Name = box.Name + "Ime_" + target + "_" + id, Header = label, ToolTip = text };
-                item.Click += (_, _) => Insert(text);
-                parent.Items.Add(item);
-            }
-            imeMenu.Items.Add(parent);
         }
         ime.ContextMenu = imeMenu;
         ime.Click += (_, _) =>
