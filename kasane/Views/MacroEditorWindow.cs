@@ -37,6 +37,14 @@ public sealed class MacroEditorWindow : IdListEditorWindow
 
     protected override string Summary(int id) => _texts[id];
 
+    /// <summary>最初の空き番号を選ぶ（中身は利用者が書く）。空き番号が無ければ -1。</summary>
+    public int StartNew()
+    {
+        int id = FreeId();
+        if (id >= 0) ShowId(id);
+        return id;
+    }
+
     protected override string? InsertKind => "MACRO";
 
     /// <summary>編集中の内容から、名前か中身があるマクロの一覧を作る（他の画面の「マクロ...」の選択肢になる）。</summary>

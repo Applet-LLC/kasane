@@ -45,6 +45,20 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
         LoadNames(names);
     }
 
+    /// <summary>
+    /// 最初の空き番号に、条件のキーを <paramref name="key"/> にしたキー置換を作って選ぶ（修飾キーと置き換え先は利用者が書く）。
+    /// プロジェクトは、適用・OK まで変わらない。空き番号が無ければ -1。
+    /// </summary>
+    public int StartNew(string key)
+    {
+        int id = FreeId();
+        if (id < 0) return -1;
+        _defs[id] = new KeyOverrideDef { Id = id, Mods = "", Key = key, Replacement = "" };
+        RefreshItem(id);
+        ShowId(id);
+        return id;
+    }
+
     protected override string Summary(int id) =>
         _defs[id] is { } k ? $"{k.Mods} + {k.Key} → {k.Replacement}" + (k.RepeatMacro ? Loc.T("(繰り返す)", " (repeat)") : "") : "";
 

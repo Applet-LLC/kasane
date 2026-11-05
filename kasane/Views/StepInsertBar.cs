@@ -117,7 +117,7 @@ public static class StepInsertBar
         foreach (var (label, line, id) in MouseItems)
         {
             if (line.Length == 0) { menu.Items.Add(new Separator()); continue; }
-            var item = new MenuItem { Name = box.Name + "Mouse_" + id, Header = label, ToolTip = line };
+            var item = new MenuItem { Name = box.Name + "Mouse_" + id, Header = label.Replace("_", "__"), ToolTip = line }; // _ はアクセスキーの印になるので重ねる（VK_IME_ON が消えないように）
             string text = line;
             item.Click += (_, _) => Insert(text);
             menu.Items.Add(item);
@@ -142,7 +142,7 @@ public static class StepInsertBar
         var imeMenu = new ContextMenu();
         foreach (var (label, line, id) in ImeItems)
         {
-            var item = new MenuItem { Name = box.Name + "Ime_" + id, Header = label, ToolTip = line };
+            var item = new MenuItem { Name = box.Name + "Ime_" + id, Header = label.Replace("_", "__"), ToolTip = line }; // _ はアクセスキーの印になるので重ねる（VK_IME_ON が消えないように）
             string text = line;
             item.Click += (_, _) => Insert(text);
             imeMenu.Items.Add(item);
@@ -166,7 +166,7 @@ public static class StepInsertBar
         var vkMenu = new ContextMenu();
         foreach (var (label, line, id) in VkItems)
         {
-            var item = new MenuItem { Name = box.Name + "Vk_" + id, Header = label, ToolTip = line };
+            var item = new MenuItem { Name = box.Name + "Vk_" + id, Header = label.Replace("_", "__"), ToolTip = line }; // _ はアクセスキーの印になるので重ねる（VK_IME_ON が消えないように）
             string text = line;
             item.Click += (_, _) => Insert(text);
             vkMenu.Items.Add(item);
