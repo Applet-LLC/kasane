@@ -77,7 +77,7 @@
 <p>立てたレイヤーは、キーボード側の <code>TG</code> などのレイヤーと、OR で重なります。</p>
 <p>前面のウィンドウの IME の状態が取れないとき（管理者として動いているウィンドウなど）は、直前の状態を保ちます。</p>
 <h3 id="ime-1">IME の状態の取得方法</h3>
-<p>IME の状態を読む方法を、<strong>IME の状態の取得方法</strong> で選びます。</p>
+<p>IME の状態を読む方法を、<strong>IME の状態の取得方法</strong> で選びます。IME 連動のほか、ヘルパー動作の IME 操作（<a href="11-helper-apprules.html#ime-onoff">IME の ON/OFF</a>）も、この方法で状態を読みます。</p>
 <table>
 <thead>
 <tr>
@@ -91,8 +91,12 @@
 <td>Windows の標準の方法で読む。追加の DLL は入れない</td>
 </tr>
 <tr>
-<td>TSF（実験的）</td>
-<td>IMM32 で取れないときに、Text Services Framework でも読む。全アプリに小さな DLL（天狼 sirius のフック）が入る</td>
+<td>IMM32 を先に、取れなければ TSF</td>
+<td>IMM32 で取れないときだけ、Text Services Framework（TSF）でも読む。全アプリに小さな DLL（天狼 sirius のフック）が入る</td>
+</tr>
+<tr>
+<td>TSF を先に、取れなければ IMM32</td>
+<td>TSF を先に読み、取れないときは IMM32 で読む。DLL が入るのは上と同じ</td>
 </tr>
 </tbody>
 </table>
@@ -103,8 +107,41 @@
 <li>新しいメモ帳（ON が読めないことがある）</li>
 </ul>
 <blockquote>
-<p>TSF を選ぶと、Explorer を開くのが遅く感じられる場合があります。原因は特定できていません。32 ビットのアプリと、ARM64 ネイティブのアプリには、この DLL は入りません。使う必要がなければ、既定の「IMM32 のみ」のままにしてください。</p>
+<p>TSF を含む方法を選ぶと、IME 連動を使っていなくても DLL が入ります。Explorer を開くのが遅く感じられる場合があります。原因は特定できていません。32 ビットのアプリと、ARM64 ネイティブのアプリには、この DLL は入りません。使う必要がなければ、既定の「IMM32 のみ」のままにしてください。</p>
 </blockquote>
+<h3 id="ime-2">IME の切り替え方</h3>
+<p>ヘルパー動作で IME を ON / OFF にする方法を、<strong>IME の切り替え方</strong> で選びます。<code>ime</code> の手順と、文字列の入力の「入力の間だけ IME を OFF」に効きます。IME 連動（レイヤーを立てる・下ろす）には関係しません。</p>
+<table>
+<thead>
+<tr>
+<th>選択</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>自動(既定)</td>
+<td>ふだんは IMM32 で切り替える。トレイが管理者として動いているときは、ドライバ経由で Alt+半角/全角を送る</td>
+</tr>
+<tr>
+<td>IME オン / オフ キー</td>
+<td>ON 用と OFF 用のキーを送る。日本語キーボードの配列で使える</td>
+</tr>
+<tr>
+<td>変換 / 無変換(Microsoft IME の設定が必要)</td>
+<td>変換で ON、無変換で OFF にする。Microsoft IME の「キーとタッチのカスタマイズ」で、変換に IME-オン、無変換に IME-オフを割り当ててから選ぶ。割り当てないと、変換が再変換として働く</td>
+</tr>
+<tr>
+<td>Alt+半角/全角で切り替え</td>
+<td>押すたびに入れ替わるキーを送る。今の状態を読めないアプリでは送らない</td>
+</tr>
+<tr>
+<td>IMM32</td>
+<td>キーを送らない</td>
+</tr>
+</tbody>
+</table>
+<p>詳しい動きは <a href="11-helper-apprules.html#ime-onoff">ヘルパー動作とアプリ別レイヤー</a> にあります。</p>
 <h2 id="nicola">NICOLA（親指シフト）</h2>
 <p>親指シフトを使う設定です。IME連動のタブを下へスクロールした部分にあります。</p>
 <p><img src="../img/ja/nicola-section.png" alt="NICOLA" /></p>

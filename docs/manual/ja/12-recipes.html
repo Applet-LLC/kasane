@@ -235,7 +235,8 @@
 </table>
 <p><code>KC_ZKHK</code> は、半角/全角キーです。<strong>NLS</strong> カテゴリの <strong>半/全</strong> を選び、修飾キーの <strong>左Alt</strong> にチェックを付けても、同じ割り当てになります。</p>
 <blockquote>
-<p>特定のキーを、IME オン、IME オフにしたいときは、そのキーを <code>KC_F13</code>、<code>KC_F14</code> などに置き換えて、IME 側の設定で対応してください。F13〜F24 は、物理のキーがなくても出せます（<a href="08-key-assign.html">8. キーの割り当て</a>）。IME の設定で、割り当てられるキーは、お使いの IME によって違います。</p>
+<p>あるキーで IME をオン、別のキーでオフにしたいときは、<strong>NLS</strong> カテゴリの <strong>IMEオン</strong>（<code>KC_LNG1</code>）と <strong>IMEオフ</strong>（<code>KC_LNG2</code>）を割り当てます。IME の設定は変えなくてかまいません。すでにオンのときに IMEオン を押しても、オンのままです（<a href="08-key-assign.html">8. キーの割り当て</a>）。</p>
+<p>Microsoft IME の「キーとタッチのカスタマイズ」で、変換に IME-オン、無変換に IME-オフを割り当てている場合は、変換（<code>KC_HENK</code>）と無変換（<code>KC_MHEN</code>）を割り当てても同じように使えます。この割り当てをしないまま変換を押すと、IME は再変換として扱います。</p>
 </blockquote>
 <h3 id="shiftcaps-lock-caps-lock">Shift+Caps Lock で、本来の Caps Lock にする</h3>
 <p>Caps Lock のキーに <code>LALT(KC_ZKHK)</code> を割り当てると、Shift を押しながらでも、同じ割り当てが働きます。Shift+Caps Lock を、本来の Caps Lock として使いたいときは、キー置換を足します。</p>

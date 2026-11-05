@@ -119,7 +119,7 @@
 </tr>
 <tr>
 <td>NLS</td>
-<td>半角/全角、ろ、かな、¥、変換、無変換（日本語キーボードのキー）</td>
+<td>半角/全角、ろ、かな、¥、変換、無変換（日本語キーボードのキー）、IME オン、IME オフ</td>
 </tr>
 <tr>
 <td>メディア・システム</td>
@@ -152,6 +152,7 @@
 </tbody>
 </table>
 <p>F13〜F24 や、NLS のキー、ブラウザーのキーなど、使っているキーボードに物理キーがないものも、出力としては割り当てられます。たとえば、US 配列のキーに「変換」を割り当てられます。</p>
+<p>NLS の <strong>IMEオン</strong> と <strong>IMEオフ</strong>（<code>KC_LNG1</code>、<code>KC_LNG2</code>）は、押すたびに入れ替わる半角/全角と違い、IME を ON か OFF のどちらかにします。Mac の「かな」「英数」キーと同じ使い方です。日本語キーボードの配列で使えます。QMK の名前（<code>KC_LANG1</code>、<code>KC_LANG2</code>、<code>KC_HAEN</code>、<code>KC_HANJ</code>）でも書けます。</p>
 <p>一覧にないキーは、キーコード欄に <code>SC_XXXX</code> と直接書けます。<code>XXXX</code> は 16 進 4 桁のスキャンコードです（上位 2 桁は <code>00</code>、<code>E0</code>、<code>E1</code> のいずれか。下位 2 桁は <code>00</code> 以外）。たとえば、ブラウザーの「戻る」は <code>SC_E06A</code> です。</p>
 <h3 id="section-2">電源キー</h3>
 <p>スリープ、電源、ウェイクアップのキーは、割り当てるときに確認が出ます。押すとパソコンがスリープやシャットダウンすることがあるためです。キートップにも ⚠ が付きます。</p>

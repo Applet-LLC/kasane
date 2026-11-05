@@ -24,8 +24,10 @@ public class ManualRecipeTokensTests
     [InlineData("KC_LBRC")]
     [InlineData("KC_ZKHK")]
     [InlineData("LALT(KC_ZKHK)")]
-    [InlineData("KC_F13")]
-    [InlineData("KC_F14")]
+    [InlineData("KC_LNG1")]
+    [InlineData("KC_LNG2")]
+    [InlineData("KC_HENK")]
+    [InlineData("KC_MHEN")]
     [InlineData("LCTL(KC_LALT)")]
     // テンキーのレイヤーの例
     [InlineData("TO(0)")]
