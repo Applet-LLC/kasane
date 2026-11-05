@@ -40,8 +40,9 @@ public static class KeycodeCatalog
             "KC_KP_1", "KC_KP_2", "KC_KP_3", "KC_KP_4", "KC_KP_5", "KC_KP_6", "KC_KP_7", "KC_KP_8", "KC_KP_9",
             "KC_KP_0", "KC_KP_DOT",
         }),
-        // NLS（National Language Support）キー: 日本語キーボードにあるキー（半角/全角・ろ・かな・¥・変換・無変換）。
-        new("NLS", new[] { "KC_ZKHK", "KC_RO", "KC_KANA", "KC_JYEN", "KC_HENK", "KC_MHEN" }),
+        // NLS（National Language Support）キー: 日本語キーボードにあるキー（半角/全角・ろ・かな・¥・変換・無変換）と、
+        // IME オン / IME オフ（KC_LNG1 / KC_LNG2。2026-11-05）。
+        new("NLS", new[] { "KC_ZKHK", "KC_RO", "KC_KANA", "KC_JYEN", "KC_HENK", "KC_MHEN", "KC_LNG1", "KC_LNG2" }),
         // ブラウザー・アプリ起動・電源のキーも、ここに並べる（2026-10-08。カテゴリの数を変えないため。
         // 表に名前の無いキーは、キーコード欄に SC_XXXX と書けば出力できる）。
         new(Loc.T("メディア・システム", "Media / System"), new[]
@@ -70,6 +71,7 @@ public static class KeycodeCatalog
         ["KC_NUMLOCK"] = "NumLk", ["KC_KP_SLASH"] = "P/", ["KC_KP_ASTERISK"] = "P*", ["KC_KP_MINUS"] = "P-",
         ["KC_KP_PLUS"] = "P+", ["KC_KP_ENTER"] = "PEnt", ["KC_KP_DOT"] = "P.",
         ["KC_RO"] = "ろ", ["KC_KANA"] = "かな", ["KC_JYEN"] = "¥", ["KC_HENK"] = "変換", ["KC_MHEN"] = "無変換",
+        ["KC_LNG1"] = "IMEオン", ["KC_LNG2"] = "IMEオフ",
         ["KC_MUTE"] = "Mute", ["KC_VOLD"] = "Vol-", ["KC_VOLU"] = "Vol+", ["KC_MPLY"] = "Play",
         ["KC_MSTP"] = "Stop", ["KC_MNXT"] = "Next", ["KC_MPRV"] = "Prev", ["KC_CALC"] = "Calc",
         ["KC_WSCH"] = "Search", ["KC_WHOM"] = "WebHome", ["KC_WBAK"] = "Back", ["KC_WFWD"] = "Fwd",
@@ -82,6 +84,7 @@ public static class KeycodeCatalog
     private static readonly Dictionary<string, string> EnglishShortNames = new(StringComparer.Ordinal)
     {
         ["KC_ZKHK"] = "Han/Zen", ["KC_RO"] = "Ro", ["KC_KANA"] = "Kana", ["KC_HENK"] = "Henkan", ["KC_MHEN"] = "Muhen",
+        ["KC_LNG1"] = "IME On", ["KC_LNG2"] = "IME Off",
     };
 
     private static string Localized(string canonicalToken, string japanese) =>

@@ -96,6 +96,9 @@ public static class KeycodeTable
         ("KC_JYEN", SC1(0x7D)), ("KC_INT3", SC1(0x7D)),
         ("KC_HENK", SC1(0x79)), ("KC_INT4", SC1(0x79)),
         ("KC_MHEN", SC1(0x7B)), ("KC_INT5", SC1(0x7B)),
+        // IME オン / IME オフ（USB の LANG1 / LANG2。日本語キーボードの配列で VK_IME_ON / VK_IME_OFF になる。2026-11-05）
+        ("KC_LNG1", SCE0(0xF2)), ("KC_LANG1", SCE0(0xF2)), ("KC_HAEN", SCE0(0xF2)),
+        ("KC_LNG2", SCE0(0xF1)), ("KC_LANG2", SCE0(0xF1)), ("KC_HANJ", SCE0(0xF1)),
         // ファンクションキー
         ("KC_F1", SC1(0x3B)), ("KC_F2", SC1(0x3C)), ("KC_F3", SC1(0x3D)), ("KC_F4", SC1(0x3E)),
         ("KC_F5", SC1(0x3F)), ("KC_F6", SC1(0x40)), ("KC_F7", SC1(0x41)), ("KC_F8", SC1(0x42)),
