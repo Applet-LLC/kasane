@@ -39,20 +39,22 @@ internal sealed class ImeController
     /// <summary>ドライバ経由で送れそうか（試さずに答える）。</summary>
     private readonly Func<bool> _driverUsable;
     private readonly bool _trayElevated;
-    private readonly Func<ImeSwitch> _imeSwitch;
+    private readonly Func<ImeSwitchSetting> _imeSwitch;
     /// <summary>ドライバ経由でキーを送る直前に呼ぶ（キーフックが、そのキーをトリガーとして拾わないように）。</summary>
     private readonly Action<ushort> _markSelfSent;
 
     // 変換 / 無変換を送っても IME が変わらなかった（Microsoft IME に割り当てが無い）。設定が変わったら、試し直す。
     private bool _henkanUnassigned;
-    private ImeSwitch _lastSwitch;
+    private int _lastGeneration;
+    // 直前の Run が、経路を試さずに飛ばした。
+    private bool _skipped;
 
     // OffRemember で覚えた、元の状態と、そのときの前面のウィンドウ（別のウィンドウに戻すと、無関係なアプリの IME を変えてしまう）。
     private bool? _saved;
     private IntPtr _savedWindow;
 
     public ImeController(Win32ImeSource imm, IImeSource state, Action<ushort, ushort, bool> sendVk,
-        Func<ushort, byte, bool>? sendScanThroughDriver, Func<bool> driverUsable, bool trayElevated, Func<ImeSwitch> imeSwitch, Action<ushort> markSelfSent)
+        Func<ushort, byte, bool>? sendScanThroughDriver, Func<bool> driverUsable, bool trayElevated, Func<ImeSwitchSetting> imeSwitch, Action<ushort> markSelfSent)
     {
         _imm = imm;
         _state = state;
@@ -111,18 +113,24 @@ internal sealed class ImeController
 
         bool driverUsable = _sendScanThroughDriver != null && _driverUsable();
         var setting = _imeSwitch();
-        if (setting != _lastSwitch) { _lastSwitch = setting; _henkanUnassigned = false; }
-        var routes = ImeRoutePlanner.Plan(method, setting, _trayElevated, driverUsable, current != null);
+        // 設定が変わった（トレイが tray.json を読み直して、別の値を見た）ら、変換 / 無変換の割り当ての判定を試し直す。
+        // 値ではなく変わった回数で比べる（「自動」にして IME を操作しないまま「変換 / 無変換」に戻しても、気づけるように）。
+        if (setting.Generation != _lastGeneration) { _lastGeneration = setting.Generation; _henkanUnassigned = false; }
+        var routes = ImeRoutePlanner.Plan(method, setting.Value, _trayElevated, driverUsable, current != null);
+        bool previousSkipped = false;
         for (int i = 0; i < routes.Count; i++)
         {
-            if (i > 0)
+            // 前の経路を試さずに飛ばした（割り当てが無いとみなした変換 / 無変換）ときは、「変えられなかった」とは書かない。
+            if (i > 0 && !previousSkipped)
                 TrayLog.Write(Loc.T($"IME: {RouteName(routes[i - 1])}で変えられなかったため、{RouteName(routes[i])}で試します",
                                     $"IME: {RouteName(routes[i - 1])} did not work, trying {RouteName(routes[i])}"));
+            _skipped = false;
             if (Run(routes[i], open, out string via))
             {
                 TrayLog.Write(Loc.T($"IME: {via}で {(open ? "ON" : "OFF")} にしました", $"IME: turned {(open ? "on" : "off")} via {via}"));
                 return true;
             }
+            previousSkipped = _skipped;
         }
         return false;
     }
@@ -212,7 +220,7 @@ internal sealed class ImeController
     {
         string name = RouteName(henkan ? ImeRoute.HenkanKey : ImeRoute.ImeOnOffKey);
         via = name;
-        if (henkan && _henkanUnassigned) return false; // 割り当てが無いとみなしている（次の IMM32 で変える）
+        if (henkan && _henkanUnassigned) { _skipped = true; return false; } // 割り当てが無いとみなしている（次の IMM32 で変える）
         if (ReadOpen() == open) return true;
         ushort scan = henkan ? (open ? ScanHenkan : ScanMuhenkan) : (open ? ScanImeOn : ScanImeOff);
         if (_trayElevated && _driverUsable() && SendThroughDriver(scan, 0))
@@ -228,8 +236,8 @@ internal sealed class ImeController
             // 設定の「IME の切り替え方」が変わるか、トレイを起動し直すまで、変換 / 無変換を送らない。割り当てが無いと、変換は再変換として働き、
             // 入力済みの文字を変換中の文字に取り込んでしまう（2026-11-05 の試験。Text の「元に戻す」で起きた）。
             _henkanUnassigned = true;
-            TrayLog.Write(Loc.T("IME: 変換/無変換で IME が変わらなかったため、Microsoft IME に割り当てが無いとみなし、以後は変換/無変換を送りません(IMM32 で変えます)。割り当てたあとは、トレイを起動し直してください",
-                                "IME: Henkan/Muhenkan did not change the IME, so they are treated as unassigned in Microsoft IME and are no longer sent (IMM32 is used). After assigning them, restart the tray"));
+            TrayLog.Write(Loc.T("IME: 変換/無変換で IME が変わらなかったため、Microsoft IME に割り当てが無いとみなし、以後は変換/無変換を送りません(IMM32 で変えます)。割り当てたあとは、設定の「IME の切り替え方」を選び直すか(ほかのものにして OK したあと、戻して OK)、トレイを起動し直してください",
+                                "IME: Henkan/Muhenkan did not change the IME, so they are treated as unassigned in Microsoft IME and are no longer sent (IMM32 is used). After assigning them, choose \"How to switch the IME\" again (change it, click OK, then change it back and click OK) or restart the tray"));
         }
         return ok;
     }

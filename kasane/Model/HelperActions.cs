@@ -36,6 +36,12 @@ public enum ImeSwitch
     Imm,
 }
 
+/// <summary>
+/// トレイが読んだ <see cref="ImeSwitch"/> と、値が変わった回数（<paramref name="Generation"/>）。回数は、設定を選び直したことに
+/// 気づくために使う（変換 / 無変換の割り当ての判定を、試し直す）。
+/// </summary>
+public readonly record struct ImeSwitchSetting(ImeSwitch Value, int Generation);
+
 public static class ImeSwitches
 {
     /// <summary>名前から。無い・知らない名前は既定（Auto）。大文字小文字は区別しない。</summary>

@@ -39,7 +39,7 @@ public sealed class ActionRunner : IDisposable
     /// <param name="createImeSource">IME の状態の取得元を作る（設定の取得方法に従うもの。引数は、このスレッド用の IMM32 の取得元）。</param>
     /// <param name="imeSwitch">ヘルパー動作の IME の切り替え方（設定。どのスレッドから呼んでもよい）。</param>
     public ActionRunner(Func<HelperActionBody, bool> allow, Action<LayerRequest> layer, Action togglePause,
-        Func<Win32ImeSource, IImeSource> createImeSource, Func<ImeSwitch> imeSwitch)
+        Func<Win32ImeSource, IImeSource> createImeSource, Func<ImeSwitchSetting> imeSwitch)
     {
         _allow = allow;
         _env = new Win32ActionEnvironment(_cts.Token, layer, togglePause, () => PhysicalKeys?.Invoke() ?? 0, createImeSource, imeSwitch, scan => SelfSentKey?.Invoke(scan));
@@ -114,7 +114,7 @@ internal sealed class Win32ActionEnvironment : IActionEnvironment
     private readonly DriverKeyInjector _driverKey = new();
 
     public Win32ActionEnvironment(CancellationToken token, Action<LayerRequest> layer, Action togglePause, Func<byte> physicalKeys,
-        Func<Win32ImeSource, IImeSource> createImeSource, Func<ImeSwitch> imeSwitch, Action<ushort> selfSentKey)
+        Func<Win32ImeSource, IImeSource> createImeSource, Func<ImeSwitchSetting> imeSwitch, Action<ushort> selfSentKey)
     {
         // IMM32 の取得元は、このスレッド専用（Win32ImeSource は、プロセス名の覚えをスレッド間で共有できない）。
         var imm = new Win32ImeSource();

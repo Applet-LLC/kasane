@@ -64,7 +64,9 @@ public sealed class ImeLinkHost : IDisposable
     private readonly ImeSourceSelector _imeSource;
     // ほかのスレッド（ヘルパー動作）用に作った取得元。設定の取得方法とフックを、ここから同じように入れる。_extraSources を lock して触る。
     private readonly List<(TsfSiriusImeSource Tsf, ImeSourceSelector Selector)> _extraSources = new();
-    private volatile int _imeSwitch = (int)Kasane.Model.ImeSwitch.Auto;
+    // ヘルパー動作の IME の切り替え方。下位 4 ビットが ImeSwitch、上位が値の変わった回数（1 つの int にして、読む側で値と回数が食い違わないように）。
+    // 書くのは UI スレッドだけ。
+    private int _imeSwitchState;
     private SiriusHook? _siriusHook;
     private Kasane.Model.ImeSourceMode _imeSourceMode = Kasane.Model.ImeSourceMode.Imm32;
     private bool _siriusFailed; // 入れられなかった（DLL が無いなど）。設定が変わるまで、数秒ごとに試し直さない
@@ -87,7 +89,7 @@ public sealed class ImeLinkHost : IDisposable
         var imm = new Win32ImeSource();
         _tsfSource = new TsfSiriusImeSource(imm);
         _imeSource = new ImeSourceSelector(imm, _tsfSource, TrayLog.Write, imm.ForegroundLabel);
-        _imeSwitch = (int)config.ImeSwitchValue;
+        SetImeSwitch(config.ImeSwitchValue);
         ApplyImeSource(config);
 
         _service = new ImeLinkService(
@@ -175,15 +177,30 @@ public sealed class ImeLinkHost : IDisposable
         _nicolaLink = config.ImeLink;
         bool reloaded = Store.Reload(config);
         _enabled = Store.Current.AnyNicolaLink(_nicolaLink) || Store.Current.HasAnyImeLayerLink;
-        _imeSwitch = (int)config.ImeSwitchValue;
+        SetImeSwitch(config.ImeSwitchValue);
         ApplyImeSource(config);
         if (!reloaded) return false;
         _service.Poke();
         return true;
     }
 
-    /// <summary>ヘルパー動作の IME の切り替え方（tray.json の ImeSwitch。どのスレッドから読んでもよい）。</summary>
-    public Kasane.Model.ImeSwitch ImeSwitch => (Kasane.Model.ImeSwitch)_imeSwitch;
+    /// <summary>ヘルパー動作の IME の切り替え方（tray.json の ImeSwitch）と、値が変わった回数。どのスレッドから読んでもよい。</summary>
+    public Kasane.Model.ImeSwitchSetting ImeSwitch
+    {
+        get
+        {
+            int state = Volatile.Read(ref _imeSwitchState);
+            return new((Kasane.Model.ImeSwitch)(state & 0xF), state >> 4);
+        }
+    }
+
+    // tray.json を読み直したとき（UI スレッド）。値が前と違えば、変わった回数を 1 つ増やす。
+    private void SetImeSwitch(Kasane.Model.ImeSwitch value)
+    {
+        int state = Volatile.Read(ref _imeSwitchState);
+        if ((state & 0xF) == (int)value) return;
+        Volatile.Write(ref _imeSwitchState, ((state >> 4) + 1) << 4 | (int)value);
+    }
 
     /// <summary>
     /// ほかのスレッド（ヘルパー動作の実行）で使う、IME の状態の取得元を作る（UI スレッド）。設定の取得方法（IMM32 のみ / IMM32 を先に / TSF を先に）に従い、
