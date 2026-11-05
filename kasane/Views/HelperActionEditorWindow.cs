@@ -42,7 +42,7 @@ public sealed class HelperActionEditorWindow : Window
     private static readonly string[] ImeMethods = { "Auto", "Imm", "Tsf", "Key", "AltKanji" };
     private static string[] ImeMethodLabels => new[]
     {
-        Loc.T("自動(IMM32、だめなら IME キー)", "Auto (IMM32, then the IME key)"),
+        Loc.T("自動", "Automatic"),
         Loc.T("IMM32 に固定", "IMM32 only"),
         Loc.T("TSF に固定(実験的)", "TSF only (experimental)"),
         Loc.T("IME キーに固定", "IME key only"),
@@ -70,6 +70,8 @@ public sealed class HelperActionEditorWindow : Window
     private readonly ComboBox _imeMethod = new() { Name = "ActionImeMethod", Width = 300 };
     private readonly CheckBox _imeAbort = new() { Name = "ActionImeAbort", Content = Loc.T("IME を OFF にできなかったときは、入力しない", "Don't type if the IME can't be turned off"), Margin = new Thickness(0, 4, 0, 0) };
     private readonly StackPanel _imeOptions = new();
+    // 方式の欄。以前の設定で方式を固定しているときだけ出す（2026-11-05。ふだんは自動だけで、選ばせない）。
+    private readonly StackPanel _imeMethodRow = new() { Visibility = Visibility.Collapsed };
     private readonly CheckBox[] _layers = new CheckBox[16];
     private readonly ComboBox _layerOp = new() { Name = "ActionLayerOp", Width = 300 };
     private readonly CheckBox _repeat = new() { Name = "ActionRepeat", Content = Loc.T("キーを押し続けたとき(オートリピート)も繰り返す", "Repeat while the key is held down (auto-repeat)"), Margin = new Thickness(0, 8, 0, 0) };
@@ -162,7 +164,8 @@ public sealed class HelperActionEditorWindow : Window
              "  move 10 -5 / moveto 100 200   マウスを動かす(今の位置から / 画面の座標へ)\n" +
              "  wheel -120 / hwheel 120   ホイール(120 で1ノッチ)\n" +
              "  ime off / ime on / ime toggle   IME を OFF / ON / 切り替え(今の状態を見て、違うときだけ変えます)\n" +
-             "  ime off key / ime on tsf abort   方式を固定(imm tsf key altkanji。書かなければ自動)。abort は、失敗したら残りをやめる\n" +
+             "  ime off abort   IME を変えられなかったら、この動作の残りをやめる\n" +
+             "  IME の切り替え方は、設定の「IME連動」タブで選べます。切り替わらないアプリでは、ime の代わりに vk IME_ON / vk IME_OFF も試せます。\n" +
              "# で始まる行は無視します。\n" +
              "欄の上のボタンで、キー名(キーを押して挿入／選んで挿入)やマウス操作を、カーソルのある行の次に1行挿入できます。"),
             ("One step per line. Syntax:\n" +
@@ -175,7 +178,8 @@ public sealed class HelperActionEditorWindow : Window
              "  move 10 -5 / moveto 100 200   Move the mouse (from the current position / to screen coordinates)\n" +
              "  wheel -120 / hwheel 120   Wheel (120 = one notch)\n" +
              "  ime off / ime on / ime toggle   Turn the IME off / on / toggle it (changed only if the current state differs)\n" +
-             "  ime off key / ime on tsf abort   Fix the method (imm tsf key altkanji; automatic if omitted). abort stops the rest if it fails\n" +
+             "  ime off abort   Stop the rest of this action if the IME can't be changed\n" +
+             "  How the IME is switched can be chosen on the IME link tab in Settings. If an app's IME doesn't switch, you can also try vk IME_ON / vk IME_OFF instead of ime.\n" +
              "Lines starting with # are ignored.\n" +
              "The buttons above the box insert one line after the cursor line: a key name (press a key to insert / pick one to insert) or a mouse action."))));
         _sequencePanel.Children.Add(new TextBlock { Text = Loc.T("キーを押したときの手順:", "Steps when the key is pressed:"), Margin = new Thickness(0, 4, 0, 2) });
@@ -197,10 +201,14 @@ public sealed class HelperActionEditorWindow : Window
         _textPanel.Children.Add(_imeOff);
         foreach (var label in ImeMethodLabels) _imeMethod.Items.Add(label);
         _imeOptions.Margin = new Thickness(20, 0, 0, 0);
-        _imeOptions.Children.Add(Row(Loc.T("IME の方式", "IME method"), _imeMethod));
         _imeOptions.Children.Add(Help(Loc.T(
-            "「固定」にした方式は、失敗しても別の方式に切り替えません。IME が OFF のときは、何も変えません。",
-            "A method set to \"only\" is not replaced by another one if it fails. If the IME is already off, nothing is changed.")));
+            "IME がすでに OFF なら、何も変えません。",
+            "If the IME is already off, nothing is changed.")));
+        _imeMethodRow.Children.Add(Row(Loc.T("IME の方式", "IME method"), _imeMethod));
+        _imeMethodRow.Children.Add(Help(Loc.T(
+            "以前の設定で、方式を固定しています。固定した方式は、失敗しても別の方式に切り替えません。「自動」にして保存すると、次からこの欄は出ません。",
+            "An earlier setting fixes the method. A fixed method is not replaced by another one if it fails. If you choose \"Automatic\" and save, this field no longer appears.")));
+        _imeOptions.Children.Add(_imeMethodRow);
         _imeOptions.Children.Add(_imeAbort);
         _textPanel.Children.Add(_imeOptions);
 
@@ -284,6 +292,7 @@ public sealed class HelperActionEditorWindow : Window
         _imeOff.IsChecked = body.ImeOffDuring;
         int method = Array.FindIndex(ImeMethods, o => string.Equals(o, body.ImeMethod, StringComparison.OrdinalIgnoreCase));
         _imeMethod.SelectedIndex = method < 0 ? 0 : method;
+        _imeMethodRow.Visibility = method > 0 ? Visibility.Visible : Visibility.Collapsed;
         _imeAbort.IsChecked = string.Equals(body.ImeOnFail, "abort", StringComparison.OrdinalIgnoreCase);
         _imeOptions.IsEnabled = body.ImeOffDuring;
     }

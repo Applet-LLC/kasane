@@ -33,10 +33,16 @@ public sealed class ActionRunner : IDisposable
     /// <summary>物理的に押している修飾キー（キーフックが追う）。隠した修飾キーを戻すかの判断に使う。フックを作ったあとに設定する。</summary>
     public Func<byte>? PhysicalKeys { get; set; }
 
-    public ActionRunner(Func<HelperActionBody, bool> allow, Action<LayerRequest> layer, Action togglePause)
+    /// <summary>ドライバ経由でキーを送る直前に呼ぶ（キーフックが、そのキーをトリガーとして拾わないように）。フックを作ったあとに設定する。</summary>
+    public Action<ushort>? SelfSentKey { get; set; }
+
+    /// <param name="createImeSource">IME の状態の取得元を作る（設定の取得方法に従うもの。引数は、このスレッド用の IMM32 の取得元）。</param>
+    /// <param name="imeSwitch">ヘルパー動作の IME の切り替え方（設定。どのスレッドから呼んでもよい）。</param>
+    public ActionRunner(Func<HelperActionBody, bool> allow, Action<LayerRequest> layer, Action togglePause,
+        Func<Win32ImeSource, IImeSource> createImeSource, Func<ImeSwitchSetting> imeSwitch)
     {
         _allow = allow;
-        _env = new Win32ActionEnvironment(_cts.Token, layer, togglePause, () => PhysicalKeys?.Invoke() ?? 0);
+        _env = new Win32ActionEnvironment(_cts.Token, layer, togglePause, () => PhysicalKeys?.Invoke() ?? 0, createImeSource, imeSwitch, scan => SelfSentKey?.Invoke(scan));
         _thread = new Thread(Loop) { IsBackground = true, Name = "kasane-actions" };
         _thread.Start();
     }
@@ -107,9 +113,16 @@ internal sealed class Win32ActionEnvironment : IActionEnvironment
     private readonly ImeController _ime;
     private readonly DriverKeyInjector _driverKey = new();
 
-    public Win32ActionEnvironment(CancellationToken token, Action<LayerRequest> layer, Action togglePause, Func<byte> physicalKeys)
+    public Win32ActionEnvironment(CancellationToken token, Action<LayerRequest> layer, Action togglePause, Func<byte> physicalKeys,
+        Func<Win32ImeSource, IImeSource> createImeSource, Func<ImeSwitchSetting> imeSwitch, Action<ushort> selfSentKey)
     {
-        _ime = new ImeController(new Win32ImeSource(), SendVirtualKey, _driverKey.TrySend);
+        // IMM32 の取得元は、このスレッド専用（Win32ImeSource は、プロセス名の覚えをスレッド間で共有できない）。
+        var imm = new Win32ImeSource();
+        bool elevated = Environment.IsPrivilegedProcess;
+        _ime = new ImeController(imm, createImeSource(imm), SendVirtualKey, _driverKey.TrySend, () => _driverKey.CanTry, elevated, imeSwitch, selfSentKey);
+        TrayLog.Write(elevated
+            ? Loc.T("IME: トレイは管理者として動いています(ヘルパー動作が IME を切り替えるキーは、ドライバ経由で送ります)", "IME: The tray is running as administrator (keys that helper actions send to switch the IME go through the driver)")
+            : Loc.T("IME: トレイは通常の権限で動いています(ヘルパー動作が IME を切り替えるキーは、SendInput で送ります)", "IME: The tray is running with normal rights (keys that helper actions send to switch the IME use SendInput)"));
         _physicalKeys = physicalKeys;
         _token = token;
         _layer = layer;

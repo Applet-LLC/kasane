@@ -24,6 +24,12 @@ internal sealed class DriverKeyInjector
 
     public DriverKeyInjector(Func<DateTime>? now = null) => _now = now ?? (() => DateTime.UtcNow);
 
+    /// <summary>
+    /// 送れそうか（<see cref="TrySend"/> が、試さずに false を返す状態でないか）。まだ試していない・前回送れた・再試行の時間が来た、なら true。
+    /// true でも、実際に送れるとは限らない（送る前に IOCTL を出すことはしない）。
+    /// </summary>
+    public bool CanTry => Status is InjectorStatus.Unknown or InjectorStatus.Available || _now() >= _retryAt;
+
     /// <summary>修飾キー（KBDLAYER_MOD_*）を押したまま、キー（Enc16）を1回押して離す。送れたら true。</summary>
     public bool TrySend(ushort scanCode, byte mods)
     {

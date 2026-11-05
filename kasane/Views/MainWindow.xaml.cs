@@ -109,7 +109,9 @@ public partial class MainWindow : Window
 
     private void BtnRestartAsAdmin_Click(object sender, RoutedEventArgs e)
     {
-        if (!PersistBeforeLeave()) return;
+        // 閉じる前の確認は、新しいプロセスを起こす前に済ませる（起こしてから確かめると、新しい側は元のプロセスの終了を
+        // 15 秒しか待たないので、利用者が確認に答える前に諦めて終わる）。
+        if (!ConfirmLeave()) return;
         try
         {
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
@@ -127,6 +129,7 @@ public partial class MainWindow : Window
             if (ex.NativeErrorCode != 1223) SetStatus(Loc.T($"管理者として起動できませんでした: {ex.Message}", $"Could not start as administrator: {ex.Message}"));
             return;
         }
+        _leaveConfirmed = true;
         Close();
     }
 
@@ -716,7 +719,7 @@ public partial class MainWindow : Window
             Loc.T("表示言語の変更は、再起動後に効きます。今すぐ kasane を再起動しますか？\n(トレイは、数秒後に自動で再起動します)",
                   "The display language change takes effect after a restart. Restart kasane now?\n(The tray restarts automatically in a few seconds.)"),
             DialogCaption, MessageBoxButton.YesNo, MessageBoxImage.Question);
-        if (r != MessageBoxResult.Yes || !PersistBeforeLeave()) return;
+        if (r != MessageBoxResult.Yes || !ConfirmLeave()) return; // 確認は、新しいプロセスを起こす前に済ませる（BtnRestartAsAdmin_Click と同じ理由）
         try
         {
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
@@ -725,6 +728,7 @@ public partial class MainWindow : Window
                 Arguments = $"{Kasane.Interop.SingleInstance.WaitPidArgument} {Environment.ProcessId}",
                 UseShellExecute = true,
             });
+            _leaveConfirmed = true;
             Application.Current.Shutdown();
         }
         catch (System.ComponentModel.Win32Exception ex)
@@ -1026,19 +1030,27 @@ public partial class MainWindow : Window
         return TrySaveProject(out string? error) || ConfirmDiscardAfterSaveFailure(error);
     }
 
+    // 閉じる前の確認（ConfirmLeave）を済ませて、再起動のために閉じるところ。Window_Closing で、もう一度は聞かない。
+    private bool _leaveConfirmed;
+
     private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (!_leaveConfirmed && !ConfirmLeave()) { e.Cancel = true; return; }
+        _client?.Dispose();
+    }
+
+    /// <summary>
+    /// 閉じる前の確認をまとめて行う。開いている編集画面、保存していない変更、キーボードに反映していない設定。閉じてよければ true。
+    /// </summary>
+    private bool ConfirmLeave()
     {
         // 編集画面が開いていれば、閉じると「適用」していない内容が捨てられることを確かめる。
         if ((_editors.Count > 0 || _keyAssign != null) &&
             MessageBox.Show(this, Loc.T("編集画面が開いています。閉じると、「適用」していない編集内容は捨てられます。\n閉じますか？",
                 "An editor is open. If you close, edits you have not applied will be discarded.\nClose?"),
                 DialogCaption, MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK)
-        {
-            e.Cancel = true;
-            return;
-        }
-        if (!PersistBeforeLeave() || !ConfirmUnapplied()) { e.Cancel = true; return; }
-        _client?.Dispose();
+            return false;
+        return PersistBeforeLeave() && ConfirmUnapplied();
     }
 
     /// <summary>閉じる前に、保存したがキーボードに反映していない設定について確かめる。閉じてよければ true。</summary>

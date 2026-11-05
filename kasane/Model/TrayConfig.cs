@@ -31,6 +31,17 @@ public sealed class TrayConfig
     public ImeSourceMode ImeSourceMode => ImeSourceModes.Parse(ImeSource);
 
     /// <summary>
+    /// ヘルパー動作の IME の切り替え方（<see cref="Model.ImeSwitch"/> の名前。Auto / ImeKeys / Henkan / Toggle / Imm。2026-11-05）。
+    /// null（既定）は Auto。方式を書かない ime と、Text の「入力の間だけ IME を OFF」に効く。設定の「IME連動」タブで選ぶ。
+    /// </summary>
+    [JsonPropertyName("ImeSwitch")]
+    public string? ImeSwitchName { get; set; }
+
+    /// <summary><see cref="ImeSwitchName"/> を解釈したもの（保存はしない）。</summary>
+    [JsonIgnore]
+    public ImeSwitch ImeSwitchValue => ImeSwitches.Parse(ImeSwitchName);
+
+    /// <summary>
     /// 色のモード（<see cref="Model.ColorMode"/> の名前。Light / Dark。2026-10-21）。既定は Light。kasane の全画面・トレイのメニューとバージョン情報・ライセンス管理に効く。
     /// 無い・読めない値は既定。設定の「全般」タブで選ぶ。
     /// </summary>

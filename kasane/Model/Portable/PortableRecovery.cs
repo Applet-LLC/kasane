@@ -46,6 +46,7 @@ public static class RecoveryExporter
         recovery.TraySettings = new PortableTraySettings
         {
             ImeSource = tray.ImeSource,
+            ImeSwitch = tray.ImeSwitchValue.ToString(),
             ColorMode = tray.ColorModeName,
             UiLanguage = tray.UiLanguageName,
             ShowLayerOnIcon = tray.ShowLayerOnIcon,
@@ -161,6 +162,8 @@ public static class RecoveryImporter
                 string path = PortableService.TrayPath(baseDirectory);
                 var tray = TrayConfig.Load(path);
                 if (t.ImeSource != null && Enum.TryParse<ImeSourceMode>(t.ImeSource, out _)) tray.ImeSource = t.ImeSource;
+                if (t.ImeSwitch != null && Enum.TryParse<ImeSwitch>(t.ImeSwitch, ignoreCase: true, out var imeSwitch) && Enum.IsDefined(imeSwitch))
+                    tray.ImeSwitchName = imeSwitch == ImeSwitch.Auto ? null : imeSwitch.ToString(); // 既定は書かない
                 if (t.ColorMode != null && Enum.TryParse<ColorMode>(t.ColorMode, out _)) tray.ColorModeName = t.ColorMode;
                 if (t.UiLanguage != null && Enum.TryParse<UiLanguage>(t.UiLanguage, out _)) tray.UiLanguageName = t.UiLanguage;
                 if (t.ShowLayerOnIcon is bool show) tray.ShowLayerOnIcon = show;

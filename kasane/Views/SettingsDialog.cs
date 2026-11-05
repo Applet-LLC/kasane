@@ -52,6 +52,7 @@ public sealed class SettingsDialog : Window
     private bool _globalNicolaLink; // 全キーボード共通の、NICOLAのIME連動（tray.json の ImeLink。OK のとき保存）
     private CheckBox _showLayerOnIcon = null!;
     private ComboBox _imeSourceBox = null!; // IME の状態の取得方法（tray.json の ImeSource）
+    private ComboBox _imeSwitchBox = null!; // ヘルパー動作の IME の切り替え方（tray.json の ImeSwitch）
     private ComboBox _languageBox = null!;  // 表示言語（tray.json の UiLanguage）。変更は再起動後に効く。
     /// <summary>表示言語を変えて保存した。呼び出し側が、再起動を案内する。</summary>
     public bool LanguageChanged { get; private set; }
@@ -277,6 +278,13 @@ public sealed class SettingsDialog : Window
         return row;
     }
 
+    // 説明が長い行用。説明を欄の右ではなく下に置き、ラベルの幅だけ字下げして折り返す（右に置くと、ダイアログの幅を超えて切れる）。
+    private static void RowHelpBelow(Panel parent, string label, UIElement input, string help, double labelWidth = 120)
+    {
+        Row(parent, label, input, labelWidth: labelWidth);
+        parent.Children.Add(new TextBlock { Text = help, Margin = new Thickness(labelWidth, 2, 0, 4), Foreground = AppTheme.Palette.SubText, TextWrapping = TextWrapping.Wrap });
+    }
+
     private static TextBlock Status(string name) =>
         new() { Name = name, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) };
 
@@ -421,7 +429,10 @@ public sealed class SettingsDialog : Window
         var root = new StackPanel();
         root.Children.Add(new TextBlock { Text = Loc.T("IME の ON/OFF とレイヤーの連動", "IME on/off and layer link"), FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 6) });
         root.Children.Add(new ImeLayerTab(_helper, this).Root);
+        root.Children.Add(new Separator { Margin = new Thickness(0, 14, 0, 10) });
+        root.Children.Add(new TextBlock { Text = Loc.T("IME の状態の読み取りと切り替え", "Reading and switching the IME state"), FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 6) });
         root.Children.Add(BuildImeSourceRow());
+        root.Children.Add(BuildImeSwitchRow());
         root.Children.Add(new Separator { Margin = new Thickness(0, 14, 0, 10) });
         root.Children.Add(new TextBlock { Text = Loc.T("NICOLA(親指シフト)", "NICOLA (thumb shift)"), FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 6) });
         root.Children.Add(BuildNicolaTab());
@@ -441,13 +452,46 @@ public sealed class SettingsDialog : Window
     {
         var panel = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
         _imeSourceBox = new ComboBox { Name = "ImeSourceBox", Width = 360, ItemsSource = ImeSourceLabels, SelectedIndex = (int)_trayConfig.ImeSourceMode };
-        Row(panel, Loc.T("IME の状態の取得方法", "How to get the IME state"), _imeSourceBox,
-            Loc.T(("既定の「IMM32 のみ」で、多くのアプリに対応できます。TSF だけのアプリなどを補いたいときだけ、TSF を選びます。" +
-                   "TSF を選ぶと、DLL(sirius_hook)が読んだ値を使います。Explorer を開くのが遅く感じられることがあります。「IMM32 のみ」では、この DLL を使いません。" +
+        RowHelpBelow(panel, Loc.T("IME の状態の取得方法", "How to get the IME state"), _imeSourceBox,
+            Loc.T(("IME 連動と、ヘルパー動作の IME 操作(ime の手順、文字列の入力の「入力の間だけ IME を OFF」)の両方で使います。" +
+                   "既定の「IMM32 のみ」で、多くのアプリの状態を読めます。TSF にしか対応していないアプリを補いたいときだけ、TSF を含むものを選んでください。" +
+                   "TSF を選ぶと、DLL(sirius_hook)を各アプリに読み込ませて、その値を使います。Explorer を開くのが遅く感じられることがあります。「IMM32 のみ」では、この DLL を使いません。" +
                    "OK で保存すると、数秒でトレイに反映されます。"),
-                  ("The default, \"IMM32 only\", works with most apps. Choose TSF only to cover apps that support TSF alone. " +
-                   "With TSF, the values read by a DLL (sirius_hook) are used, and opening Explorer may feel slower. \"IMM32 only\" doesn't use this DLL. " +
+                  ("Used both by the IME link and by the IME operations of helper actions (ime steps, and \"Turn the IME off while typing\" in text input). " +
+                   "The default, \"IMM32 only\", reads the state in most apps. Choose an option with TSF only to cover apps that support TSF alone. " +
+                   "With TSF, a DLL (sirius_hook) is loaded into each app and its values are used, and opening Explorer may feel slower. \"IMM32 only\" doesn't use this DLL. " +
                    "After you save with OK, the tray picks up the change within a few seconds.")),
+            labelWidth: 170);
+        return panel;
+    }
+
+    // ヘルパー動作の IME の切り替え方（ImeSwitch の順。Auto / ImeKeys / Henkan / Toggle / Imm）。
+    private static string[] ImeSwitchLabels => new[]
+    {
+        Loc.T("自動(既定)", "Automatic (default)"),
+        Loc.T("IME オン / オフ キー", "IME on / IME off keys"),
+        Loc.T("変換 / 無変換(Microsoft IME の設定が必要)", "Henkan / Muhenkan (needs a Microsoft IME setting)"),
+        Loc.T("Alt+半角/全角で切り替え", "Toggle with Alt+Hankaku/Zenkaku"),
+        Loc.T("IMM32", "IMM32"),
+    };
+
+    private UIElement BuildImeSwitchRow()
+    {
+        var panel = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
+        _imeSwitchBox = new ComboBox { Name = "ImeSwitchBox", Width = 360, ItemsSource = ImeSwitchLabels, SelectedIndex = (int)_trayConfig.ImeSwitchValue };
+        RowHelpBelow(panel, Loc.T("IME の切り替え方", "How to switch the IME"), _imeSwitchBox,
+            Loc.T(("ヘルパー動作で IME を ON / OFF にする方法です(ime の手順と、文字列の入力の「入力の間だけ IME を OFF」)。\n" +
+                   "・自動: ふだんは IMM32 で切り替えます。トレイが管理者として動いているときは、ドライバ経由で Alt+半角/全角を送ります。\n" +
+                   "・IME オン / オフ キー: ON 用と OFF 用のキーを送ります。日本語キーボードの配列で使えます。OS の設定は要りません。\n" +
+                   "・変換 / 無変換: 変換で ON、無変換で OFF にします。Windows の設定の Microsoft IME の「キーとタッチのカスタマイズ」で、変換に IME-オン、無変換に IME-オフを割り当ててから選んでください。割り当てないと、変換が再変換として働き、入力済みの文字が変換の対象になることがあります。\n" +
+                   "・Alt+半角/全角で切り替え: 今の状態を読めないアプリでは送りません。\n" +
+                   "キーを送っても変わらなかったときは、IMM32 で変えます。トレイが管理者として動いているときはキーをドライバ経由で送るので、管理者として動くウィンドウにも届きます。"),
+                  ("How helper actions turn the IME on or off (ime steps, and \"Turn the IME off while typing\" in text input).\n" +
+                   "- Automatic: uses IMM32 normally. While the tray runs as administrator, sends Alt+Hankaku/Zenkaku through the driver.\n" +
+                   "- IME on / IME off keys: sends a key for on and a key for off. Works with the Japanese keyboard layout; no OS setting is needed.\n" +
+                   "- Henkan / Muhenkan: Henkan turns it on and Muhenkan off. First assign IME-On to Henkan and IME-Off to Muhenkan under Microsoft IME > Key and touch customization in Windows Settings. Without this, Henkan works as reconversion and may pull text you already typed into conversion.\n" +
+                   "- Toggle with Alt+Hankaku/Zenkaku: not sent to apps whose IME state can't be read.\n" +
+                   "If the key doesn't change the IME, IMM32 is used. While the tray runs as administrator, keys are sent through the driver, so they also reach windows that run as administrator.")),
             labelWidth: 170);
         return panel;
     }
@@ -1216,17 +1260,20 @@ public sealed class SettingsDialog : Window
         bool remapOnlyWhileTray = _remapOnlyWhileTray.IsChecked == true;
         int? desktopView = SelectedDesktopViewMode();
         string imeSource = ((ImeSourceMode)Math.Max(0, _imeSourceBox.SelectedIndex)).ToString();
+        var imeSwitch = (ImeSwitch)Math.Max(0, _imeSwitchBox.SelectedIndex);
+        bool imeSwitchChanged = imeSwitch != _trayConfig.ImeSwitchValue;
         string colorMode = ((ColorMode)Math.Max(0, _colorModeBox.SelectedIndex)).ToString();
         bool colorChanged = colorMode != _trayConfig.ColorModeName;
         string language = ((UiLanguage)Math.Max(0, _languageBox.SelectedIndex)).ToString();
         bool languageChanged = language != _trayConfig.UiLanguageName;
-        if (languageChanged || colorChanged || imeSource != _trayConfig.ImeSource || imeLink != _trayConfig.ImeLink || showLayer != _trayConfig.ShowLayerOnIcon || remapOnlyWhileTray != _trayConfig.RemapOnlyWhileTrayRuns
+        if (languageChanged || colorChanged || imeSwitchChanged || imeSource != _trayConfig.ImeSource || imeLink != _trayConfig.ImeLink || showLayer != _trayConfig.ShowLayerOnIcon || remapOnlyWhileTray != _trayConfig.RemapOnlyWhileTrayRuns
             || desktopView != _trayConfig.DesktopViewMode)
         {
             try
             {
                 _trayConfig.DesktopViewMode = desktopView;
                 _trayConfig.ImeSource = imeSource;
+                if (imeSwitchChanged) _trayConfig.ImeSwitchName = imeSwitch == ImeSwitch.Auto ? null : imeSwitch.ToString(); // 既定は書かない
                 _trayConfig.ColorModeName = colorMode;
                 _trayConfig.UiLanguageName = language;
                 _trayConfig.ImeLink = imeLink;

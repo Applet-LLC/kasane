@@ -87,7 +87,7 @@ kasane の設定が、どこに・何として保存されているか、バッ�
 - 実測値（`MeasuredScanCodes`）は、バックアップのとき（同じ機器へ戻すとき）だけ含める。
 
 - 復旧用の設定（`Recovery`。全体一括のとき、利用者が「復旧用の設定も含める」を選んだときだけ。同じ PC への復元向け。レイヤーだけ・このキーボードだけの書き出しには入れない）:
-  - `TraySettings`: トレイの設定のうち、`ImeLink` と共通のヘルパー設定以外（`ImeSource`・`ColorMode`・`UiLanguage`・`ShowLayerOnIcon`・`RemapOnlyWhileTrayRuns`・`DesktopViewMode`）。
+  - `TraySettings`: トレイの設定のうち、`ImeLink` と共通のヘルパー設定以外（`ImeSource`・`ImeSwitch`・`ColorMode`・`UiLanguage`・`ShowLayerOnIcon`・`RemapOnlyWhileTrayRuns`・`DesktopViewMode`）。
   - `EmergencyRelease`: 緊急解除の組み合わせ（スキャンコード。ドライバ全体）。
   - `I8042`: i8042prt の設定（`Enabled` とプロファイル）。
   - `DeviceScopes`: キーボードごとの共有範囲（0 = 同じ型番で共有、1 = この1台だけ、2 = すべてのキーボードで共有）。

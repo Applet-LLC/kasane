@@ -10,7 +10,8 @@ public sealed partial class KbdLayerClient
 
     /// <summary>
     /// 修飾キー（KBDLAYER_MOD_*）を押したまま、キー（Enc16。上位が E0 なら拡張キー）を1回押して離す。リマップなどは通さない。
-    /// ドライバが古い・Release 構成だと KbdLayerException（<see cref="ErrorInvalidFunction"/>）。
+    /// 1.00 までのドライバだと KbdLayerException（<see cref="ErrorInvalidFunction"/>）。ライセンスが実効でないと ERROR_ACCESS_DENIED（5）。
+    /// 1.01 からは Release のドライバも処理する（kbdlayer_ioctl.h の KBDLAYER_SEND_KEY_INPUT）。
     /// </summary>
     public void SendKey(uint uniqId, ushort scanCode, byte mods) =>
         Ioctl(Loc.T("キーの送出", "Sending a key"), IOCTL_SEND_KEY, Build(w =>

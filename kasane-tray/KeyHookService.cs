@@ -34,6 +34,9 @@ public sealed class KeyHookService : IDisposable
     // 実行中に修飾キーを OS から隠す（注入で離す）と GetAsyncKeyState の値が変わるため、そちらは使えない。
     private volatile byte _physKeys;
     private int _suppressActive; // 修飾キーを隠している実行の数。0 のときだけ、OS の状態で追跡を直す
+    // トレイがドライバ経由で送ったキー（スキャンコード → 素通しにする期限）。ドライバ経由のキーには注入の印が付かないので、
+    // 無変換などをトリガーにしていると、送ったキーで動作がもう一度起きてしまう。期限までは、トリガーとして拾わない。
+    private readonly Dictionary<ushort, long> _selfSent = new();
     private volatile bool _stop;
     private uint _threadId;
     private IntPtr _hook;
@@ -53,6 +56,26 @@ public sealed class KeyHookService : IDisposable
 
     /// <summary>いま物理的に押している修飾キー（どのスレッドからでも読める）。</summary>
     public byte PhysicalKeys => _physKeys;
+
+    /// <summary>
+    /// これからドライバ経由で送るキー（Enc16）を、しばらくトリガーとして拾わないようにする（どのスレッドからでもよい）。
+    /// 送る直前に呼ぶ。押下と解放が届くまでの余裕として、<paramref name="milliseconds"/> の間、素通しにする。
+    /// </summary>
+    public void PassThroughSelfSent(ushort scan, int milliseconds = 300)
+    {
+        lock (_selfSent) _selfSent[scan] = Environment.TickCount64 + milliseconds;
+    }
+
+    private bool IsSelfSent(ushort scan)
+    {
+        lock (_selfSent)
+        {
+            if (!_selfSent.TryGetValue(scan, out long until)) return false;
+            if (Environment.TickCount64 <= until) return true;
+            _selfSent.Remove(scan);
+            return false;
+        }
+    }
 
     public void Start()
     {
@@ -145,6 +168,7 @@ public sealed class KeyHookService : IDisposable
 
         var table = _table();
         if (table.IsEmpty || !table.HasKey(scan)) return false;
+        if (IsSelfSent(scan)) return false; // トレイが自分で送ったキー
         ushort hash16 = (ushort)(((ulong)info.dwExtraInfo.ToInt64() >> 16) & 0xFFFF);
         // 隠している実行が無いときは、OS の状態で追跡を直す（フックが見逃したイベントがあっても、ずれたままにしない）。
         if (Volatile.Read(ref _suppressActive) == 0) _physKeys = ReadPhysicalKeys();

@@ -519,7 +519,7 @@ KeymapTool --on <ID>
 
 IMEをオンにしてから切り替えキーを押すと親指シフトになり、もう一度押すと元に戻ります。
 ON/OFFに合わせてIMEもオン/オフしたい場合は、`"onEnter"`/`"onExit"` に、使っているIMEの設定で
-IMEオン/オフに割り当てたキー（例: `KC_HENK`/`KC_MHEN`）を指定します。
+IMEオン/オフに割り当てたキー（例: `KC_HENK`/`KC_MHEN`）を指定します。IMEオン/オフのキー `KC_LNG1`/`KC_LNG2` なら、IMEの設定を変えずに使えます。
 判定の細かい調整（同時打鍵判定時間など）は `samples/README.md` の NICOLA の節を参照してください。
 GUI（kasane）の **設定...** →「IME連動」タブ（下の「NICOLA（親指シフト）」の部分）でも同じ設定ができ、配列の表を画面で編集して
 `nicola.json` に書き出すこともできます。

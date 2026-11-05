@@ -11,8 +11,93 @@ public enum InputKind { Key, Unicode, MouseButton, MouseMove, Wheel, HWheel, Del
 /// <summary>IME をどうするか。OffRemember / Restore は Text の ImeOffDuring 用（OFF にする前の状態を覚え、あとで戻す）。</summary>
 public enum ImeTarget { Off, On, Toggle, OffRemember, Restore }
 
-/// <summary>IME の状態の読み書きの方式。Auto 以外は固定で、失敗しても別の方式へは切り替えない。</summary>
+/// <summary>
+/// IME の状態の読み書きの方式。Auto 以外は固定で、失敗しても別の方式へは切り替えない。
+/// Auto の中身は <see cref="ImeRoutePlanner"/> が決める（設定の「IME の切り替え方」とトレイの昇格で変わる）。
+/// GUI では Auto だけを選ばせる（2026-11-05）。Auto 以外は、以前の設定との互換のために読み書きと実行を残している。
+/// </summary>
 public enum ImeMethod { Auto, Imm, Tsf, Key, AltKanji }
+
+/// <summary>
+/// 方式を書かない ime と、Text の ImeOffDuring で、IME をどう切り替えるか（tray.json の ImeSwitch。設定の「IME の切り替え方」。2026-11-05）。
+/// 名前は保存に使うので変えないこと。
+/// </summary>
+public enum ImeSwitch
+{
+    /// <summary>既定。通常の権限のトレイは IMM32 → IME キー。管理者として動くトレイは、ドライバ経由の Alt+半角/全角 → IMM32 → IME キー。</summary>
+    Auto,
+    /// <summary>IME オン / IME オフ キー（VK_IME_ON / VK_IME_OFF。スキャンコード E0 F2 / E0 F1 = USB の LANG1 / LANG2）。絶対指定。</summary>
+    ImeKeys,
+    /// <summary>変換 / 無変換。Microsoft IME の設定で、変換に IME-オン、無変換に IME-オフを割り当てておく前提。絶対指定。</summary>
+    Henkan,
+    /// <summary>Alt+半角/全角（切り替え）。今の状態を読めないときは送らない。</summary>
+    Toggle,
+    /// <summary>IMM32 だけ（キーを送らない）。</summary>
+    Imm,
+}
+
+/// <summary>
+/// トレイが読んだ <see cref="ImeSwitch"/> と、値が変わった回数（<paramref name="Generation"/>）。回数は、設定を選び直したことに
+/// 気づくために使う（変換 / 無変換の割り当ての判定を、試し直す）。
+/// </summary>
+public readonly record struct ImeSwitchSetting(ImeSwitch Value, int Generation);
+
+public static class ImeSwitches
+{
+    /// <summary>名前から。無い・知らない名前は既定（Auto）。大文字小文字は区別しない。</summary>
+    public static ImeSwitch Parse(string? text) =>
+        Enum.TryParse<ImeSwitch>(text?.Trim(), ignoreCase: true, out var m) && Enum.IsDefined(m) ? m : ImeSwitch.Auto;
+}
+
+/// <summary>IME を変える実際の経路。</summary>
+public enum ImeRoute
+{
+    /// <summary>IMM32（IMC_SETOPENSTATUS）。</summary>
+    Imm,
+    /// <summary>VK_IME_ON / VK_IME_OFF を SendInput で送る（key を書いた行と、Auto の最後の手段）。</summary>
+    VkKey,
+    /// <summary>Alt+半角/全角をドライバ経由で送る。送れなければ失敗（Auto 用。SendInput へは戻さない）。</summary>
+    DriverAltKanji,
+    /// <summary>Alt+半角/全角。ドライバ経由で送れなければ SendInput（altkanji を書いた行と、設定の「切り替え」）。</summary>
+    AltKanji,
+    /// <summary>TSF のグローバルコンパートメント（実験的）。</summary>
+    Tsf,
+    /// <summary>IME オン / IME オフ キー。管理者として動くトレイはドライバ経由（E0 F2 / E0 F1）、それ以外は SendInput（VK_IME_ON / VK_IME_OFF）。</summary>
+    ImeOnOffKey,
+    /// <summary>変換 / 無変換。管理者として動くトレイはドライバ経由、それ以外は SendInput。</summary>
+    HenkanKey,
+}
+
+/// <summary>
+/// IME を変えるとき、どの経路をどの順で試すかを決める（2026-11-05。Windows に依存しない部分）。
+///  - 方式を書いた行（Imm / Key / AltKanji / Tsf）は、その 1 つだけ。
+///  - 方式を書かない行は、設定の <see cref="ImeSwitch"/> に従う。
+///    - Auto で、トレイが通常権限: IMM32、だめなら IME キー（1.00 からの動き）。
+///    - Auto で、トレイが管理者権限: ドライバ経由で送れそうで、今の状態を読めたら、ドライバ経由の Alt+半角/全角を先に。だめなら IMM32、IME キー。
+///    - ImeKeys / Henkan: そのキー、変わらなければ IMM32（どちらも ON/OFF を直接指定するので、続けても二重に切り替わらない）。
+///    - Toggle: Alt+半角/全角、変わらなければ IMM32。切り替えのキーなので、状態を読めないときは IMM32 だけ。
+///    - Imm: IMM32 だけ。
+/// </summary>
+public static class ImeRoutePlanner
+{
+    public static IReadOnlyList<ImeRoute> Plan(ImeMethod method, ImeSwitch setting, bool trayElevated, bool driverKeyUsable, bool stateKnown) => method switch
+    {
+        ImeMethod.Imm => new[] { ImeRoute.Imm },
+        ImeMethod.Key => new[] { ImeRoute.VkKey },
+        ImeMethod.AltKanji => new[] { ImeRoute.AltKanji },
+        ImeMethod.Tsf => new[] { ImeRoute.Tsf },
+        _ => setting switch
+        {
+            ImeSwitch.ImeKeys => new[] { ImeRoute.ImeOnOffKey, ImeRoute.Imm },
+            ImeSwitch.Henkan => new[] { ImeRoute.HenkanKey, ImeRoute.Imm },
+            ImeSwitch.Toggle => stateKnown ? new[] { ImeRoute.AltKanji, ImeRoute.Imm } : new[] { ImeRoute.Imm },
+            ImeSwitch.Imm => new[] { ImeRoute.Imm },
+            _ => trayElevated && driverKeyUsable && stateKnown
+                ? new[] { ImeRoute.DriverAltKanji, ImeRoute.Imm, ImeRoute.VkKey }
+                : new[] { ImeRoute.Imm, ImeRoute.VkKey },
+        },
+    };
+}
 
 public static class ImeNames
 {
