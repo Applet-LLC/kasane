@@ -111,7 +111,7 @@ internal sealed class HelperActionsTab : HelperTabBase
         if (id < 0) { MessageBox.Show(Owner, Loc.T("使える Id がありません。", "No Id is available."), Loc.T("動作の複製", "Duplicate Action")); return; }
         var copy = HelperSummary.CloneAction(Config.Actions[i]);
         copy.Id = id;
-        copy.Name = string.IsNullOrWhiteSpace(copy.Name) ? null : copy.Name + "(複製)";
+        copy.Name = string.IsNullOrWhiteSpace(copy.Name) ? null : copy.Name + Loc.T("(複製)", " (copy)");
         Config.Actions.Insert(i + 1, copy);
         Refresh(i + 1, _triggers.SelectedIndex);
     }
