@@ -54,6 +54,10 @@ public partial class MainWindow
         BtnSettings.ToolTip = Loc.T(
             "機能のON/OFF・タイミング・NICOLA・緊急解除・共有範囲",
             "Feature ON/OFF, timing, NICOLA, emergency release, and sharing scope");
+        BtnRemapText.Content = Loc.T("割り当ての一覧...", "Assignment list...");
+        BtnRemapText.ToolTip = Loc.T(
+            "変えた割り当てと、コンボ・マクロなどを、1行ずつ文字で表示します(コピー・保存できます)",
+            "Shows the changed assignments, combos, macros, and so on as text, one per line (you can copy or save it)");
         BtnImportExport.Content = Loc.T("インポート／エクスポート...", "Import / Export...");
         BtnImportExport.ToolTip = Loc.T(
             "設定をファイル(*.kasane.json)に書き出す・読み込む(全体一括・このキーボード・レイヤー1枚)。「クリア」タブで、選んだ項目を初期状態に戻せます",
@@ -62,7 +66,7 @@ public partial class MainWindow
         BtnOff.Content = Loc.T("OFF(素通しに戻す)", "OFF (pass keys through)");
 
         TxtLegend.Text = Loc.T(
-            "クリック: 割り当てを変更 ／ 右クリック: 実測値を消す・割り当てを戻す ／ 青: 既定から変更 ／ 緑: レイヤー・Mod-Tap等 ／ 右下の印: M=マクロ・D=タップダンス・C=コンボ・R=キー置換(ボタンの( )は定義の数)／ 橙枠: 実測値が既定と異なる ／ 赤枠: スキャンコード不明(要実測) ／ ▽: 下のレイヤーと同じ(透過)",
-            "Click: change assignment / Right-click: clear measured value or restore assignment / Blue: changed from default / Green: layer, Mod-Tap, etc. / Marks at bottom right: M=macro, D=tap dance, C=combo, R=key override (the ( ) on buttons is the number of definitions) / Orange border: measured value differs from default / Red border: scan code unknown (needs measuring) / \u25bd: same as the layer below (transparent)");
+            "クリック: 割り当てを変更 ／ 右クリック: 実測値を消す・割り当てを戻す・コンボなどを開く ／ 青: 既定から変更 ／ 緑: レイヤー・Mod-Tap等 ／ 右下の印: M=マクロ・D=タップダンス・C=コンボ・R=キー置換(ボタンの( )は定義の数)／ 橙枠: 実測値が既定と異なる ／ 赤枠: スキャンコード不明(要実測) ／ ▽: 下のレイヤーと同じ(透過)",
+            "Click: change assignment / Right-click: clear measured value, restore assignment, or open combos and more / Blue: changed from default / Green: layer, Mod-Tap, etc. / Marks at bottom right: M=macro, D=tap dance, C=combo, R=key override (the ( ) on buttons is the number of definitions) / Orange border: measured value differs from default / Red border: scan code unknown (needs measuring) / \u25bd: same as the layer below (transparent)");
     }
 }

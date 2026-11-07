@@ -72,7 +72,7 @@ public class ProjectReferencesTests
         Assert.Equal("KC_A", td.SingleTap);
         Assert.Equal("", td.DoubleTap);
         Assert.True(p.KeyOverrides.Single().Disabled);
-        Assert.Empty(ProjectService.FindReferences(p, RefKind.Macro, 3).Where(r => r.Place is RefPlace.Keymap or RefPlace.TapDanceField));
+        Assert.DoesNotContain(ProjectService.FindReferences(p, RefKind.Macro, 3), r => r.Place is RefPlace.Keymap or RefPlace.TapDanceField);
     }
 
     [Fact]

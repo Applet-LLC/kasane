@@ -158,6 +158,11 @@
 <td>設定フォルダを作り、権限を付ける。インストーラーが使う</td>
 </tr>
 <tr>
+<td><code>kasane.exe</code></td>
+<td><code>--dump-text &lt;UniqId&gt; [&lt;出力先&gt;]</code></td>
+<td>保存済みの設定から、割り当ての一覧を文字で書き出す（<a href="05-editor-basics.html#remap-text">5. エディタの基本</a>）。出力先を省くと標準出力へ書くので、<code>kasane.exe --dump-text 55F70000 &gt; a.txt</code> のように受ける</td>
+</tr>
+<tr>
 <td><code>kasane-tray.exe</code></td>
 <td><code>--probe-ime</code></td>
 <td>診断。3 秒待って、IME の状態を <code>%TEMP%\kasane-ime-probe.txt</code> に書く</td>

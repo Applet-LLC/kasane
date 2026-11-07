@@ -25,6 +25,7 @@ public static class HeadlessCommands
     public const string EnsureDataAcl = "--ensure-data-acl";
     public const string SetupAutostart = "--setup-autostart";
     public const string RemoveAutostart = "--remove-autostart";
+    public const string DumpText = "--dump-text";
 
     public static string LogPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "applet", "kasane", "import.log");
@@ -71,7 +72,69 @@ public static class HeadlessCommands
             exitCode = RunImportPending(new FileLog(Path.Combine(HelperConfig.BaseDirectory, "import.log")));
             return true;
         }
+        if (args[0].Equals(DumpText, StringComparison.OrdinalIgnoreCase))
+        {
+            Loc.Initialize(); // 一覧の文字は、表示言語の設定に従う
+            // kasane.exe は画面のアプリでコンソールを持たないので、Console.OutputEncoding は設定できない（「ハンドルが無効です」で落ちた）。
+            // 標準出力・標準エラーのストリームに、UTF-8 で直接書く（> や | で受けたときに届く）。
+            using var stdout = new StreamWriter(Console.OpenStandardOutput(), new UTF8Encoding(false)) { AutoFlush = true };
+            using var stderr = new StreamWriter(Console.OpenStandardError(), new UTF8Encoding(false)) { AutoFlush = true };
+            exitCode = RunDumpText(args.Length > 1 ? args[1] : null, args.Length > 2 ? args[2] : null, stdout, stderr);
+            return true;
+        }
         return false;
+    }
+
+    /// <summary>
+    /// 割り当ての一覧（<see cref="RemapTextFormatter"/>）を書き出す（2026-11-08、GUI 計画 2-2）。<c>kasane.exe --dump-text &lt;UniqId&gt; [&lt;出力先&gt;]</c>。
+    /// 保存済みの設定（project.json と helper.json）から作る（エディタで保存していない変更は入らない）。出力先を省くと標準出力へ書く
+    /// （kasane.exe は画面のアプリなので、コマンドプロンプトでは <c>&gt; 出力先</c> か <c>| more</c> のように受ける）。
+    /// 終了コード: 0 = 成功、1 = 引数の誤り・設定が無い、2 = 読み書きの失敗。
+    /// </summary>
+    /// <param name="baseDirectory">設定フォルダの代わり（単体テスト用。指定したときは、ヘルパー設定を読まない）。</param>
+    public static int RunDumpText(string? uniqIdText, string? outPath, TextWriter output, TextWriter error, string? baseDirectory = null)
+    {
+        string t = (uniqIdText ?? "").Trim();
+        if (t.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) t = t[2..];
+        if (!uint.TryParse(t, System.Globalization.NumberStyles.AllowHexSpecifier, System.Globalization.CultureInfo.InvariantCulture, out uint uniqId) || uniqId == 0)
+        {
+            error.WriteLine(Loc.T($"使い方: kasane.exe {DumpText} <キーボードの UniqId(16進8桁。例: 55F70000)> [<出力先のファイル>]",
+                                  $"Usage: kasane.exe {DumpText} <keyboard UniqId (8 hex digits, e.g. 55F70000)> [<output file>]"));
+            return 1;
+        }
+        try
+        {
+            var project = ProjectService.TryLoad(uniqId, baseDirectory);
+            if (project == null)
+            {
+                error.WriteLine(Loc.T($"エラー: キーボード {uniqId:X8} の設定がありません", $"Error: there are no settings for keyboard {uniqId:X8}"));
+                return 1;
+            }
+            var file = ProjectService.FindLayoutFile(project);
+            if (file == null)
+            {
+                error.WriteLine(Loc.T($"エラー: レイアウト「{project.LayoutName}」が見つかりません", $"Error: layout \"{project.LayoutName}\" was not found"));
+                return 1;
+            }
+            var layout = Kasane.Layout.KeyboardLayout.Load(file);
+            HelperConfig? device = null, global = null;
+            if (baseDirectory == null)
+            {
+                var helper = new HelperSettingsModel(uniqId, TrayConfig.Load());
+                if (helper.DeviceLoadError == null) device = helper.Device;
+                global = helper.Global;
+            }
+            string label = string.IsNullOrWhiteSpace(project.KeyboardName) ? $"{uniqId:X8}" : $"{uniqId:X8}「{project.KeyboardName}」";
+            string text = RemapTextFormatter.Format(project, layout, device, global, label, DateTime.Now);
+            if (string.IsNullOrWhiteSpace(outPath)) output.Write(text);
+            else File.WriteAllText(outPath.Trim().Trim('"'), text, new UTF8Encoding(true));
+            return 0;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or ArgumentException or NotSupportedException)
+        {
+            error.WriteLine(Loc.T($"エラー: {ex.Message}", $"Error: {ex.Message}"));
+            return 2;
+        }
     }
 
     /// <summary>
