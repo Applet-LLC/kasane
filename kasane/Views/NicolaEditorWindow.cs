@@ -78,12 +78,17 @@ public sealed class NicolaEditorWindow : Window
                    "Left hand / Right hand is which of \"left\" / \"right\" in nicola.json the key is written under."),
             TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 6),
         });
-        detail.Children.Add(Line((Loc.T("文字キー", "Character key"), _key), ("", _hand)));
+        // 文字キーは、ほかの画面と同じ「押して入力」「選ぶ...」で入れられる（2026-11-06、GUI 計画 1-4。修飾キーは使わない）。
+        detail.Children.Add(Line((Loc.T("文字キー", "Character key"), KeycodeField.Wrap(_key, allowMods: false)), ("", _hand)));
         detail.Children.Add(Line((Loc.T("単独", "Solo"), _single), (Loc.T("親指左", "Left thumb"), _kanaLeft), (Loc.T("親指右", "Right thumb"), _kanaRight)));
         var add = new Button { Name = "AddKeyButton", Content = Loc.T("文字キーを追加", "Add character key"), Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(0, 8, 6, 0) };
         var remove = new Button { Name = "RemoveKeyButton", Content = Loc.T("選んだ文字キーを削除", "Delete selected key"), Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(0, 8, 6, 0) };
+        var duplicate = new Button { Name = "DuplicateKeyButton", Content = Loc.T("複製", "Duplicate"), Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(0, 8, 6, 0),
+                                     ToolTip = Loc.T("選んだ文字キーの行を、すぐ下に写します(文字キーは空にします。同じキーは2行に書けないため)。",
+                                                     "Copies the selected row just below it (the key is left empty, since the same key can't be on two rows).") };
         var keyButtons = new StackPanel { Orientation = Orientation.Horizontal };
         keyButtons.Children.Add(add);
+        keyButtons.Children.Add(duplicate);
         keyButtons.Children.Add(remove);
         detail.Children.Add(keyButtons);
         detail.Children.Add(_validation);
@@ -125,6 +130,18 @@ public sealed class NicolaEditorWindow : Window
             _list.Items.Add(new ListBoxItem { Content = ItemText(_def.Keys[^1]) });
             _list.SelectedIndex = _def.Keys.Count - 1;
             _key.Focus();
+        };
+        duplicate.Click += (_, _) =>
+        {
+            int i = _list.SelectedIndex;
+            if (i < 0) return;
+            var src = _def.Keys[i];
+            var copy = new NicolaKeyDef { Key = "", RightHand = src.RightHand, Single = src.Single, ThumbLeft = src.ThumbLeft, ThumbRight = src.ThumbRight };
+            _def.Keys.Insert(i + 1, copy);
+            _list.Items.Insert(i + 1, new ListBoxItem { Content = ItemText(copy) });
+            _list.SelectedIndex = i + 1;
+            _key.Focus();
+            Validate();
         };
         remove.Click += (_, _) =>
         {

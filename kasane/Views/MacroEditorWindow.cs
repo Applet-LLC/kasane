@@ -37,6 +37,11 @@ public sealed class MacroEditorWindow : IdListEditorWindow
 
     protected override string Summary(int id) => _texts[id];
 
+    protected override RefKind? ReferenceKind => RefKind.Macro;
+    protected override void ClearItem(int id) => _texts[id] = "";
+    protected override void CopyItem(int from, int to) => _texts[to] = _texts[from];
+    protected override void SwapItems(int a, int b) => (_texts[a], _texts[b]) = (_texts[b], _texts[a]);
+
     /// <summary>最初の空き番号を選ぶ（中身は利用者が書く）。空き番号が無ければ -1。</summary>
     public int StartNew()
     {

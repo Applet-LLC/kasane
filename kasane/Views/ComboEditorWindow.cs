@@ -52,6 +52,32 @@ public sealed class ComboEditorWindow : IdListEditorWindow
         return id;
     }
 
+    protected override bool CanReorder => true;
+    protected override void ClearItem(int id) => _combos[id] = null;
+    protected override void CopyItem(int from, int to) =>
+        _combos[to] = _combos[from] is { } c ? new ComboDef { Id = to, Slot1 = c.Slot1, Slot2 = c.Slot2, Output = c.Output } : null;
+    protected override void SwapItems(int a, int b)
+    {
+        (_combos[a], _combos[b]) = (_combos[b], _combos[a]);
+        if (_combos[a] != null) _combos[a]!.Id = a;
+        if (_combos[b] != null) _combos[b]!.Id = b;
+    }
+
+    // 複製したコンボは、元と同じキーを使うので、無効にしておく（1つのキーは、有効なコンボ1つにしか使えない）。
+    protected override void OnDuplicated(int id) => SetDisabled(id, true);
+
+    protected override string? DuplicatedNote(int id) =>
+        Loc.T($"コンボ{id}に複製しました。同じキーは1つのコンボにしか使えないので、無効にしてあります。キーを変えてから、「無効にする」を外してください。",
+              $"Duplicated to combo {id}. A key can be used in only one combo, so it is disabled. Change its keys, then clear \"Disable\".");
+
+    // ほかの画面でマクロを削除して参照を外したとき: 出力がそのマクロのコンボを無効にする（プロジェクトと同じ規則）。
+    public override void ReferencesRemoved(RefKind kind, int id)
+    {
+        for (int i = 0; i < _combos.Length; i++)
+            if (_combos[i] is { } c && !Disabled[i] && ProjectService.RefersTo(c.Output, kind, id)) SetDisabled(i, true);
+        ShowId(Math.Max(0, CurrentId));
+    }
+
     private string SlotName(int slot) => slot >= 0 && slot < _layout.Slots.Count ? _layout.Slots[slot].PrintedLabel : "?";
 
     protected override string Summary(int id) =>
