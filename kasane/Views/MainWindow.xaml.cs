@@ -692,9 +692,24 @@ public partial class MainWindow : Window
         var work = SystemParameters.WorkArea;
         window.Left = Math.Max(work.Left, Math.Min(Left + 40 + offset, work.Right - window.Width));
         window.Top = Math.Max(work.Top, Math.Min(Top + 40 + offset, work.Bottom - window.Height));
+        // 削除の確認に出す「使っている場所」（今のプロジェクトのキーマップと定義）。
+        window.ReferenceProvider = (kind, id) => _project == null ? Array.Empty<string>()
+            : ProjectService.FindReferences(_project, kind, id).Select(r => ProjectService.DescribeReference(_project, _layout, r)).ToList();
         window.Applied += () =>
         {
             apply(window);
+            // 削除で「割り当ても外す」を選んだ番号: プロジェクトから参照を外し、開いているほかの編集画面の作業用コピーからも外す（GUI 計画 1-3）。
+            if (_project != null && window.PendingUnassign.Count > 0)
+            {
+                int removed = 0;
+                foreach (var (kind, id) in window.PendingUnassign)
+                {
+                    removed += ProjectService.RemoveReferences(_project, kind, id);
+                    foreach (var other in _editors.Values.Where(e => e != window)) other.ReferencesRemoved(kind, id);
+                }
+                window.PendingUnassign.Clear();
+                SetStatus(Loc.T($"削除した定義を使っていた {removed} か所の割り当てを外しました。", $"Removed {removed} assignment(s) that used the deleted definition."));
+            }
             RenderKeyboard(); // コンボ・キー置換の印が変わる
             _keyAssign?.RefreshRelated(); // 開いている割り当て画面のコンボ・キー置換の一覧も
             MarkDirty();
@@ -723,9 +738,14 @@ public partial class MainWindow : Window
         BtnAddLayer.IsEnabled = free;
         BtnRemoveLayer.IsEnabled = free;
         BtnImportExport.IsEnabled = free;
-        if (!free) SetStatus(Loc.T("編集画面(マクロ・コンボ・タップダンス・キー置換・キーの割り当て)を開いている間は、キーボードやレイアウトの切り替え、インポート、レイヤーの追加・削除はできません。",
+        // 案内は、ロックが始まったときだけ出す。編集画面を1つ閉じてもほかが開いているときに出し直すと、
+        // 閉じる直前の OK で出した結果（「… か所の割り当てを外しました」など）を消してしまう（2026-11-07 の実機確認 M2）。
+        if (!free && _editorLockFree) SetStatus(Loc.T("編集画面(マクロ・コンボ・タップダンス・キー置換・キーの割り当て)を開いている間は、キーボードやレイアウトの切り替え、インポート、レイヤーの追加・削除はできません。",
                                    "While an editor (macros, combos, tap dances, key overrides, key assignment) is open, you cannot switch keyboards or layouts, import, or add or delete layers."));
+        _editorLockFree = free;
     }
+
+    private bool _editorLockFree = true; // 前回の UpdateEditorLock のとき、編集画面が1つも開いていなかったか
 
     private void BtnMacros_Click(object sender, RoutedEventArgs e) => OpenMacros();
     private void BtnCombos_Click(object sender, RoutedEventArgs e) => OpenCombos();
@@ -810,9 +830,19 @@ public partial class MainWindow : Window
     private void OpenSettings(string? tab)
     {
         if (_project == null) return;
-        var dlg = new SettingsDialog(_project, IsOnline ? _client : null, IsOnline ? SelectedDevice!.UniqId : 0, CanWrite) { Owner = this };
+        var dlg = new SettingsDialog(_project, IsOnline ? _client : null, IsOnline ? SelectedDevice!.UniqId : 0, CanWrite, _layout) { Owner = this };
         if (tab != null) dlg.SelectTab(tab);
-        if (dlg.ShowDialog() == true) MarkDirty();
+        if (dlg.ShowDialog() == true)
+        {
+            MarkDirty();
+            foreach (int id in dlg.UnassignedHelperIds)
+                foreach (var editor in _editors.Values) editor.ReferencesRemoved(RefKind.Helper, id);
+            if (dlg.KeymapChanged)
+            {
+                RenderKeyboard(); // ヘルパー動作の削除で、HLP(n) の割り当てを外した
+                SetStatus(Loc.T("削除したヘルパー動作を使っていた割り当てを外しました。適用すると反映されます。", "Removed the assignments that used the deleted helper action. Apply to take effect."));
+            }
+        }
         if (dlg.LanguageChanged) OfferRestartForLanguage();
     }
 

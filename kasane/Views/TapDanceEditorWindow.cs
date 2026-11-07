@@ -39,6 +39,32 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
 
     protected override string? InsertKind => "TAPDANCE";
 
+    protected override RefKind? ReferenceKind => RefKind.TapDance;
+    protected override void ClearItem(int id) => _defs[id] = null;
+    protected override void CopyItem(int from, int to) =>
+        _defs[to] = _defs[from] is { } t ? new TapDanceDef { Id = to, SingleTap = t.SingleTap, SingleHold = t.SingleHold, DoubleTap = t.DoubleTap, TripleTap = t.TripleTap } : null;
+    protected override void SwapItems(int a, int b)
+    {
+        (_defs[a], _defs[b]) = (_defs[b], _defs[a]);
+        if (_defs[a] != null) _defs[a]!.Id = a;
+        if (_defs[b] != null) _defs[b]!.Id = b;
+    }
+
+    // ほかの画面でマクロを削除して参照を外したとき: この画面の欄からも外す（全部空になれば未使用）。
+    public override void ReferencesRemoved(RefKind kind, int id)
+    {
+        for (int i = 0; i < _defs.Length; i++)
+        {
+            if (_defs[i] is not { } t) continue;
+            int cleared = ProjectService.ClearTapDanceRefs(t, kind, id);
+            // 定義の実体はプロジェクトと共有していることがあり（先に適用したとき）、プロジェクト側で先に空にされていることもあるので、空かどうかは別に見る。
+            if (ProjectService.IsEmptyTapDance(t)) _defs[i] = null;
+            else if (cleared == 0) continue;
+            RefreshItem(i);
+        }
+        ShowId(Math.Max(0, CurrentId));
+    }
+
     /// <summary>
     /// 最初の空き番号を選ぶ。<paramref name="singleTap"/> があれば、1回タップに入れたタップダンスを作る（ほかの欄は利用者が書く）。
     /// 作ったときは、「入れる」ボタンを強調する（キーの割り当て画面に TAPDANCE(n) を入れ忘れないように）。空き番号が無ければ -1。

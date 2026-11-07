@@ -8,7 +8,7 @@ using Kasane.Layout;
 namespace Kasane.Model;
 
 /// <summary>プロジェクトの作成・保存・検証・ドライバへの適用・ドライバからの読み込み・KeymapTool（--apply-simple）用 JSON へのエクスポート。</summary>
-public static class ProjectService
+public static partial class ProjectService
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 

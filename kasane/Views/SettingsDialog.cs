@@ -62,7 +62,16 @@ public sealed class SettingsDialog : Window
     // ヘルパー動作・アプリ別レイヤー（このキーボードの helper.json と、共通の tray.json の Helper。OKで直接保存する）
     private readonly HelperSettingsModel _helper;
 
-    public SettingsDialog(KeymapProject project, KbdLayerClient? client, uint onlineUniqId, bool canWrite)
+    private readonly HelperActionsTab _helperTab;
+
+    /// <summary>OK で、キーマップ（HLP(n) の割り当て）を書き換えたか（ヘルパー動作の削除で「割り当ても外す」を選んだとき）。</summary>
+    public bool KeymapChanged { get; private set; }
+
+    /// <summary>OK で参照を外した HLP の番号（メイン画面が、開いている編集画面の作業用コピーからも外す）。</summary>
+    public List<int> UnassignedHelperIds { get; } = new();
+
+    /// <param name="layout">ヘルパー動作の削除の確認で、キーの名前を出すため（無ければ番号）。</param>
+    public SettingsDialog(KeymapProject project, KbdLayerClient? client, uint onlineUniqId, bool canWrite, Kasane.Layout.KeyboardLayout? layout = null)
     {
         _project = project;
         _client = client;
@@ -82,7 +91,8 @@ public sealed class SettingsDialog : Window
         AddTab("TabFeatures", Loc.T("機能", "Features"), BuildFeaturesTab());
         AddTab("TabTiming", Loc.T("タイミング", "Timing"), BuildTimingTab());
         AddTab("TabImeLayer", Loc.T("IME連動", "IME link"), BuildImeTab()); // 以前の「NICOLA」タブの内容も、ここにある（2026-10-19）
-        AddTab("TabHelper", Loc.T("ヘルパー動作", "Helper actions"), new HelperActionsTab(_helper, this).Root);
+        _helperTab = new HelperActionsTab(_helper, this, project, layout);
+        AddTab("TabHelper", Loc.T("ヘルパー動作", "Helper actions"), _helperTab.Root);
         AddTab("TabAppRules", Loc.T("アプリ別レイヤー", "Per-app layers"), new AppRulesTab(_helper, this).Root);
         AddTab("TabEmergency", Loc.T("緊急解除", "Emergency release"), BuildEmergencyTab());
         AddTab("TabScope", Loc.T("共有範囲", "Sharing scope"), BuildScopeTab());
@@ -1253,6 +1263,17 @@ public sealed class SettingsDialog : Window
             Fail("TabHelper", Loc.T($"ヘルパー設定を保存できませんでした: {helperError}", $"Couldn't save the helper settings: {helperError}"));
             return false;
         }
+
+        // ヘルパー動作の削除で「割り当ても外す」を選んだ番号: 保存できたので、このキーボードのキーマップなどから HLP(n) を外す（GUI 計画 1-3）。
+        // 削除のあとで同じ Id の動作を作り直していれば、その割り当ては新しい動作を指すので、外さない。
+        foreach (int id in _helperTab.PendingUnassign.Distinct())
+        {
+            bool exists = (_helper.HasDevice && _helper.Device.Actions.Any(a => a.Id == id)) || _helper.Global.Actions.Any(a => a.Id == id);
+            if (exists) continue;
+            if (ProjectService.RemoveReferences(_project, RefKind.Helper, id) > 0) KeymapChanged = true;
+            UnassignedHelperIds.Add(id);
+        }
+        _helperTab.PendingUnassign.Clear();
 
         // IME連動はプロジェクトではなく、このPCの利用者の設定（トレイが数秒ごとに読む）。変えたときだけ保存する。
         bool imeLink = _globalNicolaLink;

@@ -59,6 +59,25 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
         return id;
     }
 
+    protected override bool CanReorder => true;
+    protected override void ClearItem(int id) => _defs[id] = null;
+    protected override void CopyItem(int from, int to) =>
+        _defs[to] = _defs[from] is { } k ? new KeyOverrideDef { Id = to, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement, RepeatMacro = k.RepeatMacro } : null;
+    protected override void SwapItems(int a, int b)
+    {
+        (_defs[a], _defs[b]) = (_defs[b], _defs[a]);
+        if (_defs[a] != null) _defs[a]!.Id = a;
+        if (_defs[b] != null) _defs[b]!.Id = b;
+    }
+
+    // ほかの画面でマクロ・ヘルパー動作を削除して参照を外したとき: 置き換え先がそれのキー置換を無効にする（プロジェクトと同じ規則）。
+    public override void ReferencesRemoved(RefKind kind, int id)
+    {
+        for (int i = 0; i < _defs.Length; i++)
+            if (_defs[i] is { } k && !Disabled[i] && ProjectService.RefersTo(k.Replacement, kind, id)) SetDisabled(i, true);
+        ShowId(Math.Max(0, CurrentId));
+    }
+
     protected override string Summary(int id) =>
         _defs[id] is { } k ? $"{k.Mods} + {k.Key} → {k.Replacement}" + (k.RepeatMacro ? Loc.T("(繰り返す)", " (repeat)") : "") : "";
 

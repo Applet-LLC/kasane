@@ -68,8 +68,29 @@ public static class KeycodeField
             if (dlg.ShowDialog() == true && dlg.ResultToken.Length > 0) Put(dlg.ResultToken);
         };
 
+        // 「×」: 欄を空にする（2026-11-06、GUI 計画 1-3）。空の欄の意味は欄ごと（タップダンスなら「動作なし」）なので、確認は出さない。
+        var clear = new Button
+        {
+            Name = box.Name.Length > 0 ? box.Name + "Clear" : "",
+            Content = "×",
+            Width = 26,
+            Padding = new Thickness(0), // テーマの既定の余白（左右 10）のままだと、幅 26 では字が隠れる（2026-11-07 の実機確認 X1）
+            Margin = new Thickness(2, 0, 0, 0),
+            Focusable = false,
+            ToolTip = Loc.T("欄を空にします。", "Clears the field."),
+        };
+        clear.Click += (_, _) =>
+        {
+            session.Cancel();
+            box.Clear();
+            box.Focus();
+        };
+        clear.IsEnabled = box.Text.Length > 0;
+        box.TextChanged += (_, _) => clear.IsEnabled = box.Text.Length > 0;
+
         var panel = new StackPanel { Orientation = Orientation.Horizontal };
         panel.Children.Add(box);
+        panel.Children.Add(clear);
         panel.Children.Add(capture);
         panel.Children.Add(pick);
 

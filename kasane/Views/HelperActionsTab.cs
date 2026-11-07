@@ -12,17 +12,30 @@ internal sealed class HelperActionsTab : HelperTabBase
 {
     private readonly ListBox _actions = ListBoxOf("ActionsList", 100);
     private readonly ListBox _triggers = ListBoxOf("TriggersList", 100);
-    private readonly Button _addAction, _editAction, _copyAction, _deleteAction;
+    private readonly Button _addAction, _editAction, _copyAction, _deleteAction, _upAction, _downAction;
     private readonly Button _addTrigger, _editTrigger, _copyTrigger, _deleteTrigger;
+    private readonly KeymapProject? _project;
+    private readonly Kasane.Layout.KeyboardLayout? _layout;
 
-    public HelperActionsTab(HelperSettingsModel model, Window owner)
+    /// <summary>
+    /// 削除のときに「使っている場所の割り当ても外す」を選んだ HLP の番号（2026-11-06、GUI 計画 1-3）。設定画面が、OK で保存できたあと、
+    /// プロジェクトから外す（<see cref="ProjectService.RemoveReferences"/>）。キャンセルなら外さない。
+    /// </summary>
+    public List<int> PendingUnassign { get; } = new();
+
+    /// <param name="project">このキーボードのプロジェクト（削除の確認で、HLP(n) を使っている割り当てを調べる。null なら調べない）。</param>
+    public HelperActionsTab(HelperSettingsModel model, Window owner, KeymapProject? project = null, Kasane.Layout.KeyboardLayout? layout = null)
         : base(model, owner, "Helper",
             Loc.T("キーを押して、プログラムの起動、文字列の入力、マウス操作、レイヤーの操作などを実行します。" +
                 "「動作」は HLP(Id) を割り当てたキー、「トリガー」は F13〜F24 などのキーで実行され、変更は OK で保存されます。",
                 "Press a key to launch a program, type text, control the mouse, switch layers, and more. " +
                 "Actions run from keys assigned HLP(Id); triggers run from keys such as F13 to F24. Changes are saved with OK."))
     {
+        _project = project;
+        _layout = layout;
         _addAction = Btn("AddActionButton", Loc.T("追加...", "Add..."));
+        _upAction = Btn("MoveActionUpButton", Loc.T("上へ", "Up"), 56);
+        _downAction = Btn("MoveActionDownButton", Loc.T("下へ", "Down"), 56);
         _editAction = Btn("EditActionButton", Loc.T("編集...", "Edit..."));
         _copyAction = Btn("CopyActionButton", Loc.T("複製", "Duplicate"));
         _deleteAction = Btn("DeleteActionButton", Loc.T("削除", "Delete"));
@@ -33,7 +46,7 @@ internal sealed class HelperActionsTab : HelperTabBase
 
         Stack.Children.Add(new TextBlock { Text = Loc.T("動作(HLP(Id) のキーから呼ぶ)", "Actions (called from HLP(Id) keys)"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 0) });
         Stack.Children.Add(_actions);
-        Stack.Children.Add(Buttons(_addAction, _editAction, _copyAction, _deleteAction));
+        Stack.Children.Add(Buttons(_addAction, _editAction, _copyAction, _deleteAction, _upAction, _downAction));
         Stack.Children.Add(new TextBlock { Text = Loc.T("トリガー(F13 などのキー。キーフックで受ける)", "Triggers (keys such as F13, received by a key hook)"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 0) });
         Stack.Children.Add(_triggers);
         Stack.Children.Add(Buttons(_addTrigger, _editTrigger, _copyTrigger, _deleteTrigger));
@@ -43,6 +56,8 @@ internal sealed class HelperActionsTab : HelperTabBase
         _editAction.Click += (_, _) => EditAction();
         _copyAction.Click += (_, _) => CopyAction();
         _deleteAction.Click += (_, _) => DeleteAction();
+        _upAction.Click += (_, _) => MoveAction(-1);
+        _downAction.Click += (_, _) => MoveAction(+1);
         _actions.MouseDoubleClick += (_, _) => EditAction();
         _actions.SelectionChanged += (_, _) => UpdateButtons();
         _addTrigger.Click += (_, _) => AddTrigger();
@@ -73,6 +88,8 @@ internal sealed class HelperActionsTab : HelperTabBase
         bool triggerSelected = Editable && _triggers.SelectedIndex >= 0;
         _addAction.IsEnabled = _addTrigger.IsEnabled = Editable;
         _editAction.IsEnabled = _copyAction.IsEnabled = _deleteAction.IsEnabled = actionSelected;
+        _upAction.IsEnabled = actionSelected && _actions.SelectedIndex > 0;
+        _downAction.IsEnabled = actionSelected && _actions.SelectedIndex < Config.Actions.Count - 1;
         _editTrigger.IsEnabled = _copyTrigger.IsEnabled = _deleteTrigger.IsEnabled = triggerSelected;
     }
 
@@ -120,10 +137,37 @@ internal sealed class HelperActionsTab : HelperTabBase
     {
         int i = _actions.SelectedIndex;
         if (!Editable || i < 0 || i >= Config.Actions.Count) return;
-        if (!Confirm(Loc.T($"HLP({Config.Actions[i].Id}) の動作を削除しますか？\nこの Id をキーに割り当てている場合、そのキーは何もしなくなります。",
-            $"Delete the action HLP({Config.Actions[i].Id})?\nIf this Id is assigned to a key, that key will do nothing."))) return;
+        var action = Config.Actions[i];
+        int id = action.Id;
+        // HLP(n) は、このキーボード用 → 共通の順に引く。もう一方の範囲に同じ Id があれば、キーはそちらを実行し続けるので、割り当ては外さない。
+        var other = Scope == HelperScope.Device ? HelperScope.Global : HelperScope.Device;
+        bool otherHas = (other == HelperScope.Global || Model.HasDevice) && Model.Config(other).Actions.Any(a => a.Id == id);
+        var refs = _project == null || otherHas ? new List<string>()
+            : ProjectService.FindReferences(_project, RefKind.Helper, id).Select(r => ProjectService.DescribeReference(_project, _layout, r)).ToList();
+        var notes = new List<string>();
+        if (otherHas)
+            notes.Add(other == HelperScope.Global
+                ? Loc.T($"全キーボード共通にも HLP({id}) の動作があるので、HLP({id}) のキーは、そちらを実行します。", $"A shared HLP({id}) action also exists, so HLP({id}) keys will run that one.")
+                : Loc.T($"このキーボード用にも HLP({id}) の動作があるので、このキーボードの HLP({id}) のキーは、そちらを実行します。", $"This keyboard also has an HLP({id}) action, so this keyboard's HLP({id}) keys will run that one."));
+        if (Scope == HelperScope.Global)
+            notes.Add(Loc.T("全キーボード共通の動作です。ほかのキーボードの割り当ては確認できません(このキーボードの分だけ外します)。",
+                            "This is a shared action. Assignments on other keyboards can't be checked (only this keyboard's are removed)."));
+        string what = string.IsNullOrWhiteSpace(action.Name) ? $"HLP({id})" : Loc.T($"HLP({id})「{action.Name}」", $"HLP({id}) \"{action.Name}\"");
+        var dlg = new DeleteConfirmWindow(what, refs, notes.Count > 0 ? string.Join("\n", notes) : null,
+            Loc.T("削除は、設定画面で OK を押したときに決まります。", "The deletion takes effect when you press OK in the settings.")) { Owner = Owner };
+        if (dlg.ShowDialog() != true) return;
         Config.Actions.RemoveAt(i);
+        if (dlg.Unassign) PendingUnassign.Add(id);
         Refresh(Math.Min(i, Config.Actions.Count - 1), _triggers.SelectedIndex);
+    }
+
+    // 並べ替え: 一覧の表示の順だけが変わる（Id は変わらないので、HLP(n) の割り当てはそのまま）。
+    private void MoveAction(int delta)
+    {
+        int i = _actions.SelectedIndex, j = i + delta;
+        if (!Editable || i < 0 || j < 0 || j >= Config.Actions.Count) return;
+        (Config.Actions[i], Config.Actions[j]) = (Config.Actions[j], Config.Actions[i]);
+        Refresh(j, _triggers.SelectedIndex);
     }
 
     private bool IdInUse(int id, int exceptIndex) =>
