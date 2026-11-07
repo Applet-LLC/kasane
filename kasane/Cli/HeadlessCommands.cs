@@ -124,8 +124,7 @@ public static class HeadlessCommands
                 if (helper.DeviceLoadError == null) device = helper.Device;
                 global = helper.Global;
             }
-            string label = string.IsNullOrWhiteSpace(project.KeyboardName) ? $"{uniqId:X8}" : $"{uniqId:X8}「{project.KeyboardName}」";
-            string text = RemapTextFormatter.Format(project, layout, device, global, label, DateTime.Now);
+            string text = RemapTextFormatter.Format(project, layout, device, global, RemapTextFormatter.KeyboardLabel(project), DateTime.Now);
             if (string.IsNullOrWhiteSpace(outPath)) output.Write(text);
             else File.WriteAllText(outPath.Trim().Trim('"'), text, new UTF8Encoding(true));
             return 0;

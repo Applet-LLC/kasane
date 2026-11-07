@@ -841,8 +841,8 @@ public partial class MainWindow : Window
     {
         if (_project == null || _layout == null) return "";
         var helper = new HelperSettingsModel(_project.UniqId, TrayConfig.Load());
-        string label = string.IsNullOrWhiteSpace(_project.KeyboardName) ? $"{_project.UniqId:X8}" : $"{_project.UniqId:X8}「{_project.KeyboardName}」";
-        return RemapTextFormatter.Format(_project, _layout, helper.HasDevice && helper.DeviceLoadError == null ? helper.Device : null, helper.Global, label, DateTime.Now);
+        return RemapTextFormatter.Format(_project, _layout, helper.HasDevice && helper.DeviceLoadError == null ? helper.Device : null, helper.Global,
+                                         RemapTextFormatter.KeyboardLabel(_project), DateTime.Now);
     }
 
     // 設定の「ヘルパー動作」タブを選んだ状態で、設定画面を開く。

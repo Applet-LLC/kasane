@@ -152,8 +152,15 @@ public static class RemapTextFormatter
 
     private static string Disabled(bool disabled) => disabled ? "# " : "";
 
+    // 名前は、日本語では「」、英語では "" で囲む（英語の表示に「」を残さない。ほかの画面の英語表示と同じ形）。
+    private static string Quoted(string name) => Loc.T($"「{name}」", $" \"{name}\"");
+
     private static string Numbered(int id, Dictionary<int, string>? names) =>
-        names != null && names.TryGetValue(id, out var n) && !string.IsNullOrWhiteSpace(n) ? $"{id}「{n}」" : id.ToString();
+        names != null && names.TryGetValue(id, out var n) && !string.IsNullOrWhiteSpace(n) ? id + Quoted(n) : id.ToString();
+
+    /// <summary>見出しに出すキーボードの名前（UniqId と、付けた名前）。画面と --dump-text で共通。</summary>
+    public static string KeyboardLabel(KeymapProject project) =>
+        string.IsNullOrWhiteSpace(project.KeyboardName) ? $"{project.UniqId:X8}" : $"{project.UniqId:X8}" + Quoted(project.KeyboardName);
 
     /// <summary>キーの名前: 刻印のキーコードの表示名（Caps、変換 など）。無ければ刻印、それも無ければ番号。</summary>
     public static string KeyName(KeySlot slot)
@@ -166,10 +173,13 @@ public static class RemapTextFormatter
     private static string SlotName(KeyboardLayout layout, int slot) =>
         layout.Slots.FirstOrDefault(s => s.Index == slot) is { } s ? KeyName(s) : Loc.T($"キー{slot}", $"Key {slot}");
 
-    // 基本キー・修飾付きキーの読める名前（「Ctrl+Shift+T」）。空は「－」。
+    // 空の欄（動作なし）。英語の表示では半角の「-」。
+    private static string Empty => Loc.T("－", "-");
+
+    // 基本キー・修飾付きキーの読める名前（「Ctrl+Shift+T」）。空は Empty。
     private static string KeyText(string? token)
     {
-        if (string.IsNullOrWhiteSpace(token)) return "－";
+        if (string.IsNullOrWhiteSpace(token)) return Empty;
         string t = token.Trim();
         // 内側のキーは、書いたままの名前で引く（スキャンコードから引き直すと、LALT(KC_ZKHK) が同じスキャンコードの KC_GRAVE になる）。
         if (KeycodeTable.TryResolve(t, out var a) && a.Type == ActionType.ModdedKey)
@@ -199,7 +209,7 @@ public static class RemapTextFormatter
     }
 
     private static string Field(KeymapProject project, string? token, HelperConfig? device, HelperConfig? global) =>
-        string.IsNullOrWhiteSpace(token) || token.Trim() == "KC_NO" ? "－" : Describe(project, token, device, global);
+        string.IsNullOrWhiteSpace(token) || token.Trim() == "KC_NO" ? Empty : Describe(project, token, device, global);
 
     /// <summary>割り当て1つの読める説明。</summary>
     public static string Describe(KeymapProject project, string token, HelperConfig? device = null, HelperConfig? global = null)
@@ -237,7 +247,7 @@ public static class RemapTextFormatter
     {
         var a = device?.Actions.FirstOrDefault(x => x.Id == id) ?? global?.Actions.FirstOrDefault(x => x.Id == id);
         if (a == null) return Loc.T($"ヘルパー動作 HLP({id})(動作がありません)", $"helper action HLP({id}) (no such action)");
-        string what = string.IsNullOrWhiteSpace(a.Name) ? HelperSummary.Body(a.Action) : $"「{a.Name}」";
+        string what = string.IsNullOrWhiteSpace(a.Name) ? HelperSummary.Body(a.Action) : Quoted(a.Name).TrimStart();
         return Loc.T($"ヘルパー動作 HLP({id}) {what}", $"helper action HLP({id}) {what}");
     }
 }
