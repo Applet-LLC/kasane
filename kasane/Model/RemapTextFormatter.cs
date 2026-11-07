@@ -27,8 +27,10 @@ public static class RemapTextFormatter
         Line(Loc.T("# かさね 割り当ての一覧", "# kasane assignment list") + (at is { } t ? $" ({t:yyyy-MM-dd HH:mm})" : ""));
         Line(Loc.T($"# キーボード: {keyboardLabel ?? $"{project.UniqId:X8}"} / レイアウト: {project.LayoutName}",
                    $"# Keyboard: {keyboardLabel ?? $"{project.UniqId:X8}"} / Layout: {project.LayoutName}"));
-        Line(Loc.T("# レイヤー0 は刻印のキーから変えたキー、レイヤー1 以降は ▽(透過)でないキーだけを出します。行の頭の「# 」は無効にした設定です。",
-                   "# Layer 0 lists keys changed from their printed key; layers 1 and up list keys that are not ▽ (transparent). Lines starting with \"# \" are disabled settings."));
+        // 説明は、既定の画面の幅で横にはみ出さないよう、2 行に分ける（2026-11-08 の実機確認）。
+        Line(Loc.T("# レイヤー0 は刻印のキーから変えたキー、レイヤー1 以降は ▽(透過)でないキーだけを出します。",
+                   "# Layer 0 lists keys changed from their printed key; layers 1 and up list keys that are not ▽ (transparent)."));
+        Line(Loc.T("# 行の頭の「# 」は、無効にした設定です。", "# Lines starting with \"# \" are disabled settings."));
 
         var slots = layout.Slots.OrderBy(s => s.Index).ToList();
         for (int layer = 0; layer < project.Layers.Count; layer++)

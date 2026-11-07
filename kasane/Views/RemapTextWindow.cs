@@ -50,8 +50,9 @@ public sealed class RemapTextWindow : Window
         var copy = new Button { Name = "CopyButton", Content = Loc.T("コピー", "Copy"), MinWidth = 90, Margin = new Thickness(0, 0, 6, 0) };
         copy.Click += (_, _) =>
         {
-            try { Clipboard.SetText(_text.Text); _status.Text = Loc.T("クリップボードにコピーしました。", "Copied to the clipboard."); }
-            catch (System.Runtime.InteropServices.ExternalException ex) { _status.Text = Loc.T($"コピーできませんでした: {ex.Message}", $"Couldn't copy: {ex.Message}"); }
+            string? error = Kasane.Interop.ClipboardText.Set(_text.Text, new System.Windows.Interop.WindowInteropHelper(this).Handle);
+            _status.Text = error == null ? Loc.T("クリップボードにコピーしました。", "Copied to the clipboard.")
+                                         : Loc.T($"コピーできませんでした: {error}", $"Couldn't copy: {error}");
         };
         var save = new Button { Name = "SaveButton", Content = Loc.T("保存...", "Save..."), MinWidth = 90, Margin = new Thickness(0, 0, 6, 0) };
         save.Click += (_, _) =>
@@ -94,4 +95,5 @@ public sealed class RemapTextWindow : Window
     }
 
     private void Fill() => _text.Text = _build();
+
 }

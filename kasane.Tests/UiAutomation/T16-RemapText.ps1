@@ -37,6 +37,13 @@ try {
     Invoke-Element (Find-ChildByAutomationId $w "RefreshButton"); Start-Sleep -Milliseconds 400
     $text2 = Get-ElementValue (Find-ChildByAutomationId $w "RemapText")
     Chk "after Refresh, the changed key is listed" ($text2 -match 'key .+ -> F24 +: KC_F24')
+    # 3. Copy: the status must say it was copied (hardware test T7: the content arrived but a failure was shown).
+    Invoke-Element (Find-ChildByAutomationId $w "CopyButton"); Start-Sleep -Milliseconds 600
+    $status = (Find-ChildByAutomationId $w "StatusText").Current.Name
+    Chk "Copy reports success (got '$status')" ($status -match 'コピーしました|Copied')
+    $clip = Get-Clipboard -Raw
+    $shown = Get-ElementValue (Find-ChildByAutomationId $w "RemapText")
+    Chk "the clipboard holds the same text as the window ($($clip.Length) chars)" (($clip -replace "`r`n", "`n") -eq ($shown -replace "`r`n", "`n"))
     Invoke-Element (Find-ChildByAutomationId $w "CloseButton"); Start-Sleep -Milliseconds 300
 
     "=== FAIL COUNT: $fail ==="
