@@ -9,24 +9,11 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
     private readonly TapDanceDef?[] _defs = new TapDanceDef?[KbdLayerClient.MaxTapDanceCount];
 
     public List<TapDanceDef> Result { get; private set; } = new();
+
+    protected override string HelpTopic => HelpTopics.TapDance;
 
     public TapDanceEditorWindow(IEnumerable<TapDanceDef> tapDances, IReadOnlyDictionary<int, string>? names = null)
-        : base(Loc.T("タップダンス", "Tap dance"), KbdLayerClient.MaxTapDanceCount,
-            Loc.T(
-                "タップダンスは、キーマップで TAPDANCE(n) を割り当てたキーを、何回続けてタップしたか・長押ししたかで動作を変えます。\n" +
-                "1回・2回・3回タップはキー(KC_*)、LCTL(KC_C) のような修飾付きキー、MACRO(n) のいずれか、" +
-                "長押しは KC_*、MT(MOD_LCTL,KC_NO) のような修飾キー、LT(1,KC_NO) のようなレイヤー(MT/LTのタップ側のキーは使われません)、" +
-                "LCTL(KC_C) のような修飾付きキー(押している間)、LM(1,MOD_LCTL)、MACRO(n)(長押しが決まったときに1回実行)のいずれかを指定します。" +
-                "空欄(または KC_NO)にした欄は「動作なし」で、そのタップ回数・長押しでは何も起きません。" +
-                "判定時間はタイミング設定の TapDanceTerm です。4つとも空にすると未使用になります。\n" +
-                "「無効にする」にチェックを付けると、書いた内容を残したまま、キーボードには適用されません。",
-                "A tap dance changes the action depending on how many times in a row you tap a key assigned TAPDANCE(n) in the keymap, or whether you hold it.\n" +
-                "For 1, 2, and 3 taps, specify a key (KC_*), a key with modifiers such as LCTL(KC_C), or MACRO(n). " +
-                "For a hold, specify KC_*, a modifier key such as MT(MOD_LCTL,KC_NO), a layer such as LT(1,KC_NO) (the tap-side key of MT/LT is not used), " +
-                "a key with modifiers such as LCTL(KC_C) (while held), LM(1,MOD_LCTL), or MACRO(n) (runs once when the hold is recognized). " +
-                "A field left blank (or KC_NO) means “no action”: nothing happens for that tap count or hold. " +
-                "The timing is TapDanceTerm in the timing settings. If all four are blank, the tap dance is unused.\n" +
-                "If you check \"Disable\", the content is kept but not applied to the keyboard."))
+        : base(Loc.T("タップダンス", "Tap dance"), KbdLayerClient.MaxTapDanceCount)
     {
         foreach (var t in tapDances)
             if (t.Id >= 0 && t.Id < _defs.Length)
@@ -151,7 +138,7 @@ public sealed class TapDanceEditorWindow : IdListEditorWindow
             Margin = new System.Windows.Thickness(110, 8, 0, 0),
             Padding = new System.Windows.Thickness(10, 3, 10, 3),
             HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
-            ToolTip = Loc.T("キーの割り当て画面のキーコード欄を一度クリックしてから押します(一覧の行をダブルクリックでも同じ)。", "Click the keycode field in the key assignment dialog once, then press this (double-clicking a row in the list does the same)."),
+            ToolTip = Loc.T("キーの割り当て画面のキーコード欄に入れます", "Inserts it into the keycode field of the key assignment dialog"),
         };
         insert.Click += (_, _) => InsertIntoOtherWindow(id);
         Detail.Children.Add(insert);

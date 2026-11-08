@@ -9,43 +9,35 @@ public partial class MainWindow
     private void Window_LocalizeInit(object? sender, EventArgs e)
     {
         BtnRestartAsAdmin.Content = Loc.T("管理者として再起動", "Restart as administrator");
-        TxtReadOnlyMessage.Text = Loc.T(
-            "閲覧専用モード: 管理者として実行していないため、キーボードへの適用・キャリブレーション・キーボードの特定はできません(編集・保存・エクスポート・OFFはできます)。",
-            "Read-only mode: because kasane is not running as administrator, you cannot apply to the keyboard, calibrate, or identify keyboards (editing, saving, exporting, and OFF still work).");
+        TxtReadOnlyMessage.Text = Loc.T("閲覧専用モードです。キーボードに適用するには、管理者として再起動してください",
+                                        "Read-only mode. To apply to the keyboard, restart as administrator.");
+        ReadOnlyBanner.ToolTip = Loc.T("管理者として実行していないので、キーボードへの適用・キャリブレーション・キーボードの特定はできません。編集・保存・エクスポート・OFF はできます",
+                                       "Not running as administrator, so you cannot apply to the keyboard, calibrate, or identify keyboards. Editing, saving, exporting, and OFF still work.");
 
         TxtKeyboardLabel.Text = Loc.T("キーボード:", "Keyboard:");
-        CmbDevice.ToolTip = Loc.T(
-            "UniqId、つけた名前、Windows 上の名前(FriendlyName・ShellFriendlyName)、ハードウェアID の順に表示します",
-            "Shows the UniqId, the name you gave it, the Windows name (FriendlyName / ShellFriendlyName), and the hardware ID, in that order");
+        CmbDevice.ToolTip = Loc.T("UniqId・付けた名前・Windows 上の名前・ハードウェア ID の順です", "UniqId, your name, Windows name, then hardware ID");
         BtnRenameKeyboard.Content = Loc.T("名前を付ける...", "Rename...");
-        BtnRenameKeyboard.ToolTip = Loc.T(
-            "このキーボードに、わかりやすい名前を付けます(設定画面の表示だけに使います)",
-            "Give this keyboard a friendly name (used only for display in the settings screen)");
+        BtnRenameKeyboard.ToolTip = Loc.T("このキーボードの表示名を付けます", "Gives this keyboard a display name");
         BtnIdentify.Content = Loc.T("押して特定...", "Press to identify...");
         BtnIdentify.ToolTip = Loc.T("キーを1つ押して、どのキーボードかを選びます", "Press a key to choose which keyboard it is");
         BtnRefreshDevices.Content = Loc.T("一覧を更新", "Refresh list");
         BtnHelp.Content = Loc.T("ヘルプ", "Help");
-        BtnHelp.ToolTip = Loc.T("マニュアルを開きます(ブラウザーで表示します。F1 キーでも開けます)", "Opens the manual in your browser (you can also press F1).");
-        BtnRefreshDevices.ToolTip = Loc.T("接続中のキーボードの一覧を、ドライバから読み直します(キーボードをつなぎ直したあとなどに使います)",
-                                          "Reloads the list of connected keyboards from the driver (use it after reconnecting a keyboard).");
+        BtnHelp.ToolTip = Loc.T("マニュアルを開きます(F1)", "Opens the manual (F1)");
+        BtnLegend.Content = Loc.T("凡例", "Legend");
+        BtnLegend.ToolTip = Loc.T("キーボード図の色と印の意味", "What the colors and marks in the keyboard view mean");
+        BtnRefreshDevices.ToolTip = Loc.T("キーボードの一覧を読み直します", "Reloads the keyboard list");
         TxtLayoutLabel.Text = Loc.T("レイアウト:", "Layout:");
         BtnAddKle.Content = Loc.T("KLEから追加...", "Add from KLE...");
-        BtnAddKle.ToolTip = Loc.T(
-            "keyboard-layout-editor.com で作った配列(JSON)を取り込み、レイアウトの一覧に追加します",
-            "Imports a layout (JSON) made with keyboard-layout-editor.com and adds it to the layout list");
+        BtnAddKle.ToolTip = Loc.T("keyboard-layout-editor.com の配列(JSON)を取り込みます", "Imports a layout (JSON) from keyboard-layout-editor.com");
 
         TxtLayerLabel.Text = Loc.T("レイヤー:", "Layer:");
         BtnAddLayer.Content = Loc.T("＋ 追加", "+ Add");
         BtnRemoveLayer.Content = Loc.T("− 最後を削除", "\u2212 Remove last");
 
         BtnCalibrateAll.Content = Loc.T("キャリブレーション...", "Calibrate...");
-        BtnCalibrateAll.ToolTip = Loc.T(
-            "キーの入力確認、個別キー・全キーのキャリブレーション(最初は入力確認モード)",
-            "Check key input, or calibrate individual keys or all keys (starts in input check mode)");
+        BtnCalibrateAll.ToolTip = Loc.T("キーの入力確認とキャリブレーション", "Check key input and calibrate");
         BtnHelper.Content = Loc.T("ヘルパー...", "Helper...");
-        BtnHelper.ToolTip = Loc.T(
-            "設定の「ヘルパー動作」タブを開く(キーでプログラム起動・文字列入力・アプリ別レイヤーなど)",
-            "Opens the \"Helper actions\" tab in Settings (launch programs, type text, per-app layers, and more from a key)");
+        BtnHelper.ToolTip = Loc.T("キーでプログラム起動・文字列入力・アプリ別レイヤー", "Launch programs, type text, and per-app layers from keys");
         BtnMacros.Content = Loc.T("マクロ...", "Macros...");
         BtnCombos.Content = Loc.T("コンボ...", "Combos...");
         BtnTapDances.Content = Loc.T("タップダンス...", "Tap dances...");
@@ -55,18 +47,13 @@ public partial class MainWindow
             "機能のON/OFF・タイミング・NICOLA・緊急解除・共有範囲",
             "Feature ON/OFF, timing, NICOLA, emergency release, and sharing scope");
         BtnRemapText.Content = Loc.T("割り当ての一覧...", "Assignment list...");
-        BtnRemapText.ToolTip = Loc.T(
-            "変えた割り当てと、コンボ・マクロなどを、1行ずつ文字で表示します(コピー・保存できます)",
-            "Shows the changed assignments, combos, macros, and so on as text, one per line (you can copy or save it)");
+        BtnRemapText.ToolTip = Loc.T("割り当てを 1 行ずつ文字で表示します", "Shows the assignments as text, one per line");
         BtnImportExport.Content = Loc.T("インポート／エクスポート...", "Import / Export...");
         BtnImportExport.ToolTip = Loc.T(
-            "設定をファイル(*.kasane.json)に書き出す・読み込む(全体一括・このキーボード・レイヤー1枚)。「クリア」タブで、選んだ項目を初期状態に戻せます",
-            "Export settings to a file (*.kasane.json) or import them (everything at once, this keyboard, or a single layer). The \"Clear\" tab resets the items you choose to their initial state");
+            "設定をファイル(*.kasane.json)に書き出す・読み込む。選んだ項目を初期化する",
+            "Export settings to a file (*.kasane.json), import them, or reset the items you choose");
         BtnApply.Content = Loc.T("キーボードに適用(ON)", "Apply to keyboard (ON)");
-        BtnOff.Content = Loc.T("OFF(素通しに戻す)", "OFF (pass keys through)");
-
-        TxtLegend.Text = Loc.T(
-            "クリック: 割り当てを変更 ／ 右クリック: 実測値を消す・割り当てを戻す・コンボなどを開く ／ 青: 既定から変更 ／ 緑: レイヤー・Mod-Tap等 ／ 右下の印: M=マクロ・D=タップダンス・C=コンボ・R=キー置換(ボタンの( )は定義の数)／ 橙枠: 実測値が既定と異なる ／ 赤枠: スキャンコード不明(要実測) ／ ▽: 下のレイヤーと同じ(透過)",
-            "Click: change assignment / Right-click: clear measured value, restore assignment, or open combos and more / Blue: changed from default / Green: layer, Mod-Tap, etc. / Marks at bottom right: M=macro, D=tap dance, C=combo, R=key override (the ( ) on buttons is the number of definitions) / Orange border: measured value differs from default / Red border: scan code unknown (needs measuring) / \u25bd: same as the layer below (transparent)");
+        BtnOff.Content = "OFF";
+        BtnOff.ToolTip = Loc.T("リマップをやめて、キーをそのまま送ります", "Stops remapping and sends keys as they are");
     }
 }

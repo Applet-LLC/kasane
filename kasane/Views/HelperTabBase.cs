@@ -16,19 +16,21 @@ internal abstract class HelperTabBase
     protected readonly StackPanel Stack = new();
     private readonly RadioButton _deviceRadio;
     private readonly RadioButton _globalRadio;
-    private readonly TextBlock _scopeInfo = new() { TextWrapping = TextWrapping.Wrap, Foreground = Brushes.Firebrick, Margin = new Thickness(0, 4, 0, 0) };
+    private readonly TextBlock _scopeInfo = new() { TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.ErrorText, Margin = new Thickness(0, 4, 0, 0) };
 
     protected HelperScope Scope { get; private set; }
 
-    protected HelperTabBase(HelperSettingsModel model, Window owner, string idPrefix, string help)
+    // タブの先頭の説明の段落は出さない（2026-11-08、UI の見直し。説明は設定ダイアログの「?」で開くマニュアル）。
+    // どのタブにも共通する「このキーボードの設定が先」だけを、範囲のツールチップにする。
+    protected HelperTabBase(HelperSettingsModel model, Window owner, string idPrefix)
     {
         Model = model;
         Owner = owner;
 
-        Stack.Children.Add(new TextBlock { Text = help, TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 10) });
-
-        _deviceRadio = new RadioButton { Name = idPrefix + "ScopeDevice", Content = Loc.T("このキーボード", "This keyboard"), GroupName = idPrefix + "Scope", Margin = new Thickness(0, 0, 16, 0) };
-        _globalRadio = new RadioButton { Name = idPrefix + "ScopeGlobal", Content = Loc.T("全キーボード共通", "All keyboards (shared)"), GroupName = idPrefix + "Scope" };
+        string scopeTip = Loc.T("このキーボードの設定が、全キーボード共通の設定より先に使われます。変更は OK で保存します",
+                                "This keyboard's settings are used before the shared ones. Changes are saved with OK");
+        _deviceRadio = new RadioButton { Name = idPrefix + "ScopeDevice", Content = Loc.T("このキーボード", "This keyboard"), GroupName = idPrefix + "Scope", Margin = new Thickness(0, 0, 16, 0), ToolTip = scopeTip };
+        _globalRadio = new RadioButton { Name = idPrefix + "ScopeGlobal", Content = Loc.T("全キーボード共通", "All keyboards (shared)"), GroupName = idPrefix + "Scope", ToolTip = scopeTip };
         var scopeBar = new StackPanel { Orientation = Orientation.Horizontal };
         scopeBar.Children.Add(new TextBlock { Text = Loc.T("対象:", "Target:"), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
         scopeBar.Children.Add(_deviceRadio);

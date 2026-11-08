@@ -50,15 +50,7 @@ public sealed class NodokaImportWindow : Window
         var root = new DockPanel { Margin = new Thickness(10) };
 
         var top = new StackPanel();
-        top.Children.Add(new TextBlock
-        {
-            Text = Loc.T(
-                ("のどかの設定ファイル(.nodoka)を、kasane の設定に変換します。のどかの設定一覧から選ぶか、ファイルを選んでください。" +
-                 "include しているファイルも読みます。変換できないものは、ファイル名と行番号つきで下に出ます。この画面では何も書き換えません。"),
-                ("Converts a Nodoka settings file (.nodoka) into kasane settings. Choose one from the Nodoka settings list, or pick a file. " +
-                 "Included files are read too. Anything that cannot be converted is listed below with its file name and line number. Nothing is changed on this screen.")),
-            TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 8),
-        });
+        // 画面の説明は、マニュアル（14 章「のどかの設定を取り込む」）に置く。「?」と F1 で開く（2026-11-08）。
         top.Children.Add(new TextBlock { Text = Loc.T("のどかの設定一覧:", "Nodoka settings list:") });
         top.Children.Add(_profiles);
 
@@ -70,7 +62,9 @@ public sealed class NodokaImportWindow : Window
         top.Children.Add(new TextBlock { Text = Loc.T("設定ファイル:", "Settings file:"), Margin = new Thickness(0, 8, 0, 0) });
         top.Children.Add(pathRow);
 
-        top.Children.Add(new TextBlock { Text = Loc.T("シンボル(-D。空白かカンマで区切る。例: USE109 EMACS):", "Symbols (-D; separated by spaces or commas, e.g. USE109 EMACS):"), Margin = new Thickness(0, 8, 0, 0) });
+        string symbolsTip = Loc.T("空白かカンマで区切ります。例: USE109 EMACS", "Separate with spaces or commas, e.g. USE109 EMACS");
+        top.Children.Add(new TextBlock { Text = Loc.T("シンボル(-D):", "Symbols (-D):"), Margin = new Thickness(0, 8, 0, 0), ToolTip = symbolsTip });
+        _symbols.ToolTip = symbolsTip;
         top.Children.Add(_symbols);
 
         var buttons = new StackPanel { Orientation = Orientation.Horizontal };
@@ -80,6 +74,10 @@ public sealed class NodokaImportWindow : Window
         buttons.Children.Add(_accept);
         var cancel = new Button { Name = "NodokaCancelButton", Content = Loc.T("キャンセル", "Cancel"), IsCancel = true, Width = 90, Margin = new Thickness(0, 8, 0, 0) };
         buttons.Children.Add(cancel);
+        var help = HelpButton.Create(HelpTopics.NodokaImport);
+        help.Margin = new Thickness(12, 8, 0, 0);
+        buttons.Children.Add(help);
+        HelpButton.AttachF1(this, () => HelpTopics.NodokaImport);
         top.Children.Add(buttons);
         top.Children.Add(_summary);
 

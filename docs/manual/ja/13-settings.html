@@ -65,9 +65,9 @@
 <td>この章</td>
 </tr>
 <tr>
-<td>IME連動</td>
+<td>IME 連動</td>
 <td>IME に合わせたレイヤーの切り替え、NICOLA</td>
-<td><a href="10-ime-nicola.html">10. IME連動とNICOLA</a></td>
+<td><a href="10-ime-nicola.html">10. IME 連動とNICOLA</a></td>
 </tr>
 <tr>
 <td>ヘルパー動作</td>
@@ -125,7 +125,7 @@
 <td><strong>OK</strong> で保存する。トレイが数秒で読み直す</td>
 </tr>
 <tr>
-<td>機能、タイミング、IME連動</td>
+<td>機能、タイミング、IME 連動の NICOLA の配列</td>
 <td><strong>OK</strong> のあと、エディタで <strong>キーボードに適用(ON)</strong> を押したとき</td>
 </tr>
 <tr>
@@ -142,16 +142,17 @@
 </tr>
 <tr>
 <td>i8042prt</td>
-<td>タブの中の <strong>反映する</strong> を押したとき（<strong>OK</strong> や <strong>キャンセル</strong> とは関係しない）</td>
+<td>タブの中の <strong>保存する</strong> を押したとき（<strong>OK</strong> や <strong>キャンセル</strong> とは関係しない）</td>
 </tr>
 </tbody>
 </table>
+<p><a id="general"></a></p>
 <h2 id="section-1">全般</h2>
 <p><img src="../img/ja/settings-general.png" alt="全般" /></p>
 <h3 id="section-2">トレイ</h3>
 <ul>
-<li><strong>トレイが動いている間だけ、キーのリマップを有効にする</strong>: ON にすると、トレイの終了、サインアウト、シャットダウン、画面のロックでリマップが OFF になり、トレイの起動とロック解除で ON に戻ります（既定は ON）。詳しくは、<a href="04-tray.html">4. トレイ</a>を見てください。</li>
-<li><strong>トレイのアイコンに、今のレイヤー番号を重ねる</strong>: アイコンの右下に、今のレイヤーの番号が出ます。基底のレイヤーだけのときは、重なりません。アイコンの大半が隠れるので、出したくないときはチェックを外します。</li>
+<li><strong>トレイが動いている間だけリマップする</strong>: ON にすると、トレイの終了、サインアウト、シャットダウン、画面のロックでリマップが OFF になり、トレイの起動とロック解除で ON に戻ります（既定は ON）。詳しくは、<a href="04-tray.html">4. トレイ</a>を見てください。</li>
+<li><strong>トレイのアイコンにレイヤー番号を出す</strong>: アイコンの右下に、今のレイヤーの番号が出ます。基底のレイヤーだけのときは、出ません。アイコンの大半が隠れるので、出したくないときはチェックを外します。</li>
 </ul>
 <h3 id="section-3">画面の色</h3>
 <p><strong>色のモード</strong> で、<strong>ライト</strong>（既定）と <strong>ダーク</strong> を選べます。<strong>OK</strong> で保存すると、開いている画面も、これから開く画面も、メイン画面、設定、各編集画面、キーの割り当てなど、すべてに効きます。タイトルバーも暗くなります。</p>
@@ -164,6 +165,7 @@
 <h3 id="section-4">表示言語</h3>
 <p><strong>言語</strong> で、kasane とトレイの表示言語を、<strong>自動認識(既定)</strong>、<strong>日本語</strong>、<strong>English</strong> から選びます。自動認識は、Windows の表示言語に合わせます。変更は、kasane とトレイの再起動後に効きます。保存すると、kasane の再起動を勧める確認が出ます。トレイは、数秒後に自動で再起動します。</p>
 <p><img src="../img/ja/settings-language-restart.png" alt="表示言語を変えたときの確認" /></p>
+<p><a id="features"></a></p>
 <h2 id="section-5">機能</h2>
 <p>マクロ、コンボ、タップダンス、キー置換を、使わなければ OFF にできます。画面には、キーボードの現在の値（「マクロ ON / コンボ ON / …」）も出ます。</p>
 <p><img src="../img/ja/settings-features.png" alt="機能" /></p>
@@ -173,6 +175,7 @@
 <li>レイヤーとキーの置き換え、Mod-Tap と Layer-Tap、修飾キー付きのキーは、OFF にできません。常に使えます。</li>
 <li>チェックに一度も触れていなければ、適用してもキーボードの設定は変わりません。コマンド版（<code>--set-features</code>）で変えた値が、そのまま残ります。</li>
 </ul>
+<p><a id="timing"></a></p>
 <h2 id="section-6">タイミング</h2>
 <p>長押し、同時押し、連続タップの判定時間などを変えます。</p>
 <p><img src="../img/ja/settings-timing.png" alt="タイミング" /></p>
@@ -198,7 +201,7 @@
 </tr>
 <tr>
 <td>判定方式</td>
-<td>Mod-Tap と Layer-Tap の判定の方法。<strong>別のキーを押したらすぐ長押し扱い</strong>（既定）、押して離したら長押し扱い、時間内に離せば短押し扱い、の 3 通り。タップダンスは、常に既定の方式</td>
+<td>Mod-Tap と Layer-Tap の判定の方法。<strong>別のキーを押したら長押し</strong>（既定）、<strong>別のキーを押して離したら長押し</strong>、<strong>時間内に離せば短押し</strong> の 3 通り。タップダンスは、常に既定の方式</td>
 </tr>
 <tr>
 <td>Quick Tap</td>
@@ -211,6 +214,7 @@
 </tbody>
 </table>
 <p>単位はミリ秒で、0〜10000 の整数で入れます。0 にすると、既定値を使います。画面の上には、「キーボードの現在の値」も出ます。速く打つと Mod-Tap が意図せず長押し扱いになるときは、2 つ目か 3 つ目の判定方式を試してください。</p>
+<p><a id="scope"></a></p>
 <h2 id="section-7">共有範囲</h2>
 <p>キーボードは、接続先（USB ポートなど）ごとに、別のキーボードとして扱われます。エディタで作った設定（<code>project.json</code>）と、トレイの設定は、ポートを替えると引き継がれません（エクスポートとインポートで移せます）。</p>
 <p>共有範囲は、ドライバが保存する設定の単位です。</p>
@@ -268,6 +272,7 @@
 <li>切り替えるときは、今の設定が切り替え先へコピーされ、切り替え先の既存の設定は上書きされます。たとえば、「すべて」や「この 1 台」から「同じ型番」へ戻すと、同じ型番で共有している設定が置き換わります。</li>
 <li>同じ型番の別のキーボードへの反映は、そのキーボードを接続し直す（またはパソコンを再起動する）まで行われません。</li>
 </ul>
+<p><a id="data-dir"></a></p>
 <h2 id="section-8">保存先</h2>
 <p>設定ファイル（キーボードごとの設定、トレイの設定、ログ）を保存しているフォルダと、環境変数 <code>KASANE</code> の値を表示します。</p>
 <p><img src="../img/ja/settings-datadir-admin.png" alt="保存先" /></p>
@@ -279,23 +284,26 @@
 <h3 id="section-9">取り込み前の設定に戻す</h3>
 <p>インストール時の設定ファイルの取り込みで置き換わった型番は、このタブの下部に一覧で出ます。<strong>取り込み前の設定に戻す</strong> は、退避した設定と、今の設定を入れ替えます。もう一度押すと、元に戻ります。</p>
 <p>ドライバのレジストリを書くので、<strong>管理者として再起動</strong> したときだけ押せます。反映は、キーボードを接続し直したあと（またはパソコンの再起動後）です。</p>
+<p><a id="i8042"></a></p>
 <h2 id="i8042prt">i8042prt</h2>
 <p>PS/2（ACPI）キーボードのレイアウトは、レジストリ <code>HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\i8042prt\Parameters</code> の値でしか指定できません。HID キーボードでは、これらの値が残っていると、個別の指定が無効になります。</p>
 <p>この設定は、ノート PC の内蔵キーボードが PS/2（ACPI）キーボードで、外部キーボードも併用するときに使います。内蔵キーボードと外部キーボードで、異なるキーボードレイアウトを使いたい場合です。有効にすると、PC の起動時に PS/2（ACPI）キーボードを認識するタイミングで、指定のレイアウトにします。Windows の「言語と地域」のオプションで、キーボードのレイアウトを「接続されているキーボード」にしても、PS/2（ACPI）キーボードのレイアウトが JIS にならないときに、試してください。</p>
 <p><img src="../img/ja/settings-i8042-admin.png" alt="i8042prt（管理者として開いたとき）" /></p>
-<p>管理者でないときは、入力欄と <strong>反映する</strong> が押せません。</p>
+<p>管理者でないときは、入力欄と <strong>保存する</strong> が押せません。</p>
 <p><img src="../img/ja/settings-i8042.png" alt="i8042prt（閲覧専用モード）" /></p>
-<p><strong>キーボードの接続時にi8042prtの値を書き換える／初期化する</strong> を有効にすると、キーボードを接続するたびに（起動時を含みます）、次のように書き換えます。</p>
+<p><strong>接続時に i8042prt の値を書き換える</strong> を有効にすると、キーボードを接続するたびに（起動時を含みます）、次のように書き換えます。</p>
 <ul>
 <li>プロファイルのある型番には、設定した値を書き込みます（空欄の値は削除します）。</li>
 <li>プロファイルのない型番には、<code>OverrideKeyboardType</code>、<code>OverrideKeyboardSubtype</code>、<code>OverrideKeyboardIdentifier</code> と <code>LayerDriver JPN</code>、<code>LayerDriver KOR</code> を削除して、OS の既定に戻します。</li>
 </ul>
-<p>無効（既定）のときは、何もしません。<strong>現在選択しているキーボードに対する指定（接続時に下の値を書き込む）</strong> にチェックを付けると、選んでいるキーボードの型番のプロファイルとして、下の値が使われます。<strong>国・配列プリセット</strong> から選ぶか、<strong>タイプ</strong>、<strong>サブタイプ</strong>、<code>OverrideKeyboardIdentifier</code>、<code>LayerDriver JPN</code>、<code>LayerDriver KOR</code>（レイアウト DLL 名。例: <code>kbd106.dll</code>）を、手で入れます。ほかに登録された型番があるときは、一覧に出ます。無効の間はプロファイルを設定できませんが、保存済みの内容は残り、有効にしたときに使われます。ドライバ全体の設定で、<strong>反映する</strong> を押すとすぐに保存されます。書き換えは、次にキーボードを接続したとき（再接続、または再起動）から行われます。</p>
+<p>無効（既定）のときは、何もしません。<strong>このキーボードの型番に値を指定する</strong> にチェックを付けると、選んでいるキーボードの型番のプロファイルとして、下の値が使われます。<strong>国・配列プリセット</strong> から選ぶか、<strong>タイプ</strong>、<strong>サブタイプ</strong>、<code>OverrideKeyboardIdentifier</code>、<code>LayerDriver JPN</code>、<code>LayerDriver KOR</code>（レイアウト DLL 名。例: <code>kbd106.dll</code>）を、手で入れます。ほかに登録された型番があるときは、一覧に出ます。無効の間はプロファイルを設定できませんが、保存済みの内容は残り、有効にしたときに使われます。ドライバ全体の設定で、<strong>保存する</strong> を押すとすぐに保存されます。書き換えは、次にキーボードを接続したとき（再接続、または再起動）から行われます。</p>
 <p>画面の上部には、選んでいるキーボードの <code>DeviceId</code> と、型番を表す <code>ModelKey</code> が出ます。プロファイルは <code>ModelKey</code> ごとに保存されるので、同じ型番のキーボードで共有されます。2 つの識別子については、前の「共有範囲」の節を参照してください。</p>
+<p><a id="desktop"></a></p>
 <h2 id="section-10">デスクトップ</h2>
 <p>デスクトップのアイコンの表示方法（通常表示、詳細表示、小さなアイコン表示、リスト表示、タイル表示）を変えます。キーのリマップとは関係がなく、のどかの設定にあった機能を引き継いだものです。</p>
 <p><img src="../img/ja/settings-desktop.png" alt="デスクトップ" /></p>
 <p><strong>変えない(既定)</strong> のままなら、何もしません。選んだ表示方法は、<strong>OK</strong> で保存したときと、トレイの起動時に反映されます。OS やデスクトップの状態によっては、選んだ表示方法にならないことがあります。</p>
+<p><a id="about"></a></p>
 <h2 id="section-11">バージョン情報</h2>
 <p>製品名、バージョン、ビルド日時、実行しているファイルの場所、Web サイトが表示されます。メイン画面のタイトルバーのバージョン表示と、トレイの <strong>バージョン情報</strong> からも開けます。</p>
 <p><img src="../img/ja/settings-about.png" alt="バージョン情報" /></p>

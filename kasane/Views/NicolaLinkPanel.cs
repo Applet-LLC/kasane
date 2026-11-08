@@ -25,11 +25,7 @@ internal sealed class NicolaLinkPanel : HelperTabBase
     /// <param name="setGlobal">全キーボード共通の値を変える（保存は、設定画面の OK のとき）。</param>
     /// <param name="changed">値が変わったとき（NICOLA の説明の注意を見直すため）。</param>
     public NicolaLinkPanel(HelperSettingsModel model, Window owner, Func<bool> getGlobal, Action<bool> setGlobal, Action changed)
-        : base(model, owner, "NicolaLink",
-            Loc.T("NICOLA の IME 連動(IME が日本語入力モードのときだけ、NICOLA のレイヤーを自動で立てる)を使うかどうかを決めます。" +
-                "「このキーボード」の設定が「全キーボード共通」より先に使われ、変更は OK で保存されます。",
-                "Choose whether to use IME link for NICOLA (the NICOLA layer is turned on automatically only while the IME is in Japanese input mode). " +
-                "The \"This keyboard\" setting takes priority over \"All keyboards\", and changes are saved with OK."))
+        : base(model, owner, "NicolaLink")
     {
         _getGlobal = getGlobal;
         _setGlobal = setGlobal;
@@ -38,7 +34,8 @@ internal sealed class NicolaLinkPanel : HelperTabBase
         LinkCheck = new CheckBox
         {
             Name = "NicolaImeLinkCheck",
-            Content = Loc.T("IME連動: IMEが日本語入力モードのときだけNICOLAにする(タスクトレイの kasane が必要)", "IME link: use NICOLA only while the IME is in Japanese input mode (requires kasane in the tray)"),
+            Content = Loc.T("IME 連動: IME が日本語入力モードのときだけ NICOLA にする", "IME link: use NICOLA only in Japanese input mode"),
+            ToolTip = Loc.T("トレイが動いているときだけ働きます", "Works only while the tray is running"),
             Margin = new Thickness(0, 6, 0, 0),
         };
         LinkCheck.Click += (_, _) => Apply();

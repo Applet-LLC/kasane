@@ -34,6 +34,8 @@ try {
     # 1. Key overrides
     $ko = Open-Window $main "BtnKeyOverrides"
     $list = Find-ChildByAutomationId $ko "IdList"
+    # 2026-11-08: the long explanation at the top was removed; the editors have a "?" button (opens chapter 9).
+    Chk "the help button is present" ([bool](Find-ChildByAutomationId $ko "HelpButton"))
     $free = @()
     $items = $list.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)
     for ($i = 0; $i -lt $items.Count -and $free.Count -lt 2; $i++) { if ($items[$i].Current.Name -match '未使用|unused') { $free += $i } }

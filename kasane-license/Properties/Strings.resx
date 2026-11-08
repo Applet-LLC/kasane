@@ -65,7 +65,7 @@
     <value>Re-check license</value>
   </data>
   <data name="Btn_Refresh_ToolTip" xml:space="preserve">
-    <value>Re-checks with the license server using the saved information, e.g. if the network became available later</value>
+    <value>Re-checks with the license server using the saved information</value>
   </data>
   <data name="Label_LicenseKey" xml:space="preserve">
     <value>License key</value>

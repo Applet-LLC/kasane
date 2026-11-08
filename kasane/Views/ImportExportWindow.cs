@@ -37,15 +37,15 @@ public sealed class ImportExportWindow : Window
     private readonly TabControl _tabs = new() { Name = "ImportExportTabs" };
 
     // エクスポート
-    private readonly RadioButton _exAll = new() { Name = "ExportScopeAll", Content = Loc.T("全体一括(すべてのキーボードと、トレイの設定)", "All keyboards and tray settings"), GroupName = "ExScope", Margin = new Thickness(0, 2, 0, 2) };
+    private readonly RadioButton _exAll = new() { Name = "ExportScopeAll", Content = Loc.T("全体一括", "Everything"), ToolTip = Loc.T("すべてのキーボードと、トレイの設定", "All keyboards and the tray settings"), GroupName = "ExScope", Margin = new Thickness(0, 2, 0, 2) };
     private readonly RadioButton _exKeyboard = new() { Name = "ExportScopeKeyboard", Content = Loc.T("このキーボード", "This keyboard"), GroupName = "ExScope", Margin = new Thickness(0, 2, 0, 2) };
-    private readonly RadioButton _exLayer = new() { Name = "ExportScopeLayer", Content = Loc.T("レイヤー1枚(使っているマクロなども一緒に)", "One layer (with the macros it uses)"), GroupName = "ExScope", Margin = new Thickness(0, 2, 8, 2) };
+    private readonly RadioButton _exLayer = new() { Name = "ExportScopeLayer", Content = Loc.T("レイヤー1枚", "One layer"), ToolTip = Loc.T("使っているマクロなども一緒に書き出します", "The macros and other definitions it uses are exported too"), GroupName = "ExScope", Margin = new Thickness(0, 2, 8, 2) };
     private readonly ComboBox _exLayerCombo = new() { Name = "ExportLayerCombo", Width = 80 };
-    private readonly CheckBox _exHelper = new() { Name = "ExportHelperCheck", Content = Loc.T("ヘルパー設定(動作・トリガー・アプリ別レイヤー)を含める", "Include helper settings (actions, triggers, per-app layers)"), IsChecked = true, Margin = new Thickness(0, 8, 0, 0) };
-    private readonly CheckBox _exRecovery = new() { Name = "ExportRecoveryCheck", Content = Loc.T("復旧用の設定も含める(トレイの表示・色・言語、デスクトップ、緊急解除、i8042prt、共有範囲、自分で追加したレイアウト。同じパソコンへの復元向け)", "Include recovery settings (tray display/color/language, desktop, emergency release, i8042prt, sharing scopes, your own layouts; for restoring to this PC)"), Margin = new Thickness(0, 2, 0, 0) };
-    private readonly CheckBox _exMeasured = new() { Name = "ExportMeasuredCheck", Content = Loc.T("実測したスキャンコードを含める(同じキーボードへのバックアップ用)", "Include measured scan codes (for backing up to the same keyboard)"), Margin = new Thickness(0, 2, 0, 0) };
-    private readonly RadioButton _exFormatKasane = new() { Name = "ExportFormatKasane", Content = Loc.T("kasane の設定ファイル(*.kasane.json。レイヤー・マクロ・コンボなどすべて)", "kasane settings file (*.kasane.json; layers, macros, combos, and everything else)"), GroupName = "ExFormat", IsChecked = true, Margin = new Thickness(0, 2, 0, 2) };
-    private readonly RadioButton _exFormatKeymapTool = new() { Name = "ExportFormatKeymapTool", Content = Loc.T("KeymapTool 用 JSON(keymap.json と profile.json。レイヤーとキャリブレーションだけを書き出し、マクロやコンボなどは含みません)", "JSON for KeymapTool (keymap.json and profile.json; writes only layers and calibration, not macros, combos, etc.)"), GroupName = "ExFormat", Margin = new Thickness(0, 2, 0, 2) };
+    private readonly CheckBox _exHelper = new() { Name = "ExportHelperCheck", Content = Loc.T("ヘルパー設定を含める", "Include helper settings"), ToolTip = Loc.T("動作・トリガー・アプリ別レイヤー", "Actions, triggers and per-app layers"), IsChecked = true, Margin = new Thickness(0, 8, 0, 0) };
+    private readonly CheckBox _exRecovery = new() { Name = "ExportRecoveryCheck", Content = Loc.T("復旧用の設定を含める", "Include recovery settings"), ToolTip = Loc.T("トレイの表示・色・言語、デスクトップ、緊急解除、i8042prt、共有範囲、自分で追加したレイアウト。同じパソコンへ戻すとき用で、全体一括のときだけ選べます", "Tray display, colors and language, desktop, emergency release, i8042prt, sharing scopes and your own layouts. For restoring to this PC; only for Everything"), Margin = new Thickness(0, 2, 0, 0) };
+    private readonly CheckBox _exMeasured = new() { Name = "ExportMeasuredCheck", Content = Loc.T("実測したスキャンコードを含める", "Include measured scan codes"), ToolTip = Loc.T("同じキーボードへ戻すとき用", "For restoring to the same keyboard"), Margin = new Thickness(0, 2, 0, 0) };
+    private readonly RadioButton _exFormatKasane = new() { Name = "ExportFormatKasane", Content = Loc.T("kasane の設定ファイル (*.kasane.json)", "kasane settings file (*.kasane.json)"), ToolTip = Loc.T("レイヤー・マクロ・コンボなど、すべて", "Layers, macros, combos and everything else"), GroupName = "ExFormat", IsChecked = true, Margin = new Thickness(0, 2, 0, 2) };
+    private readonly RadioButton _exFormatKeymapTool = new() { Name = "ExportFormatKeymapTool", Content = Loc.T("KeymapTool 用 JSON", "JSON for KeymapTool"), ToolTip = Loc.T("keymap.json と profile.json。レイヤーとキャリブレーションだけを書き出します(コマンド版の --apply-simple 用)", "keymap.json and profile.json. Only layers and calibration (for the command-line --apply-simple)"), GroupName = "ExFormat", Margin = new Thickness(0, 2, 0, 2) };
     private readonly TextBox _exReport = ReportBox("ExportReport");
     private readonly Button _exOpen = new() { Name = "ExportOpenFolderButton", Content = Loc.T("出力先をエクスプローラーで開く", "Open output folder"), Width = 190, Margin = new Thickness(8, 10, 0, 0) };
     private readonly TextBlock _exDest = new()
@@ -62,7 +62,7 @@ public sealed class ImportExportWindow : Window
     private readonly StackPanel _imSourceRow = new() { Orientation = Orientation.Horizontal, Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 0, 6) };
     private readonly StackPanel _imMapPanel = new() { Name = "ImportMapPanel", Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 0, 6) };
     private readonly StackPanel _imOptions = new() { Name = "ImportOptionsPanel", Margin = new Thickness(0, 0, 0, 6) };
-    private readonly CheckBox _imLayers = Check("ImportLayersCheck", Loc.T("レイヤー(キー割り当て)", "Layers (key assignments)"));
+    private readonly CheckBox _imLayers = Check("ImportLayersCheck", Loc.T("レイヤー", "Layers"), Loc.T("キーの割り当て", "Key assignments"));
     private readonly CheckBox _imMacros = Check("ImportMacrosCheck", Loc.T("マクロ", "Macros"));
     private readonly CheckBox _imCombos = Check("ImportCombosCheck", Loc.T("コンボ", "Combos"));
     private readonly CheckBox _imTapDances = Check("ImportTapDancesCheck", Loc.T("タップダンス", "Tap dances"));
@@ -70,16 +70,17 @@ public sealed class ImportExportWindow : Window
     private readonly CheckBox _imTiming = Check("ImportTimingCheck", Loc.T("タイミング", "Timing"));
     private readonly CheckBox _imFeatures = Check("ImportFeaturesCheck", Loc.T("機能のON/OFF", "Feature on/off"));
     private readonly CheckBox _imNicola = Check("ImportNicolaCheck", Loc.T("NICOLA(親指シフト)", "NICOLA (thumb shift)"));
-    private readonly CheckBox _imHelper = Check("ImportHelperCheck", Loc.T("ヘルパー設定(読み込むとすぐ helper.json に書かれます)", "Helper settings (written to helper.json as soon as you import)"));
-    private readonly CheckBox _imRecovery = Check("ImportRecoveryCheck", Loc.T("復旧用の設定(トレイの設定、緊急解除、i8042prt、共有範囲、レイアウト。緊急解除・i8042prt・共有範囲は、管理者権限のときだけ読み込みます)", "Recovery settings (tray settings, emergency release, i8042prt, sharing scopes, layouts; emergency release, i8042prt and sharing scopes are imported only with administrator rights)"));
-    private readonly CheckBox _imMeasured = Check("ImportMeasuredCheck", Loc.T("実測したスキャンコード(同じレイアウトのときだけ)", "Measured scan codes (only for the same layout)"));
+    private readonly CheckBox _imHelper = Check("ImportHelperCheck", Loc.T("ヘルパー設定", "Helper settings"), Loc.T("読み込むと、すぐ helper.json に書かれます", "Written to helper.json as soon as you import"));
+    private readonly CheckBox _imRecovery = Check("ImportRecoveryCheck", Loc.T("復旧用の設定", "Recovery settings"), Loc.T("トレイの設定、緊急解除、i8042prt、共有範囲、レイアウト。緊急解除・i8042prt・共有範囲は、管理者として起動しているときだけ読み込みます", "Tray settings, emergency release, i8042prt, sharing scopes and layouts. Emergency release, i8042prt and sharing scopes are imported only when running as administrator"));
+    private readonly CheckBox _imMeasured = Check("ImportMeasuredCheck", Loc.T("実測したスキャンコード", "Measured scan codes"), Loc.T("同じレイアウトのときだけ読み込みます", "Imported only for the same layout"));
     private readonly StackPanel _imModeRow = new() { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
-    private readonly RadioButton _imReplace = new() { Name = "ImportModeReplace", Content = Loc.T("置き換え", "Replace"), GroupName = "ImMode", IsChecked = true, Margin = new Thickness(0, 0, 16, 0) };
-    private readonly RadioButton _imAppend = new() { Name = "ImportModeAppend", Content = Loc.T("追加(今の設定を残して足す)", "Add (keep current settings and add to them)"), GroupName = "ImMode" };
+    private readonly RadioButton _imReplace = new() { Name = "ImportModeReplace", Content = Loc.T("置き換え", "Replace"), ToolTip = Loc.T("今の設定を、ファイルの内容で置き換えます", "Replaces the current settings with the file's"), GroupName = "ImMode", IsChecked = true, Margin = new Thickness(0, 0, 16, 0) };
+    private readonly RadioButton _imAppend = new() { Name = "ImportModeAppend", Content = Loc.T("追加", "Add"), ToolTip = Loc.T("今の設定を残して、足します", "Keeps the current settings and adds to them"), GroupName = "ImMode" };
     private readonly StackPanel _imLayerRow = new() { Orientation = Orientation.Horizontal, Visibility = Visibility.Collapsed, Margin = new Thickness(0, 6, 0, 0) };
     private readonly ComboBox _imLayerTarget = new() { Name = "ImportLayerTargetCombo", Width = 260 };
     private readonly TextBox _imReport = ReportBox("ImportReport");
-    private readonly Button _imPreview = new() { Name = "ImportPreviewButton", Content = Loc.T("確認(変更しない)", "Preview (no changes)"), Width = 130, IsEnabled = false };
+    private readonly Button _imPreview = new() { Name = "ImportPreviewButton", Content = Loc.T("内容確認", "Preview"), Width = 110, IsEnabled = false,
+                                                     ToolTip = Loc.T("何も変えずに、読み込んだときの結果を表示します", "Shows what the import would do, without changing anything") };
     private readonly Button _imDo = new() { Name = "ImportDoButton", Content = Loc.T("読み込む", "Import"), Width = 110, IsEnabled = false };
 
     private PortableFile? _file;
@@ -94,15 +95,15 @@ public sealed class ImportExportWindow : Window
     private readonly RadioButton _clPick = new() { Name = "ClearScopePick", Content = Loc.T("選んだキーボード", "Selected keyboards"), GroupName = "ClScope", Margin = new Thickness(0, 2, 0, 2) };
     private readonly StackPanel _clPickList = new() { Name = "ClearPickList", Margin = new Thickness(24, 0, 0, 6), IsEnabled = false };
     private readonly Dictionary<uint, CheckBox> _clPickBoxes = new();
-    private readonly CheckBox _clLayers = Clear("ClearLayersCheck", Loc.T("レイヤー(キー割り当て)", "Layers (key assignments)"));
+    private readonly CheckBox _clLayers = Clear("ClearLayersCheck", Loc.T("レイヤー", "Layers"), Loc.T("キーの割り当て", "Key assignments"));
     private readonly CheckBox _clMacros = Clear("ClearMacrosCheck", Loc.T("マクロ", "Macros"));
     private readonly CheckBox _clCombos = Clear("ClearCombosCheck", Loc.T("コンボ", "Combos"));
     private readonly CheckBox _clTapDances = Clear("ClearTapDancesCheck", Loc.T("タップダンス", "Tap dances"));
     private readonly CheckBox _clKeyOverrides = Clear("ClearKeyOverridesCheck", Loc.T("キー置換", "Key overrides"));
     private readonly CheckBox _clTiming = Clear("ClearTimingCheck", Loc.T("タイミング", "Timing"));
-    private readonly CheckBox _clFeatures = Clear("ClearFeaturesCheck", Loc.T("機能のON/OFF(すべて有効に戻す)", "Feature on/off (reset all to enabled)"));
+    private readonly CheckBox _clFeatures = Clear("ClearFeaturesCheck", Loc.T("機能のON/OFF", "Feature on/off"), Loc.T("すべて ON に戻します", "Turns all features back on"));
     private readonly CheckBox _clNicola = Clear("ClearNicolaCheck", Loc.T("NICOLA(親指シフト)", "NICOLA (thumb shift)"));
-    private readonly CheckBox _clHelper = Clear("ClearHelperCheck", Loc.T("ヘルパー設定(helper.json。「すべて」のときは、トレイの共通のヘルパー設定も)", "Helper settings (helper.json; with \"All\", also the tray's shared helper settings)"));
+    private readonly CheckBox _clHelper = Clear("ClearHelperCheck", Loc.T("ヘルパー設定", "Helper settings"), Loc.T("helper.json。接続中のすべてのキーボードのときは、全キーボード共通のヘルパー設定も", "helper.json. With all connected keyboards, also the shared helper settings"));
     private readonly CheckBox _clMeasured = Clear("ClearMeasuredCheck", Loc.T("実測したスキャンコード", "Measured scan codes"));
     private readonly TextBox _clReport = ReportBox("ClearReport");
 
@@ -115,7 +116,7 @@ public sealed class ImportExportWindow : Window
     /// <summary>ドライバの保存内容も消した（管理者権限があり、ドライバに接続していた）。</summary>
     public bool ClearedDriver { get; private set; }
 
-    private static CheckBox Clear(string name, string text) => new() { Name = name, Content = text, IsChecked = false, Margin = new Thickness(0, 1, 0, 1) };
+    private static CheckBox Clear(string name, string text, string? tip = null) => new() { Name = name, Content = text, ToolTip = tip, IsChecked = false, Margin = new Thickness(0, 1, 0, 1) };
 
     /// <summary>キーボード／レイヤーの読み込みの結果（プロジェクトの複製。読み込まなかったら null）。</summary>
     public KeymapProject? ResultProject { get; private set; }
@@ -149,14 +150,24 @@ public sealed class ImportExportWindow : Window
 
         _tabs.Items.Add(new TabItem { Name = "TabExport", Header = Loc.T("エクスポート", "Export"), Content = BuildExport(startScope, startLayer) });
         _tabs.Items.Add(new TabItem { Name = "TabImport", Header = Loc.T("インポート", "Import"), Content = BuildImport() });
-        _tabs.Items.Add(new TabItem { Name = "TabClear", Header = Loc.T("クリア", "Clear"), Content = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = BuildClear() } });
+        _tabs.Items.Add(new TabItem { Name = "TabClear", Header = Loc.T("初期化", "Reset"), Content = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = BuildClear() } });
         _tabs.SelectedIndex = startTab == StartTab.Import ? 1 : startTab == StartTab.Clear ? 2 : 0;
 
-        var close = new Button { Name = "CloseButton", Content = Loc.T("閉じる", "Close"), IsCancel = true, IsDefault = false, Width = 90, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
+        var close = new Button { Name = "CloseButton", Content = Loc.T("閉じる", "Close"), IsCancel = true, IsDefault = false, Width = 90 };
         close.Click += (_, _) => Close();
+        // 左に「?」（今のタブの説明をマニュアルで開く。F1 も同じ）、右に「閉じる」。
+        string Topic() => _tabs.SelectedIndex switch { 1 => HelpTopics.Import, 2 => HelpTopics.Reset, _ => HelpTopics.Export };
+        var help = HelpButton.Create(Topic);
+        HelpButton.AttachF1(this, Topic);
+        var bottom = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
+        DockPanel.SetDock(help, Dock.Left);
+        DockPanel.SetDock(close, Dock.Right);
+        bottom.Children.Add(help);
+        bottom.Children.Add(close);
+        bottom.Children.Add(new Border());
         var root = new DockPanel { Margin = new Thickness(10) };
-        DockPanel.SetDock(close, Dock.Bottom);
-        root.Children.Add(close);
+        DockPanel.SetDock(bottom, Dock.Bottom);
+        root.Children.Add(bottom);
         root.Children.Add(_tabs);
         Content = root;
     }
@@ -167,7 +178,7 @@ public sealed class ImportExportWindow : Window
         MinHeight = 90, Margin = new Thickness(0, 8, 0, 0), Background = AppTheme.Palette.ReportBackground,
     };
 
-    private static CheckBox Check(string name, string text) => new() { Name = name, Content = text, IsChecked = true, Margin = new Thickness(0, 1, 0, 1) };
+    private static CheckBox Check(string name, string text, string? tip = null) => new() { Name = name, Content = text, ToolTip = tip, IsChecked = true, Margin = new Thickness(0, 1, 0, 1) };
 
     private static TextBlock Help(string text) => new() { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 8) };
 
@@ -221,11 +232,6 @@ public sealed class ImportExportWindow : Window
     private UIElement BuildExport(PortableScope startScope, int startLayer)
     {
         var p = new StackPanel { Margin = new Thickness(10) };
-        p.Children.Add(Help(Loc.T("設定をファイル(*.kasane.json)に書き出します。レイヤーとコンボはスキャンコードで書くので、" +
-                            "別のレイアウトのキーボードにも読み込めます。バックアップや、他のパソコンへの持ち運びに使えます。",
-                            "Exports settings to a file (*.kasane.json). Layers and combos are written as scan codes, " +
-                            "so the file can also be imported on a keyboard with a different layout. Use it for backups or to move settings to another PC.")));
-
         for (int i = 0; i < _project.Layers.Count; i++) _exLayerCombo.Items.Add(i.ToString());
         _exLayerCombo.SelectedIndex = Math.Clamp(startLayer, 0, Math.Max(0, _project.Layers.Count - 1));
 
@@ -236,18 +242,14 @@ public sealed class ImportExportWindow : Window
         layerRow.Children.Add(new TextBlock { Text = Loc.T("レイヤー", "Layer"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
         layerRow.Children.Add(_exLayerCombo);
         p.Children.Add(layerRow);
-        p.Children.Add(new TextBlock { Text = Loc.T("形式(「このキーボード」のときだけ選べます)", "Format (available only for \"This keyboard\")"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 10, 0, 2) });
+        // 形式は「このキーボード」のときだけ選べる。ほかの範囲では使えない状態（灰色）になるので、見出しで断らない（2026-11-08、利用者の指摘）。
+        p.Children.Add(new TextBlock { Text = Loc.T("形式", "Format"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 10, 0, 2) });
         p.Children.Add(_exFormatKasane);
         p.Children.Add(_exFormatKeymapTool);
-        p.Children.Add(Help(Loc.T("KeymapTool 用 JSON は、コマンドライン版の KeymapTool --apply-simple に渡す入力ファイルです(CLI で管理したい場合に使います)。" +
-                            "バックアップや、他のパソコンへの受け渡しには、kasane の設定ファイルを使ってください。",
-                            "The JSON for KeymapTool is an input file for the command-line KeymapTool --apply-simple (use it if you manage settings from the CLI). " +
-                            "For backups or moving settings to another PC, use the kasane settings file.")));
+        p.Children.Add(new TextBlock { Text = Loc.T("含める項目", "Include"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 10, 0, 0) });
         p.Children.Add(_exHelper);
         p.Children.Add(_exMeasured);
         p.Children.Add(_exRecovery);
-        p.Children.Add(Help(Loc.T("復旧用の設定は、「全体一括」のときだけ選べます。レイヤーだけ・このキーボードだけの書き出し(他の人に渡すもの)には入れません。",
-                                  "Recovery settings can be selected only for \"All keyboards\". They are never included in a one-layer or one-keyboard export (the kind you hand to other people).")));
 
         (startScope switch { PortableScope.All => _exAll, PortableScope.Layer => _exLayer, _ => _exKeyboard }).IsChecked = true;
         _exLayerCombo.IsEnabled = _exLayer.IsChecked == true; // レイヤー1枚のときだけ選べる
@@ -415,10 +417,6 @@ public sealed class ImportExportWindow : Window
     private UIElement BuildClear()
     {
         var p = new StackPanel { Margin = new Thickness(10) };
-        p.Children.Add(Help(Loc.T("選んだ項目だけを、初期状態に戻します。選ばなかった項目は残ります。実行の前に、今の設定を自動でバックアップします" +
-                            "(保存先の backup フォルダ。インポートで戻せます)。ドライバにだけ入っていて、画面に出ていない設定は、バックアップに入りません。",
-                            "Resets only the selected items to their defaults. Unselected items are kept. Your current settings are backed up automatically before clearing " +
-                            "(in the backup folder of the settings location; you can restore them with Import). Settings that exist only in the driver and are not shown on screen are not included in the backup.")));
 
         p.Children.Add(new TextBlock { Text = Loc.T("対象のキーボード", "Target keyboards"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 4, 0, 2) });
         _clThis.Content = _uniqId == 0 ? Loc.T("このキーボード(接続していないため、画面の設定だけ)", "This keyboard (not connected, so on-screen settings only)") : Loc.T($"このキーボード({_uniqId:X8})", $"This keyboard ({_uniqId:X8})");
@@ -439,9 +437,9 @@ public sealed class ImportExportWindow : Window
         _clAll.IsEnabled = _devices.Count > 0;
         _clPick.IsEnabled = _devices.Count > 0;
 
-        p.Children.Add(new TextBlock { Text = Loc.T("消す項目", "Items to clear"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 10, 0, 2) });
+        p.Children.Add(new TextBlock { Text = Loc.T("初期化する項目", "Items to reset"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 10, 0, 2) });
         var presets = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
-        var all = new Button { Name = "ClearSelectAllButton", Content = Loc.T("すべて選ぶ(全初期化)", "Select All (full reset)"), Padding = new Thickness(8, 1, 8, 1), Margin = new Thickness(0, 0, 6, 0) };
+        var all = new Button { Name = "ClearSelectAllButton", Content = Loc.T("すべて選ぶ", "Select All"), Padding = new Thickness(8, 1, 8, 1), Margin = new Thickness(0, 0, 6, 0) };
         all.Click += (_, _) => { foreach (var c in ClearCategoryBoxes()) c.IsChecked = true; };
         var none = new Button { Name = "ClearSelectNoneButton", Content = Loc.T("すべて外す", "Deselect All"), Padding = new Thickness(8, 1, 8, 1) };
         none.Click += (_, _) => { foreach (var c in ClearCategoryBoxes()) c.IsChecked = false; };
@@ -455,15 +453,15 @@ public sealed class ImportExportWindow : Window
             Name = "ClearDriverNote",
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 10, 0, 0),
-            Foreground = _canWriteDriver ? Brushes.DarkRed : AppTheme.Palette.SubText,
+            Foreground = _canWriteDriver ? AppTheme.Palette.ErrorText : AppTheme.Palette.SubText,
             Text = _canWriteDriver
                 ? Loc.T("ドライバに保存された設定も、同時に消します(管理者権限があるため)。「同じ型番で共有」のキーボードは、同じ型番のものすべてに効きます。",
                     "Settings saved in the driver are cleared as well (you have administrator rights). Keyboards set to \"Shared by model\" affect every keyboard of the same model.")
-                : Loc.T("ドライバには書き込めない(接続していない、または閲覧専用)ため、画面の設定だけを消します。ドライバの設定は残ります(あとで管理者として「キーボードに適用」するか、このクリアをやり直してください)。",
-                    "The driver cannot be written to (not connected, or read-only), so only the on-screen settings are cleared. The driver's settings remain (later, apply to the keyboard as administrator, or run this clear again)."),
+                : Loc.T("ドライバには書き込めない(接続していない、または閲覧専用)ため、画面の設定だけを消します。ドライバの設定は残ります(あとで管理者として「キーボードに適用」するか、この初期化をやり直してください)。",
+                    "The driver cannot be written to (not connected, or read-only), so only the on-screen settings are cleared. The driver's settings remain (later, apply to the keyboard as administrator, or run this reset again)."),
         });
 
-        var go = new Button { Name = "ClearDoButton", Content = Loc.T("クリアする...", "Clear..."), Width = 110, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 10, 0, 0) };
+        var go = new Button { Name = "ClearDoButton", Content = Loc.T("初期化する...", "Reset..."), Width = 110, ToolTip = Loc.T("実行の前に、今の設定を自動でバックアップします", "Your current settings are backed up automatically first"), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 10, 0, 0) };
         go.Click += (_, _) => DoClear();
         p.Children.Add(go);
         p.Children.Add(_clReport);
@@ -495,7 +493,7 @@ public sealed class ImportExportWindow : Window
     {
         var o = BuildClearOptions();
         var targets = ClearTargets();
-        if (!o.Any) { ShowReport(_clReport, new PortableReport(), Loc.T("消す項目を選んでください。", "Choose the items to clear.")); return; }
+        if (!o.Any) { ShowReport(_clReport, new PortableReport(), Loc.T("初期化する項目を選んでください。", "Choose the items to reset.")); return; }
         if (targets.Count == 0) { ShowReport(_clReport, new PortableReport(), Loc.T("対象のキーボードを選んでください。", "Choose the target keyboards.")); return; }
 
         // 接続していないキーボード（UniqId 0）は、保存先に設定が無い。画面の設定だけを消す（このタブの「このキーボード」）。
@@ -533,12 +531,12 @@ public sealed class ImportExportWindow : Window
             try { ClearedProject = ProjectService.TryLoad(_uniqId); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
             {
-                report.Warn(Loc.T($"クリアしたあとの設定を読み直せませんでした({ex.Message})。編集画面を開き直してください。", $"Could not reload the settings after clearing ({ex.Message}). Reopen the editor."));
+                report.Warn(Loc.T($"初期化したあとの設定を読み直せませんでした({ex.Message})。編集画面を開き直してください。", $"Could not reload the settings after resetting ({ex.Message}). Reopen the editor."));
             }
         }
         ShowReport(_clReport, report,
-            report.HasErrors && cleared.Count == 0 ? Loc.T("クリアできませんでした。", "Could not clear.")
-            : Loc.T($"{cleared.Count}台をクリアしました。「閉じる」で編集画面に戻ります。", $"Cleared {cleared.Count} keyboard(s). Click \"Close\" to return to the editor."));
+            report.HasErrors && cleared.Count == 0 ? Loc.T("初期化できませんでした。", "Could not reset.")
+            : Loc.T($"{cleared.Count}台を初期化しました。「閉じる」で編集画面に戻ります。", $"Reset {cleared.Count} keyboard(s). Click \"Close\" to return to the editor."));
     }
 
     // 保存先が「同じ型番」「すべて」のキーボードは、ドライバの設定を消すと、同じ型番（すべて）のキーボードにも効く。
@@ -569,23 +567,20 @@ public sealed class ImportExportWindow : Window
     {
         var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         var p = new StackPanel { Margin = new Thickness(10) };
-        p.Children.Add(Help(Loc.T("*.kasane.json を読み込みます。キーボード／レイヤーの読み込みは、今の編集内容に入るだけです" +
-                            "(ドライバへは、いつもどおり「キーボードに適用」で反映します)。",
-                            "Imports a *.kasane.json file. Importing a keyboard or layer only changes what you are editing " +
-                            "(as usual, use \"Apply to keyboard\" to send it to the driver).")));
-
         var pick = new Button { Name = "ImportPickButton", Content = Loc.T("ファイルを選ぶ...", "Choose File..."), Width = 130 };
         pick.Click += (_, _) => PickFile();
         var nodoka = new Button { Name = "ImportNodokaButton", Content = Loc.T("のどかの設定を取り込む...", "Import Nodoka Settings..."), Width = 190, Margin = new Thickness(8, 0, 0, 0) };
         nodoka.Click += (_, _) => PickNodoka();
-        var emacs = new Button { Name = "ImportEmacsButton", Content = Loc.T("Emacs の設定例...", "Emacs Example..."), Width = 150, Margin = new Thickness(8, 0, 0, 0) };
-        emacs.Click += (_, _) => PickEmacsExample();
         var pickRow = new StackPanel { Orientation = Orientation.Horizontal };
         pickRow.Children.Add(pick);
         pickRow.Children.Add(nodoka);
-        pickRow.Children.Add(emacs);
         pickRow.Children.Add(_imPath);
         p.Children.Add(pickRow);
+        // Emacs の設定例は、決まったファイル（同梱）を読む。ファイルを選ぶボタンとは別の行に置く（2026-11-08、利用者の指摘）。
+        var emacs = new Button { Name = "ImportEmacsButton", Content = Loc.T("Emacs の設定例...", "Emacs Example..."), Width = 150, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6, 0, 0),
+                                 ToolTip = Loc.T("同梱の Emacs 風の設定例を読み込みます", "Loads the bundled Emacs-style example") };
+        emacs.Click += (_, _) => PickEmacsExample();
+        p.Children.Add(emacs);
         p.Children.Add(_imSummary);
 
         _imSourceRow.Children.Add(new TextBlock { Text = Loc.T("読み込むキーボード:", "Keyboard to import:"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
@@ -603,6 +598,9 @@ public sealed class ImportExportWindow : Window
         _imModeRow.Children.Add(_imReplace);
         _imModeRow.Children.Add(_imAppend);
         p.Children.Add(_imModeRow);
+        // ファイルを読むまでは、読み込む項目と読み込み方は使えない状態にする。ファイルを読むと、ファイルの中身に合わせて項目が選び直されるため
+        // （先に選んでも置き換わる。2026-11-08、利用者の指摘）。
+        SetImportChoicesEnabled(false);
 
         _imLayerRow.Children.Add(new TextBlock { Text = Loc.T("行き先:", "Destination:"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
         _imLayerRow.Children.Add(_imLayerTarget);
@@ -617,6 +615,14 @@ public sealed class ImportExportWindow : Window
         p.Children.Add(_imReport);
         scroll.Content = p;
         return scroll;
+    }
+
+    private void SetImportChoicesEnabled(bool enabled)
+    {
+        _imOptions.IsEnabled = enabled;
+        _imModeRow.IsEnabled = enabled;
+        _imLayerRow.IsEnabled = enabled;
+        _imSourceRow.IsEnabled = enabled;
     }
 
     private void PickFile()
@@ -641,8 +647,9 @@ public sealed class ImportExportWindow : Window
         {
             _file = null;
             _imSummary.Text = Loc.T("Emacs の設定例が見つかりません(インストールし直してください)。", "The Emacs example was not found (please reinstall).");
-            _imSummary.Foreground = Brushes.Firebrick;
+            _imSummary.Foreground = AppTheme.Palette.ErrorText;
             _imPreview.IsEnabled = _imDo.IsEnabled = false;
+            SetImportChoicesEnabled(false);
             return;
         }
         LoadFile(path);
@@ -656,8 +663,9 @@ public sealed class ImportExportWindow : Window
             _file = null;
             _imPath.Text = path;
             _imSummary.Text = Loc.T($"読み込めません: {error}", $"Cannot import: {error}");
-            _imSummary.Foreground = Brushes.Firebrick;
+            _imSummary.Foreground = AppTheme.Palette.ErrorText;
             _imPreview.IsEnabled = _imDo.IsEnabled = false;
+            SetImportChoicesEnabled(false);
             return;
         }
         ShowLoaded(file!, path);
@@ -712,6 +720,7 @@ public sealed class ImportExportWindow : Window
         _imOptions.Visibility = layer ? Visibility.Collapsed : Visibility.Visible;
         if (all) BuildMapping(file);
         if (layer) BuildLayerTargets(file.Keyboards[0]);
+        SetImportChoicesEnabled(true);
         UpdateOptionAvailability();
         _imPreview.IsEnabled = !all;
         _imDo.IsEnabled = true;

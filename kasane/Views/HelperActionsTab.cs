@@ -25,11 +25,7 @@ internal sealed class HelperActionsTab : HelperTabBase
 
     /// <param name="project">このキーボードのプロジェクト（削除の確認で、HLP(n) を使っている割り当てを調べる。null なら調べない）。</param>
     public HelperActionsTab(HelperSettingsModel model, Window owner, KeymapProject? project = null, Kasane.Layout.KeyboardLayout? layout = null)
-        : base(model, owner, "Helper",
-            Loc.T("キーを押して、プログラムの起動、文字列の入力、マウス操作、レイヤーの操作などを実行します。" +
-                "「動作」は HLP(Id) を割り当てたキー、「トリガー」は F13〜F24 などのキーで実行され、変更は OK で保存されます。",
-                "Press a key to launch a program, type text, control the mouse, switch layers, and more. " +
-                "Actions run from keys assigned HLP(Id); triggers run from keys such as F13 to F24. Changes are saved with OK."))
+        : base(model, owner, "Helper")
     {
         _project = project;
         _layout = layout;
@@ -44,13 +40,14 @@ internal sealed class HelperActionsTab : HelperTabBase
         _copyTrigger = Btn("CopyTriggerButton", Loc.T("複製", "Duplicate"));
         _deleteTrigger = Btn("DeleteTriggerButton", Loc.T("削除", "Delete"));
 
-        Stack.Children.Add(new TextBlock { Text = Loc.T("動作(HLP(Id) のキーから呼ぶ)", "Actions (called from HLP(Id) keys)"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 0) });
+        Stack.Children.Add(new TextBlock { Text = Loc.T("動作", "Actions"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 0),
+                                           ToolTip = Loc.T("HLP(Id) を割り当てたキーで動きます", "Run from keys assigned HLP(Id)") });
         Stack.Children.Add(_actions);
         Stack.Children.Add(Buttons(_addAction, _editAction, _copyAction, _deleteAction, _upAction, _downAction));
-        Stack.Children.Add(new TextBlock { Text = Loc.T("トリガー(F13 などのキー。キーフックで受ける)", "Triggers (keys such as F13, received by a key hook)"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 0) });
+        Stack.Children.Add(new TextBlock { Text = Loc.T("トリガー", "Triggers"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 0),
+                                           ToolTip = Loc.T("F13 などのキーで動きます(トレイのキーフックで受けます)", "Run from keys such as F13 (received by the tray's key hook)") });
         Stack.Children.Add(_triggers);
         Stack.Children.Add(Buttons(_addTrigger, _editTrigger, _copyTrigger, _deleteTrigger));
-        Stack.Children.Add(new TextBlock { Text = Loc.T("HLP (Helper): キーに割り当てると、そのキーを押したときに「動作」を実行します。", "HLP (Helper): when assigned to a key, pressing that key runs the action."), TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 16, 0, 0) });
 
         _addAction.Click += (_, _) => AddAction();
         _editAction.Click += (_, _) => EditAction();
@@ -153,8 +150,7 @@ internal sealed class HelperActionsTab : HelperTabBase
             notes.Add(Loc.T("全キーボード共通の動作です。ほかのキーボードの割り当ては確認できません(このキーボードの分だけ外します)。",
                             "This is a shared action. Assignments on other keyboards can't be checked (only this keyboard's are removed)."));
         string what = string.IsNullOrWhiteSpace(action.Name) ? $"HLP({id})" : Loc.T($"HLP({id})「{action.Name}」", $"HLP({id}) \"{action.Name}\"");
-        var dlg = new DeleteConfirmWindow(what, refs, notes.Count > 0 ? string.Join("\n", notes) : null,
-            Loc.T("削除は、設定画面で OK を押したときに決まります。", "The deletion takes effect when you press OK in the settings.")) { Owner = Owner };
+        var dlg = new DeleteConfirmWindow(what, refs, notes.Count > 0 ? string.Join("\n", notes) : null) { Owner = Owner };
         if (dlg.ShowDialog() != true) return;
         Config.Actions.RemoveAt(i);
         if (dlg.Unassign) PendingUnassign.Add(id);

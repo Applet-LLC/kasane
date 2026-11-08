@@ -206,5 +206,5 @@ public sealed class KeyboardCanvas : Canvas
         return grid;
     }
 
-    private static readonly Brush MarkBrush = new SolidColorBrush(Color.FromRgb(0xC2, 0x5E, 0x00));
+    internal static readonly Brush MarkBrush = new SolidColorBrush(Color.FromRgb(0xC2, 0x5E, 0x00));
 }

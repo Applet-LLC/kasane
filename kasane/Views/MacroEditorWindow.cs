@@ -10,20 +10,11 @@ public sealed class MacroEditorWindow : IdListEditorWindow
     private readonly string[] _texts = new string[KbdLayerClient.MaxMacroCount];
 
     public List<MacroDef> Result { get; private set; } = new();
+
+    protected override string HelpTopic => HelpTopics.Macro;
 
     public MacroEditorWindow(IEnumerable<MacroDef> macros, IReadOnlyDictionary<int, string>? names = null)
-        : base(Loc.T("マクロ", "Macro"), KbdLayerClient.MaxMacroCount,
-            Loc.T(
-                ("マクロは、キーマップで MACRO(n) を割り当てたキーを押したときに、並べたキーを順にタップ(押して離す)します。\n" +
-                 "キーコードをスペース区切りで並べてください(例: KC_H KC_I)。Ctrl+C のような同時押しは LCTL(KC_C) と書きます" +
-                 "(C(KC_C) でも可。Ctrl+Shift+T は LCTL(LSFT(KC_T)))。\n" +
-                 $"1つのマクロは{KbdLayerClient.MaxMacroSteps}ステップまでです(キー1つで2、修飾キー1つにつき2を使います)。\n" +
-                 "「無効にする」にチェックを付けると、書いた内容を残したまま、キーボードには適用されません。"),
-                ("A macro taps the listed keys in order (press and release) when you press a key assigned MACRO(n) in the keymap.\n" +
-                 "List keycodes separated by spaces (example: KC_H KC_I). Write simultaneous presses such as Ctrl+C as LCTL(KC_C) " +
-                 "(C(KC_C) also works; Ctrl+Shift+T is LCTL(LSFT(KC_T))).\n" +
-                 $"One macro can have up to {KbdLayerClient.MaxMacroSteps} steps (each key uses 2, and each modifier key uses 2).\n" +
-                 "If you check \"Disable\", the content is kept but not applied to the keyboard.")))
+        : base(Loc.T("マクロ", "Macro"), KbdLayerClient.MaxMacroCount)
     {
         for (int i = 0; i < _texts.Length; i++) _texts[i] = "";
         foreach (var m in macros)
@@ -99,7 +90,7 @@ public sealed class MacroEditorWindow : IdListEditorWindow
             Margin = new System.Windows.Thickness(110, 8, 0, 0),
             Padding = new System.Windows.Thickness(10, 3, 10, 3),
             HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
-            ToolTip = Loc.T("コンボ・タップダンス・キー置換・キーの割り当ての画面で、最後に選んだ入力欄へ入れます(一覧の行をダブルクリックでも同じ)。", "Inserts it into the field you last selected in the Combo, Tap dance, Key override, or key assignment window (double-clicking a row in the list does the same)."),
+            ToolTip = Loc.T("ほかの画面で最後に選んだ入力欄へ入れます", "Inserts it into the field you last selected in another window"),
         };
         insert.Click += (_, _) => InsertIntoOtherWindow(id);
         Detail.Children.Add(insert);

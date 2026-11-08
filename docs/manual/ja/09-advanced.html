@@ -66,7 +66,8 @@
 </tbody>
 </table>
 <p>設定ダイアログの「機能」タブで、使わない機能を OFF にできます（<a href="13-settings.html">13. 設定ダイアログ</a>）。OFF にしても、定義の中身は消えません。</p>
-<p>キー図のキーから始めることもできます。キーの割り当ての画面の <strong>コンボ</strong>、<strong>キー置換</strong>、<strong>マクロ / タップダンス</strong> か、キーの右クリックのメニューで、そのキーに関わる定義を開いたり、そのキーを入れた定義を作ったりできます（<a href="08-key-assign.html#combo-keyoverride">8. キーの割り当て</a>）。</p>
+<p>キーボード図のキーから始めることもできます。キーの割り当ての画面の <strong>コンボ</strong>、<strong>キー置換</strong>、<strong>マクロ / タップダンス</strong> か、キーの右クリックのメニューで、そのキーに関わる定義を開いたり、そのキーを入れた定義を作ったりできます（<a href="08-key-assign.html#combo-keyoverride">8. キーの割り当て</a>）。</p>
+<p><a id="editors-common"></a></p>
 <h2 id="section-1">編集画面の共通の操作</h2>
 <p>4 つの編集画面は、すべて同時に開いたまま使えます。画面は少しずつずらして開きます。同じ画面をもう一度開こうとすると、開いている画面が前に出ます。</p>
 <p>画面の下のボタンは、左から次のとおりです。</p>
@@ -95,6 +96,7 @@
 <p><strong>適用</strong> も <strong>OK</strong> も押さずに閉じると、その画面の編集内容は捨てられます。変更をキーボードに送るには、そのあとエディタで <strong>キーボードに適用(ON)</strong> を押します。</p>
 <p>左の一覧には、<code>番号: 名前 — 中身</code> の形で定義が並びます。右側の先頭の <strong>名前（任意）</strong> 欄に、わかりやすい名前を付けられます。名前は、画面の表示とエクスポートのファイルだけに使われ、動作には関係しません。中身が空の番号にも、名前だけ付けておけます。名前だけの番号は未使用のままで、中身を入れるまで、キーボードには適用されません。</p>
 <p>キーコードの欄の右の <strong>×</strong> を押すと、その欄が空になります。</p>
+<p><a id="list-ops"></a></p>
 <h3 id="section-2">削除・複製・並べ替え</h3>
 <p>一覧の下のボタンで、右側に出している番号を操作します。どれも、<strong>適用</strong> か <strong>OK</strong> を押すまで、プロジェクトには入りません。</p>
 <table>
@@ -156,14 +158,16 @@
 <li>中身が空の番号には、チェックを付けられません。</li>
 <li>無効のマクロやタップダンスを、キーの割り当て（<code>MACRO(n)</code>、<code>TAPDANCE(n)</code>）やコンボの出力から使っていると、適用のときに「無効にしてあります」と知らせます。そのキーを押しても、何も起きません。</li>
 <li>無効のコンボのキーは、ほかのコンボに使えます。</li>
-<li>エディタの画面下のボタンは、無効の数も表します（<code>マクロ(2・無効1)...</code>）。無効のコンボとキー置換には、キー図の <strong>C</strong>・<strong>R</strong> の印が付きません。</li>
+<li>エディタの画面下のボタンは、無効の数も表します（<code>マクロ(2・無効1)...</code>）。無効のコンボとキー置換には、キーボード図の <strong>C</strong>・<strong>R</strong> の印が付きません。</li>
 <li>無効の指定は、設定ファイルとエクスポートのファイルに残ります。ドライバから設定を読み直すと、無効だった定義は戻りません（ドライバには入っていないため）。</li>
 </ul>
+<p><a id="macro"></a></p>
 <h2 id="section-4">マクロ</h2>
 <p><strong>マクロ...</strong> で、順に打つキーの列を作ります。作ったマクロは、キーに <code>MACRO(n)</code> を割り当てて動かします。</p>
 <p><img src="../img/ja/macro-editor.png" alt="マクロの編集" /></p>
 <ul>
-<li>マクロの中身の欄には、キーコードを、スペースで区切って並べます（例: <code>KC_H KC_I</code>）。<code>LCTL(KC_C)</code> のように、修飾キー付きのキーも書けます。</li>
+<li>マクロの中身の欄には、キーコードを、スペースで区切って並べます（例: <code>KC_H KC_I</code>）。<code>LCTL(KC_C)</code> のように、修飾キー付きのキーも書けます（<code>C(KC_C)</code> でも同じです。Ctrl+Shift+T は <code>LCTL(LSFT(KC_T))</code>）。</li>
+<li>1 つのマクロは 64 ステップまでです。キー 1 つで 2 ステップ、修飾キー 1 つにつき、さらに 2 ステップを使います。</li>
 <li><strong>押して入力</strong> は、取り込みを続けます。押したキーが、前のキーの後ろに空白をあけて足されます。Esc か、ボタンをもう一度押すと終わります。</li>
 <li><strong>選ぶ...</strong> は、<strong>追加</strong> で欄の末尾に足します。画面を開いたまま続けて選べます。<strong>閉じる</strong> で終わります。</li>
 </ul>
@@ -174,24 +178,30 @@
 <li>マクロの画面を開いたままにして、ほかの画面の入れたい入力欄を一度クリックし、マクロの画面の一覧の行をダブルクリックする方法もあります。<strong>他の画面の入力欄に MACRO(n) を入れる</strong> のボタンでも同じです。最後にクリックした入力欄に入ります。</li>
 <li>入れ忘れないように、次の 2 つの工夫があります。マクロの内容を変えて、まだ入れていないとき（入れ先の入力欄をクリックしてあり、その欄に <code>MACRO(n)</code> が入っていないとき）、<strong>他の画面の入力欄に MACRO(n) を入れる</strong> のボタンが、太字と色つきで目立ちます。その状態で <strong>OK</strong> を押すと、「入れてから閉じますか?」と聞かれます。<strong>はい</strong> で入れて閉じ、<strong>いいえ</strong> で入れずに閉じ、<strong>キャンセル</strong> で閉じずに戻ります。タップダンスの画面の <code>TAPDANCE(n)</code> も同じです。</li>
 </ul>
+<p><a id="combo"></a></p>
 <h2 id="section-5">コンボ</h2>
 <p><strong>コンボ...</strong> で、2 つのキーの同時押しに、別のキーを割り当てます。</p>
 <p><img src="../img/ja/combo-editor.png" alt="コンボの編集" /></p>
 <ul>
 <li><strong>キー-1</strong> と <strong>キー-2</strong> は、一覧から選びます。同時押しの対象は、2 つのキーだけです。</li>
+<li>1 つのキーは、1 つのコンボにしか使えません。無効にしたコンボのキーは、ほかのコンボに使えます。</li>
+<li>コンボは物理のキーに対して働くので、どのレイヤーでも同じように効きます。</li>
 <li><strong>送るキー</strong> には、普通のキーのほか、<code>LCTL(KC_Z)</code> のような修飾キー付きのキー（押している間）や、<code>MACRO(n)</code>（成立したときに 1 回）も指定できます。</li>
-<li>コンボの対象のキーには、キー図で C の印が付きます。</li>
-<li>同時押しと見なす時間は、設定ダイアログの「タイミング」タブで変えられます。</li>
+<li>コンボの対象のキーには、キーボード図で C の印が付きます。</li>
+<li>同時押しと見なす時間（ComboTerm）は、設定ダイアログの「タイミング」タブで変えられます。</li>
 </ul>
+<p><a id="tapdance"></a></p>
 <h2 id="section-6">タップダンス</h2>
 <p><strong>タップダンス...</strong> で、<strong>1回タップ</strong>、<strong>長押し</strong>、<strong>2回タップ</strong>、<strong>3回タップ</strong> に、それぞれ別の動作を割り当てます。各欄の右に、<strong>押して入力</strong>、<strong>選ぶ...</strong>、<strong>マクロ...</strong> のボタンがあります。作ったタップダンスは、キーに <code>TAPDANCE(n)</code> を割り当てて動かします。</p>
 <p><img src="../img/ja/tapdance-editor.png" alt="タップダンスの編集" /></p>
 <ul>
 <li>1 回、2 回、3 回のタップには、普通のキーのほか、<code>LCTL(KC_C)</code> のような修飾キー付きのキーや、<code>MACRO(n)</code> も指定できます。</li>
-<li>長押しには、<code>MT</code>、<code>LT</code> のほか、修飾キー付きのキー（押している間）、<code>LM(1,MOD_LCTL)</code>、<code>MACRO(n)</code>（長押しが決まったときに 1 回）も指定できます。</li>
-<li>空欄にした欄は「動作なし」です。そのタップ回数や長押しでは、何も起きません。</li>
+<li>長押しには、<code>MT(MOD_LCTL,KC_NO)</code> のような修飾キー、<code>LT(1,KC_NO)</code> のようなレイヤーのほか、修飾キー付きのキー（押している間）、<code>LM(1,MOD_LCTL)</code>、<code>MACRO(n)</code>（長押しが決まったときに 1 回）も指定できます。<code>MT</code>・<code>LT</code> のタップ側のキーは使われません。</li>
+<li>空欄（または <code>KC_NO</code>）にした欄は「動作なし」です。そのタップ回数や長押しでは、何も起きません。4 つの欄を全部空にすると、その番号は未使用になります。</li>
+<li>タップの間隔と長押しの判定の時間（TapDanceTerm）は、設定ダイアログの「タイミング」タブで変えられます。</li>
 <li>タップダンスの画面でも、一覧の行のダブルクリック（または <strong>キーの割り当て画面の入力欄に TAPDANCE(n) を入れる</strong> のボタン）で、キー割り当ての画面のキーコード欄に <code>TAPDANCE(n)</code> が入ります。<code>TAPDANCE(n)</code> は、キーに割り当てる動作なので、入れ先は、キー割り当ての画面のキーコード欄だけです。</li>
 </ul>
+<p><a id="key-override"></a></p>
 <h2 id="section-7">キー置換</h2>
 <p><strong>キー置換...</strong> で、修飾キーとキーの組み合わせを、別のキーに置き換えます。<strong>修飾キー</strong>、<strong>キー</strong>、<strong>置き換え先</strong> の 3 つを入れます。修飾キーは、<code>MOD_LCTL|MOD_LSFT</code> のように複数書けます。全部が押されているときに置き換わります（左右は区別しません）。</p>
 <p><img src="../img/ja/keyoverride-editor.png" alt="キー置換の編集" /></p>
@@ -217,8 +227,9 @@
 </tbody>
 </table>
 <ul>
-<li>置き換えている間、条件の修飾キーは、一時的に離されます。</li>
-<li>置き換え先には、<code>MACRO(n)</code> も指定できます。</li>
+<li><strong>キー</strong> は、レイヤーで切り替えたあとに出るキーで比べます。3 つの欄を全部空にすると、その番号は未使用になります。</li>
+<li>置き換えている間、条件の修飾キーは、一時的に離されます。置き換え先に <code>LSFT(KC_X)</code> のように書けば、その修飾キーは掛かります。</li>
+<li>置き換え先には、<code>MACRO(n)</code> も指定できます。キーを押したときに、マクロを 1 回実行します（マクロの機能が ON のときだけ）。<strong>キーを押し続けたときも、マクロを繰り返す</strong> にチェックを付けると、オートリピートのたびに繰り返します。</li>
 <li>置き換え先には、レイヤー操作（<code>OSL(n)</code>、<code>TG(n)</code>、<code>TO(n)</code>、<code>DF(n)</code>）、ヘルパー動作（<code>HLP(n)</code>）、マークモード（<code>MARK(on)</code>、<code>MARK(off)</code>、<code>MARK(toggle)</code>）も指定できます。キーは出さず、キーの割り当てに同じ動作を置いたときと同じ処理をします。条件の修飾キーは離しません。例: Ctrl+X を <code>OSL(1)</code> にすると、次に押す 1 キーだけが、レイヤー 1 の割り当てになります。</li>
 <li><code>MARK(on)</code> は、Emacs のマークモードに入ります（<code>MARK(off)</code> で終わり、<code>MARK(toggle)</code> で切り替えます）。入っている間は、移動のキー（←↑→↓、Home、End、PageUp、PageDown）に Shift が付き、移動のたびに選択範囲が広がります。移動のキーと修飾キー以外のキーを押すと、そのキーを送ったあとで終わります。前面のウィンドウが変わったときも終わります（トレイが動いているとき）。例: Ctrl+Space を <code>MARK(on)</code> にします。</li>
 <li><code>OSL(n)</code> などで切り替えた先のレイヤーに、<code>LCTL(KC_S)</code> のような修飾付きキーを置くと、出力のキー（この例は Ctrl+S）が、別のキー置換に当たることがあります。当たらないようにするには、そのキーに <code>MACRO(n)</code> を割り当てます。</li>

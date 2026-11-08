@@ -43,11 +43,12 @@
 <p>スタートメニューの <code>applet</code> フォルダにある <strong>かさね</strong> を左クリックして起動します。最初から管理者権限で起動したいときは、右クリックして、<strong>管理者として実行</strong> で起動します。トレイのアイコンを左クリックしても開けます。</p>
 <p>キーボードへの適用、キャリブレーション（個別キーと全体）、キーボードの特定には、管理者権限が必要です。一般ユーザー権限のアプリに、キー入力を盗み見られたり、勝手にキー入力を仕込まれたりしないよう、ドライバが制限しているためです。</p>
 <h3 id="section-2">閲覧専用モード</h3>
-<p>管理者でなく普通に起動すると、画面の上部に黄色い帯が出て、「閲覧専用モード」と表示されます。このとき、キーボードへの適用、キャリブレーション、キーボードの特定のボタンは使えません。編集、エクスポート、OFF は、閲覧専用モードでもできます。</p>
+<p>管理者でなく普通に起動すると、画面の上部に黄色い帯が出て、「閲覧専用モード」と表示されます。このとき、キーボードへの適用、キャリブレーション、キーボードの特定のボタンは使えません（帯にマウスを載せると、この説明が出ます）。編集、エクスポート、OFF は、閲覧専用モードでもできます。</p>
 <p><img src="../img/ja/editor-readonly.png" alt="閲覧専用モードの帯" /></p>
 <p>帯の <strong>管理者として再起動</strong> を押すと、管理者権限で開き直します。確認の画面（UAC）が出たら、許可してください。未保存の設定がある場合は、確認のダイアログが表示されることがあります。必要に応じて、<strong>OK</strong> または <strong>キャンセル</strong> で進めてください。</p>
 <p>開き直すと、帯が消えて、<strong>キャリブレーション...</strong> や <strong>押して特定...</strong>、<strong>キーボードに適用(ON)</strong> が押せるようになります。</p>
 <p><img src="../img/ja/editor-main-admin.png" alt="管理者として開いたメイン画面" /></p>
+<p><a id="editor-parts"></a></p>
 <h2 id="section-3">画面の各部</h2>
 <p><img src="../img/ja/editor-main-labeled.png" alt="メイン画面の各部" /></p>
 <table>
@@ -76,13 +77,13 @@
 </tr>
 <tr>
 <td>4</td>
-<td>キー図</td>
+<td>キーボード図</td>
 <td>クリックでキーの割り当てを変える。右クリックでメニュー</td>
 </tr>
 <tr>
 <td>5</td>
 <td>下部のボタン</td>
-<td><strong>キャリブレーション...</strong>、<strong>ヘルパー...</strong>、<strong>マクロ...</strong>、<strong>コンボ...</strong>、<strong>タップダンス...</strong>、<strong>キー置換...</strong>、<strong>設定...</strong>、<strong>割り当ての一覧...</strong>、<strong>インポート／エクスポート...</strong>、<strong>ヘルプ</strong>、<strong>キーボードに適用(ON)</strong>、<strong>OFF(素通しに戻す)</strong></td>
+<td><strong>キャリブレーション...</strong>、<strong>ヘルパー...</strong>、<strong>マクロ...</strong>、<strong>コンボ...</strong>、<strong>タップダンス...</strong>、<strong>キー置換...</strong>、<strong>設定...</strong>、<strong>割り当ての一覧...</strong>、<strong>インポート／エクスポート...</strong>、<strong>凡例</strong>、<strong>ヘルプ</strong>、<strong>キーボードに適用(ON)</strong>、<strong>OFF</strong></td>
 </tr>
 <tr>
 <td>6</td>
@@ -106,16 +107,17 @@
 <td>設定がドライバに入っていて、リマップが効いている</td>
 </tr>
 <tr>
-<td>OFF（素通し、設定はドライバに残っています）</td>
+<td>OFF（設定はドライバに残っています）</td>
 <td>設定は残っているが、リマップは止まっている</td>
 </tr>
 <tr>
-<td>設定なし（素通し）</td>
+<td>設定なし</td>
 <td>ドライバに設定がない</td>
 </tr>
 </tbody>
 </table>
 <p>画面の変更をまだ適用していないときは、その旨も出ます。未保存の変更があるときは <code>*</code> が付きます。「OFF なのに入れ替わる」「設定したのに効かない」ときは、最初にここを見てください。</p>
+<p><a id="select-keyboard"></a></p>
 <h2 id="section-5">設定するキーボードを選ぶ</h2>
 <p><strong>キーボード</strong> の一覧から、設定したいキーボードを選びます。各行は、次の順に表示されます（ないものは省かれます）。</p>
 <p><code>UniqId</code>（8 桁）、つけた名前、Windows 上の名前（デバイスマネージャーの名前や製品名）、ハードウェア ID</p>
@@ -151,6 +153,7 @@
 </tbody>
 </table>
 <p>初回は、Windows の表示言語に合わせて、<code>JP109</code> か <code>US104</code> が選ばれています。違っていたら切り替えてください。切り替えると、割り当てがリセットされると確認が出るので、<strong>OK</strong> を押します。</p>
+<p><a id="kle-import"></a></p>
 <h3 id="kle">KLE から配列を追加する</h3>
 <p>同梱のレイアウトにない配列（ISO、60%、特殊な配列など）は、<a href="https://www.keyboard-layout-editor.com/">Keyboard Layout Editor</a>（KLE）で作った配列を取り込んで使えます。</p>
 <ol>
@@ -183,16 +186,17 @@
 </table>
 <p><strong>レイヤー</strong> が <code>0</code> になっていることを確かめてから、JIS では次のようにします。</p>
 <ol>
-<li>キー図の <strong>英数（Caps Lock）</strong> キーをクリックします。</li>
+<li>キーボード図の <strong>英数（Caps Lock）</strong> キーをクリックします。</li>
 <li>開いた画面の左の一覧から <strong>修飾キー</strong> を選び、<strong>LCtrl（KC_LCTRL）</strong> を押して <strong>OK</strong> を押します。</li>
-<li>キー図の <strong>左 Ctrl（LCtrl）</strong> キーをクリックします。</li>
+<li>キーボード図の <strong>左 Ctrl（LCtrl）</strong> キーをクリックします。</li>
 <li>左の一覧から <strong>記号・編集</strong> を選び、<strong>Caps（KC_CAPSLOCK）</strong> を押して <strong>OK</strong> を押します。</li>
 </ol>
 <p>US では、同じ手順で、<strong>Caps Lock</strong> を <code>KC_LCTRL</code> に、<strong>左 Ctrl</strong> を <code>KC_CAPSLOCK</code> にします。</p>
 <p>変更したキーは青色になり、中央に新しい動作（<code>LCtrl</code>、<code>Caps</code>）が表示されます。キー割り当ての画面の詳細は、<a href="08-key-assign.html">8. キーの割り当て</a>を見てください。</p>
 <p><img src="../img/ja/editor-swapped.png" alt="入れ替えたキー" /></p>
 <p>間違えたときは、そのキーを右クリックして、<strong>このレイヤーの割り当てを戻す</strong> を選びます。</p>
-<h3 id="section-8">キー図の見方</h3>
+<p><a id="keyboard-view"></a></p>
+<h3 id="section-8">キーボード図の見方</h3>
 <p>キーの左上の小さな文字がキーの刻印、中央の大きな文字が、そのキーに今割り当てられている動作です。何も変更していないキーは、刻印と同じです。</p>
 <table>
 <thead>
@@ -240,11 +244,11 @@
 </tr>
 </tbody>
 </table>
-<p>印は M、D、C、R の順に並びます。キーにマウスを載せると、内容（「キー置換3: MOD_LSFT を押しながら → KC_Z」など）が出ます。</p>
+<p>印は M、D、C、R の順に並びます。画面下の <strong>凡例</strong> を押すと、色と印の見本が出ます。キーにマウスを載せると、内容（「キー置換3: MOD_LSFT を押しながら → KC_Z」など）が出ます。</p>
 <p>画面下の <strong>マクロ...</strong>、<strong>コンボ...</strong>、<strong>タップダンス...</strong>、<strong>キー置換...</strong> には、定義の数が出ます（例: <code>マクロ(2)...</code>）。設定ダイアログで機能を OFF にしていると、<code>(2・OFF)</code> のように出ます。定義はあっても、動きません。</p>
 <p><a id="remap-text"></a></p>
 <h3 id="section-9">割り当ての一覧（文字）</h3>
-<p>画面下の <strong>割り当ての一覧...</strong> を押すと、変えた割り当てを 1 行ずつ文字で見られます。キー図では見落としやすい、上のレイヤーのキーや、コンボ・キー置換・マクロの中身も、まとめて確かめられます。</p>
+<p>画面下の <strong>割り当ての一覧...</strong> を押すと、変えた割り当てを 1 行ずつ文字で見られます。キーボード図では見落としやすい、上のレイヤーのキーや、コンボ・キー置換・マクロの中身も、まとめて確かめられます。</p>
 <pre><code>## レイヤー0
 key Caps -&gt; Alt+半/全 : LALT(KC_ZKHK)
 
@@ -315,7 +319,7 @@ override 1「Ctrl-1」: Ctrl+1  -&gt; マクロ0          : MOD_LCTL + KC_1 -&gt
 <tbody>
 <tr>
 <td>一時的に入れ替えを止める（設定は残る）</td>
-<td><strong>OFF(素通しに戻す)</strong> を押す。再開は <strong>キーボードに適用(ON)</strong></td>
+<td><strong>OFF</strong> を押す。再開は <strong>キーボードに適用(ON)</strong></td>
 </tr>
 <tr>
 <td>設定を変える</td>

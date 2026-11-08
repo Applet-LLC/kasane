@@ -149,10 +149,10 @@ public sealed class HelperSettingsModel
 
         if (c.ImeLayers is { } ime)
         {
-            if (ime.Layers.Any(l => l is < 0 or >= 16)) errors.Add(Loc.T($"{label}のIME連動: レイヤーは 0〜15 です", $"IME link ({label}): layers must be between 0 and 15"));
-            if (ime.Enabled && ime.Layers.Count == 0) errors.Add(Loc.T($"{label}のIME連動: 立てるレイヤーを1つ以上選んでください", $"IME link ({label}): choose at least one layer to turn on"));
+            if (ime.Layers.Any(l => l is < 0 or >= 16)) errors.Add(Loc.T($"{label}の IME 連動: レイヤーは 0〜15 です", $"IME link ({label}): layers must be between 0 and 15"));
+            if (ime.Enabled && ime.Layers.Count == 0) errors.Add(Loc.T($"{label}の IME 連動: 有効にするレイヤーを 1 つ以上選んでください", $"IME link ({label}): choose at least one layer to turn on"));
             if (!string.Equals(ime.Mode, ImeLayerLink.ModeOn, StringComparison.OrdinalIgnoreCase) && !ime.KanaOnly)
-                errors.Add(Loc.T($"{label}のIME連動: Mode '{ime.Mode}' は On / Kana のどちらかです", $"IME link ({label}): Mode '{ime.Mode}' must be On or Kana"));
+                errors.Add(Loc.T($"{label}の IME 連動: Mode '{ime.Mode}' は On / Kana のどちらかです", $"IME link ({label}): Mode '{ime.Mode}' must be On or Kana"));
         }
 
         int n = 0;
@@ -175,15 +175,15 @@ public sealed class HelperSettingsModel
 
             case HelperActionBody.Sequence:
                 if ((body.Steps?.Count ?? 0) == 0 && (body.ReleaseSteps?.Count ?? 0) == 0)
-                    errors.Add(Loc.T($"{owner}: Sequence に手順がありません", $"{owner}: Sequence has no steps"));
+                    errors.Add(Loc.T($"{owner}: 手順がありません", $"{owner}: Sequence has no steps"));
                 foreach (var e in SequenceCompiler.Compile(body.Steps).Errors) errors.Add($"{owner}: {e}");
                 foreach (var e in SequenceCompiler.Compile(body.ReleaseSteps).Errors) errors.Add(Loc.T($"{owner}(離したとき): {e}", $"{owner} (on release): {e}"));
                 break;
 
             case HelperActionBody.TextInput:
-                if (string.IsNullOrEmpty(body.Text)) errors.Add(Loc.T($"{owner}: Text の文字列が空です", $"{owner}: Text is empty"));
+                if (string.IsNullOrEmpty(body.Text)) errors.Add(Loc.T($"{owner}: 入力する文字列が空です", $"{owner}: Text is empty"));
                 else if (body.Text.Length > HelperActionBody.MaxTextLength)
-                    errors.Add(Loc.T($"{owner}: Text の文字列が長すぎます({HelperActionBody.MaxTextLength} 文字まで)", $"{owner}: Text is too long (up to {HelperActionBody.MaxTextLength} characters)"));
+                    errors.Add(Loc.T($"{owner}: 入力する文字列が長すぎます({HelperActionBody.MaxTextLength} 文字まで)", $"{owner}: Text is too long (up to {HelperActionBody.MaxTextLength} characters)"));
                 if (body.ImeOffDuring)
                 {
                     if (!ImeNames.TryParseMethod(body.ImeMethod, out _))
@@ -194,7 +194,7 @@ public sealed class HelperSettingsModel
                 break;
 
             case HelperActionBody.AppLayer:
-                if ((body.Layers?.Count ?? 0) == 0) errors.Add(Loc.T($"{owner}: AppLayer のレイヤーが空です", $"{owner}: AppLayer has no layers"));
+                if ((body.Layers?.Count ?? 0) == 0) errors.Add(Loc.T($"{owner}: レイヤーを選んでいません", $"{owner}: AppLayer has no layers"));
                 else if (body.Layers!.Any(l => l is < 0 or >= 16)) errors.Add(Loc.T($"{owner}: レイヤーは 0〜15 です", $"{owner}: layers must be between 0 and 15"));
                 if (!string.IsNullOrWhiteSpace(body.LayerOp) &&
                     !new[] { "on", "off", "toggle", "hold" }.Contains(body.LayerOp.Trim().ToLowerInvariant()))

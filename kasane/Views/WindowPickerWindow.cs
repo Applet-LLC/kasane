@@ -26,17 +26,9 @@ public sealed class WindowPickerWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         ShowInTaskbar = false;
 
-        var help = new TextBlock
-        {
-            Text = Loc.T("開いているウィンドウの一覧です。選ぶと、exe のファイル名が照合条件(Exe)に入ります。" +
-                         "管理者として動くアプリも、exe の名前は取れます。",
-                         "This is a list of open windows. When you choose one, its exe file name is entered as the match condition (Exe). " +
-                         "The exe name can be obtained even for apps running as administrator."),
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = AppTheme.Palette.SubText,
-        };
         var refresh = new Button { Name = "RefreshButton", Content = Loc.T("一覧を更新", "Refresh"), Width = 100, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6, 0, 0) };
         refresh.Click += (_, _) => Reload();
+        _list.ToolTip = Loc.T("選ぶと、exe のファイル名が照合条件に入ります。管理者として動くアプリも選べます", "Choosing one enters its exe file name as the match condition. Apps running as administrator can be chosen too");
 
         var ok = new Button { Name = "OkButton", Content = Loc.T("選ぶ", "Select"), IsDefault = true, Width = 90 };
         ok.Click += (_, _) => Accept();
@@ -45,7 +37,6 @@ public sealed class WindowPickerWindow : Window
         buttons.Children.Add(new Button { Name = "CancelButton", Content = Loc.T("キャンセル", "Cancel"), IsCancel = true, Width = 90 });
 
         var top = new StackPanel();
-        top.Children.Add(help);
         top.Children.Add(refresh);
 
         var bottom = new StackPanel();

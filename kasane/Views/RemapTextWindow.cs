@@ -38,13 +38,6 @@ public sealed class RemapTextWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         ShowInTaskbar = false;
 
-        var note = new TextBlock
-        {
-            Text = Loc.T("エディタで開いている今の内容です(保存・適用していない変更も含みます)。読む・コピーするための画面で、ここでは書き換えられません。",
-                         "This is what the editor has open now (including changes not yet saved or applied). It is for reading and copying; you can't edit here."),
-            TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 6),
-        };
-
         var refresh = new Button { Name = "RefreshButton", Content = Loc.T("最新にする", "Refresh"), MinWidth = 90, Margin = new Thickness(0, 0, 6, 0) };
         refresh.Click += (_, _) => { Fill(); _status.Text = Loc.T("最新にしました。", "Refreshed."); };
         var copy = new Button { Name = "CopyButton", Content = Loc.T("コピー", "Copy"), MinWidth = 90, Margin = new Thickness(0, 0, 6, 0) };
@@ -85,9 +78,7 @@ public sealed class RemapTextWindow : Window
         buttons.Children.Add(_status);
 
         var root = new DockPanel { Margin = new Thickness(10) };
-        DockPanel.SetDock(note, Dock.Top);
         DockPanel.SetDock(buttons, Dock.Bottom);
-        root.Children.Add(note);
         root.Children.Add(buttons);
         root.Children.Add(_text);
         Content = root;

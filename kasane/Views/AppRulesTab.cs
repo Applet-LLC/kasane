@@ -15,12 +15,7 @@ internal sealed class AppRulesTab : HelperTabBase
     private readonly Button _add, _edit, _copy, _delete, _up, _down, _toggle;
 
     public AppRulesTab(HelperSettingsModel model, Window owner)
-        : base(model, owner, "Rules",
-            Loc.T(
-                "前面のアプリに応じて、アプリ管理レイヤーを自動で立てるか、そのキーボードのリマップをOFF(素通し)にします。" +
-                "規則は上から順に見て最初に一致したものを使い、キーボードごとの規則が共通の規則より先です。変更は OK で保存されます。",
-                "Depending on the foreground app, this automatically turns on app-managed layers or turns remapping OFF (pass-through) for that keyboard. " +
-                "Rules are checked from the top and the first match is used; per-keyboard rules come before shared rules. Changes are saved with OK."))
+        : base(model, owner, "Rules")
     {
         _add = Btn("AddRuleButton", Loc.T("追加...", "Add..."));
         _edit = Btn("EditRuleButton", Loc.T("編集...", "Edit..."));

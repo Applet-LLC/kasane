@@ -18,8 +18,7 @@ public sealed class DeleteConfirmWindow : Window
     /// <param name="what">削除するもの（例: 「マクロ3「挨拶」」）。</param>
     /// <param name="references">使っている場所の説明。</param>
     /// <param name="note">一覧の下に添える補足（ほかのキーボードは調べられない、など。無ければ null）。</param>
-    /// <param name="commitNote">いつ決まるかの一文（null なら「編集画面で OK か適用を押したとき」）。</param>
-    public DeleteConfirmWindow(string what, IReadOnlyList<string> references, string? note = null, string? commitNote = null)
+    public DeleteConfirmWindow(string what, IReadOnlyList<string> references, string? note = null)
     {
         Title = Loc.T("削除の確認", "Confirm Delete");
         Width = 560;
@@ -36,12 +35,8 @@ public sealed class DeleteConfirmWindow : Window
             Name = "UnassignCheck",
             IsChecked = true,
             Margin = new Thickness(0, 8, 0, 0),
-            Content = new TextBlock
-            {
-                Text = Loc.T("使っている場所の割り当ても外す(キーの割り当ては ▽ 透過に戻ります。レイヤー0では、刻印のキーとして動きます)",
-                             "Also remove it where it is used (key assignments go back to ▽ transparent; on layer 0 the key works as its printed key)"),
-                TextWrapping = TextWrapping.Wrap, Width = 500,
-            },
+            Content = Loc.T("使っている場所の割り当ても外す", "Also remove it where it is used"),
+            ToolTip = Loc.T("キーの割り当ては透過に戻ります。レイヤー0では、刻印のキーとして動きます", "Key assignments become transparent; on layer 0 the key works as its printed key"),
         };
         var keepNote = new TextBlock
         {
@@ -67,11 +62,6 @@ public sealed class DeleteConfirmWindow : Window
         }
         if (note != null)
             stack.Children.Add(new TextBlock { Text = note, TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 8, 0, 0) });
-        stack.Children.Add(new TextBlock
-        {
-            Text = commitNote ?? Loc.T("削除は、編集画面で OK か適用を押したときに決まります。", "The deletion takes effect when you press OK or Apply in the editor."),
-            TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 8, 0, 0),
-        });
 
         var delete = new Button { Name = "DeleteButton", Content = Loc.T("削除", "Delete"), Width = 90, IsDefault = true };
         delete.Click += (_, _) => DialogResult = true;
