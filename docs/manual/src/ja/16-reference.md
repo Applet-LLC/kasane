@@ -49,6 +49,7 @@
 | `kasane.exe` | `--restore-import-backup [型番 または --all]` | インストール時の取り込み前の設定に戻す |
 | `kasane.exe` | `--import-pending` | 設定フォルダの `kasane-import.json` を、設定のないキーボード分だけ取り込む。トレイが起動時に呼ぶ |
 | `kasane.exe` | `--prepare-data-dir <フォルダ> <ファイル>` | 設定フォルダを作り、権限を付ける。インストーラーが使う |
+| `kasane.exe` | `--dump-text <UniqId> [<出力先>]` | 保存済みの設定から、割り当ての一覧を文字で書き出す（[5. エディタの基本](05-editor-basics.html#remap-text)）。出力先を省くと標準出力へ書くので、`kasane.exe --dump-text 55F70000 > a.txt` のように受ける |
 | `kasane-tray.exe` | `--probe-ime` | 診断。3 秒待って、IME の状態を `%TEMP%\kasane-ime-probe.txt` に書く |
 | `DriverManager.exe` | `install keyboard`, `uninstall keyboard`, `check-pending` | ドライバの導入、削除、削除待ちの確認。管理者権限が必要 |
 | `KeymapTool.exe` | `--apply-simple` ほか | コマンド版の設定ツール |

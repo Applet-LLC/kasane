@@ -824,6 +824,27 @@ public partial class MainWindow : Window
 
     private void BtnSettings_Click(object sender, RoutedEventArgs e) => OpenSettings(null);
 
+    // 割り当ての一覧（文字。GUI 計画 2-2）。非モーダルで1つだけ。「最新にする」で、そのときの _project と _layout から作り直す
+    // （キーボードを切り替えたあとなら、切り替え先の内容になる）。
+    private RemapTextWindow? _remapText;
+
+    private void BtnRemapText_Click(object sender, RoutedEventArgs e)
+    {
+        if (_project == null || _layout == null) return;
+        if (_remapText != null) { _remapText.Activate(); return; }
+        _remapText = new RemapTextWindow(BuildRemapText, $"kasane-{_project.UniqId:X8}-assignments.txt") { Owner = this };
+        _remapText.Closed += (_, _) => _remapText = null;
+        _remapText.Show();
+    }
+
+    private string BuildRemapText()
+    {
+        if (_project == null || _layout == null) return "";
+        var helper = new HelperSettingsModel(_project.UniqId, TrayConfig.Load());
+        return RemapTextFormatter.Format(_project, _layout, helper.HasDevice && helper.DeviceLoadError == null ? helper.Device : null, helper.Global,
+                                         RemapTextFormatter.KeyboardLabel(_project), DateTime.Now);
+    }
+
     // 設定の「ヘルパー動作」タブを選んだ状態で、設定画面を開く。
     private void BtnHelper_Click(object sender, RoutedEventArgs e) => OpenSettings("TabHelper");
 
