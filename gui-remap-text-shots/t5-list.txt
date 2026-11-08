@@ -1,0 +1,35 @@
+﻿# かさね 割り当ての一覧 (2026-11-08 08:00)
+# キーボード: 55F70000「ThinkPad 内蔵キーボード」 / レイアウト: JP109
+# レイヤー0 は刻印のキーから変えたキー、レイヤー1 以降は ▽(透過)でないキーだけを出します。行の頭の「# 」は無効にした設定です。
+
+## レイヤー0
+key Caps -> Alt+半/全 : LALT(KC_ZKHK)
+key F    -> G         : KC_G
+
+## レイヤー1
+key Q     -> 押している間 レイヤー2                        : MO(2)
+key A     -> タップ: A / 長押し: Shift (Mod-Tap)           : MT(MOD_LSFT,KC_A)
+key H     -> ヘルパー動作 HLP(1) 文字列: 1345602Aa         : HLP(1)
+key C     -> Ctrl+C                                        : LCTL(KC_C)
+key M     -> マクロ1「apple」                              : MACRO(1)
+key Space -> タップ: Space / 長押し: レイヤー1 (Layer-Tap) : LT(1,KC_SPACE)
+
+## コンボ
+combo 0「ESC組」: J + K         -> Esc : KC_ESC
+# combo 1「ESC組(複製)」: J + K -> Esc : KC_ESC
+
+## タップダンス
+tapdance 0: 1回 A / 長押し － / 2回 Ctrl+C / 3回 －
+# tapdance 1: 1回 B / 長押し － / 2回 － / 3回 －
+
+## キー置換
+override 0「IME ON」: Shift+` -> Shift+Caps       : MOD_LSFT + KC_GRAVE -> LSFT(KC_CAPSLOCK)
+override 1「Ctrl-1」: Ctrl+1  -> マクロ0          : MOD_LCTL + KC_1 -> MACRO(0)
+# override 2: Shift+P         -> マクロ1「apple」 : MOD_LSFT + KC_P -> MACRO(1)
+
+## マクロ
+macro 0: 1 3 4 5 6 0 2 Shift+A A
+# macro 1「apple」: A [ BS A P P L E P1 P2 P3 P4 P5 P6
+
+## ヘルパー動作(トレイが動いているときだけ働きます)
+helper [このキーボード] HLP(1)  — 文字列: 1345602Aa
