@@ -32,7 +32,7 @@ public sealed class KeycodePickerWindow : Window
     public KeycodePickerWindow(bool allowMods, Action<string>? onAdd = null)
     {
         _onAdd = onAdd;
-        Title = onAdd == null ? Loc.T("キーを選ぶ", "Choose a key") : Loc.T("キーを選ぶ(「追加」で続けて入れられます)", "Choose a key (use \"Add\" to enter several in a row)");
+        Title = onAdd == null ? Loc.T("キーを選ぶ", "Choose a key") : Loc.T("キーを選ぶ", "Choose a key");
         Name = "KeycodePicker";
         Width = 1180;
         Height = 600;
@@ -42,7 +42,7 @@ public sealed class KeycodePickerWindow : Window
         var tabs = new TabControl { Name = "PickerTabs" };
         var soft = new SoftKeyboardPanel { Margin = new Thickness(8) };
         soft.KeySelected += kc => SetBase(kc);
-        tabs.Items.Add(new TabItem { Header = Loc.T("キーボード", "Keyboard"), Name = "PickerTabKeyboard", Content = soft });
+        tabs.Items.Add(new TabItem { Header = Loc.T("キーボード図", "Keyboard view"), Name = "PickerTabKeyboard", Content = soft });
         tabs.Items.Add(new TabItem { Header = Loc.T("一覧", "List"), Name = "PickerTabList", Content = BuildList() });
 
         var ok = new Button { Name = "PickerOk", Content = onAdd == null ? "OK" : Loc.T("追加", "Add"), IsDefault = true, Width = 80, IsEnabled = false };
@@ -82,7 +82,8 @@ public sealed class KeycodePickerWindow : Window
                 mods.Children.Add(cb);
             }
             var modBox = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
-            modBox.Children.Add(new TextBlock { Text = Loc.T("修飾キー(チェックすると、Ctrl+C のようなショートカットとして送ります):", "Modifiers (when checked, the key is sent as a shortcut such as Ctrl+C):"), Margin = new Thickness(0, 0, 0, 4) });
+            modBox.Children.Add(new TextBlock { Text = Loc.T("修飾キー:", "Modifiers:"), Margin = new Thickness(0, 0, 0, 4),
+                                               ToolTip = Loc.T("チェックすると、Ctrl+C のようなショートカットにします", "When checked, the key becomes a shortcut such as Ctrl+C") });
             modBox.Children.Add(mods);
             DockPanel.SetDock(modBox, Dock.Bottom);
             root.Children.Add(modBox);

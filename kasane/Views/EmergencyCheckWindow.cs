@@ -54,7 +54,7 @@ public sealed class EmergencyCheckWindow : Window
                    "この画面を開いている間、押したキーはほかのアプリに届きません。" +
                    (driverUniqId != 0
                        ? "キーはドライバから直接受け取ります(レイヤーマップで置き換える前の物理キー。選んでいるキーボードの入力だけ)。"
-                       : "\n管理者権限モードで実施してください。")),
+                       : "\n正確に確かめるには、管理者として再起動してください。")),
                    ("Press all the keys of the combination at the same time. The keys you are holding turn green. If all of them turn green, " +
                    "this keyboard can detect this combination at once.\n" +
                    $"Note: if you keep holding for {KbdLayerClient.EmergencyHoldMs / 1000} seconds or more, the emergency release actually takes effect and turns the layer map OFF on all connected keyboards. " +
@@ -62,7 +62,7 @@ public sealed class EmergencyCheckWindow : Window
                    "While this window is open, the keys you press do not reach other apps. " +
                    (driverUniqId != 0
                        ? "Keys are received directly from the driver (the physical keys, before the layer map replaces them; only input from the selected keyboard)."
-                       : "\nRun this in administrator mode."))),
+                       : "\nFor an accurate check, restart as administrator."))),
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, 10),
         });

@@ -45,6 +45,13 @@ public partial class CalibrationWindow : Window
     private volatile bool _driverKeys;
     private CancellationTokenSource? _loopCts;
     private CalibrationMode _mode = CalibrationMode.InputCheck;
+
+    private string CurrentHelpTopic() => _mode switch
+    {
+        CalibrationMode.SingleKey => HelpTopics.CalibrationSingle,
+        CalibrationMode.AllKeys => HelpTopics.CalibrationAll,
+        _ => HelpTopics.CalibrationCheck,
+    };
     private bool _ready;
     private bool _active;
     private int _position;         // 全体モード: _layout.Slots の位置
@@ -62,6 +69,11 @@ public partial class CalibrationWindow : Window
     public CalibrationWindow(KeyboardLayout layout, KeymapProject project, uint uniqId, bool canCalibrate)
     {
         InitializeComponent();
+        // 「?」（左下）と F1: 今のモードの節（6 章）を開く。
+        var help = HelpButton.Create(CurrentHelpTopic);
+        DockPanel.SetDock(help, Dock.Left);
+        BottomBar.Children.Insert(0, help);
+        HelpButton.AttachF1(this, CurrentHelpTopic);
         _layout = layout;
         _project = project;
         _uniqId = uniqId;
@@ -87,9 +99,8 @@ public partial class CalibrationWindow : Window
         if (_captureClient == null)
         {
             string why = canCalibrate
-                ? Loc.T("ドライバに接続できません。", "Can't connect to the driver.")
-                : Loc.T("キャリブレーションには、ドライバが認識しているキーボードと、管理者権限が要ります(「管理者として再起動」)。",
-                        "Calibration needs a keyboard that the driver recognizes, and administrator rights (\"Restart as administrator\").");
+                ? Loc.T("ドライバに接続できません", "Can't connect to the driver")
+                : Loc.T("管理者として再起動し、ドライバが認識しているキーボードを選ぶと使えます", "Restart as administrator and choose a keyboard the driver recognizes");
             ModeSingleKey.ToolTip = ModeAllKeys.ToolTip = why;
         }
 
@@ -172,17 +183,11 @@ public partial class CalibrationWindow : Window
             case CalibrationMode.InputCheck:
                 TxtInstruction.Text = Loc.T($"キーを押してみてください(確認済み {_model.CheckedCount} / {_layout.Slots.Count})", $"Try pressing keys ({_model.CheckedCount} / {_layout.Slots.Count} checked)");
                 TxtNote.Foreground = AppTheme.Palette.SubText;
+                // 長い説明（色の意味・キーの受け取り方）は、マニュアル（6 章）へ移した（2026-11-08）。
                 TxtNote.Text = _driverKeys
-                    ? Loc.T("押しているキーは橙色になり、一度押したキーには ✓ が付きます。✓ が付かないキーや、押したキーと違うキーが光るときは、" +
-                            "キャリブレーションが必要です。この画面が前面にある間、押したキーはWindowsに送られません。" +
-                            "キーはドライバから直接受け取ります(レイヤーマップで置き換える前の物理キー。選んでいるキーボードの入力だけ)。",
-                            "Keys you hold turn orange, and keys you have pressed once get a ✓. If a key gets no ✓, or a different key lights up than the one you pressed, " +
-                            "it needs calibration. While this window is in front, the keys you press are not sent to Windows. " +
-                            "Keys are received directly from the driver (physical keys, before layer-map remapping; input from the selected keyboard only).")
-                    : Loc.T("押しているキーは橙色になり、一度押したキーには ✓ が付きます。この画面が前面にある間、押したキーはWindowsに送られません。" +
-                            "\n管理者権限モードで実施してください。",
-                            "Keys you hold turn orange, and keys you have pressed once get a ✓. While this window is in front, the keys you press are not sent to Windows. " +
-                            "\nPlease run in administrator mode.");
+                    ? Loc.T("この画面が前面の間、キーは Windows に届きません", "While this window is in front, keys do not reach Windows")
+                    : Loc.T("この画面が前面の間、キーは Windows に届きません。正確に確かめるには、管理者として再起動してください",
+                            "While this window is in front, keys do not reach Windows. For an accurate check, restart as administrator.");
                 break;
             case CalibrationMode.SingleKey:
                 TxtInstruction.Text = _selected == null
@@ -192,7 +197,7 @@ public partial class CalibrationWindow : Window
             default:
                 var current = Current;
                 TxtInstruction.Text = current == null
-                    ? Loc.T("すべて記録しました。「実測値を保存して閉じる」を押してください。", "All keys recorded. Click \"Save measurements and close\".")
+                    ? Loc.T("すべて記録しました", "All keys recorded")
                     : Loc.T($"黄色のキー「{current.PrintedLabel}」を押してください({_position + 1} / {_layout.Slots.Count})", $"Press the yellow key \"{current.PrintedLabel}\" ({_position + 1} / {_layout.Slots.Count})");
                 BtnBack.IsEnabled = _position > 0;
                 BtnSkip.IsEnabled = current != null;
@@ -201,8 +206,7 @@ public partial class CalibrationWindow : Window
         if (!check && _active)
         {
             TxtNote.Foreground = AppTheme.Palette.SubText;
-            TxtNote.Text = Loc.T("このウィンドウが前面にある間、キーボードで押したキーはWindowsに送られません(記録だけされます)。操作はマウスで行ってください。",
-                                 "While this window is in front, keys pressed on the keyboard are not sent to Windows (they are only recorded). Use the mouse to operate this window.");
+            TxtNote.Text = Loc.T("この画面が前面の間、キーは Windows に届きません", "While this window is in front, keys do not reach Windows");
         }
         Title = _mode switch
         {
@@ -335,7 +339,7 @@ public partial class CalibrationWindow : Window
         var target = Target;
         if (target == null)
         {
-            if (_mode == CalibrationMode.SingleKey) TxtLast.Text = Loc.T("先に、実測したいキーを画面でクリックしてください。", "First, click the key you want to measure on the screen.");
+            if (_mode == CalibrationMode.SingleKey) TxtLast.Text = Loc.T("先に、実測するキーをクリックしてください", "First, click the key to measure");
             return;
         }
 
@@ -425,8 +429,8 @@ public partial class CalibrationWindow : Window
         _hook.Uninstall();
         // 非アクティブの間は解放が見えないので、押している状態を解く。
         foreach (int i in _model.ReleaseAll()) RefreshKey(_layout.Slots[i]);
-        TxtNote.Foreground = Brushes.Firebrick;
-        TxtNote.Text = Loc.T("一時停止中: このウィンドウをクリックすると再開します(他のウィンドウへの入力は記録しません)。", "Paused: click this window to resume (input to other windows is not recorded).");
+        TxtNote.Foreground = AppTheme.Palette.ErrorText;
+        TxtNote.Text = Loc.T("一時停止中: この画面をクリックすると再開します", "Paused: click this window to resume");
     }
 
     private void StopCapture()

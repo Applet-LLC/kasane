@@ -55,7 +55,10 @@ public abstract class IdListEditorWindow : Window
 
     // UI Automationでの要素特定用（WPFの既定AutomationPeerはx:Name/Nameを
     // AutomationIdとして使うため、コード生成のコントロールにも明示的に設定しておく）。
-    protected IdListEditorWindow(string title, int count, string help)
+    /// <summary>「?」ボタンと F1 で開くマニュアルの節（<see cref="HelpTopics"/>）。編集画面ごとに上書きする。</summary>
+    protected virtual string HelpTopic => HelpTopics.EditorsCommon;
+
+    protected IdListEditorWindow(string title, int count)
     {
         _count = count;
         Names = new string?[count];
@@ -86,19 +89,26 @@ public abstract class IdListEditorWindow : Window
                 if (!KeycodeCapture.EscapeBelongsToCapture) Close();
             }
         };
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
-        buttons.Children.Add(apply);
-        buttons.Children.Add(ok);
-        buttons.Children.Add(cancel);
+        var okCancel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        okCancel.Children.Add(apply);
+        okCancel.Children.Add(ok);
+        okCancel.Children.Add(cancel);
+        // 説明の段落は画面に出さず、「?」（左下）と F1 でマニュアルの節を開く（2026-11-08、UI の文言を削る作業）。
+        var buttons = new DockPanel { Margin = new Thickness(0, 8, 0, 0), LastChildFill = false };
+        var help = HelpButton.Create(() => HelpTopic);
+        DockPanel.SetDock(help, Dock.Left);
+        DockPanel.SetDock(okCancel, Dock.Right);
+        buttons.Children.Add(help);
+        buttons.Children.Add(okCancel);
+        HelpButton.AttachF1(this, () => HelpTopic);
 
         var right = new StackPanel();
-        right.Children.Add(new TextBlock { Text = help, TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 10) });
         right.Children.Add(Detail);
         right.Children.Add(_validation);
 
         // 一覧の下の操作（2026-11-06、GUI 計画 1-3）: 削除・複製と、並べ替え（番号をほかから参照されない、コンボ・キー置換だけ）。
         _delete = new Button { Name = "DeleteItemButton", Content = Loc.T("削除", "Delete"), MinWidth = 56, Margin = new Thickness(0, 0, 4, 0),
-                               ToolTip = Loc.T("選んでいる番号の中身と名前を消します。使っている割り当てがあれば、一緒に外すかを聞きます。", "Clears the content and name of the selected number. If assignments use it, you are asked whether to remove them too.") };
+                               ToolTip = Loc.T("選んでいる番号の中身と名前を消します", "Clears the content and name of the selected number") };
         _duplicate = new Button { Name = "DuplicateItemButton", Content = Loc.T("複製", "Duplicate"), MinWidth = 56, Margin = new Thickness(0, 0, 4, 0),
                                   ToolTip = Loc.T("選んでいる番号の中身を、空いている番号に写します。", "Copies the selected number to a free number.") };
         _up = new Button { Name = "MoveUpButton", Content = Loc.T("上へ", "Up"), MinWidth = 52, Margin = new Thickness(8, 0, 4, 0) };
@@ -335,7 +345,8 @@ public abstract class IdListEditorWindow : Window
             var disabled = new CheckBox
             {
                 Name = "ItemDisabled",
-                Content = Loc.T("無効にする(内容は残して、キーボードには適用しない)", "Disable (keep the content, but do not apply it to the keyboard)"),
+                Content = Loc.T("無効にする", "Disable"),
+                ToolTip = Loc.T("内容は残して、キーボードには適用しません", "Keeps the content, but does not apply it to the keyboard"),
                 IsChecked = Disabled[id],
                 IsEnabled = !string.IsNullOrEmpty(Summary(id)),
                 Margin = new Thickness(110, 0, 0, 6),
@@ -353,13 +364,7 @@ public abstract class IdListEditorWindow : Window
             disabled.Unchecked += changed;
             Detail.Children.Add(disabled);
         }
-        if (string.IsNullOrEmpty(Summary(id)))
-            Detail.Children.Add(new TextBlock
-            {
-                Text = Loc.T("中身が空の番号は未使用です。名前だけ先に付けておけます(中身を入れるまで、キーボードには適用されません)。",
-                             "A number with no content is unused. You can set a name ahead of time (it is not applied to the keyboard until you add content)."),
-                Foreground = AppTheme.Palette.SubText, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6),
-            });
+        // 中身が空の番号は未使用（一覧に「(未使用)」と出る）。その説明はマニュアル（9 章の共通の操作）に置く。
     }
 
     private string ItemText(int id)
@@ -440,7 +445,7 @@ public abstract class IdListEditorWindow : Window
 
     protected void ShowValidation(string text, bool isError)
     {
-        _validation.Foreground = isError ? Brushes.Firebrick : Brushes.DarkGreen;
+        _validation.Foreground = isError ? AppTheme.Palette.ErrorText : AppTheme.Palette.OkText;
         _validation.Text = text;
     }
 

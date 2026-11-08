@@ -75,7 +75,7 @@ public static class StepInsertBar
             Name = box.Name + "Command",
             Width = 70,
             Margin = new Thickness(0, 0, 6, 0),
-            ToolTip = Loc.T("押して入力・選ぶで挿入する行の命令。key = 押して離す、down = 押す、up = 離す。", "The command for lines inserted by the capture and pick buttons. key = press and release, down = press, up = release."),
+            ToolTip = Loc.T("挿入する行の命令: key = 押して離す、down = 押す、up = 離す", "Command of the inserted line: key = press and release, down = press, up = release"),
         };
         foreach (var c in new[] { "key", "down", "up" }) command.Items.Add(c);
         command.SelectedIndex = 0;
@@ -86,7 +86,7 @@ public static class StepInsertBar
             Content = Loc.T("キーを押して挿入", "Press a key to insert"),
             Padding = new Thickness(8, 1, 8, 1),
             Focusable = false, // キー操作でボタンが反応して、取り込んだキーが重ならないように
-            ToolTip = Loc.T("このボタンを押したあと、入れたいキーを押します(Esc で取消)。Win キーや Alt+Tab は入力できないので「選ぶ...」を使ってください。", "After clicking this button, press the key to insert (Esc cancels). The Win key and Alt+Tab cannot be captured; use \"Pick and insert...\" instead."),
+            ToolTip = Loc.T("押したキーを入れます(Esc で取消)。Win キーなどは「選んで挿入...」で選びます", "Inserts the key you press (Esc cancels). Pick keys such as Win with \"Pick and insert...\""),
         };
         KeycodeCapture? session = null;
         session = new KeycodeCapture(
@@ -136,8 +136,7 @@ public static class StepInsertBar
             Content = Loc.T("IME 操作を挿入 ▾", "Insert IME action ▾"),
             Margin = new Thickness(6, 0, 0, 0),
             Padding = new Thickness(8, 1, 8, 1),
-            ToolTip = Loc.T("IME を ON / OFF にする行を挿入します。今の状態を見て、違うときだけ変えます。切り替え方は、設定の「IME連動」タブの「IME の切り替え方」で選べます。",
-                            "Inserts a line that turns the IME on or off. It changes the IME only if the current state differs. Choose how it is switched under \"How to switch the IME\" on the IME link tab in Settings."),
+            ToolTip = Loc.T("IME を ON/OFF にする行を挿入します", "Inserts a line that turns the IME on or off"),
         };
         var imeMenu = new ContextMenu();
         foreach (var (label, line, id) in ImeItems)
@@ -161,7 +160,7 @@ public static class StepInsertBar
             Content = Loc.T("仮想キーを挿入 ▾", "Insert virtual key ▾"),
             Margin = new Thickness(6, 0, 0, 0),
             Padding = new Thickness(8, 1, 8, 1),
-            ToolTip = Loc.T("スキャンコードを持たない仮想キー(VK_IME_ON など)を送る行を挿入します。ほかの仮想キーは vk 0x70 や vk LSHIFT+F1 のように直接書けます。", "Inserts a line that sends a virtual key that has no scan code (such as VK_IME_ON). Other virtual keys can be written directly, like vk 0x70 or vk LSHIFT+F1."),
+            ToolTip = Loc.T("スキャンコードを持たない仮想キーを送る行を挿入します", "Inserts a line that sends a virtual key that has no scan code"),
         };
         var vkMenu = new ContextMenu();
         foreach (var (label, line, id) in VkItems)

@@ -170,7 +170,7 @@ public sealed class TrayContext : ApplicationContext
             foreach (var item in kb.Items)
             {
                 var entry = new ToolStripMenuItem(Loc.T($"レイヤー {item.Layer}", $"Layer {item.Layer}")) { Name = $"TrayLayer_{kb.UniqId:X8}_{item.Layer}", Checked = item.Checked, CheckOnClick = false, Enabled = item.Enabled };
-                if (!item.Enabled) entry.ToolTipText = Loc.T("キーボードのレイヤー切り替え、IME連動、アプリ別レイヤーのいずれかで有効になっているので、ここからは切れません。", "This layer is active through a keyboard layer switch, IME link, or a per-app layer, so it cannot be turned off here.");
+                if (!item.Enabled) entry.ToolTipText = Loc.T("キーボードのレイヤー切り替え、IME 連動、アプリ別レイヤーのどれかで有効になっているので、ここからは無効にできません", "This layer is active through a keyboard layer switch, IME link, or a per-app layer, so it cannot be turned off here.");
                 uint uniq = kb.UniqId;
                 int layer = item.Layer;
                 entry.Click += (_, _) =>
@@ -207,7 +207,7 @@ public sealed class TrayContext : ApplicationContext
         string? exe = AppLauncher.FindEditor();
         if (exe == null)
         {
-            Notify(Loc.T("設定画面（kasane.exe）が見つかりません", "Could not find the Settings app (kasane.exe)"));
+            Notify(Loc.T("エディタ（kasane.exe）が見つかりません", "Could not find the editor (kasane.exe)"));
             return;
         }
         try
@@ -251,7 +251,7 @@ public sealed class TrayContext : ApplicationContext
         // 起動中（ウィンドウが出るまで）に押し直されても、2つ目を起動しない。
         if (StartingNotice.IsShowing) return;
         Notify(AppLauncher.OpenOrActivate(AppLauncher.FindEditor(), AppInfo.DisplayName,
-            started => StartingNotice.ShowFor(started, Loc.T($"{AppInfo.DisplayName} の設定画面を準備しています…", $"Starting {AppInfo.DisplayName} Settings…"))));
+            started => StartingNotice.ShowFor(started, Loc.T($"{AppInfo.DisplayName} のエディタを準備しています…", $"Starting {AppInfo.DisplayName} editor…"))));
     }
 
     /// <summary>失敗の理由があれば、バルーンで知らせる。</summary>
@@ -343,7 +343,7 @@ public sealed class TrayContext : ApplicationContext
         };
         var ime = _imeLink.Status;
         if (snapshot.Status == TrayStatus.Running && ime.HasNicola)
-            text += ime.NicolaOn ? Loc.T("・NICOLA 入力中", " / NICOLA on") : Loc.T("・NICOLA 待機(IME連動)", " / NICOLA standby (IME link)");
+            text += ime.NicolaOn ? Loc.T("・NICOLA 入力中", " / NICOLA on") : Loc.T("・NICOLA 待機(IME 連動)", " / NICOLA standby (IME link)");
         if (snapshot.Status == TrayStatus.Running && snapshot.ActiveCount > 0 && _showLayer && _layerBadge != null)
         {
             icon = BadgeIcon(_layerBadge);

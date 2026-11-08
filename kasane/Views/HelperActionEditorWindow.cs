@@ -22,21 +22,22 @@ public sealed class HelperActionEditorWindow : Window
 {
     private static (string Type, string Label)[] Types => new[]
     {
-        (HelperActionBody.Launch, Loc.T("プログラムを起動する (Launch)", "Launch a program (Launch)")),
-        (HelperActionBody.Open, Loc.T("URL・ファイル・フォルダを開く (Open)", "Open a URL, file, or folder (Open)")),
-        (HelperActionBody.Sequence, Loc.T("キー・文字列・マウスの操作 (Sequence)", "Key, text, and mouse actions (Sequence)")),
-        (HelperActionBody.AppLayer, Loc.T("アプリ管理レイヤーの操作 (AppLayer)", "Control app-managed layers (AppLayer)")),
-        (HelperActionBody.PauseToggle, Loc.T("一時停止・再開 (PauseToggle)", "Pause / resume (PauseToggle)")),
-        (HelperActionBody.TextInput, Loc.T("文字列を入力する (Text)", "Type text (Text)")), // 末尾に足す（UI Automation 試験が種類を番号で選ぶため）
-        (HelperActionBody.KillLine, Loc.T("行末まで切り取る (KillLine)", "Cut to end of line (KillLine)")),
+        (HelperActionBody.Launch, Loc.T("プログラムを起動する", "Launch a program (Launch)")),
+        (HelperActionBody.Open, Loc.T("URL・ファイル・フォルダを開く", "Open a URL, file, or folder (Open)")),
+        (HelperActionBody.Sequence, Loc.T("キー・文字列・マウスの操作", "Key, text, and mouse actions (Sequence)")),
+        (HelperActionBody.AppLayer, Loc.T("アプリ管理レイヤーの操作", "Control app-managed layers (AppLayer)")),
+        (HelperActionBody.PauseToggle, Loc.T("一時停止・再開", "Pause / resume (PauseToggle)")),
+        (HelperActionBody.TextInput, Loc.T("文字列を入力する", "Type text (Text)")), // 末尾に足す（UI Automation 試験が種類を番号で選ぶため）
+        (HelperActionBody.KillLine, Loc.T("行末まで切り取る", "Cut to end of line (KillLine)")),
     };
 
     private static readonly string[] LayerOps = { "On", "Off", "Toggle", "Hold" };
     private static string[] LayerOpLabels => new[]
     {
-        Loc.T("On: 立てる", "On: turn on"), Loc.T("Off: 下ろす", "Off: turn off"),
-        Loc.T("Toggle: 押すたびに切り替える", "Toggle: switch each time you press"),
-        Loc.T("Hold: 押している間だけ立てる", "Hold: on only while held"),
+        // 日本語は動作の名前だけ（On / Toggle / Hold は英語の表示だけに出す。helper.json の LayerOp の値は変えない）。
+        Loc.T("有効にする", "On: turn on"), Loc.T("無効にする", "Off: turn off"),
+        Loc.T("押すたびに切り替える", "Toggle: switch each time you press"),
+        Loc.T("押している間だけ有効にする", "Hold: on only while held"),
     };
 
     private static readonly string[] ImeMethods = { "Auto", "Imm", "Tsf", "Key", "AltKanji" };
@@ -66,23 +67,23 @@ public sealed class HelperActionEditorWindow : Window
     private readonly TextBox _releaseSteps = MultiLine("ActionReleaseSteps");
     private readonly TextBox _text = MultiLine("ActionText");
     private readonly StackPanel _textPanel = new();
-    private readonly CheckBox _imeOff = new() { Name = "ActionImeOffDuring", Content = Loc.T("入力の間だけ IME を OFF にして、終わったら元に戻す", "Turn the IME off while typing, then restore it"), Margin = new Thickness(0, 8, 0, 0) };
+    private readonly CheckBox _imeOff = new() { Name = "ActionImeOffDuring", Content = Loc.T("入力の間だけ IME を OFF にする", "Turn the IME off while typing"), ToolTip = Loc.T("終わったら元に戻します。すでに OFF なら何も変えません", "Restored afterwards; nothing changes if it is already off"), Margin = new Thickness(0, 8, 0, 0) };
     private readonly ComboBox _imeMethod = new() { Name = "ActionImeMethod", Width = 300 };
-    private readonly CheckBox _imeAbort = new() { Name = "ActionImeAbort", Content = Loc.T("IME を OFF にできなかったときは、入力しない", "Don't type if the IME can't be turned off"), Margin = new Thickness(0, 4, 0, 0) };
+    private readonly CheckBox _imeAbort = new() { Name = "ActionImeAbort", Content = Loc.T("OFF にできなければ入力しない", "Don't type if it can't be turned off"), Margin = new Thickness(0, 4, 0, 0) };
     private readonly StackPanel _imeOptions = new();
     // 方式の欄。以前の設定で方式を固定しているときだけ出す（2026-11-05。ふだんは自動だけで、選ばせない）。
     private readonly StackPanel _imeMethodRow = new() { Visibility = Visibility.Collapsed };
     private readonly CheckBox[] _layers = new CheckBox[16];
     private readonly ComboBox _layerOp = new() { Name = "ActionLayerOp", Width = 300 };
-    private readonly CheckBox _repeat = new() { Name = "ActionRepeat", Content = Loc.T("キーを押し続けたとき(オートリピート)も繰り返す", "Repeat while the key is held down (auto-repeat)"), Margin = new Thickness(0, 8, 0, 0) };
-    private readonly CheckBox _keepMods = new() { Name = "ActionKeepMods", Content = Loc.T("実行中も、押している修飾キー(Ctrl など)を送る(チェックしないと、実行の間だけ隠す)", "Send held modifier keys (such as Ctrl) while running (if unchecked, they are hidden during the run)"), Margin = new Thickness(0, 6, 0, 0) };
+    private readonly CheckBox _repeat = new() { Name = "ActionRepeat", Content = Loc.T("キーを押し続けたときも繰り返す", "Repeat while the key is held"), ToolTip = Loc.T("オートリピートのたびに繰り返します", "Repeats on every auto-repeat"), Margin = new Thickness(0, 8, 0, 0) };
+    private readonly CheckBox _keepMods = new() { Name = "ActionKeepMods", Content = Loc.T("実行中も、押している修飾キーを送る", "Send held modifier keys while running"), ToolTip = Loc.T("チェックしないと、実行の間だけ Ctrl などを隠します", "If unchecked, Ctrl and the like are hidden during the run"), Margin = new Thickness(0, 6, 0, 0) };
     private readonly StackPanel _launchPanel = new();
     private readonly StackPanel _sequencePanel = new();
     private readonly StackPanel _layerPanel = new();
     private readonly StackPanel _pausePanel = new();
+    private readonly TextBlock _pathLabel = new() { Text = "Path", Width = 100, VerticalAlignment = VerticalAlignment.Center };
     private readonly StackPanel _argsRow;
     private readonly StackPanel _workDirRow;
-    private readonly TextBlock _pathHelp = new() { TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 4) };
     private readonly TextBlock _status = new() { Name = "ActionStatus", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) };
     private bool _loading = true;
 
@@ -108,26 +109,12 @@ public sealed class HelperActionEditorWindow : Window
         var panel = new StackPanel();
         if (mode == HelperEditMode.Action)
         {
-            panel.Children.Add(Help(Loc.T(
-                ("この動作は、キーに割り当てた HLP(Id) を押したときに動きます(キー割り当て画面の「ヘルパー動作」から選びます)。" +
-                 "Id は、このキーボードの分と共通の分で重ならない数(0〜65535)にします。"),
-                ("This action runs when you press a key assigned HLP(Id) (choose it from \"Helper actions\" on the key assignment screen). " +
-                 "Choose an Id (0-65535) that is not used by another action, either for this keyboard or shared."))));
-            panel.Children.Add(Row("Id", _id, "HLP(Id)"));
+            panel.Children.Add(Row("Id", _id, Loc.T($"キーには HLP(Id) で割り当てます。0〜{HelperSettingsModel.MaxActionId} で、ほかの動作と重ならない数", $"Assign it to a key as HLP(Id). 0-{HelperSettingsModel.MaxActionId}, not used by another action")));
             panel.Children.Add(Row(Loc.T("名前", "Name"), _name));
         }
         else
         {
-            panel.Children.Add(Help(Loc.T(
-                ("このトリガーは、トレイのキーボードフックで受けます(トリガーが1つでもあると、フックを張ります)。" +
-                 "押したキーはアプリに届きません。F13〜F24 など、普段使わないキーが向いています。" +
-                 "修飾キーは左右を区別せず、押している分と過不足なく一致したときだけ動きます。Alt・Win の組み合わせは、" +
-                 "単独で離したときにメニューやスタートが開くことがあるので、避けてください。"),
-                ("This trigger is received by the tray's keyboard hook (the hook is installed when there is at least one trigger). " +
-                 "The pressed key does not reach the app. Keys you don't normally use, such as F13-F24, work well. " +
-                 "Modifier keys are matched without distinguishing left and right, and the trigger fires only when exactly the held modifiers match. " +
-                 "Avoid combinations of Alt and Win, because releasing them alone may open a menu or the Start menu."))));
-            panel.Children.Add(Row(Loc.T("キー", "Key"), KeycodeField.Wrap(_key, allowMods: false), Loc.T("KC_F13、SC_E06A のような書き方", "Written like KC_F13 or SC_E06A")));
+            panel.Children.Add(Row(Loc.T("キー", "Key"), KeycodeField.Wrap(_key, allowMods: false), Loc.T("F13〜F24 など、普段使わないキーが向いています", "Keys you don't normally use, such as F13-F24, work well")));
             var modPanel = new StackPanel { Orientation = Orientation.Horizontal };
             modPanel.Children.Add(_ctrl);
             modPanel.Children.Add(_shift);
@@ -140,8 +127,9 @@ public sealed class HelperActionEditorWindow : Window
         panel.Children.Add(Row(Loc.T("種類", "Type"), _type));
 
         // Launch / Open
-        _launchPanel.Children.Add(_pathHelp);
-        var pathRow = Row("Path", _path);
+        var pathRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
+        pathRow.Children.Add(_pathLabel);
+        pathRow.Children.Add(_path);
         var browse = new Button { Name = "BrowseButton", Content = Loc.T("参照...", "Browse..."), Width = 70, Margin = new Thickness(6, 0, 0, 0) };
         browse.Click += (_, _) => Browse();
         pathRow.Children.Add(browse);
@@ -150,60 +138,24 @@ public sealed class HelperActionEditorWindow : Window
         _workDirRow = Row(Loc.T("作業フォルダ", "Working folder"), _workDir);
         _launchPanel.Children.Add(_argsRow);
         _launchPanel.Children.Add(_workDirRow);
-        _launchPanel.Children.Add(new TextBlock { Text = Loc.T("%USERPROFILE% のような環境変数が使えます。昇格(管理者として実行)はしません。", "Environment variables such as %USERPROFILE% can be used. The program is not elevated (not run as administrator)."), Foreground = AppTheme.Palette.SubText, TextWrapping = TextWrapping.Wrap });
 
         // Sequence
-        _sequencePanel.Children.Add(Help(Loc.T(
-            ("1行が1手順です。書き方:\n" +
-             "  key LCTL(KC_C)   キーを押して離す(KC_A、LCTL(KC_C)、SC_E06A など)\n" +
-             "  down KC_A / up KC_A   押す / 離す\n" +
-             "  vk IME_ON / vk IME_OFF   仮想キー(VK_*)を押して離す。IME ON/OFF のキーなど、スキャンコードを持たないキー用(vk 0x16、vk LSHIFT+F1 のようにも書けます。押す / 離すは vkdown / vkup)\n" +
-             "  text こんにちは\\n   文字列を打つ(\\n = Enter、\\t = Tab、\\\\ = バックスラッシュ。バックスラッシュは日本語のフォントでは円記号(¥)の形で表示されます。¥ キーで入力できます)\n" +
-             "  delay 50   待つ(ミリ秒、0〜10000)\n" +
-             "  mouse left / mouse right down / mouse x1 up   ボタン(left right middle x1 x2、click down up)\n" +
-             "  move 10 -5 / moveto 100 200   マウスを動かす(今の位置から / 画面の座標へ)\n" +
-             "  wheel -120 / hwheel 120   ホイール(120 で1ノッチ)\n" +
-             "  ime off / ime on / ime toggle   IME を OFF / ON / 切り替え(今の状態を見て、違うときだけ変えます)\n" +
-             "  ime off abort   IME を変えられなかったら、この動作の残りをやめる\n" +
-             "  IME の切り替え方は、設定の「IME連動」タブで選べます。切り替わらないアプリでは、ime の代わりに vk IME_ON / vk IME_OFF も試せます。\n" +
-             "# で始まる行は無視します。\n" +
-             "欄の上のボタンで、キー名(キーを押して挿入／選んで挿入)やマウス操作を、カーソルのある行の次に1行挿入できます。"),
-            ("One step per line. Syntax:\n" +
-             "  key LCTL(KC_C)   Press and release a key (KC_A, LCTL(KC_C), SC_E06A, etc.)\n" +
-             "  down KC_A / up KC_A   Press / release\n" +
-             "  vk IME_ON / vk IME_OFF   Press and release a virtual key (VK_*). For keys that have no scan code, such as the IME on/off keys (also vk 0x16, vk LSHIFT+F1; vkdown / vkup press / release)\n" +
-             "  text Hello\\n   Type a string (\\n = Enter, \\t = Tab, \\\\ = backslash)\n" +
-             "  delay 50   Wait (milliseconds, 0-10000)\n" +
-             "  mouse left / mouse right down / mouse x1 up   Buttons (left right middle x1 x2, click down up)\n" +
-             "  move 10 -5 / moveto 100 200   Move the mouse (from the current position / to screen coordinates)\n" +
-             "  wheel -120 / hwheel 120   Wheel (120 = one notch)\n" +
-             "  ime off / ime on / ime toggle   Turn the IME off / on / toggle it (changed only if the current state differs)\n" +
-             "  ime off abort   Stop the rest of this action if the IME can't be changed\n" +
-             "  How the IME is switched can be chosen on the IME link tab in Settings. If an app's IME doesn't switch, you can also try vk IME_ON / vk IME_OFF instead of ime.\n" +
-             "Lines starting with # are ignored.\n" +
-             "The buttons above the box insert one line after the cursor line: a key name (press a key to insert / pick one to insert) or a mouse action."))));
+        // 書き方の説明は、マニュアル（11 章「手順の書き方」）へ移した。「?」と F1 で開く（2026-11-08）。
         _sequencePanel.Children.Add(new TextBlock { Text = Loc.T("キーを押したときの手順:", "Steps when the key is pressed:"), Margin = new Thickness(0, 4, 0, 2) });
         _sequencePanel.Children.Add(StepInsertBar.Create(_steps));
         _sequencePanel.Children.Add(_steps);
-        _sequencePanel.Children.Add(new TextBlock { Text = Loc.T("キーを離したときの手順(任意。マウスのボタンを押している間だけ押す、など):", "Steps when the key is released (optional; for example, hold a mouse button only while the key is held):"), Margin = new Thickness(0, 8, 0, 2) });
+        _sequencePanel.Children.Add(new TextBlock { Text = Loc.T("キーを離したときの手順(任意):", "Steps when the key is released (optional):"), Margin = new Thickness(0, 8, 0, 2),
+            ToolTip = Loc.T("例: マウスのボタンを、キーを押している間だけ押す", "Example: hold a mouse button only while the key is held") });
         _sequencePanel.Children.Add(StepInsertBar.Create(_releaseSteps));
         _sequencePanel.Children.Add(_releaseSteps);
 
         // Text
-        _textPanel.Children.Add(Help(Loc.T(
-            ("入力した文字列を、そのまま送ります(例: Apple 漢字)。キーボードで打ったように、いま入力できる場所(エディタなど)の現在の位置に追記されます。" +
-             "日本語や記号もそのまま送れます。改行は Enter、タブは Tab として送ります。バックスラッシュなどに特別な意味はありません(そのまま送ります)。" +
-             $"{HelperActionBody.MaxTextLength} 文字までです。"),
-            ("Sends the text exactly as entered (for example: Apple 漢字). As if typed on the keyboard, it is inserted at the current position wherever you can type now (such as an editor). " +
-             "Japanese characters and symbols are sent as they are. A line break is sent as Enter and a tab as Tab. Backslashes and similar characters have no special meaning (they are sent as they are). " +
-             $"Up to {HelperActionBody.MaxTextLength} characters."))));
+        _text.ToolTip = Loc.T($"書いたとおりに送ります。改行は Enter、タブは Tab として送ります。{HelperActionBody.MaxTextLength} 文字まで",
+                              $"Sent exactly as written. A line break is sent as Enter and a tab as Tab. Up to {HelperActionBody.MaxTextLength} characters");
         _textPanel.Children.Add(_text);
         _textPanel.Children.Add(_imeOff);
         foreach (var label in ImeMethodLabels) _imeMethod.Items.Add(label);
         _imeOptions.Margin = new Thickness(20, 0, 0, 0);
-        _imeOptions.Children.Add(Help(Loc.T(
-            "IME がすでに OFF なら、何も変えません。",
-            "If the IME is already off, nothing is changed.")));
         _imeMethodRow.Children.Add(Row(Loc.T("IME の方式", "IME method"), _imeMethod));
         _imeMethodRow.Children.Add(Help(Loc.T(
             "以前の設定で、方式を固定しています。固定した方式は、失敗しても別の方式に切り替えません。「自動」にして保存すると、次からこの欄は出ません。",
@@ -213,8 +165,7 @@ public sealed class HelperActionEditorWindow : Window
         _textPanel.Children.Add(_imeOptions);
 
         // AppLayer
-        _layerPanel.Children.Add(Help(Loc.T("アプリ管理レイヤーを操作します(IME連動・前面のアプリの規則と合わせて、ORで効きます)。対象は、そのキーを押したキーボードです。", "Controls app-managed layers (combined with IME link and per-app rules by OR). It applies to the keyboard on which the key was pressed.")));
-        var wrap = new WrapPanel();
+        var wrap = new WrapPanel { ToolTip = Loc.T("対象は、そのキーを押したキーボードです", "Applies to the keyboard on which the key was pressed") };
         for (int i = 0; i < _layers.Length; i++)
         {
             _layers[i] = new CheckBox { Name = $"ActionLayer{i}", Content = i.ToString(), Width = 54, Margin = new Thickness(0, 2, 0, 2) };
@@ -225,7 +176,9 @@ public sealed class HelperActionEditorWindow : Window
         foreach (var label in LayerOpLabels) _layerOp.Items.Add(label);
         _layerPanel.Children.Add(Row(Loc.T("操作", "Operation"), _layerOp));
 
-        _pausePanel.Children.Add(Help(Loc.T("トレイの一時停止・再開を切り替えます。一時停止中は、キーフックのトリガーだけが動きます(HLP のキーはリマップが止まるので届きません)。同じキーで再開したいときは、F13〜F24 などのトリガーに結び付けてください。", "Toggles pause / resume in the tray. While paused, only key hook triggers work (keys assigned HLP do not arrive because remapping is stopped). To resume with the same key, bind it to a trigger such as F13-F24.")));
+        // HLP のキーは、一時停止中はリマップが止まって届かない。同じキーで再開できないことだけ、その場合に知らせる。
+        if (mode == HelperEditMode.Action)
+            _pausePanel.Children.Add(Help(Loc.T("HLP のキーでは再開できません。再開にも使うなら、トリガーにします", "A HLP key can't resume. To resume with a key, use a trigger.")));
 
         panel.Children.Add(_launchPanel);
         panel.Children.Add(_sequencePanel);
@@ -238,9 +191,16 @@ public sealed class HelperActionEditorWindow : Window
 
         var ok = new Button { Name = "OkButton", Content = "OK", IsDefault = true, Width = 90 };
         ok.Click += (_, _) => { if (Commit()) DialogResult = true; };
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
-        buttons.Children.Add(ok);
-        buttons.Children.Add(new Button { Name = "CancelButton", Content = Loc.T("キャンセル", "Cancel"), IsCancel = true, Width = 90 });
+        var okCancel = new StackPanel { Orientation = Orientation.Horizontal };
+        okCancel.Children.Add(ok);
+        okCancel.Children.Add(new Button { Name = "CancelButton", Content = Loc.T("キャンセル", "Cancel"), IsCancel = true, Width = 90 });
+        var buttons = new DockPanel { Margin = new Thickness(0, 8, 0, 0), LastChildFill = false };
+        var help = HelpButton.Create(CurrentHelpTopic);
+        DockPanel.SetDock(help, Dock.Left);
+        DockPanel.SetDock(okCancel, Dock.Right);
+        buttons.Children.Add(help);
+        buttons.Children.Add(okCancel);
+        HelpButton.AttachF1(this, CurrentHelpTopic);
 
         var root = new DockPanel { Margin = new Thickness(10) };
         DockPanel.SetDock(buttons, Dock.Bottom);
@@ -262,6 +222,12 @@ public sealed class HelperActionEditorWindow : Window
     }
 
     private string SelectedType => Types[Math.Max(0, _type.SelectedIndex)].Type;
+
+    // 「?」と F1: 手順（Sequence）は書き方の節、トリガーは注意の節、ほかは種類の一覧。
+    private string CurrentHelpTopic() =>
+        SelectedType == HelperActionBody.Sequence ? HelpTopics.HelperSequence
+        : _mode == HelperEditMode.Trigger ? HelpTopics.HelperTrigger
+        : HelpTopics.HelperAction;
 
     private void Load(int id, string? name, string? key, string? mods, HelperActionBody body)
     {
@@ -303,9 +269,10 @@ public sealed class HelperActionEditorWindow : Window
         bool launch = type is HelperActionBody.Launch or HelperActionBody.Open;
         _launchPanel.Visibility = launch ? Visibility.Visible : Visibility.Collapsed;
         _argsRow.Visibility = _workDirRow.Visibility = type == HelperActionBody.Launch ? Visibility.Visible : Visibility.Collapsed;
-        _pathHelp.Text = type == HelperActionBody.Launch
-            ? Loc.T("起動するプログラムのパス(notepad.exe のように、PATH にあるものは名前だけでもよい)。", "Path of the program to launch (for a program on PATH, such as notepad.exe, the name alone is enough).")
-            : Loc.T("開く URL・ファイル・フォルダ。関連付けられたアプリで開きます。", "The URL, file, or folder to open. It opens in its associated app.");
+        string pathTip = type == HelperActionBody.Launch
+            ? Loc.T("起動するプログラム。PATH にあれば名前だけでもよい。%USERPROFILE% のような環境変数も使えます", "The program to launch. A name alone is enough if it is on PATH. Environment variables such as %USERPROFILE% can be used")
+            : Loc.T("関連付けられたアプリで開きます", "Opens in the associated app");
+        _pathLabel.ToolTip = _path.ToolTip = pathTip;
         _sequencePanel.Visibility = type == HelperActionBody.Sequence ? Visibility.Visible : Visibility.Collapsed;
         _textPanel.Visibility = type == HelperActionBody.TextInput ? Visibility.Visible : Visibility.Collapsed;
         _layerPanel.Visibility = type == HelperActionBody.AppLayer ? Visibility.Visible : Visibility.Collapsed;
@@ -407,7 +374,7 @@ public sealed class HelperActionEditorWindow : Window
     {
         if (_loading) return;
         var errors = Check(out _);
-        _status.Foreground = errors.Count == 0 ? Brushes.DarkGreen : Brushes.Firebrick;
+        _status.Foreground = errors.Count == 0 ? AppTheme.Palette.OkText : AppTheme.Palette.ErrorText;
         _status.Text = errors.Count == 0 ? "OK" : string.Join("\n", errors);
     }
 
@@ -416,7 +383,7 @@ public sealed class HelperActionEditorWindow : Window
         var errors = Check(out var body);
         if (errors.Count > 0)
         {
-            _status.Foreground = Brushes.Firebrick;
+            _status.Foreground = AppTheme.Palette.ErrorText;
             _status.Text = string.Join("\n", errors);
             return false;
         }
@@ -461,10 +428,9 @@ public sealed class HelperActionEditorWindow : Window
     private static StackPanel Row(string label, UIElement input, string? help = null)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
-        row.Children.Add(new TextBlock { Text = label, Width = 100, VerticalAlignment = VerticalAlignment.Center });
+        row.Children.Add(new TextBlock { Text = label, Width = 100, VerticalAlignment = VerticalAlignment.Center, ToolTip = help });
+        if (help != null && input is FrameworkElement fe) fe.ToolTip ??= help;
         row.Children.Add(input);
-        if (help != null)
-            row.Children.Add(new TextBlock { Text = help, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = AppTheme.Palette.SubText });
         return row;
     }
 }

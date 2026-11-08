@@ -36,6 +36,16 @@ try {
     Chk "import has the pick button" ([bool](Find-ChildByAutomationId $dlg "ImportPickButton"))
     $do = Find-ChildByAutomationId $dlg "ImportDoButton"
     Chk "import button is disabled before a file is chosen" (-not $do.Current.IsEnabled)
+    # 2026-11-08: the items and the replace/add choice are disabled until a file is loaded (the file decides which items are available).
+    Chk "import items are disabled before a file is chosen" (-not (Find-ChildByAutomationId $dlg "ImportLayersCheck").Current.IsEnabled)
+    Chk "replace/add is disabled before a file is chosen" (-not (Find-ChildByAutomationId $dlg "ImportModeReplace").Current.IsEnabled)
+    Chk "the Emacs example button is present" ([bool](Find-ChildByAutomationId $dlg "ImportEmacsButton"))
+    Chk "the help button is present" ([bool](Find-ChildByAutomationId $dlg "HelpButton"))
+    # Loading a file (the bundled Emacs example) enables them. Nothing is imported; the dialog is closed below.
+    Invoke-Element (Find-ChildByAutomationId $dlg "ImportEmacsButton")
+    Start-Sleep -Milliseconds 800
+    Chk "import items are enabled after a file is loaded" ((Find-ChildByAutomationId $dlg "ImportLayersCheck").Current.IsEnabled)
+    Chk "replace/add is enabled after a file is loaded" ((Find-ChildByAutomationId $dlg "ImportModeReplace").Current.IsEnabled)
 
     Invoke-Element (Find-ChildByAutomationId $dlg "CloseButton")
     Start-Sleep -Milliseconds 500

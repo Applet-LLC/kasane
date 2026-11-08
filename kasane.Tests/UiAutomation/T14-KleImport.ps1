@@ -30,6 +30,7 @@ try {
     Start-Sleep -Milliseconds 400
     Chk "the KLE window has its controls" ((Find-ChildByAutomationId $w "KleFileBox") -and (Find-ChildByAutomationId $w "KleNameBox") -and (Find-ChildByAutomationId $w "KleLoadButton") -and (Find-ChildByAutomationId $w "KleKeyGrid"))
     Chk "save is disabled before loading" (-not (Find-ChildByAutomationId $w "KleSaveButton").Current.IsEnabled)
+    Chk "the KLE window has a help button" ([bool](Find-ChildByAutomationId $w "HelpButton"))
 
     Set-ElementValue (Find-ChildByAutomationId $w "KleFileBox") $kle
     Invoke-Element (Find-ChildByAutomationId $w "KleLoadButton")

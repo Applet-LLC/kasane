@@ -19,7 +19,7 @@ public partial class KeyAssignDialog : Window
     private const string CatLayerTap = "Layer-Tap (LT)";
     private static string CatMacro => Loc.T("マクロ / タップダンス", "Macro / Tap dance");
     private static string CatHelper => Loc.T("ヘルパー動作", "Helper actions");
-    private static string CatSoftKeyboard => Loc.T("画面のキーボード", "On-screen keyboard"); // 末尾に足す（UIA 試験が分類を番号で選ぶため）
+    private static string CatSoftKeyboard => Loc.T("キーボード図", "Keyboard view"); // 末尾に足す（UIA 試験が分類を番号で選ぶため）
     // 2026-11-05（GUI 計画 1-2）: このキーの割り当ては変えず、別の画面で作る・開く分類。画面のキーボードより後ろ（16・17）に足す。
     private static string CatCombo => Loc.T("コンボ", "Combo");
     private static string CatKeyOverride => Loc.T("キー置換", "Key override");
@@ -82,11 +82,20 @@ public partial class KeyAssignDialog : Window
         Title = Loc.T("キーの割り当て", "Assign key");
         TxtTokenLabel.Text = Loc.T("キーコード:", "Key code:");
         BtnCapture.Content = Loc.T("押して入力", "Press to enter");
-        BtnCapture.ToolTip = Loc.T("このボタンを押したあと、入力したいキーを押します(Esc で取消)。Win キーや Alt+Tab は入力できないので、左の一覧か「画面のキーボード」を使ってください。",
-            "After clicking this button, press the key you want to enter (Esc to cancel). Win and Alt+Tab cannot be entered, so use the list on the left or the on-screen keyboard.");
+        BtnCapture.ToolTip = Loc.T("次に押したキーを入れます(Esc で取消)。Win キーなどは、一覧かキーボード図から選びます",
+            "Enters the next key you press (Esc cancels). Pick keys such as Win from the list or the keyboard view");
         BtnCancel.Content = Loc.T("キャンセル", "Cancel");
-        TxtModHint.Text = Loc.T("修飾キー(チェックすると、選んだキーを Ctrl+C のようなショートカットとして送ります。LM でもここで選びます):",
-            "Modifiers (when checked, the selected key is sent as a shortcut such as Ctrl+C. Also choose them here for LM):");
+        TxtModHint.Text = Loc.T("修飾キー:", "Modifiers:");
+        // 説明はツールチップへ（2026-11-08、UI の見直し）。
+        TxtModHint.ToolTip = ModPanel.ToolTip = Loc.T("チェックすると、選んだキーを Ctrl+C のようなショートカットにします。LM と OSM の修飾キーも、ここで選びます",
+            "When checked, the selected key becomes a shortcut such as Ctrl+C. Also choose the modifiers for LM and OSM here");
+        // 左下に「?」（今の分類の説明をマニュアルで開く）。F1 も同じ。
+        var help = HelpButton.Create(CurrentHelpTopic);
+        help.HorizontalAlignment = HorizontalAlignment.Left;
+        help.Margin = new Thickness(0, 4, 0, 0);
+        Grid.SetRow(help, 1);
+        ((Grid)TxtTokenLabel.Parent).Children.Add(help);
+        HelpButton.AttachF1(this, CurrentHelpTopic);
         _layerCount = layerCount;
         _uniqId = uniqId;
         _project = project;
@@ -177,15 +186,28 @@ public partial class KeyAssignDialog : Window
 
     private void UpdateOk() => BtnOk.IsEnabled = _tokenValid && !_noAssignPanel;
 
+    // 今の分類の、マニュアルの節（「?」と F1）。
+    private string CurrentHelpTopic()
+    {
+        string? name = LstCategories.SelectedItem as string;
+        if (name == null || KeycodeCatalog.Categories.Any(c => c.Name == name)) return HelpTopics.KeyAssign;
+        if (name == CatLayer) return HelpTopics.KeyAssignLayer;
+        if (name == CatModTap || name == CatLayerTap) return HelpTopics.KeyAssignModTap;
+        if (name == CatMacro || name == CatHelper) return HelpTopics.KeyAssignMacroHelper;
+        if (name == CatSoftKeyboard) return HelpTopics.KeyAssignKeyboardView;
+        if (name == CatCombo || name == CatKeyOverride) return HelpTopics.KeyAssignComboOverride;
+        return HelpTopics.KeyAssign;
+    }
+
     // ------------------------------------------------------------------
     // コンボ・キー置換（このキーの割り当ては変えない。別の画面で作る・開く。GUI 計画 1-2）
     // ------------------------------------------------------------------
 
-    // 分類の先頭に出す注意（OK が押せない理由）。
+    // 分類の先頭に出す注意（OK が押せない理由）。何をする分類かの説明は「?」のマニュアル（2026-11-08、UI の見直し）。
     private static TextBlock NoAssignNotice(string what) => new()
     {
-        Text = Loc.T($"このキーの割り当ては変わりません。{what}は別の画面で作ります(OK は押せません。割り当てを変えるときは、ほかの分類を選んでください)。",
-                     $"This does not change the key's assignment. {what} are made in a separate window (OK is unavailable here; choose another category to change the assignment)."),
+        Text = Loc.T($"{what}は別の画面で作ります。このキーの割り当ては変わりません(OK は押せません)。",
+                     $"{what} are made in a separate window. This key's assignment does not change (OK is unavailable)."),
         TextWrapping = TextWrapping.Wrap, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 8),
     };
 
@@ -222,12 +244,6 @@ public partial class KeyAssignDialog : Window
     {
         var panel = new StackPanel { Margin = new Thickness(4) };
         panel.Children.Add(NoAssignNotice(Loc.T("コンボ", "Combos")));
-        panel.Children.Add(new TextBlock
-        {
-            Text = Loc.T("コンボは、2つのキーをほぼ同時に押したときに、代わりに別のキーを送ります。物理のキーに対して働くので、どのレイヤーでも同じです。",
-                         "A combo sends a different key when two keys are pressed at almost the same time. It works on physical keys, so it is the same on every layer."),
-            TextWrapping = TextWrapping.Wrap,
-        });
         var related = KeyMarks.Find(_project!, _layer, _slot);
         var rows = related.Combos.Select(c => (c.Id, WithDisabled(KeyMarks.ComboText(_project!, _layout!, _slot, c), c.Disabled))).ToList();
         if (rows.Count > 0)
@@ -237,7 +253,8 @@ public partial class KeyAssignDialog : Window
             panel.Children.Add(list);
             panel.Children.Add(open);
         }
-        var create = Id(new Button { Content = Loc.T("このキーでコンボを作る...", "Create a combo with this key..."), HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(8, 1, 8, 1), Margin = new Thickness(0, 10, 0, 0) }, "CreateComboFromKeyButton");
+        var create = Id(new Button { Content = Loc.T("このキーでコンボを作る...", "Create a combo with this key..."), HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(8, 1, 8, 1), Margin = new Thickness(0, 10, 0, 0),
+                                     ToolTip = Loc.T("空いている番号に、このキーをキー1にしたコンボを作ります", "Creates a combo in a free number with this key as key 1") }, "CreateComboFromKeyButton");
         create.Click += (_, _) => _editorRequested?.Invoke(new EditorRequest(EditorTarget.Combo, null, _slot.Index, null));
         panel.Children.Add(create);
         // 1つのキーは、有効なコンボ1つにしか使えない（コンボの画面の検証と同じ）。
@@ -247,8 +264,6 @@ public partial class KeyAssignDialog : Window
             panel.Children.Add(Note(Loc.T($"このキーは、すでにコンボ{used.Id}に使われています。1つのキーは1つのコンボにしか使えないので、新しく作るには、先にコンボ{used.Id}を変えるか無効にしてください。",
                                           $"This key is already used in combo {used.Id}. A key can be used in only one combo, so change or disable combo {used.Id} first to create a new one.")));
         }
-        else panel.Children.Add(Note(Loc.T("空いている番号に、このキーをキー1にしたコンボを作ります。キー2と送るキーを選んで、コンボの画面で OK を押すと決まります。",
-                                           "Creates a combo in a free number with this key as key 1. Choose key 2 and the output key, then press OK in the combo window.")));
         return panel;
     }
 
@@ -258,13 +273,6 @@ public partial class KeyAssignDialog : Window
         panel.Children.Add(NoAssignNotice(Loc.T("キー置換", "Key overrides")));
         var related = KeyMarks.Find(_project!, _layer, _slot);
         string? key = KeyMarks.OverrideKeyFor(related.Token);
-        panel.Children.Add(new TextBlock
-        {
-            // 条件のキーは、キーを出す割り当てのときだけ書く（出さないときは、下に理由を出す）。
-            Text = Loc.T("キー置換は、修飾キーを押しながらキーを押したときに、代わりに別のキーを送ります。", "A key override sends a different key when a key is pressed while holding modifier keys.") +
-                   (key == null ? "" : Loc.T($"条件のキーは、このレイヤーでこのキーが出すキー({key})です。", $" The condition is the key this key produces on this layer ({key}).")),
-            TextWrapping = TextWrapping.Wrap,
-        });
         var rows = related.KeyOverrides.Select(k => (k.Id, WithDisabled(KeyMarks.KeyOverrideText(_project!, k), k.Disabled))).ToList();
         if (rows.Count > 0)
         {
@@ -273,7 +281,8 @@ public partial class KeyAssignDialog : Window
             panel.Children.Add(list);
             panel.Children.Add(open);
         }
-        var create = Id(new Button { Content = Loc.T("このキーでキー置換を作る...", "Create a key override with this key..."), HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(8, 1, 8, 1), Margin = new Thickness(0, 10, 0, 0) }, "CreateKeyOverrideFromKeyButton");
+        var create = Id(new Button { Content = Loc.T("このキーでキー置換を作る...", "Create a key override with this key..."), HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(8, 1, 8, 1), Margin = new Thickness(0, 10, 0, 0),
+                                     ToolTip = key == null ? null : Loc.T($"空いている番号に、条件のキーを {key} にしたキー置換を作ります", $"Creates a key override in a free number with {key} as the key") }, "CreateKeyOverrideFromKeyButton");
         create.Click += (_, _) => _editorRequested?.Invoke(new EditorRequest(EditorTarget.KeyOverride, null, _slot.Index, key));
         panel.Children.Add(create);
         if (key == null)
@@ -282,8 +291,6 @@ public partial class KeyAssignDialog : Window
             panel.Children.Add(Note(Loc.T($"このキーは、このレイヤーではキーを出さない割り当て({related.Token})なので、キー置換の条件にできません。",
                                           $"On this layer this key is assigned something that produces no key ({related.Token}), so it can't be a key override condition.")));
         }
-        else panel.Children.Add(Note(Loc.T($"空いている番号に、条件のキーを {key} にしたキー置換を作ります。修飾キーと置き換え先を書いて、キー置換の画面で OK を押すと決まります。同じキーで、修飾キーの違うキー置換をいくつも作れます。",
-                                           $"Creates a key override in a free number with {key} as the key. Write the modifiers and the replacement, then press OK in the key override window. You can make several overrides for the same key with different modifiers.")));
         return panel;
     }
 
@@ -291,19 +298,8 @@ public partial class KeyAssignDialog : Window
     // （US配列のキーボードにこれらのキーは無いが、出力としては割り当てられる。たとえば、US配列のキーに「変換」を割り当てられる）。
     private UIElement CategoryKeys(KeycodeCatalog.Category cat)
     {
-        if (cat.Name != "NLS") return KeyButtons(cat.Keycodes);
-        var panel = new StackPanel();
-        panel.Children.Add(new TextBlock
-        {
-            Text = Loc.T(
-                "NLS(National Language Support)キー: 日本語キーボードにあるキーです。使っているキーボード(US配列など)に無いキーも、" +
-                "出力としては割り当てられます(例: US配列のキーに「変換」を割り当てる)。",
-                "NLS (National Language Support) keys: keys found on Japanese keyboards. Even if your keyboard (a US layout, for example) " +
-                "doesn't have them, you can still assign them as output (for example, assign \"Henkan\" to a key on a US keyboard)."),
-            TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(4, 4, 4, 8),
-        });
-        panel.Children.Add(KeyButtons(cat.Keycodes));
-        return panel;
+        // NLS（日本語キーボードのキー）を US 配列のキーにも割り当てられることは、8 章に書く（2026-11-08、UI の見直し）。
+        return KeyButtons(cat.Keycodes);
     }
 
     private UIElement KeyButtons(IEnumerable<string> keycodes)
@@ -363,25 +359,27 @@ public partial class KeyAssignDialog : Window
         func.SelectedItem = _prefill.LayerFunc;
         var layer = NamedCombo(NamedChoice.Layers(_project), "LayerCombo");
         SelectNumber(layer, _prefill.Layer);
-        return Form(
-            Loc.T(
-            "MO (Momentary): 押している間だけレイヤーnを有効にする\nTG (Toggle): 押すたびにレイヤーnをON/OFFする\n" +
-            "DF (Default): 基本レイヤーをnに切り替える\nOSL (One-Shot Layer): 次に押すキー1回だけレイヤーnにする\n" +
-            "TO (To layer): レイヤーnだけを有効にする(他のレイヤーはOFF。基本レイヤーはそのまま)\n" +
-            "TT (Tap Toggle): 押している間だけレイヤーnを有効にし、続けてタップする(既定5回。「タイミング...」で変更)とON/OFFを固定する\n" +
-            "LM (Layer Mod): 押している間、レイヤーnを有効にし、下で選んだ修飾キーも押す" +
-            "(例: レイヤーnに▽のままのキーを押すと Ctrl+そのキー になる)\n" +
-            "OSM (One-Shot Mod): 下で選んだ修飾キーを、次に押すキー1回だけに掛ける(押したまま使えば普通の修飾キー。" +
-            "もう一度タップで取り消し。レイヤーは使わない)",
-            "MO (Momentary): enables layer n only while the key is held\nTG (Toggle): toggles layer n on/off each time the key is pressed\n" +
-            "DF (Default): switches the base layer to n\nOSL (One-Shot Layer): enables layer n for the next key press only\n" +
-            "TO (To layer): enables only layer n (all other layers off; the base layer is kept)\n" +
-            "TT (Tap Toggle): enables layer n while held; tapping repeatedly (5 times by default; change it under \"Timing...\") locks it on/off\n" +
-            "LM (Layer Mod): enables layer n while held and also holds the modifier keys selected below " +
-            "(example: with the modifier left as-is on layer n, pressing a key sends Ctrl+that key)\n" +
-            "OSM (One-Shot Mod): applies the modifier keys selected below to the next key press only (held down, it acts as a normal modifier key; " +
-            "tap again to cancel; no layer is used)"),
-            (Loc.T("種類", "Type"), func), (Loc.T("レイヤー", "Layer"), layer),
+        // 種類の一覧の説明の段落は出さず、選んでいる種類の意味だけを横に出す（2026-11-08、UI の見直し。詳しくは「?」の 8 章）。
+        var funcRow = WithDescription(func, f => f switch
+        {
+            "MO" => Loc.T("押している間だけ、有効にする", "Enabled only while held"),
+            "TG" => Loc.T("押すたびに、有効と無効を切り替える", "Toggles on and off each press"),
+            "DF" => Loc.T("基本のレイヤーにする", "Becomes the base layer"),
+            "OSL" => Loc.T("次の 1 キーだけ、有効にする", "Enabled for the next key only"),
+            "TO" => Loc.T("このレイヤーだけを有効にする", "Only this layer is enabled"),
+            "TT" => Loc.T("押している間は有効。続けてタップすると固定する", "Enabled while held; tap repeatedly to lock"),
+            "LM" => Loc.T("押している間は有効にし、修飾キーも押す", "Enabled while held, with the modifiers"),
+            "OSM" => Loc.T("次の 1 キーだけ、修飾キーを掛ける(レイヤーは使わない)", "Modifiers for the next key only (no layer)"),
+            _ => "",
+        });
+        return FormWithLayer(funcRow, layer, func);
+    }
+
+    // レイヤー操作のフォーム（種類の行は、説明つきの入れ物）。
+    private UIElement FormWithLayer(Control funcRow, ComboBox layer, ComboBox func)
+    {
+        return Form(null,
+            (Loc.T("種類", "Type"), funcRow), (Loc.T("レイヤー", "Layer"), layer),
             () =>
             {
                 string f = (string)func.SelectedItem;
@@ -389,7 +387,7 @@ public partial class KeyAssignDialog : Window
                 byte mask = CheckedMask();
                 if (mask == 0)
                 {
-                    TxtValidation.Foreground = Brushes.Firebrick;
+                    TxtValidation.Foreground = AppTheme.Palette.ErrorText;
                     TxtValidation.Text = Loc.T($"{f} では、下の修飾キーを1つ以上チェックしてください", $"For {f}, check at least one modifier key below");
                     return null;
                 }
@@ -405,8 +403,7 @@ public partial class KeyAssignDialog : Window
         mod.SelectedItem = _prefill.ModName;
         // タップのキーは、今の割り当て（MT のタップ側、または普通のキー）か、キーの刻印。どちらも無ければ KC_A。
         var tap = Id(new TextBox { Text = _prefill.ModTapKey, Width = 160, FontFamily = new FontFamily("Consolas") }, "TapKeyBox");
-        return Form(Loc.T("短く押すとタップのキー、長押し(または他のキーと同時押し)で修飾キーになる。",
-                          "A short press sends the tap key; holding it (or pressing it with another key) acts as the modifier key."),
+        return Form(Loc.T("短く押すとタップのキー、長押しで修飾キーになります", "Tap for the tap key; hold for the modifier"),
             (Loc.T("修飾キー", "Modifier"), mod), (Loc.T("タップのキー", "Tap key"), tap),
             () => $"MT({mod.SelectedItem},{tap.Text.Trim()})");
     }
@@ -417,8 +414,7 @@ public partial class KeyAssignDialog : Window
         SelectNumber(layer, _prefill.Layer);
         // タップのキーは、今の割り当て（LT のタップ側、または普通のキー）か、キーの刻印。どちらも無ければ KC_SPACE。
         var tap = Id(new TextBox { Text = _prefill.LayerTapKey, Width = 160, FontFamily = new FontFamily("Consolas") }, "TapKeyBox");
-        return Form(Loc.T("短く押すとタップのキー、長押し(または他のキーと同時押し)でレイヤーを有効にする。",
-                          "A short press sends the tap key; holding it (or pressing it with another key) enables the layer."),
+        return Form(Loc.T("短く押すとタップのキー、長押しでレイヤーを有効にします", "Tap for the tap key; hold to enable the layer"),
             (Loc.T("レイヤー", "Layer"), layer), (Loc.T("タップのキー", "Tap key"), tap),
             () => $"LT({Num(layer)},{tap.Text.Trim()})");
     }
@@ -454,10 +450,9 @@ public partial class KeyAssignDialog : Window
             // （編集画面の「…入力欄に入れる」で入れる）。
             EditorTarget Target() => (string)kind.SelectedItem == "MACRO" ? EditorTarget.Macro : EditorTarget.TapDance;
             var edit = Id(new Button { Content = Loc.T("編集...", "Edit..."), Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(8, 1, 8, 1),
-                                       ToolTip = Loc.T("選んでいる番号の中身を、編集画面で開きます。", "Opens the selected number in its editor.") }, "EditMacroButton");
+                                       ToolTip = Loc.T("選んでいる番号を、編集画面で開きます", "Opens the selected number in its editor") }, "EditMacroButton");
             var create = Id(new Button { Content = Loc.T("新規...", "New..."), Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(8, 1, 8, 1),
-                                         ToolTip = Loc.T("空いている番号を、編集画面で開きます。タップダンスは、このキーの今のキーを1回タップに入れて作ります。",
-                                                         "Opens a free number in its editor. For a tap dance, this key's current key is put in the single tap.") }, "NewMacroButton");
+                                         ToolTip = Loc.T("空いている番号を、編集画面で開きます", "Opens a free number in its editor") }, "NewMacroButton");
             // e.Handled: 編集画面を開くだけなので、パネルの「入れていない変更」（Form の入れ忘れ検知）には数えない。
             // 「編集...」の前に番号を選んだのは、中身を直すためとみなし、入れ忘れの確認から外す（2026-11-05 の実機確認 M3）。
             // 割り当てたいときは、これまでどおり「キーコード欄に入れる」を押す。
@@ -478,11 +473,10 @@ public partial class KeyAssignDialog : Window
             idButtons.Children.Add(create);
         }
         var idRow = new ContentControl { Content = idButtons };
-        return Form(Loc.T("MACRO(n): マクロnを実行する(中身は「マクロ...」で編集)\n" +
-                          "TAPDANCE(n): タップ回数・長押しで動作を変える(中身は「タップダンス...」で編集)",
-                          "MACRO(n): runs macro n (edit its contents under \"Macro...\")\n" +
-                          "TAPDANCE(n): changes the action by tap count or hold (edit its contents under \"Tap dance...\")"),
-            (Loc.T("種類", "Type"), kind), (Loc.T("番号", "Number"), idRow),
+        var kindRow = WithDescription(kind, k => k == "MACRO" ? Loc.T("並べたキーを順に打つ", "Types the listed keys in order")
+                                                              : Loc.T("タップの回数と長押しで、動作を変える", "Acts by tap count or hold"));
+        return Form(null,
+            (Loc.T("種類", "Type"), kindRow), (Loc.T("番号", "Number"), idRow),
             () => $"{kind.SelectedItem}({Num(id)})");
     }
 
@@ -498,20 +492,8 @@ public partial class KeyAssignDialog : Window
     private UIElement HelperPanel()
     {
         var panel = new StackPanel { Margin = new Thickness(4) };
-        panel.Children.Add(new TextBlock
-        {
-            Text = Loc.T(
-                "HLP (Helper) は、ヘルパー動作を呼ぶキーコードで、HLP(Id) の形で割り当てます。割り当てたキーは、キー自体は何も出さず、トレイ(kasane-tray)が動作を実行します" +
-                "(プログラムの起動・文字列の入力・マウス操作・レイヤーの操作など)。動作はこのキーボード用か、全キーボード共通です。\n" +
-                "トレイ(kasane-tray)が動いているときだけ働きます。",
-                "HLP (Helper) is a key code that calls a helper action; assign it in the form HLP(Id). The assigned key sends nothing itself; the tray (kasane-tray) runs the action " +
-                "(launching a program, typing text, mouse actions, layer actions, and so on). An action is either for this keyboard only or shared by all keyboards.\n" +
-                "It works only while the tray (kasane-tray) is running."),
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 0, 0, 8),
-        });
-
-        var list = Id(new ListBox { Height = 230, FontFamily = new FontFamily("Consolas") }, "HelperActionList");
+        var list = Id(new ListBox { Height = 230, FontFamily = new FontFamily("Consolas"),
+                                    ToolTip = Loc.T("HLP(Id) を割り当てたキーで、トレイが動作を実行します(トレイが動いているときだけ)", "The tray runs the action from keys assigned HLP(Id) (only while the tray is running)") }, "HelperActionList");
         var items = new List<(HelperScope Scope, HelperAction Action)>();
         void Fill(int? selectId)
         {
@@ -560,7 +542,7 @@ public partial class KeyAssignDialog : Window
             {
                 Text = Loc.T("このキーボードの helper.json を読めないため、このキーボード用の動作は使えません。新しい動作は共通に作ります。",
                              "Couldn't read helper.json for this keyboard, so actions for this keyboard are unavailable. New actions will be created as shared."),
-                Foreground = Brushes.Firebrick,
+                Foreground = AppTheme.Palette.ErrorText,
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 8, 0, 0),
             });
@@ -640,6 +622,16 @@ public partial class KeyAssignDialog : Window
 
     private static int Num(ComboBox combo) => ((NamedChoice)combo.SelectedItem).Number;
 
+    // 選択肢の横に、選んでいるものの短い説明を出す入れ物（説明の段落の代わり）。
+    private static ContentControl WithDescription(ComboBox combo, Func<string, string> describe)
+    {
+        var text = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0), Foreground = AppTheme.Palette.SubText };
+        void Update() => text.Text = combo.SelectedItem is string v ? describe(v) : "";
+        combo.SelectionChanged += (_, _) => Update();
+        Update();
+        return new ContentControl { Content = new StackPanel { Orientation = Orientation.Horizontal, Children = { combo, text } } };
+    }
+
 
     /// <summary>番号の欄で、その番号を選ぶ（一覧に無ければ、今の選択のまま）。</summary>
     private static void SelectNumber(ComboBox combo, int number)
@@ -650,14 +642,14 @@ public partial class KeyAssignDialog : Window
         }
     }
 
-    private UIElement Form(string help, (string Label, Control Input) a, (string Label, Control Input) b, Func<string?> build)
+    /// <param name="tip">パネルの意味（1 文。ラベルのツールチップにする）。説明の段落は出さない（2026-11-08、UI の見直し。詳しくは「?」の 8 章）。</param>
+    private UIElement Form(string? tip, (string Label, Control Input) a, (string Label, Control Input) b, Func<string?> build)
     {
         var panel = new StackPanel { Margin = new Thickness(4) };
-        panel.Children.Add(new TextBlock { Text = help, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10) });
         foreach (var (label, input) in new[] { a, b })
         {
             var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-            row.Children.Add(new TextBlock { Text = label, Width = 90, VerticalAlignment = VerticalAlignment.Center });
+            row.Children.Add(new TextBlock { Text = label, Width = 90, VerticalAlignment = VerticalAlignment.Center, ToolTip = tip });
             row.Children.Add(input);
             panel.Children.Add(row);
         }
@@ -792,13 +784,13 @@ public partial class KeyAssignDialog : Window
                 warn = Loc.T("注意: 電源キーです。押すとPCがスリープ・シャットダウンすることがあります", "Note: this is a power key. Pressing it may put the PC to sleep or shut it down");
             else if (action.Type == ActionType.Custom && !HelperIdTaken(action.Param2))
                 warn = Loc.T($"HLP({action.Param2}) の動作がまだありません(「ヘルパー動作」で作ると、キーを押したときに動きます)", $"No action for HLP({action.Param2}) yet (create one under \"Helper actions\" and it will run when the key is pressed)");
-            TxtValidation.Foreground = warn == null ? Brushes.DarkGreen : Brushes.DarkOrange;
+            TxtValidation.Foreground = warn == null ? AppTheme.Palette.OkText : AppTheme.Palette.WarnText;
             TxtValidation.Text = warn ?? "OK: " + KeycodeCatalog.ShortName(token);
             _tokenValid = true;
         }
         else
         {
-            TxtValidation.Foreground = Brushes.Firebrick;
+            TxtValidation.Foreground = AppTheme.Palette.ErrorText;
             TxtValidation.Text = error;
             _tokenValid = false;
         }

@@ -28,8 +28,8 @@ public static class KeycodeField
             Margin = new Thickness(6, 0, 0, 0),
             Padding = new Thickness(8, 1, 8, 1),
             Focusable = false, // キー操作でボタンが反応して、取り込んだキーが重ならないように
-            ToolTip = Loc.T("このボタンを押したあと、入力したいキーを押します(Esc で取消)。Win キーや Alt+Tab は入力できないので「選ぶ...」を使ってください。",
-                            "After clicking this button, press the key you want to enter (Esc to cancel). The Win key and Alt+Tab cannot be entered, so use \"Pick...\" for those."),
+            ToolTip = Loc.T("次に押したキーを入れます(Esc で取消)。Win キーなどは「選ぶ...」で選びます",
+                            "Enters the next key you press (Esc cancels). Pick keys such as Win with \"Pick...\""),
         };
         KeycodeCapture? session = null;
         // 末尾に足していく欄（マクロ）は、取り込みを続けて、何個でも続けて入れられる（Esc かボタンをもう一度押すと終わる）。
@@ -103,7 +103,7 @@ public static class KeycodeField
                 Content = Loc.T("マクロ...", "Macro..."),
                 Margin = new Thickness(4, 0, 0, 0),
                 Padding = new Thickness(8, 1, 8, 1),
-                ToolTip = Loc.T("マクロの一覧(番号・名前・中身)から選んで、MACRO(n) を入れます。", "Pick from the macro list (number, name, content) to insert MACRO(n)."),
+                ToolTip = Loc.T("マクロの一覧から選んで、MACRO(n) を入れます", "Pick a macro from the list to insert MACRO(n)"),
             };
             macro.Click += (_, _) =>
             {

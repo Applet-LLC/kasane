@@ -36,6 +36,10 @@ public static class AppTheme
         public required Brush StrongText { get; init; }
         public required Brush SubText { get; init; }
         public required Brush OkText { get; init; }
+        // 状態の色（2026-11-08、UI の見直し）。検証・ステータス・状態の印で、情報・注意・エラーを見分ける。ダークでも読めるよう、モードごとに決める。
+        public required Brush InfoText { get; init; }
+        public required Brush WarnText { get; init; }
+        public required Brush ErrorText { get; init; }
         public required Brush CheckFaceOff { get; init; }
         public required Brush CheckFaceOn { get; init; }
         public required Brush CalibCurrent { get; init; }
@@ -61,6 +65,7 @@ public static class AppTheme
         KeyMeasuredBorder = Rgb(0xF08C00), KeyUnknownBorder = Rgb(0xD02020), KeySelected = Rgb(0xBFDBFF), KeySelectedBorder = Brushes.SteelBlue,
         KeyDisabledText = Brushes.Silver,
         ReportBackground = Rgb(0xF7F7F7), StrongText = Brushes.Black, SubText = Brushes.DimGray, OkText = Brushes.DarkGreen,
+        InfoText = Rgb(0x2F6FB3), WarnText = Rgb(0xB35C00), ErrorText = Rgb(0xB22222), // ErrorText はこれまでの Firebrick と同じ
         CheckFaceOff = Brushes.WhiteSmoke, CheckFaceOn = Brushes.LightGreen,
         CalibCurrent = Rgb(0xFFE066), CalibDone = Rgb(0xC8EEC8), CalibTarget = Rgb(0xFFFFFF), CalibDown = Rgb(0xFF9F43),
         KleConfirmed = Rgb(0xD5EED5), KleInferred = Rgb(0xFFF1B8), KleUnknown = Rgb(0xF6C9C9),
@@ -73,6 +78,7 @@ public static class AppTheme
         KeyMeasuredBorder = Rgb(0xF08C00), KeyUnknownBorder = Rgb(0xE04848), KeySelected = Rgb(0x2D5F9A), KeySelectedBorder = Rgb(0x6CA6E8),
         KeyDisabledText = Rgb(0x666A70),
         ReportBackground = Rgb(0x26282B), StrongText = Rgb(0xF0F0F0), SubText = Rgb(0xA3A7AE), OkText = Rgb(0x7FD38A),
+        InfoText = Rgb(0x79B8FF), WarnText = Rgb(0xF0B050), ErrorText = Rgb(0xFF7B72),
         CheckFaceOff = Rgb(0x3A3D41), CheckFaceOn = Rgb(0x2F6B3A),
         CalibCurrent = Rgb(0x8A6D00), CalibDone = Rgb(0x2F5B35), CalibTarget = Rgb(0x2B2D30), CalibDown = Rgb(0xB3590F),
         KleConfirmed = Rgb(0x2F5B35), KleInferred = Rgb(0x6B5A12), KleUnknown = Rgb(0x6B2B2B),

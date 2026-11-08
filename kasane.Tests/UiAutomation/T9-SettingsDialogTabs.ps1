@@ -57,12 +57,12 @@ try {
 
     # ---- NICOLA tab ----
     Select-TabById $dlg "TabImeLayer"
-    # IME link checkbox (saved to tray.json on OK only when changed; this test never toggles it). It reflects tray.json (default: on).
+    # IME link checkbox (saved to tray.json on OK only when changed; this test never toggles it). It reflects tray.json (default: off, TrayConfig.ImeLink).
     $imeLinkState = Get-ToggleState (Find-ChildByAutomationId $dlg "NicolaImeLinkCheck")
     $trayJson = Join-Path $env:LOCALAPPDATA "applet\kasane\tray.json"
-    $expectedOn = $true
-    if (Test-Path $trayJson) { try { $expectedOn = [bool](Get-Content $trayJson -Raw | ConvertFrom-Json).ImeLink } catch { $expectedOn = $true } }
-    Chk "IME link checkbox exists and reflects tray.json (default on)" (($imeLinkState -eq [System.Windows.Automation.ToggleState]::On) -eq $expectedOn)
+    $expectedOn = $false
+    if (Test-Path $trayJson) { try { $expectedOn = [bool](Get-Content $trayJson -Raw | ConvertFrom-Json).ImeLink } catch { $expectedOn = $false } }
+    Chk "IME link checkbox exists and reflects tray.json (default off)" (($imeLinkState -eq [System.Windows.Automation.ToggleState]::On) -eq $expectedOn)
     Select-ComboItemByIndex (Find-ChildByAutomationId $dlg "NicolaModeBox") 1   # この設定を使う
     $summary = (Find-ChildByAutomationId $dlg "NicolaSummary").Current.Name
     "  NICOLA summary: '$summary'"
@@ -111,7 +111,7 @@ try {
     Invoke-Element (Find-ChildByAutomationId $dlg "NicolaEditButton")
     $ed = Find-NewTopWindow $proc.Id $before -timeoutMs 6000
     Start-Sleep -Milliseconds 300
-    Chk "editor reopens with jis-kana" ((Get-ComboSelectedName (Find-ChildByAutomationId $ed "OutputBox")) -match "jis-kana")
+    Chk "editor reopens with jis-kana" ((Get-ComboSelectedName (Find-ChildByAutomationId $ed "OutputBox")) -match "JIS かな")
     Select-ListItemByIndex (Find-ChildByAutomationId $ed "KeyList") 0
     Start-Sleep -Milliseconds 200
     Chk "edited kana round-trips (KC_Q single = ぬ)" ((Get-ElementValue (Find-ChildByAutomationId $ed "SingleBox")) -eq "ぬ")

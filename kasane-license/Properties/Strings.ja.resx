@@ -65,7 +65,7 @@
     <value>ライセンスを再確認</value>
   </data>
   <data name="Btn_Refresh_ToolTip" xml:space="preserve">
-    <value>ネットワークに後から接続できた場合などに、保存済みの情報でライセンスサーバーに再確認します</value>
+    <value>保存済みの情報で、ライセンスサーバーに再確認します</value>
   </data>
   <data name="Label_LicenseKey" xml:space="preserve">
     <value>ライセンスキー</value>

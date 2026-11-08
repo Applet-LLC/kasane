@@ -166,7 +166,7 @@ public class ImeLayerLinkTests
     {
         var tray = new TrayConfig { Helper = new HelperConfig { ImeLayers = new ImeLayerLink { Enabled = true } } };
         var model = new HelperSettingsModel(0, tray);
-        Assert.Contains(model.Validate(), e => e.Contains("IME連動") && e.Contains("1つ以上"));
+        Assert.Contains(model.Validate(), e => e.Contains("IME 連動") && e.Contains("1 つ以上"));
     }
 }
 

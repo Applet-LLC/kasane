@@ -13,7 +13,7 @@
             <DockPanel>
                 <Button x:Name="BtnRestartAsAdmin" DockPanel.Dock="Right" Content="管理者として再起動" Click="BtnRestartAsAdmin_Click" />
                 <TextBlock x:Name="TxtReadOnlyMessage" VerticalAlignment="Center" TextWrapping="Wrap"
-                           Text="閲覧専用モード: 管理者として実行していないため、キーボードへの適用・キャリブレーション・キーボードの特定はできません(編集・保存・エクスポート・OFFはできます)。" />
+                           Text="閲覧専用モードです。キーボードに適用するには、管理者として再起動してください" />
             </DockPanel>
         </Border>
 
@@ -22,17 +22,17 @@
             <TextBlock x:Name="TxtKeyboardLabel" Text="キーボード:" VerticalAlignment="Center" Margin="0,0,4,0" />
             <ComboBox x:Name="CmbDevice" Width="620" DisplayMemberPath="DisplayName"
                       SelectionChanged="CmbDevice_SelectionChanged"
-                      ToolTip="UniqId、つけた名前、Windows 上の名前(FriendlyName・ShellFriendlyName)、ハードウェアID の順に表示します" />
+                      ToolTip="UniqId・付けた名前・Windows 上の名前・ハードウェア ID の順です" />
             <Button x:Name="BtnRenameKeyboard" Content="名前を付ける..." Click="BtnRenameKeyboard_Click"
-                    ToolTip="このキーボードに、わかりやすい名前を付けます(設定画面の表示だけに使います)" />
+                    ToolTip="このキーボードの表示名を付けます" />
             <Button x:Name="BtnIdentify" Content="押して特定..." Click="BtnIdentify_Click"
                     ToolTip="キーを1つ押して、どのキーボードかを選びます" />
             <Button x:Name="BtnRefreshDevices" Content="一覧を更新" Click="BtnRefreshDevices_Click"
-                    ToolTip="接続中のキーボードの一覧を、ドライバから読み直します(キーボードをつなぎ直したあとなどに使います)" />
+                    ToolTip="キーボードの一覧を読み直します" />
             <TextBlock x:Name="TxtLayoutLabel" Text="レイアウト:" VerticalAlignment="Center" Margin="20,0,4,0" />
             <ComboBox x:Name="CmbLayout" Width="110" SelectionChanged="CmbLayout_SelectionChanged" />
             <Button x:Name="BtnAddKle" Content="KLEから追加..." Click="BtnLoadKle_Click"
-                    ToolTip="keyboard-layout-editor.com で作った配列(JSON)を取り込み、レイアウトの一覧に追加します" />
+                    ToolTip="keyboard-layout-editor.com の配列(JSON)を取り込みます" />
         </StackPanel>
 
         <!-- レイヤー選択 -->
@@ -54,9 +54,9 @@
         </StatusBar>
 
         <WrapPanel DockPanel.Dock="Bottom" Margin="8,4,8,8">
-            <Button x:Name="BtnCalibrateAll" Content="キャリブレーション..." ToolTip="キーの入力確認、個別キー・全キーのキャリブレーション(最初は入力確認モード)" Click="BtnCalibrateAll_Click" />
+            <Button x:Name="BtnCalibrateAll" Content="キャリブレーション..." ToolTip="キーの入力確認とキャリブレーション" Click="BtnCalibrateAll_Click" />
             <Button x:Name="BtnHelper" Content="ヘルパー..." Click="BtnHelper_Click"
-                    ToolTip="設定の「ヘルパー動作」タブを開く(キーでプログラム起動・文字列入力・アプリ別レイヤーなど)" />
+                    ToolTip="キーでプログラム起動・文字列入力・アプリ別レイヤー" />
             <Button x:Name="BtnMacros" Content="マクロ..." Click="BtnMacros_Click" />
             <Button x:Name="BtnCombos" Content="コンボ..." Click="BtnCombos_Click" />
             <Button x:Name="BtnTapDances" Content="タップダンス..." Click="BtnTapDances_Click" />
@@ -64,19 +64,18 @@
             <Button x:Name="BtnSettings" Content="設定..." Click="BtnSettings_Click"
                     ToolTip="機能のON/OFF・タイミング・NICOLA・緊急解除・共有範囲" />
             <Button x:Name="BtnRemapText" Content="割り当ての一覧..." Click="BtnRemapText_Click"
-                    ToolTip="変えた割り当てと、コンボ・マクロなどを、1行ずつ文字で表示します(コピー・保存できます)" />
+                    ToolTip="割り当てを 1 行ずつ文字で表示します" />
             <Separator Width="24" Background="Transparent" />
             <Button x:Name="BtnImportExport" Content="インポート／エクスポート..." Click="BtnImportExport_Click"
-                    ToolTip="設定をファイル(*.kasane.json)に書き出す・読み込む(全体一括・このキーボード・レイヤー1枚)。「クリア」タブで、選んだ項目を初期状態に戻せます" />
+                    ToolTip="設定をファイル(*.kasane.json)に書き出す・読み込む。選んだ項目を初期化する" />
+            <Button x:Name="BtnLegend" Content="凡例" Click="BtnLegend_Click" ToolTip="キーボード図の色と印の意味" />
             <Button x:Name="BtnHelp" Content="ヘルプ" Click="BtnHelp_Click"
-                    ToolTip="マニュアルを開きます(ブラウザーで表示します。F1 キーでも開けます)" />
+                    ToolTip="マニュアルを開きます(F1)" />
             <Separator Width="24" Background="Transparent" />
             <Button x:Name="BtnApply" Content="キーボードに適用(ON)" FontWeight="Bold" Click="BtnApply_Click" />
-            <Button x:Name="BtnOff" Content="OFF(素通しに戻す)" Click="BtnOff_Click" />
+            <Button x:Name="BtnOff" Content="OFF" Click="BtnOff_Click" ToolTip="リマップをやめて、キーをそのまま送ります" />
         </WrapPanel>
 
-        <TextBlock x:Name="TxtLegend" DockPanel.Dock="Bottom" Margin="10,0" Foreground="{DynamicResource Theme.TextDim}" TextWrapping="Wrap"
-                   Text="クリック: 割り当てを変更 ／ 右クリック: 実測値を消す・割り当てを戻す・コンボなどを開く ／ 青: 既定から変更 ／ 緑: レイヤー・Mod-Tap等 ／ 右下の印: M=マクロ・D=タップダンス・C=コンボ・R=キー置換(ボタンの( )は定義の数)／ 橙枠: 実測値が既定と異なる ／ 赤枠: スキャンコード不明(要実測) ／ ▽: 下のレイヤーと同じ(透過)" />
 
         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
             <layout:KeyboardCanvas x:Name="KbdCanvas" Margin="12" HorizontalAlignment="Left" VerticalAlignment="Top" />

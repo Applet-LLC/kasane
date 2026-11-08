@@ -54,7 +54,7 @@ public sealed class KleImportWindow : Window
     private readonly Canvas _canvas = new() { Name = "KleCanvas", HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top };
     private readonly DataGrid _grid = new() { Name = "KleKeyGrid", AutoGenerateColumns = false, CanUserAddRows = false, SelectionMode = DataGridSelectionMode.Single, HeadersVisibility = DataGridHeadersVisibility.Column, MinWidth = 330 };
     private readonly TextBlock _summary = new() { Name = "KleSummary", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 2) };
-    private readonly TextBlock _warnings = new() { Name = "KleWarnings", TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DarkOrange, Margin = new Thickness(0, 0, 0, 4) };
+    private readonly TextBlock _warnings = new() { Name = "KleWarnings", TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.WarnText, Margin = new Thickness(0, 0, 0, 4) };
     private readonly Button _pick = new() { Name = "KlePickKeycodeButton", Content = Loc.T("一覧から選ぶ...", "Choose from list..."), Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(8, 2, 8, 2) };
     private readonly Button _save = new() { Name = "KleSaveButton", Content = Loc.T("保存して使う", "Save and use"), IsDefault = true, Width = 120, IsEnabled = false };
 
@@ -88,24 +88,14 @@ public sealed class KleImportWindow : Window
 
         _name.TextChanged += (_, _) => UpdateSave();
         var nameRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
-        nameRow.Children.Add(new TextBlock { Text = Loc.T("名前:", "Name:"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
+        string nameTip = Loc.T("英数字とハイフン。レイアウトの一覧にこの名前で出ます", "Letters, digits, and hyphens. It appears under this name in the layout list");
+        nameRow.Children.Add(new TextBlock { Text = Loc.T("名前:", "Name:"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0), ToolTip = nameTip });
+        _name.ToolTip = nameTip;
         nameRow.Children.Add(_name);
-        nameRow.Children.Add(new TextBlock { Text = Loc.T("(英数字とハイフン。レイアウトの一覧にこの名前で出ます)", "(Letters, digits, and hyphens. It appears under this name in the layout list.)"), Foreground = AppTheme.Palette.SubText, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) });
 
-        var help = new TextBlock
-        {
-            Text = Loc.T(
-                ("keyboard-layout-editor.com で作った配列の JSON(Raw data)を読み込みます。各キーの既定のキーコードは、ラベルと位置から推定します。" +
-                 "黄色は推定、赤は未割り当て(選ばなくても保存できますが、キャリブレーションが要ります)です。キーコードは、一覧で書き換えるか、「一覧から選ぶ」で選べます。"),
-                ("Loads the JSON (Raw data) of a layout made on keyboard-layout-editor.com. The default keycode of each key is inferred from its label and position. " +
-                 "Yellow means inferred and red means unassigned (you can save without choosing one, but Calibration is needed). Edit a keycode in the list, or choose one with \"Choose from list\".")),
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = AppTheme.Palette.SubText,
-            Margin = new Thickness(0, 0, 0, 6),
-        };
+        // 画面の説明（推定の色の意味など）は、マニュアル（5 章「KLE から配列を追加する」）に置く。「?」と F1 で開く（2026-11-08）。
 
         var top = new StackPanel();
-        top.Children.Add(help);
         top.Children.Add(fileRow);
         top.Children.Add(nameRow);
         top.Children.Add(_summary);
@@ -137,9 +127,16 @@ public sealed class KleImportWindow : Window
         body.Children.Add(right);
 
         _save.Click += (_, _) => Save();
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
-        buttons.Children.Add(_save);
-        buttons.Children.Add(new Button { Name = "KleCancelButton", Content = Loc.T("キャンセル", "Cancel"), IsCancel = true, Width = 90, Margin = new Thickness(6, 0, 0, 0) });
+        var saveCancel = new StackPanel { Orientation = Orientation.Horizontal };
+        saveCancel.Children.Add(_save);
+        saveCancel.Children.Add(new Button { Name = "KleCancelButton", Content = Loc.T("キャンセル", "Cancel"), IsCancel = true, Width = 90, Margin = new Thickness(6, 0, 0, 0) });
+        var buttons = new DockPanel { Margin = new Thickness(0, 8, 0, 0), LastChildFill = false };
+        var help = HelpButton.Create(Kasane.Model.HelpTopics.KleImport);
+        DockPanel.SetDock(help, Dock.Left);
+        DockPanel.SetDock(saveCancel, Dock.Right);
+        buttons.Children.Add(help);
+        buttons.Children.Add(saveCancel);
+        HelpButton.AttachF1(this, () => Kasane.Model.HelpTopics.KleImport);
 
         var root = new DockPanel { Margin = new Thickness(10) };
         DockPanel.SetDock(top, Dock.Top);

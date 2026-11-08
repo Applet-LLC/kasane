@@ -38,7 +38,7 @@
 <main>
 <div class="pagehead">かさね1.01 2026-11-02&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a></div>
 <h1 id="section">8. キーの割り当て</h1>
-<p>エディタのキー図でキーをクリックすると、「キーの割り当て」の画面が開きます。ここで、そのキーに割り当てる動作を選びます。</p>
+<p>エディタのキーボード図でキーをクリックすると、「キーの割り当て」の画面が開きます。ここで、そのキーに割り当てる動作を選びます。</p>
 <p><img src="../img/ja/assign-main.png" alt="キーの割り当て" /></p>
 <p>画面は、次の部分でできています。</p>
 <table>
@@ -81,6 +81,7 @@
 </table>
 <p>別のキーをクリックすると、開いている画面が前面に出ます。キーの割り当ての画面は、マクロなどの編集画面を開いたまま使えます。</p>
 <p>レイヤー操作、Mod-Tap、Layer-Tap、マクロ、タップダンス、ヘルパー動作を割り当てたキーをクリックすると、そのカテゴリを選んだ状態で開きます。欄には、今の設定（たとえば <code>LT(3,KC_ENTER)</code> なら、レイヤー 3 とタップのキー <code>KC_ENTER</code>）が入っています。一部だけ直すときも、最初から選び直す必要はありません。</p>
+<p><a id="categories"></a></p>
 <h2 id="section-1">カテゴリ</h2>
 <table>
 <thead>
@@ -147,8 +148,8 @@
 <td><code>HLP(id)</code></td>
 </tr>
 <tr>
-<td>画面のキーボード</td>
-<td>画面上のキー図から選ぶ</td>
+<td>キーボード図</td>
+<td>キーボードの絵から選ぶ</td>
 </tr>
 <tr>
 <td>コンボ</td>
@@ -167,15 +168,18 @@
 <p>スリープ、電源、ウェイクアップのキーは、割り当てるときに確認が出ます。押すとパソコンがスリープやシャットダウンすることがあるためです。キートップにも ⚠ が付きます。</p>
 <p><img src="../img/ja/assign-power.png" alt="電源キーの確認" /></p>
 <h2 id="section-3">修飾キーを付けたキー</h2>
-<p>Ctrl+C のようなショートカットを割り当てるときの方法です。画面の下の修飾キーのチェックボックスにチェックを付けてから、キーを選びます。たとえば、左 Ctrl にチェックを付けて <code>C</code> を選ぶと、<code>LCTL(KC_C)</code>（Ctrl+C）になります。キー図の上では <code>^C</code> のように表示されます。</p>
+<p>Ctrl+C のようなショートカットを割り当てるときの方法です。画面の下の修飾キーのチェックボックスにチェックを付けてから、キーを選びます。たとえば、左 Ctrl にチェックを付けて <code>C</code> を選ぶと、<code>LCTL(KC_C)</code>（Ctrl+C）になります。キーボード図の上では <code>^C</code> のように表示されます。</p>
 <p>キーコード欄に、<code>LCTL(LSFT(KC_T))</code> のように直接書いてもかまいません。</p>
 <p>押したまま次のキーを押しても、足した修飾キーは次のキーには掛かりません。たとえば、「!」を打つキーの直後の「a」は、「a」のままです。</p>
+<p><a id="capture"></a></p>
 <h2 id="section-4">押して入力</h2>
 <p><strong>押して入力</strong> を押したあとに、入力したいキーを押すと、そのキーのキーコードが入ります。Esc で取り消せます。</p>
-<p>左右の修飾キーや、テンキーの Enter、日本語のキー（無変換、変換など）は、区別して入ります。Win キーや Alt+Tab のように、Windows が先に処理するキーは取れません。その場合は、<strong>画面のキーボード</strong> か一覧から選んでください。</p>
-<h2 id="section-5">画面のキーボードから選ぶ</h2>
-<p>左の一覧の末尾の <strong>画面のキーボード</strong> を選ぶと、画面上のキー図から選べます。修飾キーにチェックを付けると、<code>LCTL(KC_C)</code> のような形になります。</p>
-<p><img src="../img/ja/assign-softkeyboard.png" alt="画面のキーボード" /></p>
+<p>左右の修飾キーや、テンキーの Enter、日本語のキー（無変換、変換など）は、区別して入ります。Win キーや Alt+Tab のように、Windows が先に処理するキーは取れません。その場合は、<strong>キーボード図</strong> か一覧から選んでください。</p>
+<p><a id="keyboard-view-pick"></a></p>
+<h2 id="section-5">キーボード図から選ぶ</h2>
+<p>左の一覧の末尾の <strong>キーボード図</strong> を選ぶと、キーボードの絵から選べます。修飾キーにチェックを付けると、<code>LCTL(KC_C)</code> のような形になります。</p>
+<p><img src="../img/ja/assign-softkeyboard.png" alt="キーボード図" /></p>
+<p><a id="layer-actions"></a></p>
 <h2 id="section-6">レイヤー操作</h2>
 <p><strong>レイヤー操作</strong> を選ぶと、<strong>種類</strong> と <strong>レイヤー</strong> を選ぶ欄が出ます。選んだら、<strong>キーコード欄に入れる</strong> を押すと、<code>MO(1)</code> のような形でキーコード欄に入ります。</p>
 <p><img src="../img/ja/assign-layer.png" alt="レイヤー操作" /></p>
@@ -229,6 +233,7 @@
 </ul>
 <h3 id="section-7">レイヤーを追加する</h3>
 <p>エディタの <strong>＋ 追加</strong> でレイヤーを増やします。レイヤー 1 以降は、最初はすべてのキーが ▽（透過）です。▽ は、下のレイヤーと同じ動作を使う、という意味です。</p>
+<p><a id="mod-tap"></a></p>
 <h2 id="mod-tap-layer-tap">Mod-Tap と Layer-Tap</h2>
 <p>短く押したときと、長押ししたときで、動作を変えます。左の一覧の <strong>Mod-Tap (MT)</strong> と <strong>Layer-Tap (LT)</strong> で設定します。</p>
 <table>
@@ -259,6 +264,7 @@
 <li>短く押した直後に、もう一度押し続けると、短く押したときのキーのリピートになります。スペースの連打や長押しができます。</li>
 <li>判定の時間や方式は、設定ダイアログの「タイミング」タブで変えられます。速く打つと、Mod-Tap が意図せず長押しになるときは、判定方式を変えてみてください。</li>
 </ul>
+<p><a id="macro-tapdance-helper"></a></p>
 <h2 id="section-8">マクロ、タップダンス、ヘルパー動作</h2>
 <ul>
 <li><strong>マクロ / タップダンス</strong>: <code>MACRO(n)</code> と <code>TAPDANCE(n)</code> を割り当てます。種類を選び、番号を入れます。番号の横の <strong>マクロ...</strong>（種類が <code>TAPDANCE</code> のときは <strong>タップダンス...</strong>）を押すと、一覧から選べます。中身の作り方は、<a href="09-advanced.html">9. マクロ・コンボ・タップダンス・キー置換</a>を見てください。
@@ -300,7 +306,7 @@
 <li>無効にしたコンボとキー置換も、一覧に「(無効)」を付けて出ます。開いて、有効に戻せます。</li>
 <li>作ったコンボやキー置換は、それぞれの画面で <strong>OK</strong> か <strong>適用</strong> を押すまで、設定に入りません。キャンセルすれば、何も変わりません。</li>
 </ul>
-<p>キー図のキーを右クリックしても、同じことができます。メニューには、このキーに関わるものがあれば「コンボ3 を開く...」のような項目が、無ければ <strong>このキーでコンボを作る...</strong> などが出ます。<strong>このキーでタップダンスを作る...</strong> は、タップダンスの画面と一緒に、このキーの割り当て画面も開きます。</p>
+<p>キーボード図のキーを右クリックしても、同じことができます。メニューには、このキーに関わるものがあれば「コンボ3 を開く...」のような項目が、無ければ <strong>このキーでコンボを作る...</strong> などが出ます。<strong>このキーでタップダンスを作る...</strong> は、タップダンスの画面と一緒に、このキーの割り当て画面も開きます。</p>
 <h2 id="section-10">キーワード一覧</h2>
 <p>割り当ての欄や、マクロ、コンボなどに書く短い名前の一覧です。多くは QMK Firmware と同じ名前です。<code>n</code> はレイヤー番号、<code>kc</code> はキーコードです。</p>
 <table>

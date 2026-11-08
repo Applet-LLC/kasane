@@ -39,6 +39,7 @@ try {
     Start-Sleep -Milliseconds 400
     Chk "the nodoka window has its controls" ((Find-ChildByAutomationId $nd "NodokaPath") -and (Find-ChildByAutomationId $nd "NodokaSymbols") -and (Find-ChildByAutomationId $nd "NodokaConvertButton"))
     Chk "import is disabled before converting" (-not (Find-ChildByAutomationId $nd "NodokaAcceptButton").Current.IsEnabled)
+    Chk "the nodoka window has a help button" ([bool](Find-ChildByAutomationId $nd "HelpButton"))
 
     Set-ElementValue (Find-ChildByAutomationId $nd "NodokaPath") $nodoka
     Invoke-Element (Find-ChildByAutomationId $nd "NodokaConvertButton")

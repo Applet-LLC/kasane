@@ -92,7 +92,7 @@ public partial class MainWindow : Window
 
         // 保存先に取り込みファイル（kasane-import.json）があれば、設定の無いキーボードだけ取り込んでから、一覧を作る。
         try { Kasane.Model.Portable.PendingImport.RunWithDriver(null, new Kasane.Model.Portable.PortableReport()); }
-        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException) { /* 取り込めなくても、設定画面は開く */ }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException) { /* 取り込めなくても、エディタは開く */ }
 
         _client = KbdLayerClient.TryOpen(out var error);
         if (_client == null)
@@ -158,7 +158,7 @@ public partial class MainWindow : Window
     private void BtnRenameKeyboard_Click(object sender, RoutedEventArgs e)
     {
         if (_project == null || SelectedDevice is not { UniqId: not 0 } device) return;
-        var dlg = new TextPromptWindow(Loc.T("キーボードの名前", "Keyboard name"), Loc.T("このキーボードの名前(空にすると、名前を消します):", "Name for this keyboard (leave empty to remove the name):"), _project.KeyboardName ?? "", "KeyboardNameBox") { Owner = this };
+        var dlg = new TextPromptWindow(Loc.T("キーボードの名前", "Keyboard name"), Loc.T("このキーボードの名前:", "Name for this keyboard:"), _project.KeyboardName ?? "", "KeyboardNameBox") { Owner = this };
         if (dlg.ShowDialog() != true) return;
         string name = dlg.Value.Trim();
         _project.KeyboardName = name.Length == 0 ? null : name;
@@ -558,7 +558,7 @@ public partial class MainWindow : Window
 
         var clearMeasured = new MenuItem
         {
-            Header = Loc.T("実測値を消して既定のスキャンコードに戻す", "Clear measured value and restore default scan code"),
+            Header = Loc.T("実測値を削除", "Clear measured value"),
             IsEnabled = _project.MeasuredScanCodes.ContainsKey(slot.Index),
         };
         clearMeasured.Click += (_, _) =>
@@ -632,10 +632,11 @@ public partial class MainWindow : Window
             var create = new MenuItem
             {
                 Name = "MenuCreateTapDance",
-                Header = otherOpen ? Loc.T("このキーでタップダンスを作る...(開いているキーの割り当て画面を閉じてから)", "Create a tap dance with this key... (close the open key assignment window first)")
-                                   : Loc.T("このキーでタップダンスを作る...", "Create a tap dance with this key..."),
+                Header = Loc.T("このキーでタップダンスを作る...", "Create a tap dance with this key..."),
+                ToolTip = otherOpen ? Loc.T("開いているキーの割り当て画面を閉じると使えます", "Close the open key assignment window first") : null,
                 IsEnabled = !otherOpen,
             };
+            ToolTipService.SetShowOnDisabled(create, true);
             create.Click += (_, _) =>
             {
                 if (_keyAssign == null) Keyboard_KeyClicked(slot);
@@ -1010,14 +1011,14 @@ public partial class MainWindow : Window
         dlg.ShowDialog();
         if (dlg.ClearedProject != null)
         {
-            // クリア: 今のキーボードの設定は、保存先（とドライバ）で初期状態に戻っている。画面を、その内容に入れ替える。
+            // 初期化（旧「クリア」）: 今のキーボードの設定は、保存先（とドライバ）で初期状態に戻っている。画面を、その内容に入れ替える。
             ProjectService.NormalizeShape(dlg.ClearedProject, _layout);
             SetProject(dlg.ClearedProject, _layout, dirty: false);
             if (!dlg.ClearedDriver && uniq != 0) _unapplied.Add(uniq); // ドライバの設定は残っている
             RefreshDeviceStatusOnly();
             SetStatus(dlg.ClearedDriver
-                ? Loc.T("クリアしました(ドライバの設定も消しました)。", "Cleared (the driver settings were also removed).")
-                : Loc.T("クリアしました(画面の設定だけ。ドライバの設定は残っています)。", "Cleared (on-screen settings only; the driver settings remain)."));
+                ? Loc.T("初期化しました(ドライバの設定も消しました)。", "Reset (the driver settings were also removed).")
+                : Loc.T("初期化しました(画面の設定だけ。ドライバの設定は残っています)。", "Reset (on-screen settings only; the driver settings remain)."));
             return;
         }
         if (dlg.Cleared) RefreshDeviceStatusOnly();
@@ -1151,9 +1152,9 @@ public partial class MainWindow : Window
     {
         if (_client == null) return Loc.T("ドライバ: 接続できません(編集とエクスポートのみ)", "Driver: not connected (edit and export only)");
         if (SelectedDevice is not { UniqId: not 0 } d) return Loc.T("ドライバ: このキーボードは接続していません(編集のみ)", "Driver: this keyboard is not connected (edit only)");
-        string state = !d.HasLayerMap ? Loc.T("設定なし(素通し)", "no settings (pass-through)")
+        string state = !d.HasLayerMap ? Loc.T("設定なし", "no settings")
             : d.Enabled ? Loc.T("ON(リマップ中)", "ON (remapping)")
-            : Loc.T("OFF(素通し、設定はドライバに残っています)", "OFF (pass-through; settings remain in the driver)");
+            : Loc.T("OFF(設定はドライバに残っています)", "OFF (settings remain in the driver)");
         string applied = _unapplied.Contains(d.UniqId) ? Loc.T("　画面の変更は未適用", "  Changes not applied") : "";
         return Loc.T($"ドライバ: {state}{applied}", $"Driver: {state}{applied}");
     }

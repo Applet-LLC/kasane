@@ -13,19 +13,11 @@ public sealed class ComboEditorWindow : IdListEditorWindow
     private readonly ComboDef?[] _combos = new ComboDef?[KbdLayerClient.MaxComboCount];
 
     public List<ComboDef> Result { get; private set; } = new();
+
+    protected override string HelpTopic => HelpTopics.Combo;
 
     public ComboEditorWindow(KeymapProject project, KeyboardLayout layout)
-        : base(Loc.T("コンボ", "Combo"), KbdLayerClient.MaxComboCount,
-            Loc.T(("コンボは、2つのキーをほぼ同時(タイミング設定の ComboTerm 以内)に押すと、代わりに別のキーを送ります。\n" +
-                   "出力は、キー(KC_*)、LCTL(KC_Z) のような修飾付きキー(押している間)、MACRO(n)(成立したときに1回実行)のいずれかです。" +
-                   "制約: メンバーは2キーだけで、同じキーを2つ以上のコンボには使えません。" +
-                   "コンボは物理キーに対して働くので、どのレイヤーでも有効です。\n" +
-                   "「無効にする」にチェックを付けると、書いた内容を残したまま、キーボードには適用されません(メンバーのキーは、ほかのコンボに使えます)。"),
-                  ("A combo sends a different key when two keys are pressed at almost the same time (within ComboTerm in the timing settings).\n" +
-                   "The output is one of: a key (KC_*), a key with modifiers such as LCTL(KC_Z) (held while the combo is pressed), or MACRO(n) (runs once when the combo fires). " +
-                   "Limits: a combo has exactly two member keys, and a key can't be used in more than one combo. " +
-                   "Combos work on physical keys, so they apply on every layer.\n" +
-                   "If you check \"Disable\", the content is kept but not applied to the keyboard (its member keys can be used in other combos).")))
+        : base(Loc.T("コンボ", "Combo"), KbdLayerClient.MaxComboCount)
     {
         _project = project;
         _layout = layout;

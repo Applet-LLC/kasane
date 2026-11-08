@@ -17,26 +17,30 @@ namespace Kasane.Views;
 /// </summary>
 public sealed class SettingsDialog : Window
 {
+    // 判定方式（TapHoldMode の順）。日本語の表示は短い文だけにし、方式の名前（Permissive Hold）は英語の表示だけに出す（2026-11-08 の用語の決定）。
     private static string[] ModeLabels => new[]
     {
-        Loc.T("別のキーを押したらすぐ長押し扱い(既定)", "Hold as soon as another key is pressed (default)"),
-        Loc.T("別のキーを押して離したら長押し扱い(Permissive Hold)", "Hold when another key is pressed and released (Permissive Hold)"),
-        Loc.T("時間内に離せば短押し扱い(時間切れで長押し)", "Tap if released in time (hold on timeout)"),
+        Loc.T("別のキーを押したら長押し(既定)", "Hold when another key is pressed (default)"),
+        Loc.T("別のキーを押して離したら長押し", "Hold when another key is pressed and released (Permissive Hold)"),
+        Loc.T("時間内に離せば短押し", "Tap if released in time"),
     };
 
-    private static string[] NicolaModeLabels => new[]
-    {
-        Loc.T("GUIでは管理しない(ドライバの設定をそのまま使う)", "Not managed by the GUI (keep the driver's setting)"),
-        Loc.T("この設定を使う(適用で反映)", "Use this setting (applied on Apply)"),
-        Loc.T("使わない(適用時にドライバの設定を消す)", "Don't use (clears the driver's setting on Apply)"),
-    };
+    private static List<ComboBoxItem> ModeItems() => Items(
+        (ModeLabels[0], Loc.T("長押しのキーを押している間に別のキーを押すと、すぐ長押しにします", "Becomes a hold as soon as another key is pressed while the key is down")),
+        (ModeLabels[1], Loc.T("別のキーを押して離すまで待ってから、長押しにします", "Becomes a hold once another key is pressed and released")),
+        (ModeLabels[2], Loc.T("時間内に離せば短押し、時間を過ぎたら長押しにします", "A tap if released within the time; a hold after it")));
+
+    private static List<ComboBoxItem> NicolaModeItems() => Items(
+        (Loc.T("GUI では管理しない", "Not managed by the GUI"), Loc.T("ドライバの今の設定を、そのまま使います", "Keeps the driver's current setting")),
+        (Loc.T("この設定を使う", "Use this setting"), Loc.T("適用すると反映されます", "Takes effect when you apply")),
+        (Loc.T("使わない", "Don't use"), Loc.T("適用すると、ドライバの設定を消します", "Applying clears the driver's setting")));
 
     private readonly KeymapProject _project;
     private readonly KbdLayerClient? _client;
     private readonly uint _uniqId;      // 0 = オフライン
     private readonly bool _canWrite;
     private readonly TabControl _tabs = new() { Name = "SettingsTabs" };
-    private readonly TextBlock _error = new() { Name = "SettingsError", Foreground = Brushes.Firebrick, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) };
+    private readonly TextBlock _error = new() { Name = "SettingsError", Foreground = AppTheme.Palette.ErrorText, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) };
 
     // 機能
     private readonly CheckBox[] _featureChecks = new CheckBox[4];
@@ -90,7 +94,7 @@ public sealed class SettingsDialog : Window
         AddTab("TabGeneral", Loc.T("全般", "General"), BuildGeneralTab());
         AddTab("TabFeatures", Loc.T("機能", "Features"), BuildFeaturesTab());
         AddTab("TabTiming", Loc.T("タイミング", "Timing"), BuildTimingTab());
-        AddTab("TabImeLayer", Loc.T("IME連動", "IME link"), BuildImeTab()); // 以前の「NICOLA」タブの内容も、ここにある（2026-10-19）
+        AddTab("TabImeLayer", Loc.T("IME 連動", "IME link"), BuildImeTab()); // 以前の「NICOLA」タブの内容も、ここにある（2026-10-19）
         _helperTab = new HelperActionsTab(_helper, this, project, layout);
         AddTab("TabHelper", Loc.T("ヘルパー動作", "Helper actions"), _helperTab.Root);
         AddTab("TabAppRules", Loc.T("アプリ別レイヤー", "Per-app layers"), new AppRulesTab(_helper, this).Root);
@@ -104,9 +108,18 @@ public sealed class SettingsDialog : Window
 
         var ok = new Button { Name = "OkButton", Content = "OK", IsDefault = true, Width = 90 };
         ok.Click += (_, _) => { if (Commit()) DialogResult = true; };
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
-        buttons.Children.Add(ok);
-        buttons.Children.Add(new Button { Name = "CancelButton", Content = Loc.T("キャンセル", "Cancel"), IsCancel = true, Width = 90 });
+        var okCancel = new StackPanel { Orientation = Orientation.Horizontal };
+        okCancel.Children.Add(ok);
+        okCancel.Children.Add(new Button { Name = "CancelButton", Content = Loc.T("キャンセル", "Cancel"), IsCancel = true, Width = 90 });
+        // 左に「?」（今のタブの説明をマニュアルで開く）、右に OK・キャンセル。
+        var buttons = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
+        var help = HelpButton.Create(CurrentHelpTopic);
+        DockPanel.SetDock(help, Dock.Left);
+        DockPanel.SetDock(okCancel, Dock.Right);
+        buttons.Children.Add(help);
+        buttons.Children.Add(okCancel);
+        buttons.Children.Add(new Border()); // 間を埋める
+        HelpButton.AttachF1(this, CurrentHelpTopic);
 
         var root = new DockPanel { Margin = new Thickness(10) };
         DockPanel.SetDock(buttons, Dock.Bottom);
@@ -123,43 +136,39 @@ public sealed class SettingsDialog : Window
     private UIElement BuildGeneralTab()
     {
         var panel = new StackPanel();
-        panel.Children.Add(new TextBlock { Text = Loc.T("トレイ(タスクトレイの kasane)", "Tray (kasane in the system tray)"), FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
+        panel.Children.Add(new TextBlock { Text = Loc.T("トレイ", "Tray"), FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
         _remapOnlyWhileTray = new CheckBox
         {
             Name = "GeneralRemapOnlyWhileTrayCheck",
-            Content = Loc.T("トレイが動いている間だけ、キーのリマップを有効にする", "Enable key remapping only while the tray is running"),
+            Content = Loc.T("トレイが動いている間だけリマップする", "Remap only while the tray is running"),
+            ToolTip = Loc.T("トレイの終了・サインアウト・画面のロックでリマップを OFF にし、トレイの起動とロック解除で ON に戻します",
+                            "Turns remapping off when the tray exits, you sign out, or the screen locks, and back on when the tray starts or the screen unlocks"),
             IsChecked = _trayConfig.RemapOnlyWhileTrayRuns,
             Margin = new Thickness(0, 0, 0, 6),
         };
         panel.Children.Add(_remapOnlyWhileTray);
-        panel.Children.Add(Help(
-            Loc.T(("ONにすると、トレイの終了、サインアウト、シャットダウン、画面のロックでリマップがOFFになり、トレイの起動とロック解除でONに戻ります(既定はON)。" +
-                   "トレイが異常終了するとリマップがONのままになることがあります。OK で保存すると、トレイが数秒で読み直します。"),
-                  ("When on, remapping turns off when the tray exits, when you sign out or shut down, and when the screen locks. It turns back on when the tray starts or the screen unlocks (default: on). " +
-                   "If the tray exits abnormally, remapping may stay on. After you save with OK, the tray reloads the setting within a few seconds."))));
 
         _showLayerOnIcon = new CheckBox
         {
             Name = "ShowLayerOnIconCheck",
-            Content = Loc.T("トレイのアイコンに、今のレイヤー番号を重ねる(基底のレイヤーだけのときは重ねない)", "Overlay the current layer number on the tray icon (not when only the base layer is active)"),
+            Content = Loc.T("トレイのアイコンにレイヤー番号を出す", "Show the layer number on the tray icon"),
+            ToolTip = Loc.T("基底のレイヤーだけのときは出しません", "Not shown when only the base layer is active"),
             IsChecked = _trayConfig.ShowLayerOnIcon,
-            Margin = new Thickness(0, 12, 0, 8),
+            Margin = new Thickness(0, 6, 0, 8),
         };
         panel.Children.Add(_showLayerOnIcon);
 
         // 色のモード（ライト／ダーク）。既定はライト。OK で、開いている画面と、これから開く画面すべてに効く。
         panel.Children.Add(new TextBlock { Text = Loc.T("画面の色", "Colors"), FontWeight = FontWeights.Bold, Margin = new Thickness(0, 12, 0, 4) });
         _colorModeBox = new ComboBox { Name = "ColorModeBox", Width = 160, ItemsSource = ColorModeLabels, SelectedIndex = (int)_trayConfig.ColorModeValue };
-        Row(panel, Loc.T("色のモード", "Color mode"), _colorModeBox,
-            Loc.T("各ダイアログの色のモードを、ライト(既定)あるいはダークに設定できます。", "Set the color mode of every dialog to Light (default) or Dark."),
-            labelWidth: 120);
+        Row(panel, Loc.T("色のモード", "Color mode"), _colorModeBox, labelWidth: 120);
 
         panel.Children.Add(new TextBlock { Text = Loc.T("表示言語", "Display language"), FontWeight = FontWeights.Bold, Margin = new Thickness(0, 12, 0, 4) });
         _languageBox = new ComboBox { Name = "LanguageBox", Width = 200, ItemsSource = LanguageLabels, SelectedIndex = (int)_trayConfig.UiLanguageValue };
-        Row(panel, Loc.T("言語", "Language"), _languageBox,
-            Loc.T("kasane とトレイの表示言語を、自動認識(Windows の表示言語に合わせる)、日本語、英語から選びます。変更は、kasane とトレイの再起動後に効きます。",
-                  "Choose the display language of kasane and the tray: Auto (follows the Windows display language), Japanese, or English. The change takes effect after kasane and the tray restart."),
-            labelWidth: 120);
+        var languageRow = Row(panel, Loc.T("言語", "Language"), _languageBox,
+            Loc.T("自動認識は、Windows の表示言語に合わせます", "Auto follows the Windows display language"), labelWidth: 120);
+        // 言語は、変えてもすぐには変わらないので、それだけを欄の右に添える（知らないと、効いていないと思う）。
+        languageRow.Children.Add(new TextBlock { Text = Loc.T("再起動後に効きます", "Takes effect after a restart"), Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = AppTheme.Palette.SubText });
         return panel;
     }
 
@@ -180,11 +189,6 @@ public sealed class SettingsDialog : Window
     {
         var panel = new StackPanel();
         panel.Children.Add(new TextBlock { Text = Loc.T("デスクトップのアイコンの表示方法", "Desktop icon view"), FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
-        panel.Children.Add(Help(
-            Loc.T(("デスクトップのアイコンの表示方法を変更します。ここでの変更時と、kasane-trayの起動時に反映されます。\n" +
-                   "OSやデスクトップの状態によっては、選んだ表示方法にならないことがあります。"),
-                  ("Changes how desktop icons are displayed. It is applied when you change it here and when kasane-tray starts.\n" +
-                   "Depending on the OS and the state of the desktop, the selected view may not be used."))));
 
         _desktopKeep = new RadioButton { Name = "DesktopViewKeep", Content = Loc.T("変えない(既定)", "Don't change (default)"), GroupName = "DesktopView", Margin = new Thickness(0, 2, 0, 2) };
         panel.Children.Add(_desktopKeep);
@@ -277,30 +281,44 @@ public sealed class SettingsDialog : Window
     private static TextBlock Help(string text) =>
         new() { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 10) };
 
-    private static StackPanel Row(Panel parent, string label, UIElement input, string? help = null, double labelWidth = 120)
+    /// <param name="tip">欄の意味（ツールチップ。ラベルと欄の両方に付ける）。画面には説明を出さない（2026-11-08、UI の見直し。詳しくは「?」のマニュアル）。</param>
+    private static StackPanel Row(Panel parent, string label, UIElement input, string? tip = null, double labelWidth = 120)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
-        row.Children.Add(new TextBlock { Text = label, Width = labelWidth, VerticalAlignment = VerticalAlignment.Center });
+        row.Children.Add(new TextBlock { Text = label, Width = labelWidth, VerticalAlignment = VerticalAlignment.Center, ToolTip = tip });
+        if (tip != null && input is FrameworkElement fe && fe.ToolTip == null) fe.ToolTip = tip;
         row.Children.Add(input);
-        if (help != null)
-            row.Children.Add(new TextBlock { Text = help, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = AppTheme.Palette.SubText, TextWrapping = TextWrapping.Wrap, MaxWidth = 340 });
         parent.Children.Add(row);
         return row;
     }
 
-    // 説明が長い行用。説明を欄の右ではなく下に置き、ラベルの幅だけ字下げして折り返す（右に置くと、ダイアログの幅を超えて切れる）。
-    private static void RowHelpBelow(Panel parent, string label, UIElement input, string help, double labelWidth = 120)
+    // 選択肢ごとにツールチップを付けたコンボボックスの項目（選択肢の文は短くし、補足はツールチップへ）。
+    private static List<ComboBoxItem> Items(params (string Text, string? Tip)[] items) =>
+        items.Select(i => new ComboBoxItem { Content = i.Text, ToolTip = i.Tip }).ToList();
+
+    // 今のタブの、マニュアルの節（「?」と F1）。
+    private string CurrentHelpTopic() => (_tabs.SelectedItem as TabItem)?.Name switch
     {
-        Row(parent, label, input, labelWidth: labelWidth);
-        parent.Children.Add(new TextBlock { Text = help, Margin = new Thickness(labelWidth, 2, 0, 4), Foreground = AppTheme.Palette.SubText, TextWrapping = TextWrapping.Wrap });
-    }
+        "TabFeatures" => HelpTopics.SettingsFeatures,
+        "TabTiming" => HelpTopics.SettingsTiming,
+        "TabImeLayer" => HelpTopics.ImeLayer,
+        "TabHelper" => HelpTopics.HelperTab,
+        "TabAppRules" => HelpTopics.AppRules,
+        "TabEmergency" => HelpTopics.Emergency,
+        "TabScope" => HelpTopics.SettingsScope,
+        "TabDataDir" => HelpTopics.SettingsDataDir,
+        "TabI8042" => HelpTopics.SettingsI8042,
+        "TabDesktop" => HelpTopics.SettingsDesktop,
+        AboutTab => HelpTopics.SettingsAbout,
+        _ => HelpTopics.SettingsGeneral,
+    };
 
     private static TextBlock Status(string name) =>
         new() { Name = name, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) };
 
     private static void ShowStatus(TextBlock block, string text, bool isError)
     {
-        block.Foreground = isError ? Brushes.Firebrick : Brushes.DarkGreen;
+        block.Foreground = isError ? AppTheme.Palette.ErrorText : AppTheme.Palette.OkText;
         block.Text = text;
     }
 
@@ -311,9 +329,6 @@ public sealed class SettingsDialog : Window
     private UIElement BuildFeaturesTab()
     {
         var panel = new StackPanel();
-        panel.Children.Add(Help(
-            Loc.T("使わない機能はOFFにできます。OFFにしても設定は消えません。変更は、「キーボードに適用」で反映されます。", "You can turn off features you don't use. Turning a feature off doesn't delete its settings. Changes take effect with \"Apply to keyboard\".")));
-
         string current = "";
         uint initial = KbdLayerClient.FeatureAll;
         if (IsOnline)
@@ -333,9 +348,9 @@ public sealed class SettingsDialog : Window
 
         var defs = new (string Name, string Label, uint Bit)[]
         {
-            ("FeatureMacro", Loc.T("マクロ(MACRO(n))", "Macro (MACRO(n))"), KbdLayerClient.FeatureMacro),
+            ("FeatureMacro", Loc.T("マクロ", "Macro"), KbdLayerClient.FeatureMacro),
             ("FeatureCombo", Loc.T("コンボ", "Combo"), KbdLayerClient.FeatureCombo),
-            ("FeatureTapDance", Loc.T("タップダンス(TAPDANCE(n))", "Tap dance (TAPDANCE(n))"), KbdLayerClient.FeatureTapDance),
+            ("FeatureTapDance", Loc.T("タップダンス", "Tap dance"), KbdLayerClient.FeatureTapDance),
             ("FeatureKeyOverride", Loc.T("キー置換", "Key override"), KbdLayerClient.FeatureKeyOverride),
         };
         for (int i = 0; i < defs.Length; i++)
@@ -345,6 +360,7 @@ public sealed class SettingsDialog : Window
                 Name = defs[i].Name,
                 Content = defs[i].Label,
                 Tag = defs[i].Bit,
+                ToolTip = Loc.T("OFF にしても、中身は消えません。適用すると反映されます", "Turning it off keeps the definitions. Takes effect when you apply"),
                 IsChecked = (_initialFeatures & defs[i].Bit) != 0,
                 Margin = new Thickness(0, 3, 0, 3),
             };
@@ -380,24 +396,23 @@ public sealed class SettingsDialog : Window
             }
             catch (KbdLayerException) { /* 古いドライバ等。現在値の表示を省くだけ */ }
         }
-        panel.Children.Add(Help(Loc.T(("単位はミリ秒で、0 にすると既定値(TapTerm 200 / ComboTerm 50 / TapDanceTerm 200)を使います。" +
-                                "変更は、「キーボードに適用」で反映されます。"),
-                                ("The unit is milliseconds. 0 uses the default (TapTerm 200 / ComboTerm 50 / TapDanceTerm 200). " +
-                                "Changes take effect with \"Apply to keyboard\".")) + currentText));
+        // キーボードの今の値（状態の文）。説明の段落は出さない（単位・既定値は欄のツールチップと「?」のマニュアル）。
+        if (currentText.Length > 0) panel.Children.Add(Help(currentText.TrimStart('\n')));
 
         TextBox Field(string name, string label, string help, uint value)
         {
             var box = new TextBox { Name = name, Text = value.ToString(), Width = 80 };
-            Row(panel, label, box, help);
+            var row = Row(panel, label, box, help);
+            row.Children.Add(new TextBlock { Text = "ms", Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = AppTheme.Palette.SubText });
             return box;
         }
-        _tap = Field("TapTermBox", "TapTerm", Loc.T("MT/LT: これより長く押すと長押し扱い", "MT/LT: pressing longer than this counts as a hold"), _project.TapTermMs);
-        _combo = Field("ComboTermBox", "ComboTerm", Loc.T("コンボ: 2つのキーを押す間隔の上限", "Combo: maximum interval between the two key presses"), _project.ComboTermMs);
-        _tapDance = Field("TapDanceTermBox", "TapDanceTerm", Loc.T("タップダンス: タップ間隔・長押しの判定", "Tap dance: tap interval and hold detection"), _project.TapDanceTermMs);
+        _tap = Field("TapTermBox", "TapTerm", Loc.T("MT/LT で、これより長く押すと長押し(0 = 既定の 200)", "MT/LT: pressing longer than this is a hold (0 = default 200)"), _project.TapTermMs);
+        _combo = Field("ComboTermBox", "ComboTerm", Loc.T("コンボの 2 つのキーを押す間隔の上限(0 = 既定の 50)", "Maximum interval between the two combo keys (0 = default 50)"), _project.ComboTermMs);
+        _tapDance = Field("TapDanceTermBox", "TapDanceTerm", Loc.T("タップダンスのタップの間隔と長押しの判定(0 = 既定の 200)", "Tap dance tap interval and hold detection (0 = default 200)"), _project.TapDanceTermMs);
 
-        _mode = new ComboBox { Name = "TapHoldModeBox", Width = 330, ItemsSource = ModeLabels };
+        _mode = new ComboBox { Name = "TapHoldModeBox", Width = 330, ItemsSource = ModeItems() };
         _mode.SelectedIndex = _project.TapHoldMode < ModeLabels.Length ? (int)_project.TapHoldMode : 0;
-        Row(panel, Loc.T("判定方式", "Tap-hold mode"), _mode, Loc.T("MT/LT に使います(タップダンスは常に既定の方式)", "Used for MT/LT (tap dance always uses the default mode)"));
+        Row(panel, Loc.T("判定方式", "Tap-hold mode"), _mode, Loc.T("MT/LT の判定(タップダンスは常に既定の方式)", "For MT/LT (tap dance always uses the default)"));
 
         bool quickOff = _project.QuickTapTermMs == KbdLayerClient.QuickTapTermDisabled;
         _quick = new TextBox { Name = "QuickTapTermBox", Text = quickOff ? "0" : _project.QuickTapTermMs.ToString(), Width = 80, IsEnabled = !quickOff };
@@ -407,21 +422,10 @@ public sealed class SettingsDialog : Window
         var quickRow = new StackPanel { Orientation = Orientation.Horizontal };
         quickRow.Children.Add(_quick);
         quickRow.Children.Add(_quickEnabled);
-        Row(panel, "Quick Tap", quickRow, Loc.T("短押しの直後に押し続けるとリピートします(0 = TapTerm と同じ)", "Pressing and holding right after a tap repeats the key (0 = same as TapTerm)"));
+        Row(panel, "Quick Tap", quickRow, Loc.T("短押しの直後に押し続けるとリピートする(0 = TapTerm と同じ)", "Pressing and holding right after a tap repeats the key (0 = same as TapTerm)"));
 
-        _tt = Field("TappingToggleBox", Loc.T("TT の回数", "TT count"), Loc.T("TT(n): この回数続けてタップすると、ON/OFFが固定されます(0 = 既定の5)", "TT(n): tapping this many times in a row locks the layer on or off (0 = default 5)"), _project.TappingToggle);
-        panel.Children.Add(new TextBlock
-        {
-            Text = Loc.T(("MT (Mod-Tap): 短く押すと通常のキー、長押しすると修飾キーになります。\n" +
-                   "LT (Layer-Tap): 短く押すと通常のキー、長押しするとレイヤーを切り替えます。\n" +
-                   "TT (Tap Toggle): 押している間はレイヤーが有効になり、続けてタップするとON/OFFが固定されます。"),
-                  ("MT (Mod-Tap): Tap for the normal key, hold for a modifier key.\n" +
-                   "LT (Layer-Tap): Tap for the normal key, hold to switch layers.\n" +
-                   "TT (Tap Toggle): The layer is active while the key is held; tap repeatedly to lock it on or off.")),
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = AppTheme.Palette.SubText,
-            Margin = new Thickness(0, 16, 0, 0),
-        });
+        _tt = new TextBox { Name = "TappingToggleBox", Text = _project.TappingToggle.ToString(), Width = 80 };
+        Row(panel, Loc.T("TT の回数", "TT count"), _tt, Loc.T("TT(n) を固定するのに続けてタップする回数(0 = 既定の 5)", "Taps in a row to lock TT(n) (0 = default 5)"));
         return panel;
     }
 
@@ -451,66 +455,41 @@ public sealed class SettingsDialog : Window
 
     // IME の状態の取得方法。IMM32 は、アプリの IME ウィンドウへの問い合わせ。TSF は、天狼（sirius）のフックの DLL が各アプリの中で読んだ値
     // （IMM32 で取れないアプリ・TSF だけのアプリの補い）。フックは全アプリに DLL を読み込ませるので、Imm32 を選ぶと入れない。
-    private static string[] ImeSourceLabels => new[]
-    {
-        Loc.T("IMM32 のみ(フックを入れない。既定)", "IMM32 only (no hook; default)"),
-        Loc.T("IMM32 を先に、取れなければ TSF", "IMM32 first, then TSF if that fails"),
-        Loc.T("TSF を先に、取れなければ IMM32", "TSF first, then IMM32 if that fails"),
-    };
+    // 選択肢の文は短くし、補足はツールチップへ（2026-11-08、UI の見直し。詳しくは「?」で開く 10 章）。
+    private static List<ComboBoxItem> ImeSourceItems() => Items(
+        (Loc.T("IMM32 のみ(既定)", "IMM32 only (default)"), Loc.T("Windows の標準の方法で読みます。DLL は入れません", "Reads with the standard Windows method. No DLL is loaded")),
+        (Loc.T("IMM32 を先に、取れなければ TSF", "IMM32 first, then TSF"), Loc.T("TSF で読むために、DLL を各アプリに読み込ませます", "Loads a DLL into each app to read with TSF")),
+        (Loc.T("TSF を先に、取れなければ IMM32", "TSF first, then IMM32"), Loc.T("TSF で読むために、DLL を各アプリに読み込ませます", "Loads a DLL into each app to read with TSF")));
 
     private UIElement BuildImeSourceRow()
     {
         var panel = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
-        _imeSourceBox = new ComboBox { Name = "ImeSourceBox", Width = 360, ItemsSource = ImeSourceLabels, SelectedIndex = (int)_trayConfig.ImeSourceMode };
-        RowHelpBelow(panel, Loc.T("IME の状態の取得方法", "How to get the IME state"), _imeSourceBox,
-            Loc.T(("IME 連動と、ヘルパー動作の IME 操作(ime の手順、文字列の入力の「入力の間だけ IME を OFF」)の両方で使います。" +
-                   "既定の「IMM32 のみ」で、多くのアプリの状態を読めます。TSF にしか対応していないアプリを補いたいときだけ、TSF を含むものを選んでください。" +
-                   "TSF を選ぶと、DLL(sirius_hook)を各アプリに読み込ませて、その値を使います。Explorer を開くのが遅く感じられることがあります。「IMM32 のみ」では、この DLL を使いません。" +
-                   "OK で保存すると、数秒でトレイに反映されます。"),
-                  ("Used both by the IME link and by the IME operations of helper actions (ime steps, and \"Turn the IME off while typing\" in text input). " +
-                   "The default, \"IMM32 only\", reads the state in most apps. Choose an option with TSF only to cover apps that support TSF alone. " +
-                   "With TSF, a DLL (sirius_hook) is loaded into each app and its values are used, and opening Explorer may feel slower. \"IMM32 only\" doesn't use this DLL. " +
-                   "After you save with OK, the tray picks up the change within a few seconds.")),
-            labelWidth: 170);
+        _imeSourceBox = new ComboBox { Name = "ImeSourceBox", Width = 360, ItemsSource = ImeSourceItems(), SelectedIndex = (int)_trayConfig.ImeSourceMode };
+        Row(panel, Loc.T("IME の状態の取得方法", "How to get the IME state"), _imeSourceBox,
+            Loc.T("IME 連動と、ヘルパー動作の IME 操作で使います", "Used by the IME link and by the IME operations of helper actions"), labelWidth: 170);
         return panel;
     }
 
     // ヘルパー動作の IME の切り替え方（ImeSwitch の順。Auto / ImeKeys / Henkan / Toggle / Imm）。
-    private static string[] ImeSwitchLabels => new[]
-    {
-        Loc.T("自動(既定)", "Automatic (default)"),
-        Loc.T("IME オン / オフ キー", "IME on / IME off keys"),
-        Loc.T("変換 / 無変換(Microsoft IME の設定が必要)", "Henkan / Muhenkan (needs a Microsoft IME setting)"),
-        Loc.T("Alt+半角/全角で切り替え", "Toggle with Alt+Hankaku/Zenkaku"),
-        Loc.T("IMM32", "IMM32"),
-    };
+    private static List<ComboBoxItem> ImeSwitchItems() => Items(
+        (Loc.T("自動(既定)", "Automatic (default)"), Loc.T("ふだんは IMM32。トレイが管理者として動いているときは、Alt+半角/全角を送ります", "IMM32 normally; Alt+Hankaku/Zenkaku while the tray runs as administrator")),
+        (Loc.T("IME オン / オフ キー", "IME on / IME off keys"), Loc.T("ON 用と OFF 用のキーを送ります。OS の設定は要りません", "Sends separate keys for on and off. No OS setting is needed")),
+        (Loc.T("変換 / 無変換", "Henkan / Muhenkan"), Loc.T("Microsoft IME で、変換に IME-オン、無変換に IME-オフを割り当ててから選びます", "Assign IME-On to Henkan and IME-Off to Muhenkan in Microsoft IME first")),
+        (Loc.T("Alt+半角/全角で切り替え", "Toggle with Alt+Hankaku/Zenkaku"), Loc.T("今の状態を読めないアプリには送りません", "Not sent to apps whose IME state can't be read")),
+        ("IMM32", Loc.T("キーを送らず、IMM32 で切り替えます", "Switches with IMM32 without sending keys")));
 
     private UIElement BuildImeSwitchRow()
     {
         var panel = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
-        _imeSwitchBox = new ComboBox { Name = "ImeSwitchBox", Width = 360, ItemsSource = ImeSwitchLabels, SelectedIndex = (int)_trayConfig.ImeSwitchValue };
-        RowHelpBelow(panel, Loc.T("IME の切り替え方", "How to switch the IME"), _imeSwitchBox,
-            Loc.T(("ヘルパー動作で IME を ON / OFF にする方法です(ime の手順と、文字列の入力の「入力の間だけ IME を OFF」)。\n" +
-                   "・自動: ふだんは IMM32 で切り替えます。トレイが管理者として動いているときは、ドライバ経由で Alt+半角/全角を送ります。\n" +
-                   "・IME オン / オフ キー: ON 用と OFF 用のキーを送ります。日本語キーボードの配列で使えます。OS の設定は要りません。\n" +
-                   "・変換 / 無変換: 変換で ON、無変換で OFF にします。Windows の設定の Microsoft IME の「キーとタッチのカスタマイズ」で、変換に IME-オン、無変換に IME-オフを割り当ててから選んでください。割り当てないと、変換が再変換として働き、入力済みの文字が変換の対象になることがあります。\n" +
-                   "・Alt+半角/全角で切り替え: 今の状態を読めないアプリでは送りません。\n" +
-                   "キーを送っても変わらなかったときは、IMM32 で変えます。トレイが管理者として動いているときはキーをドライバ経由で送るので、管理者として動くウィンドウにも届きます。"),
-                  ("How helper actions turn the IME on or off (ime steps, and \"Turn the IME off while typing\" in text input).\n" +
-                   "- Automatic: uses IMM32 normally. While the tray runs as administrator, sends Alt+Hankaku/Zenkaku through the driver.\n" +
-                   "- IME on / IME off keys: sends a key for on and a key for off. Works with the Japanese keyboard layout; no OS setting is needed.\n" +
-                   "- Henkan / Muhenkan: Henkan turns it on and Muhenkan off. First assign IME-On to Henkan and IME-Off to Muhenkan under Microsoft IME > Key and touch customization in Windows Settings. Without this, Henkan works as reconversion and may pull text you already typed into conversion.\n" +
-                   "- Toggle with Alt+Hankaku/Zenkaku: not sent to apps whose IME state can't be read.\n" +
-                   "If the key doesn't change the IME, IMM32 is used. While the tray runs as administrator, keys are sent through the driver, so they also reach windows that run as administrator.")),
-            labelWidth: 170);
+        _imeSwitchBox = new ComboBox { Name = "ImeSwitchBox", Width = 360, ItemsSource = ImeSwitchItems(), SelectedIndex = (int)_trayConfig.ImeSwitchValue };
+        Row(panel, Loc.T("IME の切り替え方", "How to switch the IME"), _imeSwitchBox,
+            Loc.T("ヘルパー動作で IME を ON/OFF にする方法", "How helper actions turn the IME on or off"), labelWidth: 170);
         return panel;
     }
 
     private UIElement BuildNicolaTab()
     {
         var panel = new StackPanel();
-        panel.Children.Add(Help(
-            Loc.T("NICOLA(親指シフト)の配列と、使うレイヤーを設定します。キーボードへの反映は「キーボードに適用」で、IME連動は OK で保存すると数秒でトレイに反映されます。", "Set the NICOLA (thumb shift) layout and the layer to use. Apply it to the keyboard with \"Apply to keyboard\"; the IME link reaches the tray within a few seconds after you save with OK.")));
 
         if (IsOnline)
         {
@@ -525,7 +504,7 @@ public sealed class SettingsDialog : Window
         _imeLink = linkPanel.LinkCheck;
         panel.Children.Add(linkPanel.Root);
 
-        _nicolaMode = new ComboBox { Name = "NicolaModeBox", Width = 360, ItemsSource = NicolaModeLabels };
+        _nicolaMode = new ComboBox { Name = "NicolaModeBox", Width = 360, ItemsSource = NicolaModeItems() };
         _nicolaMode.SelectedIndex = _project.Nicola != null ? 1 : _project.ClearNicola ? 2 : 0;
         Row(panel, "NICOLA", _nicolaMode);
 
@@ -600,7 +579,7 @@ public sealed class SettingsDialog : Window
                               $"{_nicola.Keys.Count} character keys, thumbs {_nicola.ThumbLeft} / {_nicola.ThumbRight}" +
                               (_nicola.Enabled ? "" : " (detection off)")));
                 if (_nicola.Layer >= _project.Layers.Count && _imeLink.IsChecked != true)
-                    warnings.Add(Loc.T($"レイヤー{_nicola.Layer}はキーマップにありません。IME連動を使わない場合は、そのレイヤーに切り替えるキー(TG({_nicola.Layer}) など)を置いてください。", $"Layer {_nicola.Layer} is not in the keymap. If you don't use the IME link, place a key that switches to that layer (such as TG({_nicola.Layer}))."));
+                    warnings.Add(Loc.T($"レイヤー{_nicola.Layer}はキーマップにありません。IME 連動を使わない場合は、そのレイヤーに切り替えるキー(TG({_nicola.Layer}) など)を置いてください。", $"Layer {_nicola.Layer} is not in the keymap. If you don't use the IME link, place a key that switches to that layer (such as TG({_nicola.Layer}))."));
                 if (errors.Count > 0) ShowStatus(_nicolaSummary, text + "\n" + string.Join("\n", errors), true);
                 else ShowStatus(_nicolaSummary, text + (warnings.Count > 0 ? Loc.T("\n注意: ", "\nNote: ") + string.Join("\n", warnings) : ""), false);
                 break;
@@ -645,15 +624,13 @@ public sealed class SettingsDialog : Window
     private UIElement BuildEmergencyTab()
     {
         var panel = new StackPanel();
-        panel.Children.Add(Help(
-            Loc.T(($"設定を誤って入力できなくなったときの緊急用の手段です。ここで決めた{KbdLayerClient.EmergencyMinKeys}〜{KbdLayerClient.EmergencyMaxKeys}個のキーを" +
-                   $"同時に{KbdLayerClient.EmergencyHoldMs / 1000}秒押し続けると、接続中の全キーボードのレイヤーマップがOFFになります。" +
-                   "全部のキーが同じキーボードにある必要があります。\n" +
-                   "入力した組み合わせは、別のタブに移るか OK を押すと反映され、キャンセルしても戻りません。"),
-                  ($"This is an emergency measure for when a wrong setting leaves you unable to type. Hold the {KbdLayerClient.EmergencyMinKeys} to {KbdLayerClient.EmergencyMaxKeys} keys you set here " +
-                   $"together for {KbdLayerClient.EmergencyHoldMs / 1000} seconds to turn off the layer map on all connected keyboards. " +
-                   "All the keys must be on the same keyboard.\n" +
-                   "The combination you enter takes effect when you switch to another tab or press OK, and canceling does not undo it."))));
+        // 説明の段落は出さない（何のための設定か・いつ反映されるかは「?」の 7 章）。押し続ける秒数と個数だけを、組み合わせの見出しに添える。
+        panel.Children.Add(new TextBlock
+        {
+            Text = Loc.T($"{KbdLayerClient.EmergencyMinKeys}〜{KbdLayerClient.EmergencyMaxKeys} 個のキーを {KbdLayerClient.EmergencyHoldMs / 1000} 秒押し続けると、全キーボードのリマップが OFF になります",
+                         $"Holding {KbdLayerClient.EmergencyMinKeys} to {KbdLayerClient.EmergencyMaxKeys} keys for {KbdLayerClient.EmergencyHoldMs / 1000} seconds turns remapping off on all keyboards"),
+            TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8),
+        });
 
         bool writable = IsOnline && _canWrite;
         var boxes = new TextBox[KbdLayerClient.EmergencyMaxKeys];
@@ -757,13 +734,14 @@ public sealed class SettingsDialog : Window
                 ? Loc.T("この組み合わせは同時に検出できました。", "This combination was detected simultaneously.")
                 : Loc.T("全部のキーを同時に検出できませんでした。別の組み合わせを試してください。", "Not all keys were detected at once. Try a different combination."), !dlg.Succeeded);
         };
-        var clear = new Button { Name = "EmergencyClearButton", Content = Loc.T("クリア", "Clear"), IsEnabled = writable, Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(8, 2, 8, 2) };
+        var clear = new Button { Name = "EmergencyClearButton", Content = Loc.T("空にする", "Clear"), IsEnabled = writable, Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(8, 2, 8, 2) };
         clear.Click += (_, _) =>
         {
             Fill(Array.Empty<string>());
             ShowStatus(status, Loc.T("入力欄を空にしました。空のままでは、緊急解除の組み合わせは変わりません。", "Cleared the fields. If left empty, the emergency release combination stays unchanged."), false);
         };
-        var reset = new Button { Name = "EmergencyDefaultButton", Content = Loc.T("既定(左右Ctrl＋左右Shift)にする", "Reset to default (both Ctrl + both Shift)"), IsEnabled = writable, Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(8, 2, 8, 2) };
+        var reset = new Button { Name = "EmergencyDefaultButton", Content = Loc.T("既定に戻す", "Reset to default"), IsEnabled = writable, Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(8, 2, 8, 2),
+                                 ToolTip = Loc.T("左右の Ctrl と、左右の Shift にします", "Both Ctrl keys and both Shift keys") };
         reset.Click += (_, _) =>
         {
             Fill(DefaultEmergencyKeys);
@@ -776,13 +754,13 @@ public sealed class SettingsDialog : Window
         // 管理者で、ドライバに接続していないと、「同時押しを試す」は低レベルキーフックで見る。その制限は、画面を開く前に、このタブで分かるようにする。
         if (!writable)
         {
-            var limit = Help(Loc.T("「同時押しを試す」は、管理者権限モードで実施してください。", "Run \"Test simultaneous press\" in administrator mode."));
+            var limit = Help(Loc.T("「同時押しを試す」は、管理者として再起動してから使ってください。", "Restart as administrator before using \"Test simultaneous press\"."));
             limit.Name = "EmergencyHookLimitNote";
-            limit.Foreground = Brushes.Firebrick;
+            limit.Foreground = AppTheme.Palette.ErrorText;
             panel.Children.Add(limit);
         }
         if (IsOnline && !_canWrite)
-            panel.Children.Add(Help(Loc.T("閲覧専用モード(管理者として実行していない)のため、変更はできません。", "Read-only mode (not running as administrator), so changes aren't possible.")));
+            panel.Children.Add(Help(Loc.T("閲覧専用モードのため、変更できません。", "Read-only mode, so changes aren't possible.")));
         panel.Children.Add(status);
         return panel;
     }
@@ -796,13 +774,6 @@ public sealed class SettingsDialog : Window
         var panel = new StackPanel();
 
         panel.Children.Add(new TextBlock { Text = Loc.T("設定の共有範囲", "Settings sharing scope"), FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4) });
-        panel.Children.Add(Help(
-            Loc.T(("ドライバがこのキーボードの設定(レイヤーマップ・タイミング・マクロなど)を保存する単位を選びます。\n" +
-                   "切り替えると、今の設定が切替先へコピーされ、切替先にすでにある設定は上書きされます。「変更する」を押すとすぐに反映されます。\n" +
-                   "設定画面とトレイの設定は、共有範囲にかかわらず、接続先(USBポートなど)ごとのキーボードとして扱われます。"),
-                  ("Choose the unit in which the driver stores this keyboard's settings (layer map, timing, macros, and so on).\n" +
-                   "When you switch, the current settings are copied to the new scope, and any settings already there are overwritten. Pressing \"Change\" applies it immediately.\n" +
-                   "The settings screen and the tray settings treat each keyboard by where it is connected (such as the USB port), regardless of the sharing scope."))));
 
         var model = new RadioButton { Name = "ScopeModel", Content = Loc.T("同じ型番で共有", "Share across the same model"), GroupName = "Scope", Margin = new Thickness(0, 3, 0, 3) };
         var instance = new RadioButton { Name = "ScopeInstance", Content = Loc.T("この1台だけ", "This keyboard only"), GroupName = "Scope", Margin = new Thickness(0, 3, 0, 3) };
@@ -826,7 +797,8 @@ public sealed class SettingsDialog : Window
             ShowStatus(status, Loc.T($"現在: {name}(InstanceKey {s.InstanceKey:X8} / ModelKey {s.ModelKey:X8})", $"Current: {name} (InstanceKey {s.InstanceKey:X8} / ModelKey {s.ModelKey:X8})"), false);
         }
 
-        var apply = new Button { Name = "ScopeApplyButton", Content = Loc.T("変更する", "Change"), IsEnabled = IsOnline && _canWrite, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6, 0, 0), Padding = new Thickness(8, 2, 8, 2) };
+        var apply = new Button { Name = "ScopeApplyButton", Content = Loc.T("変更する", "Change"), IsEnabled = IsOnline && _canWrite, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6, 0, 0), Padding = new Thickness(8, 2, 8, 2),
+                                 ToolTip = Loc.T("すぐに反映されます。今の設定を変更先へ写し、変更先にある設定は上書きします", "Takes effect immediately. The current settings are copied to the new scope, overwriting what is there") };
         apply.Click += (_, _) =>
         {
             uint binding = global.IsChecked == true ? KbdLayerClient.BindingGlobal
@@ -846,7 +818,7 @@ public sealed class SettingsDialog : Window
                 ShowStatus(status, ex.Message, true);
                 apply.IsEnabled = false;
             }
-            if (!_canWrite) panel.Children.Add(Help(Loc.T("閲覧専用モード(管理者として実行していない)のため、変更はできません。", "Read-only mode (not running as administrator), so changes aren't possible.")));
+            if (!_canWrite) panel.Children.Add(Help(Loc.T("閲覧専用モードのため、変更できません。", "Read-only mode, so changes aren't possible.")));
         }
         else
         {
@@ -892,12 +864,6 @@ public sealed class SettingsDialog : Window
     private UIElement BuildDataDirTab()
     {
         var panel = new StackPanel();
-        panel.Children.Add(Help(
-            Loc.T((@"設定ファイルとログを保存するフォルダです。環境変数 KASANE に絶対パスがあればそのフォルダを、なければ %LOCALAPPDATA%\applet\kasane を使います。" +
-                   "変更は、インストーラーの「設定フォルダの指定」で行います。"),
-                  (@"The folder where settings files and logs are saved. If the KASANE environment variable holds an absolute path, that folder is used; otherwise %LOCALAPPDATA%\applet\kasane is used. " +
-                   "Change it on the installer's \"Settings Folder\" page."))));
-
         string? raw = Environment.GetEnvironmentVariable(HelperConfig.DataDirEnvironmentVariable);
         string effective = HelperConfig.BaseDirectory;
         bool isDefault = HelperConfig.ResolveBaseDirectory(null) == effective;
@@ -941,11 +907,7 @@ public sealed class SettingsDialog : Window
     private void AddImportBackupSection(StackPanel panel)
     {
         panel.Children.Add(new TextBlock { Text = Loc.T("インストール時の取り込みの退避", "Backup from install-time import"), FontWeight = FontWeights.Bold, Margin = new Thickness(0, 16, 0, 4) });
-        panel.Children.Add(Help(
-            Loc.T(("インストール時に設定ファイルを取り込むと、前の設定が1世代だけ退避されます。ここで戻すと、キーボードを接続し直したあと(またはPCの再起動後)に反映され、もう一度押すと元に戻ります。" +
-                   (_canWrite ? "" : "\n閲覧専用モード(管理者として実行していない)のため、戻すことはできません。")),
-                  ("When a settings file is imported during installation, the previous settings are backed up (one generation only). If you restore here, the change takes effect after you reconnect the keyboard (or restart the PC); press it again to undo." +
-                   (_canWrite ? "" : "\nRead-only mode (not running as administrator), so restoring isn't possible.")))));
+        if (!_canWrite) panel.Children.Add(Help(Loc.T("閲覧専用モードのため、戻すことはできません。", "Read-only mode, so restoring isn't possible.")));
 
         var store = PersistedSettings.OpenLocalMachine();
         List<string> backups;
@@ -981,6 +943,7 @@ public sealed class SettingsDialog : Window
             {
                 Name = $"RestoreBackup_{name}",
                 Content = Loc.T("取り込み前の設定に戻す", "Restore pre-import settings"),
+                ToolTip = Loc.T("退避と今の設定を入れ替えます。キーボードを接続し直すと反映され、もう一度押すと元に戻ります", "Swaps the backup with the current settings. Takes effect after you reconnect the keyboard; press again to undo"),
                 IsEnabled = _canWrite,
                 Margin = new Thickness(8, 0, 0, 0),
                 Padding = new Thickness(8, 2, 8, 2),
@@ -1021,14 +984,16 @@ public sealed class SettingsDialog : Window
     private UIElement BuildI8042Tab()
     {
         var panel = new StackPanel();
-        panel.Children.Add(Help(
-            Loc.T(("有効にすると、キーボードを接続するたびに、レジストリ " + I8042Key + " の値を書き換えます(プロファイルのない型番は、OSの既定へ戻します)。" +
-                   "「反映する」を押すとすぐに保存され、書き換えは次にキーボードを接続したときからです。"),
-                  ("When enabled, the values under the registry key " + I8042Key + " are rewritten each time a keyboard is connected (models without a profile are reset to the OS default). " +
-                   "Pressing \"Apply\" saves immediately; rewriting starts the next time a keyboard is connected."))));
-
-        var enabled = new CheckBox { Name = "I8042Enabled", Content = Loc.T("キーボードの接続時にi8042prtの値を書き換える／初期化する", "Rewrite or reset i8042prt values when a keyboard is connected"), Margin = new Thickness(0, 0, 0, 8) };
-        var specify = new CheckBox { Name = "I8042ProfileEnabled", Content = Loc.T("現在選択しているキーボードに対する指定(接続時に下の値を書き込む)", "Settings for the currently selected keyboard (write the values below on connection)"), Margin = new Thickness(0, 0, 0, 4) };
+        var enabled = new CheckBox
+        {
+            Name = "I8042Enabled", Content = Loc.T("接続時に i8042prt の値を書き換える", "Rewrite i8042prt values on connection"), Margin = new Thickness(0, 0, 0, 8),
+            ToolTip = Loc.T(I8042Key + " の値を、キーボードを接続するたびに書き換えます。プロファイルの無い型番は、OS の既定に戻します", "Rewrites the values under " + I8042Key + " each time a keyboard is connected. Models without a profile are reset to the OS default"),
+        };
+        var specify = new CheckBox
+        {
+            Name = "I8042ProfileEnabled", Content = Loc.T("このキーボードの型番に値を指定する", "Specify values for this keyboard's model"), Margin = new Thickness(0, 0, 0, 4),
+            ToolTip = Loc.T("接続時に、下の値を書き込みます", "Writes the values below on connection"),
+        };
         panel.Children.Add(enabled);
         panel.Children.Add(specify);
 
@@ -1073,7 +1038,9 @@ public sealed class SettingsDialog : Window
 
         var others = new TextBlock { Name = "I8042Others", Foreground = AppTheme.Palette.SubText, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) };
         var status = Status("I8042Status");
-        var apply = new Button { Name = "I8042ApplyButton", Content = Loc.T("反映する", "Apply"), IsEnabled = IsOnline && _canWrite, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0), Padding = new Thickness(8, 2, 8, 2) };
+        // 「適用」は「キーボードに適用」の操作だけに使う（2026-11-08 の用語の決定）。ここは、すぐにレジストリへ保存するボタン。
+        var apply = new Button { Name = "I8042ApplyButton", Content = Loc.T("保存する", "Save"), IsEnabled = IsOnline && _canWrite, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 8, 0, 0), Padding = new Thickness(8, 2, 8, 2),
+                                 ToolTip = Loc.T("すぐに保存します。書き換えは、次にキーボードを接続したときからです", "Saves immediately. Rewriting starts the next time a keyboard is connected") };
         panel.Children.Add(others);
         panel.Children.Add(apply);
 
@@ -1111,7 +1078,7 @@ public sealed class SettingsDialog : Window
                 apply.IsEnabled = false;
                 SyncControls();
             }
-            if (!_canWrite) panel.Children.Add(Help(Loc.T("閲覧専用モード(管理者として実行していない)のため、変更はできません。", "Read-only mode (not running as administrator), so changes aren't possible.")));
+            if (!_canWrite) panel.Children.Add(Help(Loc.T("閲覧専用モードのため、変更できません。", "Read-only mode, so changes aren't possible.")));
         }
         else
         {

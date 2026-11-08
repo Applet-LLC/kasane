@@ -20,7 +20,7 @@
             <TextBox x:Name="TxtToken" Grid.Column="1" FontFamily="Consolas" FontSize="14" TextChanged="TxtToken_TextChanged" />
             <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="8,0,0,0">
                 <Button x:Name="BtnCapture" Content="押して入力" Focusable="False" Click="BtnCapture_Click"
-                        ToolTip="このボタンを押したあと、入力したいキーを押します(Esc で取消)。Win キーや Alt+Tab は入力できないので、左の一覧か「画面のキーボード」を使ってください。" />
+                        ToolTip="次に押したキーを入れます(Esc で取消)。Win キーなどは、一覧かキーボード図から選びます" />
                 <Button x:Name="BtnOk" Content="OK" IsDefault="True" Width="80" Click="BtnOk_Click" />
                 <Button x:Name="BtnCancel" Content="キャンセル" IsCancel="True" Width="80" />
             </StackPanel>
@@ -30,7 +30,7 @@
         <!-- 修飾キー。チェックすると、選んだキーが LCTL(KC_C) のような修飾付きキー（ショートカット）になる。
              レイヤー操作の LM でも、ここで選んだ修飾キーを使う。 -->
         <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
-            <TextBlock x:Name="TxtModHint" Text="修飾キー(チェックすると、選んだキーを Ctrl+C のようなショートカットとして送ります。LM でもここで選びます):"
+            <TextBlock x:Name="TxtModHint" Text="修飾キー:"
                        TextWrapping="Wrap" Margin="0,0,0,4" />
             <WrapPanel x:Name="ModPanel" />
         </StackPanel>

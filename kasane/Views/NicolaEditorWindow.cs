@@ -15,8 +15,8 @@ public sealed class NicolaEditorWindow : Window
 {
     private static string[] OutputLabels => new[]
     {
-        Loc.T("ローマ字入力のIME(romaji)", "IME with romaji input (romaji)"),
-        Loc.T("JISかな入力のIME(jis-kana)", "IME with JIS kana input (jis-kana)"),
+        Loc.T("ローマ字入力の IME", "IME with romaji input (romaji)"),
+        Loc.T("JIS かな入力の IME", "IME with JIS kana input (jis-kana)"),
     };
 
     private readonly NicolaDef _def;
@@ -24,13 +24,15 @@ public sealed class NicolaEditorWindow : Window
     private readonly TextBlock _validation = new() { Name = "ValidationText", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) };
 
     private readonly ComboBox _output = new() { Name = "OutputBox", Width = 260, ItemsSource = OutputLabels };
-    private readonly CheckBox _enabled = new() { Name = "EnabledCheck", Content = Loc.T("判定する(OFFにすると、設定はキーボードに残したまま、親指シフトをしません)", "Enable detection (when OFF, the settings stay on the keyboard but thumb shifting is not performed)"), VerticalAlignment = VerticalAlignment.Center };
+    private readonly CheckBox _enabled = new() { Name = "EnabledCheck", Content = Loc.T("判定する", "Enable detection"),
+        ToolTip = Loc.T("OFF にすると、設定はキーボードに残したまま、親指シフトをしません", "When OFF, the settings stay on the keyboard but thumb shifting is not performed"), VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBox _layer = Box("LayerBox", 60);
     private readonly TextBox _thumbLeft = Box("ThumbLeftBox", 110), _thumbRight = Box("ThumbRightBox", 110);
     private readonly TextBox _thumbLeftTap = Box("ThumbLeftTapBox", 110), _thumbRightTap = Box("ThumbRightTapBox", 110);
     private readonly TextBox _onEnter = Box("OnEnterBox", 110), _onExit = Box("OnExitBox", 110);
     private readonly TextBox _simulTerm = Box("SimulTermBox", 60), _overlapRatio = Box("OverlapRatioBox", 60), _minOverlap = Box("MinOverlapBox", 60);
-    private readonly CheckBox _continuous = new() { Name = "ContinuousShiftCheck", Content = Loc.T("連続シフト(親指キーを押している間の文字キーを常にシフトする)", "Continuous shift (always shift character keys while a thumb key is held)"), VerticalAlignment = VerticalAlignment.Center };
+    private readonly CheckBox _continuous = new() { Name = "ContinuousShiftCheck", Content = Loc.T("連続シフト", "Continuous shift"),
+        ToolTip = Loc.T("親指キーを押している間の文字キーを、常にシフトします", "Always shifts character keys while a thumb key is held"), VerticalAlignment = VerticalAlignment.Center };
 
     private readonly TextBox _key = Box("KeyBox", 140);
     private readonly ComboBox _hand = new() { Name = "HandBox", Width = 140, ItemsSource = new[] { Loc.T("左手側", "Left hand"), Loc.T("右手側", "Right hand") } };
@@ -50,14 +52,13 @@ public sealed class NicolaEditorWindow : Window
 
         // --- 全体の設定 ---
         var header = new StackPanel();
-        header.Children.Add(new TextBlock
-        {
-            Text = Loc.T("キーは KC_* で指定します(親指キーの例: KC_MHEN 無変換 / KC_HENK 変換 / KC_SPC)。単独打鍵の欄を空にすると、親指キーを単独で押しても何も送りません。" +
-                   "有効・無効のときのキーは、判定が有効・無効になったときに1回押すキーです(IMEのオン・オフ等。空 = なし)。",
-                   "Specify keys as KC_* (thumb key examples: KC_MHEN Muhenkan / KC_HENK Henkan / KC_SPC). If you leave a solo-press field empty, pressing that thumb key alone sends nothing. " +
-                   "The keys for enabled / disabled are pressed once when detection becomes enabled / disabled (for example to turn the IME on or off; empty = none)."),
-            TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 6),
-        });
+        // 欄の意味は、ツールチップとマニュアル（10 章「表を編集する」）に置く（2026-11-08）。
+        string thumbTip = Loc.T("例: KC_MHEN(無変換)、KC_HENK(変換)、KC_SPC", "For example KC_MHEN (Muhenkan), KC_HENK (Henkan), KC_SPC");
+        string tapTip = Loc.T("空なら、親指キーだけを押しても何も送りません", "If empty, pressing the thumb key alone sends nothing");
+        _thumbLeft.ToolTip = _thumbRight.ToolTip = thumbTip;
+        _thumbLeftTap.ToolTip = _thumbRightTap.ToolTip = tapTip;
+        _onEnter.ToolTip = Loc.T("判定が有効になったときに 1 回押すキー(IME のオンなど)", "Pressed once when detection becomes enabled (for example IME on)");
+        _onExit.ToolTip = Loc.T("判定が無効になったときに 1 回押すキー(IME のオフなど)", "Pressed once when detection becomes disabled (for example IME off)");
         header.Children.Add(Line((Loc.T("出力の形式", "Output format"), _output), (Loc.T("レイヤー", "Layer"), _layer)));
         header.Children.Add(Line(("", _enabled)));
         header.Children.Add(Line((Loc.T("親指左", "Left thumb"), _thumbLeft), (Loc.T("単独打鍵", "Solo press"), _thumbLeftTap), (Loc.T("親指右", "Right thumb"), _thumbRight), (Loc.T("単独打鍵", "Solo press"), _thumbRightTap)));
@@ -68,24 +69,17 @@ public sealed class NicolaEditorWindow : Window
 
         // --- 文字キー ---
         var detail = new StackPanel();
-        detail.Children.Add(new TextBlock
-        {
-            Text = Loc.T("選んだ文字キーを、単独で・親指左と同時に・親指右と同時に押したときに出す「かな」を1文字ずつ入れます" +
-                   "(空 = 何も出さない)。濁音(が等)・小書き(ぁ等)・ー。、・，．゛゜ も使えます。" +
-                   "左手側・右手側は、nicola.json の \"left\" / \"right\" のどちらに書くかです。",
-                   "Enter one kana for each case: the selected character key pressed alone, together with the left thumb key, or together with the right thumb key " +
-                   "(empty = output nothing). Voiced marks (が etc.), small kana (ぁ etc.), and ー。、・，．゛゜ can also be used. " +
-                   "Left hand / Right hand is which of \"left\" / \"right\" in nicola.json the key is written under."),
-            TextWrapping = TextWrapping.Wrap, Foreground = AppTheme.Palette.SubText, Margin = new Thickness(0, 0, 0, 6),
-        });
+        string kanaTip = Loc.T("かなを 1 文字。濁音・小書き・ー。、・，．゛゜ も使えます。空なら何も出しません",
+                               "One kana. Voiced and small kana and ー。、・，．゛゜ can be used. Empty outputs nothing");
+        _single.ToolTip = _kanaLeft.ToolTip = _kanaRight.ToolTip = kanaTip;
+        _hand.ToolTip = Loc.T("nicola.json の \"left\" と \"right\" の、どちらに書くか", "Which of \"left\" / \"right\" in nicola.json it is written under");
         // 文字キーは、ほかの画面と同じ「押して入力」「選ぶ...」で入れられる（2026-11-06、GUI 計画 1-4。修飾キーは使わない）。
         detail.Children.Add(Line((Loc.T("文字キー", "Character key"), KeycodeField.Wrap(_key, allowMods: false)), ("", _hand)));
         detail.Children.Add(Line((Loc.T("単独", "Solo"), _single), (Loc.T("親指左", "Left thumb"), _kanaLeft), (Loc.T("親指右", "Right thumb"), _kanaRight)));
         var add = new Button { Name = "AddKeyButton", Content = Loc.T("文字キーを追加", "Add character key"), Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(0, 8, 6, 0) };
         var remove = new Button { Name = "RemoveKeyButton", Content = Loc.T("選んだ文字キーを削除", "Delete selected key"), Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(0, 8, 6, 0) };
         var duplicate = new Button { Name = "DuplicateKeyButton", Content = Loc.T("複製", "Duplicate"), Padding = new Thickness(8, 2, 8, 2), Margin = new Thickness(0, 8, 6, 0),
-                                     ToolTip = Loc.T("選んだ文字キーの行を、すぐ下に写します(文字キーは空にします。同じキーは2行に書けないため)。",
-                                                     "Copies the selected row just below it (the key is left empty, since the same key can't be on two rows).") };
+                                     ToolTip = Loc.T("選んだ行を、文字キーを空にして下に写します", "Copies the selected row below it, with the key left empty") };
         var keyButtons = new StackPanel { Orientation = Orientation.Horizontal };
         keyButtons.Children.Add(add);
         keyButtons.Children.Add(duplicate);
@@ -98,9 +92,16 @@ public sealed class NicolaEditorWindow : Window
         {
             if (Validate()) { Result = _def; DialogResult = true; }
         };
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
-        buttons.Children.Add(ok);
-        buttons.Children.Add(new Button { Name = "CancelButton", Content = Loc.T("キャンセル", "Cancel"), IsCancel = true, Width = 90 });
+        var okCancel = new StackPanel { Orientation = Orientation.Horizontal };
+        okCancel.Children.Add(ok);
+        okCancel.Children.Add(new Button { Name = "CancelButton", Content = Loc.T("キャンセル", "Cancel"), IsCancel = true, Width = 90 });
+        var buttons = new DockPanel { Margin = new Thickness(0, 8, 0, 0), LastChildFill = false };
+        var help = HelpButton.Create(HelpTopics.NicolaTable);
+        DockPanel.SetDock(help, Dock.Left);
+        DockPanel.SetDock(okCancel, Dock.Right);
+        buttons.Children.Add(help);
+        buttons.Children.Add(okCancel);
+        HelpButton.AttachF1(this, () => HelpTopics.NicolaTable);
 
         var root = new DockPanel { Margin = new Thickness(10) };
         DockPanel.SetDock(headerBox, Dock.Top);
@@ -170,7 +171,7 @@ public sealed class NicolaEditorWindow : Window
         foreach (var (label, input) in items)
         {
             if (label.Length > 0)
-                row.Children.Add(new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0), MinWidth = 70 });
+                row.Children.Add(new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0), MinWidth = 70, ToolTip = input.ToolTip });
             input.Margin = new Thickness(0, 0, 16, 0);
             row.Children.Add(input);
         }
@@ -257,11 +258,11 @@ public sealed class NicolaEditorWindow : Window
         if (errors.Count == 0) NicolaService.BuildBlob(_def, warnings, errors);
         if (errors.Count > 0)
         {
-            _validation.Foreground = Brushes.Firebrick;
+            _validation.Foreground = AppTheme.Palette.ErrorText;
             _validation.Text = string.Join("\n", errors);
             return false;
         }
-        _validation.Foreground = warnings.Count > 0 ? Brushes.DarkOrange : Brushes.DarkGreen;
+        _validation.Foreground = warnings.Count > 0 ? AppTheme.Palette.WarnText : AppTheme.Palette.OkText;
         _validation.Text = warnings.Count > 0 ? Loc.T("注意(OKは押せます):\n", "Note (you can still click OK):\n") + string.Join("\n", warnings) : "OK";
         return true;
     }

@@ -11,20 +11,17 @@ public partial class CalibrationWindow
     {
         TxtModeLabel.Text = Loc.T("モード:", "Mode:");
         ModeInputCheck.Content = Loc.T("入力確認", "Input check");
-        ModeInputCheck.ToolTip = Loc.T("キーを押すと、画面のキーの色が変わります。キャリブレーションが必要かを確かめます(管理者権限は要りません)。",
-                                       "Pressing a key changes the color of that key on screen. Use this to check whether calibration is needed (no administrator rights required).");
-        ModeSingleKey.Content = Loc.T("個別キーのキャリブレーション", "Single-key calibration");
-        ModeSingleKey.ToolTip = Loc.T("画面のキーをクリックして、そのキーだけを実測します(管理者権限が要ります)。",
-                                      "Click a key on screen to measure only that key (requires administrator rights).");
-        ModeAllKeys.Content = Loc.T("全体のキャリブレーション", "Full calibration");
-        ModeAllKeys.ToolTip = Loc.T("黄色のキーを順に押して、全部のキーを実測します(管理者権限が要ります)。",
-                                    "Press the yellow keys in turn to measure all keys (requires administrator rights).");
-        TxtNote.Text = Loc.T("このウィンドウが前面にある間、キーボードで押したキーはWindowsに送られません。操作はマウスで行ってください。",
-                             "While this window is in front, keys you press are not sent to Windows. Use the mouse to operate it.");
+        ModeInputCheck.ToolTip = Loc.T("キーを押して、キャリブレーションが要るかを確かめます", "Press keys to check whether calibration is needed");
+        ModeSingleKey.Content = Loc.T("個別キー", "Single key");
+        ModeSingleKey.ToolTip = Loc.T("クリックしたキーだけを実測します(管理者)", "Measures only the key you click (administrator)");
+        ModeAllKeys.Content = Loc.T("全体", "All keys");
+        ModeAllKeys.ToolTip = Loc.T("黄色のキーを順に押して、全キーを実測します(管理者)", "Press the yellow keys in turn to measure every key (administrator)");
+        TxtNote.Text = Loc.T("この画面が前面の間、キーは Windows に届きません", "While this window is in front, keys do not reach Windows");
         BtnResetChecks.Content = Loc.T("確認済みをリセット", "Reset checked keys");
         BtnBack.Content = Loc.T("1つ戻る", "Back");
         BtnSkip.Content = Loc.T("このキーを飛ばす", "Skip this key");
         BtnFinish.Content = Loc.T("実測値を保存して閉じる", "Save measurements and close");
-        BtnCancel.Content = Loc.T("閉じる(実測値は保存しない)", "Close (do not save measurements)");
+        BtnCancel.Content = Loc.T("閉じる", "Close");
+        BtnCancel.ToolTip = Loc.T("実測値は保存しません", "Measurements are not saved");
     }
 }
