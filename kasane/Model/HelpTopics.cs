@@ -67,7 +67,7 @@ public static class HelpTopics
         [CalibrationCheck] = new("06-calibration.html", "calibration-check"),
         [CalibrationSingle] = new("06-calibration.html", "calibration-single"),
         [CalibrationAll] = new("06-calibration.html", "calibration-all"),
-        [Emergency] = new("07-emergency.html", null),
+        [Emergency] = new("07-emergency.html", "emergency-tab"),
         [EmergencyTest] = new("07-emergency.html", "emergency-test"),
         [KeyAssign] = new("08-key-assign.html", "categories"),
         [KeyAssignCapture] = new("08-key-assign.html", "capture"),
