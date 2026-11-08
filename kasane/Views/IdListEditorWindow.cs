@@ -14,7 +14,10 @@ namespace Kasane.Views;
 public abstract class IdListEditorWindow : Window
 {
     private readonly ListBox _list = new() { Name = "IdList", Width = 300, Margin = new Thickness(0, 0, 10, 0) };
-    private readonly TextBlock _validation = new() { Name = "ValidationText", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) };
+    private readonly TextBlock _validation = new() { Name = "ValidationText", TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock _validationIcon = new() { Margin = new Thickness(0, 0, 5, 0) };
+    // 検証でエラーになった番号。一覧の行に ⚠ を付ける（2026-11-09）。
+    private readonly HashSet<int> _errorRows = new();
     protected readonly StackPanel Detail = new();
     private readonly int _count;
 
@@ -104,7 +107,11 @@ public abstract class IdListEditorWindow : Window
 
         var right = new StackPanel();
         right.Children.Add(Detail);
-        right.Children.Add(_validation);
+        var validationLine = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
+        DockPanel.SetDock(_validationIcon, Dock.Left);
+        validationLine.Children.Add(_validationIcon);
+        validationLine.Children.Add(_validation);
+        right.Children.Add(validationLine);
 
         // 一覧の下の操作（2026-11-06、GUI 計画 1-3）: 削除・複製と、並べ替え（番号をほかから参照されない、コンボ・キー置換だけ）。
         _delete = new Button { Name = "DeleteItemButton", Content = Loc.T("削除", "Delete"), MinWidth = 56, Margin = new Thickness(0, 0, 4, 0),
@@ -373,7 +380,8 @@ public abstract class IdListEditorWindow : Window
         var name = Names[id];
         string body = string.IsNullOrEmpty(s) ? Loc.T("(未使用)", "(unused)") : s;
         if (Disabled[id] && !string.IsNullOrEmpty(s)) body = Loc.T("[無効] ", "[Disabled] ") + body;
-        return string.IsNullOrEmpty(name) ? $"{id,2}: {body}" : $"{id,2}: {name} — {body}";
+        string mark = _errorRows.Contains(id) ? "⚠ " : "";
+        return string.IsNullOrEmpty(name) ? $"{mark}{id,2}: {body}" : $"{mark}{id,2}: {name} — {body}";
     }
 
     /// <summary>派生クラスが編集内容を変えたら呼ぶ（一覧の表示を更新する）。</summary>
@@ -445,8 +453,14 @@ public abstract class IdListEditorWindow : Window
 
     protected void ShowValidation(string text, bool isError)
     {
-        _validation.Foreground = isError ? AppTheme.Palette.ErrorText : AppTheme.Palette.OkText;
+        var kind = isError ? StatusKind.Error : StatusKind.Ok;
+        _validation.Foreground = StatusStyle.Brush(kind);
         _validation.Text = text;
+        _validationIcon.Text = text.Length == 0 ? "" : StatusStyle.Icon(kind);
+        _validationIcon.Foreground = StatusStyle.Brush(kind);
+        // エラーのとき、右側に出している番号の行に ⚠ を付ける。検証が通ったとき（空の文を含む）は外す。
+        if (_detailId >= 0 && _detailId < _count && (isError ? _errorRows.Add(_detailId) : _errorRows.Remove(_detailId)))
+            if (_detailId < _list.Items.Count) _list.Items[_detailId] = ItemText(_detailId);
     }
 
     protected static UIElement Row(string label, UIElement input)
