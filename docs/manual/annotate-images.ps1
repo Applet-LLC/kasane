@@ -84,3 +84,12 @@ if (Test-Path $act) {
     $c.G.DrawImage($img, (New-Object System.Drawing.Rectangle(0, 0, 518, 66)), 14, 238, 518, 66, [System.Drawing.GraphicsUnit]::Pixel)
     $img.Dispose(); Save-Canvas $c 'license-diagnostics'
 }
+
+# editor-statusbar: メイン画面の、ステータス欄（状態の印とメッセージ）だけを切り出す（5 章「ステータス欄の状態の印」）
+$main = Join-Path $dir 'editor-main.png'
+if (Test-Path $main) {
+    $img = [System.Drawing.Image]::FromFile($main)
+    $h = 40; $c = New-Canvas $img.Width $h
+    $c.G.DrawImage($img, (New-Object System.Drawing.Rectangle(0, 0, $img.Width, $h)), 0, $img.Height - $h, $img.Width, $h, [System.Drawing.GraphicsUnit]::Pixel)
+    $img.Dispose(); Save-Canvas $c 'editor-statusbar'
+}
