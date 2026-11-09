@@ -66,6 +66,8 @@ public partial class MainWindow
         Row(Mark("D"), Loc.T("タップダンス", "Tap dance"));
         Row(Mark("C"), Loc.T("コンボ", "Combo"));
         Row(Mark("R"), Loc.T("キー置換", "Key override"));
+        Row(Mark("H"), Loc.T("ヘルパー動作 HLP(Id)", "Helper action HLP(Id)"));
+        Row(Mark("T"), Loc.T("ヘルパーのトリガーのキー", "Helper trigger key"));
 
         var footer = new DockPanel { Margin = new Thickness(0, 8, 0, 0), LastChildFill = true };
         var help = HelpButton.Create(HelpTopics.KeyboardView);

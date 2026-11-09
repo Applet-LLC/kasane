@@ -49,8 +49,31 @@ public static class KeyMarks
         return new Related(token, combos, overrides, macro, tapDance);
     }
 
-    /// <summary>レイヤー <paramref name="layer"/> の、そのキーの印。</summary>
-    public static Info For(KeymapProject project, KeyboardLayout layout, int layer, KeySlot slot)
+    /// <summary>
+    /// ヘルパー動作とトリガー（helper.json）の、印に使う分（2026-11-09）。動作は Id → 説明、トリガーは (キー, 説明)。
+    /// このキーボード用が先、共通が後（同じ Id は、先のものが勝つ。トレイも同じ順に引く）。
+    /// </summary>
+    public sealed class HelperLookup
+    {
+        public Dictionary<int, string> Actions { get; } = new();
+        public List<(ushort Scan, string Text)> Triggers { get; } = new();
+
+        public static HelperLookup From(HelperConfig? device, HelperConfig? global)
+        {
+            var l = new HelperLookup();
+            foreach (var c in new[] { device, global })
+            {
+                if (c == null) continue;
+                foreach (var a in c.Actions) l.Actions.TryAdd(a.Id, HelperSummary.Action(a));
+                foreach (var t in c.Triggers)
+                    if (KeycodeTable.TryResolveBaseKey(t.Key ?? "", out var sc) && sc != 0) l.Triggers.Add((sc, HelperSummary.Trigger(t)));
+            }
+            return l;
+        }
+    }
+
+    /// <summary>レイヤー <paramref name="layer"/> の、そのキーの印。<paramref name="helper"/> が null のときは、ヘルパー動作・トリガーの印は H だけ（トリガーは調べない）。</summary>
+    public static Info For(KeymapProject project, KeyboardLayout layout, int layer, KeySlot slot, HelperLookup? helper = null)
     {
         var r = Find(project, layer, slot);
         var marks = new System.Text.StringBuilder();
@@ -78,8 +101,30 @@ public static class KeyMarks
         foreach (var k in overrides) tip.Add(KeyOverrideText(project, k));
         if (overrides.Count > 0) marks.Append('R');
 
-        // 並びは「M D C R」の順に固定する（キーごとに同じ順で読めるように）。
-        string ordered = new string("MDCR".Where(ch => marks.ToString().Contains(ch)).ToArray());
+        // ヘルパー動作 HLP(Id) のキー（H）。トレイが動作を実行する。
+        if (KeycodeTable.TryResolve(r.Token, out var act) && act.Type == ActionType.Custom)
+        {
+            marks.Append('H');
+            string? detail = null;
+            helper?.Actions.TryGetValue(act.Param2, out detail);
+            tip.Add(detail != null ? Loc.T("ヘルパー動作 ", "Helper action ") + detail
+                                   : Loc.T($"ヘルパー動作 HLP({act.Param2})", $"Helper action HLP({act.Param2})") +
+                                     (helper != null ? Loc.T("(動作がありません)", " (no such action)") : ""));
+        }
+
+        // トリガーのキー（T）。このキーが出すキーを、トレイが見て、動作を実行する（押したキーはアプリに届かない）。
+        if (helper != null && OverrideKeyFor(r.Token) is { } outKey && KeycodeTable.TryResolveBaseKey(outKey, out var outScan) && outScan != 0)
+        {
+            var hits = helper.Triggers.Where(t => t.Scan == outScan).Select(t => t.Text).ToList();
+            if (hits.Count > 0)
+            {
+                marks.Append('T');
+                foreach (var h in hits) tip.Add(Loc.T("トリガー: ", "Trigger: ") + h);
+            }
+        }
+
+        // 並びは「M D C R H T」の順に固定する（キーごとに同じ順で読めるように）。
+        string ordered = new string("MDCRHT".Where(ch => marks.ToString().Contains(ch)).ToArray());
         return ordered.Length == 0 ? Info.None : new Info(ordered, string.Join("\n", tip));
     }
 
