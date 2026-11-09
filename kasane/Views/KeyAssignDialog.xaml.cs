@@ -491,7 +491,7 @@ public partial class KeyAssignDialog : Window
     private UIElement HelperPanel()
     {
         var panel = new StackPanel { Margin = new Thickness(4) };
-        var list = Id(new ListBox { Height = 230, FontFamily = new FontFamily("Consolas"),
+        var list = Id(new ListBox { Height = 140, FontFamily = new FontFamily("Consolas"),
                                     ToolTip = Loc.T("HLP(Id) を割り当てたキーで、トレイが動作を実行します(トレイが動いているときだけ)", "The tray runs the action from keys assigned HLP(Id) (only while the tray is running)") }, "HelperActionList");
         var items = new List<(HelperScope Scope, HelperAction Action)>();
         void Fill(int? selectId)
@@ -535,6 +535,7 @@ public partial class KeyAssignDialog : Window
         buttons.Children.Add(edit);
         buttons.Children.Add(create);
         panel.Children.Add(buttons);
+        panel.Children.Add(TriggerSection());
         if (Helper.DeviceLoadError != null)
         {
             panel.Children.Add(new TextBlock
@@ -547,6 +548,80 @@ public partial class KeyAssignDialog : Window
             });
         }
         return panel;
+    }
+
+    // ------------------------------------------------------------------
+    // トリガー（helper.json の Triggers。2026-11-09）
+    // トリガーは、キーの割り当てではなく、トレイが見ているキー（KC_F13 など）に結び付く。ここでは、トリガーを選んで、
+    // そのキー（修飾キーがあれば LCTL(KC_F13) の形）を、このキーに割り当てる。
+    // ------------------------------------------------------------------
+
+    private UIElement TriggerSection()
+    {
+        var section = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
+        section.Children.Add(new TextBlock { Text = Loc.T("トリガー", "Triggers"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 2),
+            ToolTip = Loc.T("トレイが見ているキーです。そのキーを出すキーに割り当てると、トリガーが働きます", "Keys the tray watches. Assign that key to a key and the trigger works") });
+        var list = Id(new ListBox { Height = 90, FontFamily = new FontFamily("Consolas"),
+            ToolTip = Loc.T("選んだトリガーのキーを、このキーに割り当てます", "Assigns the key of the selected trigger to this key") }, "TriggerList");
+        var items = new List<(HelperScope Scope, HelperTrigger Trigger)>();
+        void Fill()
+        {
+            list.Items.Clear();
+            items.Clear();
+            if (Helper.DeviceWritable)
+                foreach (var t in Helper.Device.Triggers) { list.Items.Add(Loc.T("[このキーボード] ", "[This keyboard] ") + HelperSummary.Trigger(t)); items.Add((HelperScope.Device, t)); }
+            foreach (var t in Helper.Global.Triggers) { list.Items.Add(Loc.T("[共通] ", "[Shared] ") + HelperSummary.Trigger(t)); items.Add((HelperScope.Global, t)); }
+        }
+        Fill();
+        section.Children.Add(list);
+
+        var assign = Id(new Button { Content = Loc.T("選んだトリガーのキーを割り当てる", "Assign selected trigger's key"), Width = 240, Margin = new Thickness(0, 0, 8, 0) }, "AssignTriggerButton");
+        var create = Id(new Button { Content = Loc.T("新しいトリガー...", "New trigger..."), Width = 140 }, "NewTriggerButton");
+        void Assign()
+        {
+            if (list.SelectedIndex < 0 || list.SelectedIndex >= items.Count) return;
+            var t = items[list.SelectedIndex].Trigger;
+            if (HelperSummary.TriggerToken(t) is { } token) TxtToken.Text = token;
+            else MessageBox.Show(this, Loc.T("このトリガーのキーを、割り当てに変えられません。設定のヘルパー動作タブで確かめてください。", "Can't turn this trigger's key into an assignment. Check it on the Helper actions tab in Settings."), Loc.T("トリガー", "Trigger"));
+        }
+        void UpdateAssign() => assign.IsEnabled = list.SelectedIndex >= 0 && list.SelectedIndex < items.Count;
+        assign.Click += (_, _) => Assign();
+        list.MouseDoubleClick += (_, _) => { Assign(); if (TxtToken.Text.Length > 0 && _tokenValid) Confirm(); };
+        list.SelectionChanged += (_, _) => UpdateAssign();
+        create.Click += (_, _) => { if (NewTrigger() is { } token) { Fill(); list.SelectedIndex = -1; UpdateAssign(); TxtToken.Text = token; } };
+        UpdateAssign();
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
+        buttons.Children.Add(assign);
+        buttons.Children.Add(create);
+        section.Children.Add(buttons);
+        return section;
+    }
+
+    /// <summary>新しいトリガーを作って、すぐ helper.json（このキーボードが使えなければ共通）に保存し、そのキーの割り当て（LCTL(KC_F13) など）を返す。</summary>
+    private string? NewTrigger()
+    {
+        var dlg = new HelperActionEditorWindow(Loc.T("トリガーの追加", "Add Trigger"), HelperEditMode.Trigger, 0, null, "KC_F13", null,
+            new HelperActionBody { Type = HelperActionBody.Launch }) { Owner = this };
+        if (dlg.ShowDialog() != true) return null;
+
+        var scope = Helper.DeviceWritable ? HelperScope.Device : HelperScope.Global;
+        var triggers = Helper.Config(scope).Triggers;
+        var added = new HelperTrigger { Name = dlg.ResultName, Key = dlg.ResultKey, Mods = dlg.ResultMods, Action = dlg.ResultBody };
+        // 同じキーと修飾キーのトリガーは、1 つだけ（設定のタブの検証と同じ）。
+        if (KeycodeTable.TryResolveBaseKey(added.Key, out ushort sc) && TriggerTable.TryParseMods(added.Mods, out byte mods) &&
+            triggers.Any(t => KeycodeTable.TryResolveBaseKey(t.Key ?? "", out ushort s2) && s2 == sc && TriggerTable.TryParseMods(t.Mods, out byte m2) && m2 == mods))
+        {
+            MessageBox.Show(this, Loc.T("同じキーと修飾キーのトリガーが、すでにあります。", "A trigger with the same key and modifiers already exists."), Loc.T("トリガーの追加", "Add Trigger"), MessageBoxButton.OK, MessageBoxImage.Warning);
+            return null;
+        }
+        triggers.Add(added);
+        if (!Helper.TrySave(out var error))
+        {
+            triggers.Remove(added);
+            MessageBox.Show(this, Loc.T($"保存できませんでした: {error}", $"Couldn't save: {error}"), Loc.T("トリガーの追加", "Add Trigger"), MessageBoxButton.OK, MessageBoxImage.Warning);
+            return null;
+        }
+        return HelperSummary.TriggerToken(added);
     }
 
     /// <summary>新しい動作を作って、すぐ helper.json（このキーボードが使えなければ共通）に保存し、HLP(Id) をキーコード欄に入れる。</summary>

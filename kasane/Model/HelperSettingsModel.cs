@@ -275,6 +275,16 @@ public static class HelperSummary
         return $"{(string.IsNullOrWhiteSpace(t.Name) ? "" : t.Name + "  ")}{mods}{t.Key}  — {Body(t.Action, full)}";
     }
 
+    /// <summary>トリガーのキー（と修飾キー）を、割り当てのキーコードにする（Ctrl+F13 → LCTL(KC_F13)）。解決できなければ null。</summary>
+    public static string? TriggerToken(HelperTrigger t)
+    {
+        if (!TriggerTable.TryParseMods(t.Mods, out byte m)) return null;
+        byte mask = (byte)(((m & TriggerTable.ModCtrl) != 0 ? 0x01 : 0) | ((m & TriggerTable.ModShift) != 0 ? 0x02 : 0) |
+                           ((m & TriggerTable.ModAlt) != 0 ? 0x04 : 0) | ((m & TriggerTable.ModWin) != 0 ? 0x08 : 0));
+        string token = mask == 0 ? (t.Key ?? "").Trim() : Keycodes.KeycodeTable.WrapWithMods(mask, (t.Key ?? "").Trim());
+        return Keycodes.KeycodeTable.TryResolve(token, out _, out _) ? token : null;
+    }
+
     public static string Rule(AppLayerRule r)
     {
         var cond = new List<string>();

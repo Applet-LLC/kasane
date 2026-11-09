@@ -21,6 +21,28 @@ public class KeyMarksTests
         },
         new HelperConfig { Actions = { new HelperAction { Id = 4, Name = "共通の4", Action = new HelperActionBody { Type = HelperActionBody.PauseToggle } } } });
 
+    [Theory]
+    [InlineData("KC_F13", null, "KC_F13")]
+    [InlineData("KC_F13", "MOD_LCTL", "LCTL(KC_F13)")]
+    [InlineData("KC_F1", "MOD_LCTL|MOD_LSFT", "LCTL(LSFT(KC_F1))")]
+    [InlineData("KC_F1", "ctrl|alt|win", "LCTL(LALT(LGUI(KC_F1)))")]
+    public void TriggerToken_IsTheAssignmentThatPressesTheTriggerKey(string key, string? mods, string expected)
+    {
+        var token = HelperSummary.TriggerToken(new HelperTrigger { Key = key, Mods = mods });
+        Assert.Equal(expected, token);
+        // 割り当てたキーに T の印が付く（トリガーと結び付く）
+        var p = NewProject();
+        p.Layers[0][0] = token!;
+        var lookup = KeyMarks.HelperLookup.From(new HelperConfig { Triggers = { new HelperTrigger { Key = key, Mods = mods, Action = new HelperActionBody { Type = HelperActionBody.PauseToggle } } } }, null);
+        Assert.Equal("T", KeyMarks.For(p, Layout, 0, Slot(0), lookup).Marks);
+    }
+
+    [Theory]
+    [InlineData("KC_NOPE", null)]
+    [InlineData("KC_F13", "MOD_BOGUS")]
+    public void TriggerToken_UnresolvableIsNull(string key, string? mods) =>
+        Assert.Null(HelperSummary.TriggerToken(new HelperTrigger { Key = key, Mods = mods }));
+
     [Fact]
     public void HlpAssignment_GetsH_WithTheActionDescription()
     {
