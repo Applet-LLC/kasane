@@ -297,7 +297,8 @@
                         </Grid.RowDefinitions>
                         <TabPanel x:Name="HeaderPanel" Grid.Row="0" IsItemsHost="True" Margin="0,0,0,-1" Panel.ZIndex="1" />
                         <Border Grid.Row="1" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1">
-                            <ContentPresenter ContentSource="SelectedContent" Margin="{TemplateBinding Padding}" />
+                            <!-- UI Automation が、選んだタブの中身を見つけるための名前（無いと、ダークでタブの中身が支援技術・UIA に出ない） -->
+                            <ContentPresenter x:Name="PART_SelectedContentHost" ContentSource="SelectedContent" Margin="{TemplateBinding Padding}" />
                         </Border>
                     </Grid>
                 </ControlTemplate>
