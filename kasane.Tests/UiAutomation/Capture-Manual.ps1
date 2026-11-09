@@ -181,6 +181,13 @@ try {
     Run-Shot 'editor-main'     { Save-Shot $main 'editor-main' }
     Run-Shot 'editor-readonly' { Save-Shot $main 'editor-readonly' }   # 昇格していなければ、閲覧専用の帯が写る
 
+    # 凡例のポップアップ（5 章「キーボード図の見方」）。ポップアップを開いたまま、メイン画面ごと撮る。
+    Run-Shot 'editor-legend' {
+        Invoke-Element (Find-ChildByAutomationId $main 'BtnLegend'); Start-Sleep -Milliseconds 700
+        Save-Shot $main 'editor-legend'
+        Invoke-Element (Find-ChildByAutomationId $main 'BtnLegend'); Start-Sleep -Milliseconds 400
+    }
+
     Run-Shot 'editor-kle' {
         $w = Open-Child $main 'BtnAddKle'; Save-Shot $w 'editor-kle'; Close-Top $w
     }
