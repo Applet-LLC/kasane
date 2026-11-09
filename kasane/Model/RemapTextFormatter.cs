@@ -86,8 +86,8 @@ public static class RemapTextFormatter
         void Helpers(HelperConfig? config, string scope)
         {
             if (config == null) return;
-            foreach (var a in config.Actions.OrderBy(a => a.Id)) helperLines.Add($"helper {scope} {HelperSummary.Action(a)}");
-            foreach (var tr in config.Triggers) helperLines.Add($"helper trigger {scope} {HelperSummary.Trigger(tr)}");
+            foreach (var a in config.Actions.OrderBy(a => a.Id)) helperLines.Add($"helper {scope} {HelperSummary.Action(a, full: true)}");
+            foreach (var tr in config.Triggers) helperLines.Add($"helper trigger {scope} {HelperSummary.Trigger(tr, full: true)}");
         }
         Helpers(device, Loc.T("[このキーボード]", "[this keyboard]"));
         Helpers(global, Loc.T("[共通]", "[shared]"));
@@ -96,6 +96,26 @@ public static class RemapTextFormatter
             Line();
             Line(Loc.T("## ヘルパー動作(トレイが動いているときだけ働きます)", "## Helper actions (work only while the tray is running)"));
             foreach (var l in helperLines) Line(l);
+        }
+
+        // 前面のアプリの規則と、IME 連動のレイヤー（2026-11-09: 前は一覧に出ていなかった）。
+        var layerLines = new List<string>();
+        void LayerLinks(HelperConfig? config, string scope)
+        {
+            if (config == null) return;
+            foreach (var r in config.AppLayerRules) layerLines.Add($"rule {scope} {HelperSummary.Rule(r)}");
+            if (config.ImeLayers is { } ime && ime.Layers.Count > 0)
+                layerLines.Add($"ime-link {scope} " + (ime.Enabled ? "" : Loc.T("[無効] ", "[Off] ")) +
+                               Loc.T($"レイヤー {string.Join(",", ime.Layers)}（{(ime.KanaOnly ? "日本語入力モードのとき" : "IME が ON のとき")}）",
+                                     $"Layer {string.Join(",", ime.Layers)} ({(ime.KanaOnly ? "in Japanese input mode" : "while the IME is on")})"));
+        }
+        LayerLinks(device, Loc.T("[このキーボード]", "[this keyboard]"));
+        LayerLinks(global, Loc.T("[共通]", "[shared]"));
+        if (layerLines.Count > 0)
+        {
+            Line();
+            Line(Loc.T("## アプリ別レイヤーと IME 連動(トレイが動いているときだけ働きます)", "## Per-app layers and IME link (work only while the tray is running)"));
+            foreach (var l in layerLines) Line(l);
         }
         return sb.ToString();
     }

@@ -176,7 +176,7 @@ internal sealed class HelperActionsTab : HelperTabBase
         var dlg = new HelperActionEditorWindow(Loc.T("トリガーの追加", "Add Trigger"), HelperEditMode.Trigger, 0, null, "KC_F13", null,
             new HelperActionBody { Type = HelperActionBody.Launch }) { Owner = Owner };
         if (dlg.ShowDialog() != true) return;
-        Config.Triggers.Add(new HelperTrigger { Key = dlg.ResultKey, Mods = dlg.ResultMods, Action = dlg.ResultBody });
+        Config.Triggers.Add(new HelperTrigger { Name = dlg.ResultName, Key = dlg.ResultKey, Mods = dlg.ResultMods, Action = dlg.ResultBody });
         Refresh(_actions.SelectedIndex, Config.Triggers.Count - 1);
     }
 
@@ -185,9 +185,10 @@ internal sealed class HelperActionsTab : HelperTabBase
         int i = _triggers.SelectedIndex;
         if (!Editable || i < 0 || i >= Config.Triggers.Count) return;
         var t = Config.Triggers[i];
-        var dlg = new HelperActionEditorWindow(Loc.T("トリガーの編集", "Edit Trigger"), HelperEditMode.Trigger, 0, null, t.Key, t.Mods,
+        var dlg = new HelperActionEditorWindow(Loc.T("トリガーの編集", "Edit Trigger"), HelperEditMode.Trigger, 0, t.Name, t.Key, t.Mods,
             HelperSummary.CloneTrigger(t).Action) { Owner = Owner };
         if (dlg.ShowDialog() != true) return;
+        t.Name = dlg.ResultName;
         t.Key = dlg.ResultKey;
         t.Mods = dlg.ResultMods;
         t.Action = dlg.ResultBody;

@@ -100,6 +100,74 @@ public class RemapTextFormatterTests
     }
 
     [Fact]
+    public void Helper_SequenceAndTextAreListedInFull_AndTriggersShowTheirName()
+    {
+        var p = NewProject();
+        var seq = new HelperActionBody
+        {
+            Type = HelperActionBody.Sequence,
+            Steps = new List<HelperStep> { new HelperStep { Key = "LCTL(KC_C)" }, new HelperStep { DelayMs = 50 }, new HelperStep { Text = "こんにちは\n" } },
+            ReleaseSteps = new List<HelperStep> { new HelperStep { Up = "KC_A" } },
+        };
+        var long24 = new string('あ', 40);
+        var device = new HelperConfig
+        {
+            Actions = { new HelperAction { Id = 2, Name = "手順", Action = seq },
+                        new HelperAction { Id = 3, Action = new HelperActionBody { Type = HelperActionBody.TextInput, Text = long24 } } },
+            Triggers = { new HelperTrigger { Name = "コピー", Key = "KC_F13", Mods = "MOD_LCTL", Action = seq } },
+        };
+
+        var text = Norm(RemapTextFormatter.Format(p, Layout, device, null));
+        // 手順の中身が、番号だけでなく、1 行に出る
+        Assert.Contains("helper [このキーボード] HLP(2) 手順 — 操作: key LCTL(KC_C); delay 50; text こんにちは\\n / 離したとき: up KC_A", text);
+        // 文字列は、省略しない（設定の一覧の 1 行用は 24 文字まで）
+        Assert.Contains(long24, text);
+        Assert.DoesNotContain("操作 3 手順", text);
+        // トリガーの名前
+        Assert.Contains("helper trigger [このキーボード] コピー Ctrl+KC_F13 — 操作: key LCTL(KC_C)", text);
+        // 設定の一覧の 1 行用は、これまでどおり短い
+        Assert.Equal("操作 3 手順 + 離したとき 1 手順", HelperSummary.Body(seq));
+    }
+
+    [Fact]
+    public void AppRulesAndImeLinkLayers_AreListed()
+    {
+        var p = NewProject(3);
+        var device = new HelperConfig
+        {
+            AppLayerRules = { new AppLayerRule { Name = "コード", Enabled = true, Match = new AppMatch { Exe = "code.exe" }, Layers = { 1, 2 } } },
+            ImeLayers = new ImeLayerLink { Layers = { 1, 2 } },
+        };
+        var text = Norm(RemapTextFormatter.Format(p, Layout, device, null));
+        Assert.Contains("## アプリ別レイヤーと IME 連動", text);
+        Assert.Contains("rule [このキーボード] [有効] コード exe=code.exe → レイヤー 1,2", text);
+        Assert.Contains("ime-link [このキーボード] レイヤー 1,2（IME が ON のとき）", text);
+    }
+
+    [Fact]
+    public void AllLayers_AreListed()
+    {
+        var p = NewProject(3);
+        p.Layers[1][0] = "KC_A";
+        p.Layers[2][1] = "KC_B";
+        var text = Norm(RemapTextFormatter.Format(p, Layout));
+        Assert.Contains("## レイヤー0", text);
+        Assert.Contains("## レイヤー1", text);
+        Assert.Contains("## レイヤー2", text);
+        Assert.Contains("-> A : KC_A", text);
+        Assert.Contains("-> B : KC_B", text);
+    }
+
+    [Fact]
+    public void HelperTrigger_NameRoundTripsThroughJson()
+    {
+        var cfg = new HelperConfig { Triggers = { new HelperTrigger { Name = "メモ", Key = "KC_F14", Action = new HelperActionBody { Type = HelperActionBody.PauseToggle } } } };
+        var back = HelperConfig.FromJson(cfg.ToJson())!;
+        Assert.Equal("メモ", back.Triggers[0].Name);
+        Assert.Equal("メモ", HelperSummary.CloneTrigger(back.Triggers[0]).Name);
+    }
+
+    [Fact]
     public void Nicola_IsSummarized()
     {
         var p = NewProject();

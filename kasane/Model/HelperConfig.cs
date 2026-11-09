@@ -268,6 +268,8 @@ public sealed class HelperAction
 /// <summary>F13 などのキー（＋修飾キー）で動かす動作（P3）。</summary>
 public sealed class HelperTrigger
 {
+    /// <summary>名前（任意。一覧と、割り当ての一覧に出す）。動作（<see cref="HelperAction"/>）の名前と同じ。</summary>
+    public string? Name { get; set; }
     public string Key { get; set; } = "";
     /// <summary>"MOD_LSFT|MOD_LCTL" の形（空 = 修飾キーなし）。</summary>
     public string? Mods { get; set; }

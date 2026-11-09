@@ -114,6 +114,7 @@ public sealed class HelperActionEditorWindow : Window
         }
         else
         {
+            panel.Children.Add(Row(Loc.T("名前", "Name"), _name));
             panel.Children.Add(Row(Loc.T("キー", "Key"), KeycodeField.Wrap(_key, allowMods: false), Loc.T("F13〜F24 など、普段使わないキーが向いています", "Keys you don't normally use, such as F13-F24, work well")));
             var modPanel = new StackPanel { Orientation = Orientation.Horizontal };
             modPanel.Children.Add(_ctrl);
@@ -395,6 +396,7 @@ public sealed class HelperActionEditorWindow : Window
         }
         else
         {
+            ResultName = NullIfEmpty(_name.Text);
             ResultKey = _key.Text.Trim();
             ResultMods = NullIfEmpty(TriggerMods());
         }
