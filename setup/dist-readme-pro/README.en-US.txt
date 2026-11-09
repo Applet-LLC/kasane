@@ -1,4 +1,4 @@
-kasane Pro - Installation Guide 1.01 2026-11-02 Applet LLC
+kasane Pro - Installation Guide 1.01 2026-11-10 Applet LLC
 ==============================================================
 
 This package installs a key remapping tool named kasane. The installer
@@ -69,7 +69,7 @@ taskbar (inside the "^" flyout when hidden).
   resume.
 - If you use NICOLA (thumb-shift input), NICOLA is switched on automatically
   when the IME is enabled. You can turn this on and off at the bottom of
-  kasane's 設定 (Settings) > IME連動 (IME link).
+  kasane's 設定 (Settings) > IME 連動 (IME link).
 - Helper actions: a key can launch a program, type text, operate the mouse,
   switch layers, and more. Create them from "ヘルパー動作" (Helper actions) in
   kasane's key-assignment screen (the tray must be running). Actions triggered
@@ -125,9 +125,7 @@ and the third-party folder are also placed directly in the installation folder
 
 Uninstallation
 --------------
-1. First open the kasane settings dialog and press "OFF (pass keys through)"
-   (shown as "OFF(素通しに戻す)" in Japanese). The keyboard remapping is
-   disabled.
+1. First open kasane and press "OFF". The keyboard remapping is disabled.
 2. Remove "kasane Pro" from "Apps & features" in Windows Settings
    (administrator rights are required).
 3. Restart your PC. The driver is in use by your keyboard, so its removal
@@ -175,6 +173,28 @@ kasane contains parts derived from the following third-party software and data.
 - 天狼 (sirius): MIT License
 The full text of each license is in THIRD-PARTY-NOTICES.txt and the
 third-party folder.
+
+
+Release History
+---------------
+2026-11-10 1.01
+  - Key assignment: opening an assigned key shows its current setting. Create or open
+    combos, key overrides, and tap dances from a key. Added IME on/off (KC_LNG1 /
+    KC_LNG2). Besides helper actions, you can now choose a trigger and assign its key.
+  - Macros, combos, tap dances, key overrides: added delete, duplicate, and reorder.
+    Up to 128 key overrides; layer operations and helper actions can be used as the
+    replacement; added modifier checkboxes.
+  - Added a text view of all assignments, and --dump-text.
+  - Emacs-style operation: mark mode (MARK), the KillLine helper action (C-k), and
+    loading the sample settings.
+  - Helper actions: you can choose how the IME is switched. Triggers can be named.
+  - Screens: fewer explanatory texts; the "?" button opens the matching help section.
+    Added status indicators (driver, not applied, read-only, editing), message kinds,
+    and marks for input errors. Fixed the dark theme hiding tab contents from
+    assistive technology.
+  - License: moved signing to the server. Stated what is sent and that it is not stored.
+  - Bug fixes: physically held modifier keys stayed released after a macro, and more.
+2026-11-01 1.00  Initial release.
 
 
 Vendor / Developer
