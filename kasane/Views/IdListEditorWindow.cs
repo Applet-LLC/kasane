@@ -14,7 +14,8 @@ namespace Kasane.Views;
 public abstract class IdListEditorWindow : Window
 {
     private readonly ListBox _list = new() { Name = "IdList", Width = 300, Margin = new Thickness(0, 0, 10, 0) };
-    private readonly TextBlock _validation = new() { Name = "ValidationText", TextWrapping = TextWrapping.Wrap };
+    // 右側の欄は横スクロールの中にあるので、幅の制限が無いと、長いエラーの文が折り返さずに画面の外へ出る。
+    private readonly TextBlock _validation = new() { Name = "ValidationText", TextWrapping = TextWrapping.Wrap, MaxWidth = 640 };
     private readonly TextBlock _validationIcon = new() { Margin = new Thickness(0, 0, 5, 0) };
     // 検証でエラーになった番号。一覧の行に ⚠ を付ける（2026-11-09）。
     private readonly HashSet<int> _errorRows = new();

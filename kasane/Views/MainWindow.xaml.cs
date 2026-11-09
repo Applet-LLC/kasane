@@ -125,8 +125,9 @@ public partial class MainWindow : Window
         }
         catch (System.ComponentModel.Win32Exception ex)
         {
-            // ERROR_CANCELLED(1223): UACのダイアログで「いいえ」を選んだ。閲覧専用のまま続ける。
-            if (ex.NativeErrorCode != 1223) SetStatus(Loc.T($"管理者として起動できませんでした: {ex.Message}", $"Could not start as administrator: {ex.Message}"), StatusKind.Error);
+            // ERROR_CANCELLED(1223): UACのダイアログで「いいえ」を選んだ。エラーではないので、閲覧専用のまま続けて、取りやめたことだけ知らせる。
+            if (ex.NativeErrorCode == 1223) { SetStatus(Loc.T("管理者としての再起動を取りやめました。", "Restarting as administrator was canceled.")); return; }
+            SetStatus(Loc.T($"管理者として起動できませんでした: {ex.Message}", $"Could not start as administrator: {ex.Message}"), StatusKind.Error);
             return;
         }
         _leaveConfirmed = true;
