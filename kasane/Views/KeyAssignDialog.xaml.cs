@@ -540,8 +540,8 @@ public partial class KeyAssignDialog : Window
         {
             panel.Children.Add(new TextBlock
             {
-                Text = Loc.T("このキーボードの helper.json を読めないため、このキーボード用の動作は使えません。新しい動作は共通に作ります。",
-                             "Couldn't read helper.json for this keyboard, so actions for this keyboard are unavailable. New actions will be created as shared."),
+                Text = Loc.T("このキーボードの helper.json を読めないため、このキーボード用の動作・トリガーは使えません。新しい動作・トリガーは共通に作ります。",
+                             "Couldn't read helper.json for this keyboard, so actions and triggers for this keyboard are unavailable. New ones will be created as shared."),
                 Foreground = AppTheme.Palette.ErrorText,
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 8, 0, 0),
