@@ -96,7 +96,7 @@ public partial class MainWindow : Window
 
         _client = KbdLayerClient.TryOpen(out var error);
         if (_client == null)
-            SetStatus(Loc.T($"ドライバに接続できません({error})。編集とエクスポートのみ行えます。", $"Cannot connect to the driver ({error}). Only editing and export are available."));
+            SetStatus(Loc.T($"ドライバに接続できません({error})。編集とエクスポートのみ行えます。", $"Cannot connect to the driver ({error}). Only editing and export are available."), StatusKind.Warn);
         if (IsReadOnly)
         {
             ReadOnlyBanner.Visibility = Visibility.Visible;
@@ -125,8 +125,9 @@ public partial class MainWindow : Window
         }
         catch (System.ComponentModel.Win32Exception ex)
         {
-            // ERROR_CANCELLED(1223): UACのダイアログで「いいえ」を選んだ。閲覧専用のまま続ける。
-            if (ex.NativeErrorCode != 1223) SetStatus(Loc.T($"管理者として起動できませんでした: {ex.Message}", $"Could not start as administrator: {ex.Message}"));
+            // ERROR_CANCELLED(1223): UACのダイアログで「いいえ」を選んだ。エラーではないので、閲覧専用のまま続けて、取りやめたことだけ知らせる。
+            if (ex.NativeErrorCode == 1223) { SetStatus(Loc.T("管理者としての再起動を取りやめました。", "Restarting as administrator was canceled.")); return; }
+            SetStatus(Loc.T($"管理者として起動できませんでした: {ex.Message}", $"Could not start as administrator: {ex.Message}"), StatusKind.Error);
             return;
         }
         _leaveConfirmed = true;
@@ -139,7 +140,7 @@ public partial class MainWindow : Window
         if (_client != null)
         {
             try { devices.AddRange(_client.ListDevices()); }
-            catch (KbdLayerException ex) { SetStatus(ex.Message); }
+            catch (KbdLayerException ex) { SetStatus(ex.Message, StatusKind.Error); }
         }
         // Windows 上の名前は、一覧を更新するたびに取り直す（キーボードの抜き差しに追従する）。取れなくても、一覧は出る。
         try { _windowsNames = KeyboardNameResolver.Resolve(devices); }
@@ -189,10 +190,10 @@ public partial class MainWindow : Window
 
     private void BtnIdentify_Click(object sender, RoutedEventArgs e)
     {
-        if (_client == null) { SetStatus(Loc.T("ドライバに接続できないため、キーボードを特定できません。", "Cannot identify the keyboard because the driver is not connected.")); return; }
-        if (IsReadOnly) { SetStatus(Loc.T("キーボードの特定には管理者権限が必要です(「管理者として再起動」を押してください)。", "Identifying a keyboard requires administrator rights (click \"Restart as administrator\").")); return; }
+        if (_client == null) { SetStatus(Loc.T("ドライバに接続できないため、キーボードを特定できません。", "Cannot identify the keyboard because the driver is not connected."), StatusKind.Warn); return; }
+        if (IsReadOnly) { SetStatus(Loc.T("キーボードの特定には管理者権限が必要です(「管理者として再起動」を押してください)。", "Identifying a keyboard requires administrator rights (click \"Restart as administrator\")."), StatusKind.Warn); return; }
         var devices = ((IEnumerable<DeviceInfo>)CmbDevice.ItemsSource).Where(d => d.UniqId != 0).ToList();
-        if (devices.Count == 0) { SetStatus(Loc.T("ドライバが認識しているキーボードがありません。", "The driver does not recognize any keyboards.")); return; }
+        if (devices.Count == 0) { SetStatus(Loc.T("ドライバが認識しているキーボードがありません。", "The driver does not recognize any keyboards."), StatusKind.Warn); return; }
         var dlg = new IdentifyWindow(devices) { Owner = this };
         if (dlg.ShowDialog() == true && dlg.FoundUniqId is uint id)
         {
@@ -233,7 +234,7 @@ public partial class MainWindow : Window
         if (layout == null)
         {
             layout = LoadBundledLayout(GuessDefaultLayoutName());
-            if (layout == null) { SetStatus(Loc.T("Layouts フォルダにレイアウトがありません。", "There are no layouts in the Layouts folder.")); return; }
+            if (layout == null) { SetStatus(Loc.T("Layouts フォルダにレイアウトがありません。", "There are no layouts in the Layouts folder."), StatusKind.Warn); return; }
             project = null;
         }
 
@@ -259,7 +260,8 @@ public partial class MainWindow : Window
         SetStatus(Loc.T($"{device.DisplayName}: {source}を読み込みました。" +
                   (warnings.Count > 0 ? " 注意: " + string.Join(" / ", warnings) : ""),
                   $"{device.DisplayName}: Loaded {source}." +
-                  (warnings.Count > 0 ? " Note: " + string.Join(" / ", warnings) : "")));
+                  (warnings.Count > 0 ? " Note: " + string.Join(" / ", warnings) : "")),
+                      warnings.Count > 0 ? StatusKind.Warn : StatusKind.Info);
     }
 
     private static string GuessDefaultLayoutName() =>
@@ -391,7 +393,7 @@ public partial class MainWindow : Window
         if (_project == null || _layout == null) return;
         if (_project.Layers.Count >= KbdLayerClient.MaxLayers)
         {
-            SetStatus(Loc.T($"レイヤーは{KbdLayerClient.MaxLayers}個までです。", $"You can have at most {KbdLayerClient.MaxLayers} layers."));
+            SetStatus(Loc.T($"レイヤーは{KbdLayerClient.MaxLayers}個までです。", $"You can have at most {KbdLayerClient.MaxLayers} layers."), StatusKind.Warn);
             return;
         }
         _project.Layers.Add(ProjectService.DefaultLayer(_layout, _project.Layers.Count));
@@ -416,7 +418,7 @@ public partial class MainWindow : Window
         RenderKeyboard();
         if (_project.Layers.Any(l => l.Any(t => ReferencesLayer(t, last))))
             SetStatus(Loc.T($"注意: まだレイヤー{last}を参照するキー(MO({last})等)が残っています。適用時にエラーになるので変更してください。",
-                            $"Note: some keys (such as MO({last})) still refer to layer {last}. Applying will fail, so change them."));
+                            $"Note: some keys (such as MO({last})) still refer to layer {last}. Applying will fail, so change them."), StatusKind.Warn);
     }
 
     private static bool ReferencesLayer(string token, int layer) =>
@@ -429,6 +431,7 @@ public partial class MainWindow : Window
     private void OnThemeChanged()
     {
         if (IsLoaded) RenderKeyboard();
+        UpdateIndicators();
     }
 
     private void RenderKeyboard()
@@ -739,14 +742,9 @@ public partial class MainWindow : Window
         BtnAddLayer.IsEnabled = free;
         BtnRemoveLayer.IsEnabled = free;
         BtnImportExport.IsEnabled = free;
-        // 案内は、ロックが始まったときだけ出す。編集画面を1つ閉じてもほかが開いているときに出し直すと、
-        // 閉じる直前の OK で出した結果（「… か所の割り当てを外しました」など）を消してしまう（2026-11-07 の実機確認 M2）。
-        if (!free && _editorLockFree) SetStatus(Loc.T("編集画面(マクロ・コンボ・タップダンス・キー置換・キーの割り当て)を開いている間は、キーボードやレイアウトの切り替え、インポート、レイヤーの追加・削除はできません。",
-                                   "While an editor (macros, combos, tap dances, key overrides, key assignment) is open, you cannot switch keyboards or layouts, import, or add or delete layers."));
-        _editorLockFree = free;
+        // 編集画面を開いている間は、状態の印「編集中」に出す（ステータス欄のメッセージは、閉じる直前の結果を消してしまうので使わない。2026-11-09）。
+        UpdateIndicators();
     }
-
-    private bool _editorLockFree = true; // 前回の UpdateEditorLock のとき、編集画面が1つも開いていなかったか
 
     private void BtnMacros_Click(object sender, RoutedEventArgs e) => OpenMacros();
     private void BtnCombos_Click(object sender, RoutedEventArgs e) => OpenCombos();
@@ -889,7 +887,7 @@ public partial class MainWindow : Window
         }
         catch (System.ComponentModel.Win32Exception ex)
         {
-            SetStatus(Loc.T($"再起動できませんでした: {ex.Message}", $"Could not restart: {ex.Message}"));
+            SetStatus(Loc.T($"再起動できませんでした: {ex.Message}", $"Could not restart: {ex.Message}"), StatusKind.Error);
         }
     }
 
@@ -1054,7 +1052,8 @@ public partial class MainWindow : Window
             SetStatus(Loc.T("適用しました(ON)。設定はドライバに保存され、再起動後も有効です。" +
                       (warnings.Count > 0 ? " 注意: " + string.Join(" / ", warnings) : ""),
                       "Applied (ON). The settings are stored in the driver and stay in effect after a restart." +
-                      (warnings.Count > 0 ? " Note: " + string.Join(" / ", warnings) : "")));
+                      (warnings.Count > 0 ? " Note: " + string.Join(" / ", warnings) : "")),
+                      warnings.Count > 0 ? StatusKind.Warn : StatusKind.Info);
         }
         catch (InvalidOperationException ex)
         {
@@ -1076,7 +1075,7 @@ public partial class MainWindow : Window
             RefreshDeviceStatusOnly();
             SetStatus(Loc.T("OFFにしました(キーボードは本来の動作に戻りました。設定はドライバに残っています)。", "Turned OFF (the keyboard is back to its normal behavior; the settings remain in the driver)."));
         }
-        catch (KbdLayerException ex) { SetStatus(ex.Message); }
+        catch (KbdLayerException ex) { SetStatus(ex.Message, StatusKind.Error); }
     }
 
     /// <summary>プロジェクトを読み直さずに、デバイス一覧（ON/OFF状態）だけ更新する。</summary>
@@ -1108,10 +1107,6 @@ public partial class MainWindow : Window
         UpdateDefinitionButtons();
         UpdateTitle();
     }
-
-    // タイトルバーに、バージョンとドライバの状態を出す（キー図の上に行を足すと、画面が縦に溢れてキーボードが欠けるため）。
-    // 例: 「かさね 1.00 *  ドライバ: ON（リマップ中）」。未保存の変更があれば * が付く。
-    private void UpdateTitle() => Title = Kasane.Model.AppInfo.NameWithVersion + (_dirty ? " *" : "") + "  " + DriverStateText();
 
     /// <summary>メッセージボックスの見出し（長いウィンドウのタイトルではなく、アプリ名だけ）。</summary>
     private static string DialogCaption => Kasane.Model.AppInfo.DisplayName;
@@ -1147,7 +1142,7 @@ public partial class MainWindow : Window
         BtnKeyOverrides.Content = KeyMarks.ButtonText(Loc.T("キー置換", "Key overrides"), p?.KeyOverrides.Count ?? 0, p == null || KeyMarks.FeatureOn(p, KbdLayerClient.FeatureKeyOverride), p?.KeyOverrides.Count(d => d.Disabled) ?? 0);
     }
 
-    // ドライバの状態（今リマップが効いているか・画面の変更を適用したか）。タイトルバーに出す。
+    // ドライバの状態（今リマップが効いているか・画面の変更を適用したか）。状態の印のツールチップに出す。
     private string DriverStateText()
     {
         if (_client == null) return Loc.T("ドライバ: 接続できません(編集とエクスポートのみ)", "Driver: not connected (edit and export only)");
@@ -1158,8 +1153,6 @@ public partial class MainWindow : Window
         string applied = _unapplied.Contains(d.UniqId) ? Loc.T("　画面の変更は未適用", "  Changes not applied") : "";
         return Loc.T($"ドライバ: {state}{applied}", $"Driver: {state}{applied}");
     }
-
-    private void SetStatus(string text) => TxtStatus.Text = text;
 
     /// <summary>
     /// 別の画面・キーボードへ移る前、閉じる前に、変更を保存する。保存ボタンは無く、ここで自動で保存する。

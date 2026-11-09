@@ -50,7 +50,21 @@
         </StackPanel>
 
         <StatusBar DockPanel.Dock="Bottom">
-            <TextBlock x:Name="TxtStatus" />
+            <StatusBarItem HorizontalContentAlignment="Stretch" Padding="0">
+                <DockPanel LastChildFill="True">
+                    <!-- 状態の印（MainWindow.Status.cs が作る）: ドライバ・未適用・閲覧専用・編集中 -->
+                    <StackPanel x:Name="StatusChips" DockPanel.Dock="Left" Orientation="Horizontal" Margin="2,0,8,0" />
+                    <!-- 幅が足りないときは、メッセージだけを「…」で切る（StackPanel だと、幅の制限を受けずに、そのまま切れる） -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="TxtStatusIcon" VerticalAlignment="Center" Margin="0,0,5,0" />
+                        <TextBlock x:Name="TxtStatus" Grid.Column="1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    </Grid>
+                </DockPanel>
+            </StatusBarItem>
         </StatusBar>
 
         <WrapPanel DockPanel.Dock="Bottom" Margin="8,4,8,8">

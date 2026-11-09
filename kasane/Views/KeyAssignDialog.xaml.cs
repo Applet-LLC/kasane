@@ -387,8 +387,7 @@ public partial class KeyAssignDialog : Window
                 byte mask = CheckedMask();
                 if (mask == 0)
                 {
-                    TxtValidation.Foreground = AppTheme.Palette.ErrorText;
-                    TxtValidation.Text = Loc.T($"{f} では、下の修飾キーを1つ以上チェックしてください", $"For {f}, check at least one modifier key below");
+                    ShowValidation(StatusKind.Error, Loc.T($"{f} では、下の修飾キーを1つ以上チェックしてください", $"For {f}, check at least one modifier key below"));
                     return null;
                 }
                 return f == "OSM"
@@ -784,17 +783,26 @@ public partial class KeyAssignDialog : Window
                 warn = Loc.T("注意: 電源キーです。押すとPCがスリープ・シャットダウンすることがあります", "Note: this is a power key. Pressing it may put the PC to sleep or shut it down");
             else if (action.Type == ActionType.Custom && !HelperIdTaken(action.Param2))
                 warn = Loc.T($"HLP({action.Param2}) の動作がまだありません(「ヘルパー動作」で作ると、キーを押したときに動きます)", $"No action for HLP({action.Param2}) yet (create one under \"Helper actions\" and it will run when the key is pressed)");
-            TxtValidation.Foreground = warn == null ? AppTheme.Palette.OkText : AppTheme.Palette.WarnText;
-            TxtValidation.Text = warn ?? "OK: " + KeycodeCatalog.ShortName(token);
+            if (warn == null) ShowValidation(StatusKind.Ok, "OK: " + KeycodeCatalog.ShortName(token));
+            else ShowValidation(StatusKind.Warn, warn);
             _tokenValid = true;
         }
         else
         {
-            TxtValidation.Foreground = AppTheme.Palette.ErrorText;
-            TxtValidation.Text = error;
+            ShowValidation(StatusKind.Error, error ?? "");
             _tokenValid = false;
         }
         UpdateOk();
+    }
+
+    /// <summary>入力の検証の結果を出す。文の頭に種類の印（✓ ⚠ ✖）、エラーのときはキーコード欄の枠を赤にする（2026-11-09）。</summary>
+    private void ShowValidation(StatusKind kind, string text)
+    {
+        TxtValidationIcon.Text = StatusStyle.Icon(kind);
+        TxtValidationIcon.Foreground = StatusStyle.Brush(kind);
+        TxtValidation.Foreground = StatusStyle.Brush(kind);
+        TxtValidation.Text = text;
+        TokenFrame.BorderBrush = kind == StatusKind.Error ? AppTheme.Palette.ErrorText : System.Windows.Media.Brushes.Transparent;
     }
 
     private void BtnOk_Click(object sender, RoutedEventArgs e) => Confirm();
