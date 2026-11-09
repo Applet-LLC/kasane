@@ -1,0 +1,45 @@
+﻿# かさね 割り当ての一覧 (2026-11-09 21:36)
+# キーボード: 55F70000「ThinkPad 内蔵キーボード」 / レイアウト: JP109
+# レイヤー0 は刻印のキーから変えたキー、レイヤー1 以降は ▽(透過)でないキーだけを出します。
+# 行の頭の「# 」は、無効にした設定です。
+
+## レイヤー0
+key Caps -> Alt+半/全 : LALT(KC_ZKHK)
+
+## レイヤー1
+key A -> 1 : KC_1
+key S -> 2 : KC_2
+
+## レイヤー2
+key D -> 3 : KC_3
+
+## レイヤー3
+(すべて ▽)
+
+## レイヤー4
+(すべて ▽)
+
+## レイヤー5
+(すべて ▽)
+
+## レイヤー6
+(すべて ▽)
+
+## レイヤー7
+(すべて ▽)
+
+## キー置換
+override 0「IME ON」: Shift+` -> Shift+Caps       : MOD_LSFT + KC_GRAVE -> LSFT(KC_CAPSLOCK)
+override 1「Ctrl-1」: Ctrl+1  -> マクロ0          : MOD_LCTL + KC_1 -> MACRO(0)
+# override 2: Shift+P         -> マクロ1「apple」 : MOD_LSFT + KC_P -> MACRO(1)
+
+## マクロ
+macro 0: 1 3 4 5 6 0 2 Shift+A A
+# macro 1「apple」: A [ BS A P P L E P1 P2 P3 P4 P5 P6
+
+## ヘルパー動作(トレイが動いているときだけ働きます)
+helper [このキーボード] HLP(1)  — 文字列: 1345602Aa
+helper [このキーボード] HLP(2)  G3seq  — 操作: key LCTL(KC_C); delay 50; text こんにちは\n / 離したとき: up KC_A
+helper [このキーボード] HLP(3)  G3text  — 文字列: あいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえおあいうえお LONGTEXT-END
+helper trigger [このキーボード] G7改名  Ctrl+KC_F13  — 操作: key LCTL(KC_C); delay 50
+helper trigger [このキーボード] KC_F14  — 操作: key KC_A
