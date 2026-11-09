@@ -11,7 +11,7 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
     private readonly KeyOverrideDef?[] _defs = new KeyOverrideDef?[KbdLayerClient.MaxKeyOverrideCount];
 
     public List<KeyOverrideDef> Result { get; private set; } = new();
-
+
     protected override string HelpTopic => HelpTopics.KeyOverride;
 
     public KeyOverrideEditorWindow(IEnumerable<KeyOverrideDef> keyOverrides, IReadOnlyDictionary<int, string>? names = null)
@@ -100,11 +100,57 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
         foreach (var b in new[] { mods, key, replacement }) b.TextChanged += (_, _) => Changed();
         repeat.Click += (_, _) => Changed();
 
-        Detail.Children.Add(Row(Loc.T("修飾キー", "Modifiers"), mods));
+        Detail.Children.Add(Row(Loc.T("修飾キー", "Modifiers"), ModsWithChecks(mods)));
         Detail.Children.Add(Row(Loc.T("キー", "Key"), KeycodeField.Wrap(key, allowMods: false)));
         Detail.Children.Add(Row(Loc.T("置き換え先", "Replace with"), KeycodeField.Wrap(replacement, acceptsMacro: true)));
         Detail.Children.Add(repeat);
         repeat.Visibility = IsMacro(replacement.Text) ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    // 修飾キーの欄（MOD_LCTL|MOD_LSFT のような文字）と、その右の Shift・Alt・Ctrl・Win のチェック（2026-11-09）。
+    // チェックを付ける・外すと、欄の文字が変わる。欄を書き換えると、チェックが変わる。左右は区別しない
+    // （どちらかが書いてあればチェックが付き、外すと左右とも消える。付けるときは左側）。
+    private static readonly (string Label, string Id, byte Left, byte Right)[] ModGroups =
+    {
+        ("Shift", "ModShiftCheck", 0x02, 0x20), ("Alt", "ModAltCheck", 0x04, 0x40),
+        ("Ctrl", "ModCtrlCheck", 0x01, 0x10), ("Win", "ModWinCheck", 0x08, 0x80),
+    };
+
+    private static UIElement ModsWithChecks(TextBox box)
+    {
+        var panel = new StackPanel { Orientation = Orientation.Horizontal };
+        panel.Children.Add(box);
+        var checks = new List<CheckBox>();
+        bool syncing = false;
+        byte CurrentMask() => Kasane.Keycodes.KeycodeTable.TryParseModMask(box.Text.Trim(), out var m) ? m : (byte)0;
+        void FromText()
+        {
+            byte m = CurrentMask();
+            syncing = true;
+            for (int i = 0; i < ModGroups.Length; i++) checks[i].IsChecked = (m & (ModGroups[i].Left | ModGroups[i].Right)) != 0;
+            syncing = false;
+        }
+        for (int i = 0; i < ModGroups.Length; i++)
+        {
+            var g = ModGroups[i];
+            var c = new CheckBox
+            {
+                Name = g.Id, Content = g.Label, Margin = new Thickness(i == 0 ? 12 : 8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = Loc.T("チェックすると、修飾キーの欄に書き足します(左右は区別しません)", "Check to add it to the modifiers field (left and right are not distinguished)"),
+            };
+            c.Click += (_, _) =>
+            {
+                if (syncing) return;
+                byte m = CurrentMask();
+                if (c.IsChecked == true) m |= g.Left; else m = (byte)(m & ~(g.Left | g.Right));
+                box.Text = m == 0 ? "" : Kasane.Keycodes.KeycodeTable.ModMaskToNames(m);
+            };
+            checks.Add(c);
+            panel.Children.Add(c);
+        }
+        box.TextChanged += (_, _) => FromText();
+        FromText();
+        return panel;
     }
 
     protected override void OnItemEnabled(int id)

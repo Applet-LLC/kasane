@@ -291,12 +291,12 @@
 <p><img src="../img/ja/settings-i8042-admin.png" alt="i8042prt（管理者として開いたとき）" /></p>
 <p>管理者でないときは、入力欄と <strong>保存する</strong> が押せません。</p>
 <p><img src="../img/ja/settings-i8042.png" alt="i8042prt（閲覧専用モード）" /></p>
-<p><strong>接続時に i8042prt の値を書き換える</strong> を有効にすると、キーボードを接続するたびに（起動時を含みます）、次のように書き換えます。</p>
+<p><strong>接続時に、i8042prtの値を初期化する</strong> を有効にすると、キーボードを接続するたびに（起動時を含みます）、次のように書き換えます。</p>
 <ul>
 <li>プロファイルのある型番には、設定した値を書き込みます（空欄の値は削除します）。</li>
 <li>プロファイルのない型番には、<code>OverrideKeyboardType</code>、<code>OverrideKeyboardSubtype</code>、<code>OverrideKeyboardIdentifier</code> と <code>LayerDriver JPN</code>、<code>LayerDriver KOR</code> を削除して、OS の既定に戻します。</li>
 </ul>
-<p>無効（既定）のときは、何もしません。<strong>このキーボードの型番に値を指定する</strong> にチェックを付けると、選んでいるキーボードの型番のプロファイルとして、下の値が使われます。<strong>国・配列プリセット</strong> から選ぶか、<strong>タイプ</strong>、<strong>サブタイプ</strong>、<code>OverrideKeyboardIdentifier</code>、<code>LayerDriver JPN</code>、<code>LayerDriver KOR</code>（レイアウト DLL 名。例: <code>kbd106.dll</code>）を、手で入れます。ほかに登録された型番があるときは、一覧に出ます。無効の間はプロファイルを設定できませんが、保存済みの内容は残り、有効にしたときに使われます。ドライバ全体の設定で、<strong>保存する</strong> を押すとすぐに保存されます。書き換えは、次にキーボードを接続したとき（再接続、または再起動）から行われます。</p>
+<p>無効（既定）のときは、何もしません。<strong>このキーボードでは以下の設定とする</strong> にチェックを付けると、選んでいるキーボードの型番のプロファイルとして、下の値が使われます。<strong>国・配列プリセット</strong> から選ぶか、<strong>タイプ</strong>、<strong>サブタイプ</strong>、<code>OverrideKeyboardIdentifier</code>、<code>LayerDriver JPN</code>、<code>LayerDriver KOR</code>（レイアウト DLL 名。例: <code>kbd106.dll</code>）を、手で入れます。ほかに登録された型番があるときは、一覧に出ます。無効の間はプロファイルを設定できませんが、保存済みの内容は残り、有効にしたときに使われます。ドライバ全体の設定で、<strong>保存する</strong> を押すとすぐに保存されます。書き換えは、次にキーボードを接続したとき（再接続、または再起動）から行われます。</p>
 <p>画面の上部には、選んでいるキーボードの <code>DeviceId</code> と、型番を表す <code>ModelKey</code> が出ます。プロファイルは <code>ModelKey</code> ごとに保存されるので、同じ型番のキーボードで共有されます。2 つの識別子については、前の「共有範囲」の節を参照してください。</p>
 <p><a id="desktop"></a></p>
 <h2 id="section-10">デスクトップ</h2>

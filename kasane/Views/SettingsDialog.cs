@@ -986,12 +986,12 @@ public sealed class SettingsDialog : Window
         var panel = new StackPanel();
         var enabled = new CheckBox
         {
-            Name = "I8042Enabled", Content = Loc.T("接続時に i8042prt の値を書き換える", "Rewrite i8042prt values on connection"), Margin = new Thickness(0, 0, 0, 8),
+            Name = "I8042Enabled", Content = Loc.T("接続時に、i8042prtの値を初期化する", "Reset the i8042prt values on connection"), Margin = new Thickness(0, 0, 0, 8),
             ToolTip = Loc.T(I8042Key + " の値を、キーボードを接続するたびに書き換えます。プロファイルの無い型番は、OS の既定に戻します", "Rewrites the values under " + I8042Key + " each time a keyboard is connected. Models without a profile are reset to the OS default"),
         };
         var specify = new CheckBox
         {
-            Name = "I8042ProfileEnabled", Content = Loc.T("このキーボードの型番に値を指定する", "Specify values for this keyboard's model"), Margin = new Thickness(0, 0, 0, 4),
+            Name = "I8042ProfileEnabled", Content = Loc.T("このキーボードでは以下の設定とする", "Use the settings below for this keyboard"), Margin = new Thickness(0, 0, 0, 4),
             ToolTip = Loc.T("接続時に、下の値を書き込みます", "Writes the values below on connection"),
         };
         panel.Children.Add(enabled);

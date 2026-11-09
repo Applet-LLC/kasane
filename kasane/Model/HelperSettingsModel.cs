@@ -229,12 +229,16 @@ public sealed class HelperSettingsModel
 /// <summary>設定画面の一覧に出す、1行の説明と、一覧の項目の複製（2026-10-08、P4）。</summary>
 public static class HelperSummary
 {
-    public static string Body(HelperActionBody b) => b.Type switch
+    /// <param name="full">true なら、手順の中身（key LCTL(KC_C); delay 50 …）と文字列を、省略せずに出す（割り当ての一覧用）。
+    /// false は、設定の一覧の 1 行用（手順の数だけ・文字列は 24 文字まで）。</param>
+    public static string Body(HelperActionBody b, bool full = false) => b.Type switch
     {
         HelperActionBody.Launch => Loc.T("起動: ", "Launch: ") + (b.Path ?? "") + (string.IsNullOrWhiteSpace(b.Args) ? "" : " " + b.Args),
         HelperActionBody.Open => Loc.T("開く: ", "Open: ") + (b.Path ?? ""),
+        HelperActionBody.Sequence when full => Loc.T("操作: ", "Sequence: ") + FlatSteps(b.Steps) +
+            ((b.ReleaseSteps?.Count ?? 0) > 0 ? Loc.T(" / 離したとき: ", " / on release: ") + FlatSteps(b.ReleaseSteps) : ""),
         HelperActionBody.Sequence => Loc.T($"操作 {b.Steps?.Count ?? 0} 手順", $"Sequence: {b.Steps?.Count ?? 0} steps") + ((b.ReleaseSteps?.Count ?? 0) > 0 ? Loc.T($" + 離したとき {b.ReleaseSteps!.Count} 手順", $" + on release {b.ReleaseSteps!.Count} steps") : ""),
-        HelperActionBody.TextInput => Loc.T("文字列: ", "Text: ") + ShortText(b.Text),
+        HelperActionBody.TextInput => Loc.T("文字列: ", "Text: ") + (full ? Flat(b.Text) : ShortText(b.Text)),
         HelperActionBody.AppLayer => Loc.T($"レイヤー {string.Join(",", b.Layers ?? new List<int>())} を {(string.IsNullOrWhiteSpace(b.LayerOp) ? "On" : b.LayerOp)}", $"Layer {string.Join(",", b.Layers ?? new List<int>())}: {(string.IsNullOrWhiteSpace(b.LayerOp) ? "On" : b.LayerOp)}"),
         HelperActionBody.PauseToggle => Loc.T("一時停止・再開", "Pause / resume"),
         HelperActionBody.KillLine => Loc.T("行末まで切り取り (C-k)", "Kill to end of line (C-k)"),
@@ -244,14 +248,20 @@ public static class HelperSummary
     // 一覧に出す文字列（長ければ省略。改行は ↵）。
     private static string ShortText(string? text)
     {
-        string t = (text ?? "").Replace("\r", "").Replace("\n", "↵").Replace("\t", "→");
+        string t = Flat(text);
         return t.Length <= 24 ? t : t[..24] + "…";
     }
 
-    public static string Action(HelperAction a) =>
-        $"HLP({a.Id})  {(string.IsNullOrWhiteSpace(a.Name) ? "" : a.Name + "  ")}— {Body(a.Action)}";
+    private static string Flat(string? text) => (text ?? "").Replace("\r", "").Replace("\n", "↵").Replace("\t", "→");
 
-    public static string Trigger(HelperTrigger t)
+    // 手順を 1 行にする（1 手順ずつ「; 」で区切る）。
+    private static string FlatSteps(IEnumerable<HelperStep>? steps) =>
+        string.Join("; ", StepText.Format(steps).Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
+    public static string Action(HelperAction a, bool full = false) =>
+        $"HLP({a.Id})  {(string.IsNullOrWhiteSpace(a.Name) ? "" : a.Name + "  ")}— {Body(a.Action, full)}";
+
+    public static string Trigger(HelperTrigger t, bool full = false)
     {
         string mods = "";
         if (TriggerTable.TryParseMods(t.Mods, out byte m))
@@ -262,7 +272,7 @@ public static class HelperSummary
             if ((m & TriggerTable.ModWin) != 0) mods += "Win+";
         }
         else mods = (t.Mods ?? "") + "+";
-        return $"{mods}{t.Key}  — {Body(t.Action)}";
+        return $"{(string.IsNullOrWhiteSpace(t.Name) ? "" : t.Name + "  ")}{mods}{t.Key}  — {Body(t.Action, full)}";
     }
 
     public static string Rule(AppLayerRule r)
