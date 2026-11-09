@@ -211,7 +211,7 @@
 <li><code>Install-kasane-pro.exe</code> を実行し、Pro 版のライセンスキーを入力してインストールします。</li>
 <li>再起動します。</li>
 </ol>
-<p>アンインストールのあとに再起動しないまま Pro 版を入れると、ドライバの削除が終わっておらず、エラー（1722）で取りやめになることがあります。そのときは、再起動してからもう一度実行してください。再起動しても同じエラーになるときは、ライセンスキーを確認できていない可能性があります（<a href="#%E3%81%86%E3%81%BE%E3%81%8F%E3%81%84%E3%81%8B%E3%81%AA%E3%81%84%E3%81%A8%E3%81%8D">うまくいかないとき</a>）。</p>
+<p>アンインストールのあとに再起動しないまま Pro 版を入れると、ドライバの削除が終わっておらず、エラー（1722）で取りやめになることがあります。そのときは、再起動してからもう一度実行してください。再起動しても同じエラーになるときは、ライセンスキーを確認できていない可能性があります（<a href="#troubleshooting">うまくいかないとき</a>）。</p>
 <p>キーボードごとの設定（<code>project.json</code>）や、トレイの設定は、そのまま引き継がれます。Subscription 版のライセンスの記録（<code>%ProgramData%\kbdlayer-license</code>）は、Pro 版のインストール時に削除されます。Pro 版では使わないからです。</p>
 <h2 id="section-11">サイレントインストール</h2>
 <p><code>msiexec</code> で、画面を出さずにインストールできます。設定フォルダと設定ファイルの取り込みは、次のプロパティで渡します。</p>
@@ -247,6 +247,7 @@
 <p>Pro 版では、<code>LICENSEKEY</code> にライセンスキーを渡します。サイレントインストールのログ（<code>/l*v</code>）には、キーの値は書かれません。</p>
 <pre><code>msiexec /i KasaneProSetup-ja-JP.msi /qn LICENSEKEY=XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX
 </code></pre>
+<p><a id="troubleshooting"></a></p>
 <h2 id="section-12">うまくいかないとき</h2>
 <table>
 <thead>
