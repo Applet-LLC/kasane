@@ -13,6 +13,77 @@ public class KeyMarksTests
 
     private static KeySlot Slot(int index) => Layout.Slots.First(s => s.Index == index);
 
+    private static KeyMarks.HelperLookup Lookup() => KeyMarks.HelperLookup.From(
+        new HelperConfig
+        {
+            Actions = { new HelperAction { Id = 4, Name = "メモ帳", Action = new HelperActionBody { Type = HelperActionBody.Launch, Path = "notepad.exe" } } },
+            Triggers = { new HelperTrigger { Name = "停止", Key = "KC_F13", Mods = "MOD_LCTL", Action = new HelperActionBody { Type = HelperActionBody.PauseToggle } } },
+        },
+        new HelperConfig { Actions = { new HelperAction { Id = 4, Name = "共通の4", Action = new HelperActionBody { Type = HelperActionBody.PauseToggle } } } });
+
+    [Theory]
+    [InlineData("KC_F13", null, "KC_F13")]
+    [InlineData("KC_F13", "MOD_LCTL", "LCTL(KC_F13)")]
+    [InlineData("KC_F1", "MOD_LCTL|MOD_LSFT", "LCTL(LSFT(KC_F1))")]
+    [InlineData("KC_F1", "ctrl|alt|win", "LCTL(LALT(LGUI(KC_F1)))")]
+    public void TriggerToken_IsTheAssignmentThatPressesTheTriggerKey(string key, string? mods, string expected)
+    {
+        var token = HelperSummary.TriggerToken(new HelperTrigger { Key = key, Mods = mods });
+        Assert.Equal(expected, token);
+        // 割り当てたキーに T の印が付く（トリガーと結び付く）
+        var p = NewProject();
+        p.Layers[0][0] = token!;
+        var lookup = KeyMarks.HelperLookup.From(new HelperConfig { Triggers = { new HelperTrigger { Key = key, Mods = mods, Action = new HelperActionBody { Type = HelperActionBody.PauseToggle } } } }, null);
+        Assert.Equal("T", KeyMarks.For(p, Layout, 0, Slot(0), lookup).Marks);
+    }
+
+    [Theory]
+    [InlineData("KC_NOPE", null)]
+    [InlineData("KC_F13", "MOD_BOGUS")]
+    public void TriggerToken_UnresolvableIsNull(string key, string? mods) =>
+        Assert.Null(HelperSummary.TriggerToken(new HelperTrigger { Key = key, Mods = mods }));
+
+    [Fact]
+    public void HlpAssignment_GetsH_WithTheActionDescription()
+    {
+        var p = NewProject();
+        p.Layers[0][0] = "HLP(4)";
+        p.Layers[0][1] = "HLP(9)";
+        var m = KeyMarks.For(p, Layout, 0, Slot(0), Lookup());
+        Assert.Equal("H", m.Marks);
+        Assert.Contains("メモ帳", m.ToolTip);                 // このキーボード用が先
+        Assert.DoesNotContain("共通の4", m.ToolTip);
+        var missing = KeyMarks.For(p, Layout, 0, Slot(1), Lookup());
+        Assert.Equal("H", missing.Marks);
+        Assert.Contains("動作がありません", missing.ToolTip);
+        Assert.Equal("H", KeyMarks.For(p, Layout, 0, Slot(0)).Marks);   // ヘルパーの情報なしでも H
+    }
+
+    [Fact]
+    public void TriggerKey_GetsT_AndOnlyWithTheMatchingKey()
+    {
+        var p = NewProject();
+        p.Layers[0][0] = "KC_F13";
+        p.Layers[0][1] = "LCTL(KC_F13)";
+        p.Layers[0][2] = "KC_F14";
+        var m = KeyMarks.For(p, Layout, 0, Slot(0), Lookup());
+        Assert.Equal("T", m.Marks);
+        Assert.Contains("停止", m.ToolTip);
+        Assert.Contains("Ctrl+KC_F13", m.ToolTip);
+        Assert.Equal("T", KeyMarks.For(p, Layout, 0, Slot(1), Lookup()).Marks);   // 修飾付きでも、出力キーが同じ
+        Assert.Equal("", KeyMarks.For(p, Layout, 0, Slot(2), Lookup()).Marks);
+        Assert.Equal("", KeyMarks.For(p, Layout, 0, Slot(0)).Marks);               // ヘルパーの情報なしでは付けない
+    }
+
+    [Fact]
+    public void Marks_AreOrdered_MDCRHT()
+    {
+        var p = NewProject();
+        p.Layers[0][0] = "HLP(4)";
+        p.Combos.Add(new ComboDef { Id = 0, Slot1 = 0, Slot2 = 1, Output = "KC_ESC" });
+        Assert.Equal("CH", KeyMarks.For(p, Layout, 0, Slot(0), Lookup()).Marks);
+    }
+
     [Fact]
     public void PlainKey_HasNoMarks()
     {

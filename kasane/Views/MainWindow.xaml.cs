@@ -437,7 +437,21 @@ public partial class MainWindow : Window
     private void RenderKeyboard()
     {
         if (_project == null || _layout == null) { KbdCanvas.Render(null, _ => null!); return; }
+        _helperLookup = LoadHelperLookup();
         KbdCanvas.Render(_layout, VisualFor);
+    }
+
+    // ヘルパー動作・トリガーの印に使う（helper.json は、描き直すたびに 1 回だけ読む）。
+    private KeyMarks.HelperLookup? _helperLookup;
+
+    private KeyMarks.HelperLookup? LoadHelperLookup()
+    {
+        try
+        {
+            var helper = new HelperSettingsModel(_project!.UniqId, TrayConfig.Load());
+            return KeyMarks.HelperLookup.From(helper.HasDevice && helper.DeviceLoadError == null ? helper.Device : null, helper.Global);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException) { return null; }
     }
 
     private KeyVisual VisualFor(KeySlot slot)
@@ -470,7 +484,7 @@ public partial class MainWindow : Window
         bool unchanged = _layer == 0 && token == slot.DefaultKeycode;
         string main = unchanged && slot.MainLegend.Length > 0 ? slot.MainLegend : KeycodeCatalog.ShortName(token);
         // キー置換・コンボ・マクロ・タップダンスの印（右下）と、その説明。
-        var marks = KeyMarks.For(project, _layout!, _layer, slot);
+        var marks = KeyMarks.For(project, _layout!, _layer, slot, _helperLookup);
         if (marks.ToolTip.Length > 0) tip += "\n" + marks.ToolTip;
         return new KeyVisual(main, bg, border, thickness, tip, fg, marks.Marks);
     }
@@ -863,6 +877,7 @@ public partial class MainWindow : Window
                 SetStatus(Loc.T("削除したヘルパー動作を使っていた割り当てを外しました。適用すると反映されます。", "Removed the assignments that used the deleted helper action. Apply to take effect."));
             }
         }
+        RenderKeyboard(); // ヘルパー動作・トリガーを足した・消した・直したとき、H・T の印が変わる
         if (dlg.LanguageChanged) OfferRestartForLanguage();
     }
 
