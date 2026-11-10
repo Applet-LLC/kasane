@@ -54,6 +54,11 @@ dotnet test kasane.Tests
 
 ビルドしたドライバを実機で読み込むには、署名が必要です。
 
+## 貢献者
+
+- Applet LLC: 企画、開発、実機での試験
+- Claude（Anthropic の AI）: 設計の検討、実装、試験の補助、ドキュメントの作成。コミットには `Co-Authored-By` として記録しています
+
 ## ライセンス
 
 このリポジトリのソースコードは [Apache License 2.0](LICENSE) で公開しています。
@@ -73,3 +78,9 @@ kasane is a Windows keyboard remapping tool built on a keyboard filter driver (`
 Prebuilt binaries (version 1.01) are sold on Gumroad: [Subscription](https://applet.gumroad.com/l/crijiq) and [Pro (one-time purchase)](https://applet.gumroad.com/l/icbqj). A [trial version](https://applet.gumroad.com/l/nbmmf) (a Subscription evaluation license key and zip file) works for 6 days; if you later buy a Subscription license key and enter it, it becomes the Subscription edition. It requires Windows 11 25H2 (x64 or ARM64). The help pages are currently available in Japanese only.
 
 The source code in this repository is licensed under the [Apache License 2.0](LICENSE). The prebuilt binaries are covered by a separate end-user license, some files derived from nodoka4 are under the Eclipse Public License 2.0, and other third-party components are listed in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
+
+
+### Contributors
+
+- Applet LLC: planning, development, and testing on real hardware
+- Claude (Anthropic's AI): design discussion, implementation, testing support, and documentation. Recorded as `Co-Authored-By` in the commits
