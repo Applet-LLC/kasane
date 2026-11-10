@@ -29,7 +29,7 @@
 <li><a href="15-backup-migrate.html">15. バックアップと移行</a></li>
 <li><a href="16-reference.html">16. トラブル対応、既知の制限など</a></li>
 <li><a href="17-keymaptool.html">17. KeymapTool とサンプル</a></li>
-<li><a href="18-readme.html">18. README</a></li>
+<li><a href="18-readme.html">18. README、来歴</a></li>
 <li><a href="19-terms.html">19. 使用許諾</a></li>
 <li><a href="20-third-party.html">20. サードパーティノーティス</a></li>
 </ol>
@@ -44,6 +44,11 @@
 <li>キーボード図に、赤い枠のキー（どのキーか分からないキー）があり、そのキーを変更したい</li>
 <li>設定したのに、違うキーが入れ替わる</li>
 </ul>
+<p>Windows のキーボードレイアウトの指定が必要な場合は、キーボードレイアウト設定ツール「まな」の利用もご検討ください。キートップの刻印とキーボードレイアウトが一致しない場合でも、キーのリマップはできます。ただし、たとえば Shift + 2 を送ったときに、<code>@</code> が出るか <code>&quot;</code> になるかは、Windows のキーボードレイアウトの設定で決まります。マクロを作るときに問題になるので、ご注意ください。</p>
+<ul>
+<li>キーボードレイアウト設定ツール「まな」: <a href="https://appletllc.com/2026/10/07/%E3%82%AD%E3%83%BC%E3%83%9C%E3%83%BC%E3%83%89%E3%83%AC%E3%82%A4%E3%82%A2%E3%82%A6%E3%83%88%E8%A8%AD%E5%AE%9A%E3%83%84%E3%83%BC%E3%83%AB-%E3%81%BE%E3%81%AA-1-00/">Applet LLC のページ</a>、<a href="https://github.com/Applet-LLC/mana">GitHub</a></li>
+</ul>
+<p>物理的なキーボードの配列が、用意してある JP109、US104、10KEY から離れていて、物理的なキーの位置と、取得できたスキャンコードが違う場合は、<a href="05-editor-basics.html#kle-import">KLE から配列を追加する</a>を見て、キーボードに合った配列にしてください。</p>
 <h2 id="section-1">開く</h2>
 <p>エディタの画面下の <strong>キャリブレーション...</strong> を押します。</p>
 <p><img src="../img/ja/calib-main.png" alt="キャリブレーションの画面" /></p>
@@ -137,6 +142,14 @@
 <blockquote>
 <p>実測した値は、別の機器には持ち越されません。キーボードを買い替えたときは、やり直してください（<a href="15-backup-migrate.html">15. バックアップと移行</a>）。</p>
 </blockquote>
+<p><a id="special-keys"></a></p>
+<h2 id="pausenumlockcopilotofficealtgr">Pause、NumLock、Copilot、Office、AltGr のキー</h2>
+<ul>
+<li>Pause / Break: 物理キーは、2 つの信号（<code>E1 1D</code> と <code>45</code>）で届きます。ドライバが、1 つのキーとしてまとめて扱います。Pause を別のキーに置き換えることも、何かのキーを Pause にすることもできます。</li>
+<li>NumLock: スキャンコードは <code>0x45</code> で、Pause の 2 つ目の信号と同じ値です。ドライバが見分けるので、ふだんは気にする必要はありません。</li>
+<li>Copilot キー、Office キー: 多くのキーボードでは、1 つのキーではなく、複数のキーの同時押し（Copilot は Win + Shift + F23、Office は Ctrl + Shift + Alt + Win）として届きます。そのため、1 つの割り当てでは変えられません。同時押しのそれぞれのキー（左 Win、左 Shift、F23 など）の割り当てを変えると、同時押し全体が変わります。お使いのキーボードで、どのキーが届くかは、<strong>入力確認</strong> で確かめてください。</li>
+<li>AltGr: AltGr のある配列（ドイツ語など）の Windows では、右 Alt が AltGr として働きます。かさね では変えられません。<a href="16-reference.html">16. トラブル対応、既知の制限など</a>を見てください。</li>
+</ul>
 <h2 id="section-9">既知の制限</h2>
 <p>右 Shift を <code>E0 36</code> で出すキーボードは、キャリブレーションで扱えない場合があります。実機では確認できていません。</p>
 

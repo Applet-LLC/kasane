@@ -29,7 +29,7 @@
 <li><a href="15-backup-migrate.html">15. バックアップと移行</a></li>
 <li><a href="16-reference.html">16. トラブル対応、既知の制限など</a></li>
 <li><a href="17-keymaptool.html">17. KeymapTool とサンプル</a></li>
-<li><a href="18-readme.html">18. README</a></li>
+<li><a href="18-readme.html">18. README、来歴</a></li>
 <li><a href="19-terms.html">19. 使用許諾</a></li>
 <li><a href="20-third-party.html">20. サードパーティノーティス</a></li>
 </ol>
@@ -102,9 +102,19 @@
 </ol>
 <p>読み込んだ内容は、編集中の状態に入るだけです。<strong>キーボードに適用(ON)</strong> は、そのあとで押します。保存は自動です（ヘルパー設定だけは、すぐに保存されます）。</p>
 <p>今のレイアウトにないキーは、読み込まれずに、画面に出ます。</p>
+<p>読み込まれるレイヤーは、次のとおりです。</p>
+<ul>
+<li>ファイルの中のレイヤーは、番号どおりに（レイヤー 0 から順に）読み込まれます。ファイルのレイヤー 0 は今のレイヤー 0 に、レイヤー 1 は今のレイヤー 1 に入ります。</li>
+<li>置き換え: 今のレイヤーを、ファイルのレイヤーの内容で作り直します。追加: 今のレイヤーの上に、ファイルのキーを足します。足りないレイヤーは、増やします。</li>
+<li><strong>レイヤー</strong> のチェックを外すと、ファイルのレイヤーは 1 枚も読み込まれません。ファイルの中のレイヤーを、1 枚ずつ選んで読み込むことはできません。</li>
+<li>レイヤー 1 枚だけを書き出したファイルは、読み込み先のレイヤーを選べます。</li>
+</ul>
+<blockquote>
+<p>インポートの前に、今の設定をエクスポートして、取っておいてください。全体一括の読み込み以外では、自動のバックアップは作られません。</p>
+</blockquote>
 <p>全体一括の読み込みの前には、今の設定が、設定フォルダの <code>backup</code> に自動でバックアップされます。</p>
 <h3 id="emacs">Emacs の設定例を読み込む</h3>
-<p><strong>インポート</strong> タブの、<strong>ファイルを選ぶ...</strong> の下にある <strong>Emacs の設定例...</strong> を押すと、インストールに同梱の Emacs 風のキー操作の設定例（<code>samples\emacs\emacs.kasane.json</code>）が読み込まれます。読み込む項目は「レイヤー」「マクロ」「キー置換」の 3 つ、読み込み方は <strong>置き換え</strong> にして、内容を確かめてから <strong>読み込む</strong> を押します。そのあと、<strong>キーボードに適用(ON)</strong> を押します。中身と注意点は、<code>docs\EMACS-KEYBINDINGS.md</code> にあります。</p>
+<p><strong>インポート</strong> タブの、<strong>ファイルを選ぶ...</strong> の下にある <strong>Emacs の設定例...</strong> を押すと、インストールに同梱の Emacs 風のキー操作の設定例（<code>samples\emacs\emacs.kasane.json</code>）が読み込まれます（同じフォルダに、使い方を書いた <code>EMACS-KEYBINDINGS.md</code> もあります）。読み込む項目は「レイヤー」「マクロ」「キー置換」の 3 つ、読み込み方は <strong>置き換え</strong> にして、内容を確かめてから <strong>読み込む</strong> を押します。そのあと、<strong>キーボードに適用(ON)</strong> を押します。中身と注意点は、<code>docs\EMACS-KEYBINDINGS.md</code> にあります。</p>
 <p><a id="nodoka"></a></p>
 <h2 id="section-3">のどかの設定を取り込む</h2>
 <p>のどか（nodoka4）の設定ファイル（<code>.nodoka</code>）を、kasane の設定に変換して取り込めます。のどかと kasane では、キーのリマップの仕組みと表現が違い、kasane に無い機能もあります。変換して取り込みますが、正しく読めないものや、取り込めないものもあるので、注意してお使いください。</p>

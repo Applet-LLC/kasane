@@ -185,22 +185,27 @@ third-party folder.
 Release History
 ---------------
 2026-11-10 1.01
-  - Key assignment: opening an assigned key shows its current setting. Create or open
-    combos, key overrides, and tap dances from a key. Added IME on/off (KC_LNG1 /
-    KC_LNG2). Besides helper actions, you can now choose a trigger and assign its key.
-  - Macros, combos, tap dances, key overrides: added delete, duplicate, and reorder.
-    Up to 128 key overrides; layer operations and helper actions can be used as the
-    replacement; added modifier checkboxes.
-  - Added a text view of all assignments, and --dump-text.
-  - Emacs-style operation: mark mode (MARK), the KillLine helper action (C-k), and
-    loading the sample settings.
-  - Helper actions: you can choose how the IME is switched. Triggers can be named.
-  - Screens: fewer explanatory texts; the "?" button opens the matching help section.
-    Added status indicators (driver, not applied, read-only, editing), message kinds,
-    and marks for input errors. Fixed the dark theme hiding tab contents from
-    assistive technology.
-  - License: moved signing to the server. Stated what is sent and that it is not stored.
-  - Bug fixes: physically held modifier keys stayed released after a macro, and more.
+New features
+  - Import of settings files that enable Emacs-style operation; mark mode (MARK)
+    and the KillLine (C-k) helper action
+  - Increased the number of key overrides from 32 to 128
+  - Helper actions: added a choice of how the IME is turned on/off, and
+    names for triggers
+  - Added a button that lists the assigned settings, and --dump-text for the CLI
+
+Improvements
+  - When you assign a key, its current setting is now filled in beforehand
+  - Macros, combos, tap dances, key overrides: added delete, duplicate, and
+    reorder
+  - Removed explanatory text from the dialogs; added help buttons and status
+    indicators
+  - Moved the license management server to another server. Stated what is sent
+    and that it is not stored
+
+Bug fixes
+  - Macros: modifier keys that were physically held were released after the
+    macro ran
+
 2026-11-01 1.00  Initial release.
 
 
