@@ -29,7 +29,7 @@
 <li><a href="15-backup-migrate.html">15. バックアップと移行</a></li>
 <li><a href="16-reference.html">16. トラブル対応、既知の制限など</a></li>
 <li><a href="17-keymaptool.html">17. KeymapTool とサンプル</a></li>
-<li><a href="18-readme.html">18. README</a></li>
+<li><a href="18-readme.html">18. README、来歴</a></li>
 <li><a href="19-terms.html">19. 使用許諾</a></li>
 <li><a href="20-third-party.html">20. サードパーティノーティス</a></li>
 </ol>
@@ -103,10 +103,10 @@
 </table>
 <p>IMM32 では、次のアプリで状態が取れないか、追従しません。そのようなアプリが前面のときは、直前の状態を保ちます。</p>
 <ul>
-<li>管理者として動くウィンドウ</li>
 <li>設定アプリなど、一部のストアアプリ（値が固定されている）</li>
 <li>新しいメモ帳（ON が読めないことがある）</li>
 </ul>
+<p>管理者として動くウィンドウでも、状態は取れます。ログオン時に自動起動するトレイ（<code>kasane-tray.exe</code>）は、UI アクセスの権限で動くためです（Windows 11 の VM で、管理者として動くメモ帳で確かめました）。UI アクセスのない版のトレイ（<code>kasane-tray-nua.exe</code>）では、取れないことがあります。</p>
 <blockquote>
 <p>TSF を含む方法を選ぶと、IME 連動を使っていなくても DLL が入ります。Explorer を開くのが遅く感じられる場合があります。原因は特定できていません。32 ビットのアプリと、ARM64 ネイティブのアプリには、この DLL は入りません。使う必要がなければ、既定の「IMM32 のみ」のままにしてください。</p>
 </blockquote>

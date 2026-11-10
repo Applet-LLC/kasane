@@ -33,7 +33,7 @@ $chapters = @(
     @{ Name = '15-backup-migrate';    Title = '15. バックアップと移行' }
     @{ Name = '16-reference';         Title = '16. トラブル対応、既知の制限など' }
     @{ Name = '17-keymaptool';        Title = '17. KeymapTool とサンプル' }
-    @{ Name = '18-readme';            Title = '18. README' }
+    @{ Name = '18-readme';            Title = '18. README、来歴' }
     @{ Name = '19-terms';             Title = '19. 使用許諾' }
     @{ Name = '20-third-party';       Title = '20. サードパーティノーティス' }
 )
