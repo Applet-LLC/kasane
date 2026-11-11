@@ -1,0 +1,24 @@
+{
+  "Format": "kasane-export",
+  "Version": 1,
+  "Scope": "Keyboard",
+  "App": "samples/emacs",
+  "Keyboards": [
+    {
+      "Name": "Emacs 風のキー操作: 左 Alt のワークアラウンド",
+      "Layers": [
+        { "Index": 0, "Keys": {
+          "SC_000E": "KC_BSPC", "SC_0033": "KC_COMMA", "SC_0034": "KC_DOT", "SC_0038": "MO(3)"
+        } },
+        { "Index": 3, "Keys": {
+          "SC_0021": "LCTL(KC_RIGHT)", "SC_0030": "LCTL(KC_LEFT)", "SC_0020": "LCTL(KC_DELETE)", "SC_000E": "LCTL(KC_BSPC)",
+          "SC_002F": "KC_PGUP", "SC_0011": "LCTL(KC_C)", "SC_0033": "KC_F24", "SC_0034": "KC_F23"
+        } }
+      ],
+      "KeyOverrides": [
+        { "Id": 35, "Mods": "MOD_LSFT", "Key": "KC_F24", "Replacement": "LCTL(KC_HOME)" },
+        { "Id": 36, "Mods": "MOD_LSFT", "Key": "KC_F23", "Replacement": "LCTL(KC_END)" }
+      ]
+    }
+  ]
+}

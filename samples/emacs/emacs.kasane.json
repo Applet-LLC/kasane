@@ -19,6 +19,15 @@
         { "Index": 1, "Keys": {
           "SC_001F": "MACRO(120)", "SC_0021": "MACRO(121)", "SC_0011": "MACRO(122)", "SC_0030": "MACRO(123)",
           "SC_0025": "MACRO(124)", "SC_0023": "MACRO(125)", "SC_0016": "MACRO(119)"
+        } },
+        { "Index": 2, "Keys": {
+          "SC_0010": "MACRO(109)", "SC_0011": "MACRO(115)", "SC_0012": "MACRO(97)", "SC_0013": "MACRO(110)",
+          "SC_0014": "MACRO(112)", "SC_0015": "MACRO(117)", "SC_0016": "MACRO(113)", "SC_0017": "MACRO(101)",
+          "SC_0018": "MACRO(107)", "SC_0019": "MACRO(108)", "SC_001E": "MACRO(93)", "SC_001F": "MACRO(111)",
+          "SC_0020": "MACRO(96)", "SC_0021": "MACRO(98)", "SC_0022": "MACRO(99)", "SC_0023": "MACRO(100)",
+          "SC_0024": "MACRO(102)", "SC_0025": "MACRO(103)", "SC_0026": "MACRO(104)", "SC_002C": "MACRO(118)",
+          "SC_002D": "MACRO(116)", "SC_002E": "MACRO(95)", "SC_002F": "MACRO(114)", "SC_0030": "MACRO(94)",
+          "SC_0031": "MACRO(106)", "SC_0032": "MACRO(105)", "SC_0039": "MACRO(92)"
         } }
       ],
       "Macros": [
@@ -30,7 +39,34 @@
         {"Id": 124, "Keys": ["LCTL(KC_W)"]},
         {"Id": 125, "Keys": ["LCTL(KC_A)"]},
         {"Id": 126, "Keys": ["LSFT(KC_END)", "LCTL(KC_X)"]},
-        {"Id": 127, "Keys": ["KC_ENTER", "KC_LEFT"]}
+        {"Id": 127, "Keys": ["KC_ENTER", "KC_LEFT"]},
+        {"Id": 92, "Keys": ["LCTL(KC_SPACE)"]},
+        {"Id": 93, "Keys": ["LCTL(KC_A)"]},
+        {"Id": 94, "Keys": ["LCTL(KC_B)"]},
+        {"Id": 95, "Keys": ["LCTL(KC_C)"]},
+        {"Id": 96, "Keys": ["LCTL(KC_D)"]},
+        {"Id": 97, "Keys": ["LCTL(KC_E)"]},
+        {"Id": 98, "Keys": ["LCTL(KC_F)"]},
+        {"Id": 99, "Keys": ["LCTL(KC_G)"]},
+        {"Id": 100, "Keys": ["LCTL(KC_H)"]},
+        {"Id": 101, "Keys": ["LCTL(KC_I)"]},
+        {"Id": 102, "Keys": ["LCTL(KC_J)"]},
+        {"Id": 103, "Keys": ["LCTL(KC_K)"]},
+        {"Id": 104, "Keys": ["LCTL(KC_L)"]},
+        {"Id": 105, "Keys": ["LCTL(KC_M)"]},
+        {"Id": 106, "Keys": ["LCTL(KC_N)"]},
+        {"Id": 107, "Keys": ["LCTL(KC_O)"]},
+        {"Id": 108, "Keys": ["LCTL(KC_P)"]},
+        {"Id": 109, "Keys": ["LCTL(KC_Q)"]},
+        {"Id": 110, "Keys": ["LCTL(KC_R)"]},
+        {"Id": 111, "Keys": ["LCTL(KC_S)"]},
+        {"Id": 112, "Keys": ["LCTL(KC_T)"]},
+        {"Id": 113, "Keys": ["LCTL(KC_U)"]},
+        {"Id": 114, "Keys": ["LCTL(KC_V)"]},
+        {"Id": 115, "Keys": ["LCTL(KC_W)"]},
+        {"Id": 116, "Keys": ["LCTL(KC_X)"]},
+        {"Id": 117, "Keys": ["LCTL(KC_Y)"]},
+        {"Id": 118, "Keys": ["LCTL(KC_Z)"]}
       ],
       "MacroNames": {
         "119": "Emacs C-x u 元に戻す",
@@ -41,7 +77,34 @@
         "124": "Emacs C-x k タブを閉じる",
         "125": "Emacs C-x h 全選択",
         "126": "Emacs C-k 行末まで切り取り",
-        "127": "Emacs C-o 下に空行を開く"
+        "127": "Emacs C-o 下に空行を開く",
+        "92": "Emacs C-q C-Space そのまま送る",
+        "93": "Emacs C-q C-a そのまま送る",
+        "94": "Emacs C-q C-b そのまま送る",
+        "95": "Emacs C-q C-c そのまま送る",
+        "96": "Emacs C-q C-d そのまま送る",
+        "97": "Emacs C-q C-e そのまま送る",
+        "98": "Emacs C-q C-f そのまま送る",
+        "99": "Emacs C-q C-g そのまま送る",
+        "100": "Emacs C-q C-h そのまま送る",
+        "101": "Emacs C-q C-i そのまま送る",
+        "102": "Emacs C-q C-j そのまま送る",
+        "103": "Emacs C-q C-k そのまま送る",
+        "104": "Emacs C-q C-l そのまま送る",
+        "105": "Emacs C-q C-m そのまま送る",
+        "106": "Emacs C-q C-n そのまま送る",
+        "107": "Emacs C-q C-o そのまま送る",
+        "108": "Emacs C-q C-p そのまま送る",
+        "109": "Emacs C-q C-q そのまま送る",
+        "110": "Emacs C-q C-r そのまま送る",
+        "111": "Emacs C-q C-s そのまま送る",
+        "112": "Emacs C-q C-t そのまま送る",
+        "113": "Emacs C-q C-u そのまま送る",
+        "114": "Emacs C-q C-v そのまま送る",
+        "115": "Emacs C-q C-w そのまま送る",
+        "116": "Emacs C-q C-x そのまま送る",
+        "117": "Emacs C-q C-y そのまま送る",
+        "118": "Emacs C-q C-z そのまま送る"
       },
       "KeyOverrides": [
         { "Id": 0, "Mods": "MOD_LCTL|MOD_LSFT", "Key": "KC_F", "Replacement": "LSFT(KC_RIGHT)" },
@@ -77,7 +140,8 @@
         { "Id": 30, "Mods": "MOD_LALT|MOD_LSFT", "Key": "KC_COMMA", "Replacement": "LCTL(KC_HOME)" },
         { "Id": 31, "Mods": "MOD_LALT|MOD_LSFT", "Key": "KC_DOT", "Replacement": "LCTL(KC_END)" },
         { "Id": 32, "Mods": "MOD_LCTL", "Key": "KC_X", "Replacement": "OSL(1)" },
-        { "Id": 33, "Mods": "MOD_LCTL", "Key": "KC_SPACE", "Replacement": "MARK(on)" }
+        { "Id": 33, "Mods": "MOD_LCTL", "Key": "KC_SPACE", "Replacement": "MARK(on)" },
+        { "Id": 34, "Mods": "MOD_LCTL", "Key": "KC_Q", "Replacement": "OSL(2)" }
       ]
     }
   ]

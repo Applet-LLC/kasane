@@ -2,7 +2,11 @@
 .SYNOPSIS
   emacs.kasane.json のレイヤー・マクロ・キー置換を、KeymapTool でキーボードに書き込む（管理者権限が必要）。
 .DESCRIPTION
-  キーボードのレイヤーマップ（レイヤー 0〜2）を、このファイルの内容で置き換えます。もとの設定は消えます。
+  キーボードのレイヤーマップ（レイヤー 0〜3。0 が通常、1 が C-x、2 が C-q、3 が左 Alt）を、このファイルの内容で置き換えます。もとの設定は消えます。
+  C-q（のどかの &Prefix(KeymapDefault) に当たる、次の 1 キーをそのまま送る操作）は、キー置換 34 番（OSL(2)）と、レイヤー 2 の MACRO(92〜118) です。
+  同じフォルダの emacs-alt-workaround.kasane.json（レイヤー 3、レイヤー 0 の 4 キー、キー置換 35・36 番）があれば、重ねて書き込みます。
+  これは、ドライバの不具合（Alt+V のあとに Alt の単独押しが届く）への対処で、左 Alt を MO(3) にして、Alt を使う割り当てを
+  レイヤー 3 に直接置いています。-NoAltWorkaround で、重ねずに書き込みます。ドライバが直ったら、このファイルを消します。
   -Remove で、このファイルが使う項目（レイヤーマップ全体、マクロ、キー置換）を消します。
   -KillLine を付けると、C-k（Ctrl+K）を、マクロではなく、トレイのヘルパー動作 KillLine にします（のどかの &EmacsEditKillLine と同じ。
   続けて C-k を押した分がクリップボードにつながり、行末の C-k は改行を削除します）。トレイが動いている必要があります。
@@ -16,6 +20,8 @@ param(
     [switch]$Remove,
     [switch]$KillLine,
     [string]$File,
+    [string]$AltWorkaroundFile,
+    [switch]$NoAltWorkaround,
     [string]$KeymapTool = 'C:\Program Files\applet\kasane\KeymapTool.exe'
 )
 $ErrorActionPreference = 'Stop'
@@ -30,6 +36,24 @@ if ($listing -notmatch "UniqId=$Id\b") {
     throw "ID $Id のキーボードを、ドライバが認識していません。KeymapTool --list の表示にある UniqId を指定してください。`n$listing"
 }
 $kb = (Get-Content $File -Raw -Encoding UTF8 | ConvertFrom-Json).Keyboards[0]
+
+# 左 Alt のワークアラウンド（emacs-alt-workaround.kasane.json）を、基本の設定に重ねる。ファイルが無ければ、何もしない。
+# -Remove のときは、-NoAltWorkaround を付けていても、ワークアラウンドの分も消す（前に書いた分を残さないため）。
+if (-not $AltWorkaroundFile) { $AltWorkaroundFile = Join-Path $PSScriptRoot 'emacs-alt-workaround.kasane.json' }
+if ((Test-Path $AltWorkaroundFile) -and (-not $NoAltWorkaround -or $Remove)) {
+    $alt = (Get-Content $AltWorkaroundFile -Raw -Encoding UTF8 | ConvertFrom-Json).Keyboards[0]
+    foreach ($al in @($alt.Layers)) {
+        $layer = @($kb.Layers) | Where-Object { $_.Index -eq $al.Index } | Select-Object -First 1
+        if ($layer) {
+            foreach ($p in $al.Keys.PSObject.Properties) { Add-Member -InputObject $layer.Keys -NotePropertyName $p.Name -NotePropertyValue $p.Value -Force }
+        } else {
+            $kb.Layers = @($kb.Layers) + $al
+        }
+    }
+    $kb.KeyOverrides = @($kb.KeyOverrides) + @($alt.KeyOverrides | Where-Object { $_ })
+    $kb.Macros = @($kb.Macros) + @($alt.Macros | Where-Object { $_ })
+    Write-Host "左 Alt のワークアラウンドを重ねます: $AltWorkaroundFile"
+}
 
 function Run([string[]]$ToolArgs, [switch]$IgnoreError) {
     & $KeymapTool @ToolArgs
