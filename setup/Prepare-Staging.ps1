@@ -502,7 +502,7 @@ Get-ChildItem -LiteralPath (Join-Path $repoRoot "driver/KeymapTool/samples") -Fi
 # Emacs 風のキー操作の設定例（エディタのインポート画面から読める。samples\emacs\ に入る）。
 $emacsStaging = Join-Path $samplesStaging "emacs"
 New-Item -ItemType Directory -Path $emacsStaging -Force | Out-Null
-foreach ($f in 'emacs.kasane.json', 'apply-emacs.ps1', 'EMACS-KEYBINDINGS.md') {
+foreach ($f in 'emacs.kasane.json', 'emacs-alt-workaround.kasane.json', 'apply-emacs.ps1', 'EMACS-KEYBINDINGS.md') {
     Copy-Item -LiteralPath (Join-Path $repoRoot "samples/emacs/$f") -Destination $emacsStaging -Force
 }
 Write-Host "[samples] staged: $((Get-ChildItem $samplesStaging -Recurse -File).Count) files"
