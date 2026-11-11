@@ -1223,19 +1223,24 @@ ReleaseLeakedModifiers(
 
 // Key Overrideが一時的に離していた修飾キー（SuppressedMods）を戻す。まだ普通の出力として押されて
 // いる（RealModsDown）ものだけをOSへmakeし直す。OutputLock保持中・EngineLock非保持で呼ぶこと。
+// 戻した修飾キー（送ったmakeのビット）を返す。Alt・Winを戻した直後に何も押されずに離されると、
+// 単独押しになる（メニュー・スタートが開く）ので、呼び出し側が、直後に別のキーが続かない場合は
+// SendMenuNeutralizerを呼ぶこと（置き換えのキーの解放。2026-11-11、Alt+Vのあとに、Altの単独押しが届く不具合）。
 _IRQL_requires_max_(DISPATCH_LEVEL)
-static VOID
+static UCHAR
 RestoreSuppressedModifiers(
     _In_ PDEVICE_EXTENSION devExt
     )
 {
     UCHAR restore = (UCHAR)(devExt->SuppressedMods & devExt->RealModsDown);
+    UCHAR sent = (UCHAR)(restore & ~devExt->OutputModsDown); // SendAddedModifiersがmakeを送るビット
 
     devExt->SuppressedMods = 0;
     devExt->SuppressOwnerScanCode = 0;
     if (restore != 0) {
         SendAddedModifiers(devExt, restore, KEY_MAKE); // OSで押されていないビットだけを送る
     }
+    return sent;
 }
 
 // kbdclassへの送出の入口。普通の出力（素通し・置き換え・MTのホールド・マクロ・コンボ・
@@ -1285,7 +1290,9 @@ ForwardToClass(
     // ただし、置き換え先がMACRO(n)のキー置換がマクロを送っている間は戻さない（マクロの出力に修飾キーが掛かるため）。
     if (devExt->SuppressedMods != 0 && !devExt->KeyOverrideMacroSending &&
         BatchHasOtherKeyMake(InputDataStart, InputDataEnd, devExt->SuppressOwnerScanCode)) {
-        RestoreSuppressedModifiers(devExt);
+        // 戻したAlt・Winの直後に、そのバッチの別のキーのmakeが続くので、単独押しにはならない
+        // （SendMenuNeutralizerは呼ばない）。
+        (VOID)RestoreSuppressedModifiers(devExt);
     }
     added = AddedModsUnion(devExt);
 
@@ -2378,9 +2385,16 @@ ResolveModdedKey(
         SendAddedModifiers(devExt, sendMods, KEY_BREAK);
         // Key Override: この置き換えが一時的に離していた修飾キーのうち、まだ押されているものを戻す
         // （置き換え中に別のキーを押していれば、そのときに戻し済み。SuppressedModsはOutputLockで保護）。
+        // 戻したのがAlt・Winなら、このあと何も押されずに物理のAlt・Winが離されると単独押しになるので、
+        // 先にCtrlのタップを挟む（マクロの置き換えのSendKeyOverrideMacroと同じ。M-6）。
         if (action.Type == KBDLAYER_ACTION_INTERNAL_KEY_OVERRIDE &&
             devExt->SuppressedMods != 0 && devExt->SuppressOwnerScanCode == action.Param2) {
-            RestoreSuppressedModifiers(devExt);
+            const UCHAR menuMods = KBDLAYER_MOD_LALT | KBDLAYER_MOD_RALT | KBDLAYER_MOD_LGUI | KBDLAYER_MOD_RGUI;
+            UCHAR restored = RestoreSuppressedModifiers(devExt);
+
+            if ((restored & menuMods) != 0) {
+                SendMenuNeutralizer(devExt);
+            }
         }
         if (SystemArgument3 != NULL) {
             *(PULONG)SystemArgument3 = 1;
