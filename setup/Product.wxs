@@ -180,7 +180,9 @@
         <Control Id="KasaneDirEdit" Type="Edit" X="25" Y="147" Width="320" Height="15" Property="KASANE_DIR" Sunken="yes" />
         <!-- フォルダ選択ダイアログ（CA_BrowseKasaneDir）。選ぶと KASANE_DIR が更新され、上の欄に反映される。 -->
         <Control Id="BrowseKasaneDir" Type="PushButton" X="25" Y="167" Width="80" Height="17" Text="!(loc.DataDirDlg_Browse)">
-          <Publish Event="DoAction" Value="CA_BrowseKasaneDir">1</Publish>
+          <Publish Event="DoAction" Value="CA_BrowseKasaneDir" Order="1">1</Publish>
+          <!-- Edit は、カスタムアクションが変えたプロパティを、自分では読み直さない。同じダイアログを開き直して、欄に反映する。 -->
+          <Publish Event="NewDialog" Value="DataDirDlg" Order="2">1</Publish>
         </Control>
 
         <Control Id="Back" Type="PushButton" X="192" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)">

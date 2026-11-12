@@ -26,7 +26,10 @@ foreach ($dir in 'License', 'License-Pro') {
         # RichTextBox は、RTF の \'xx（コードページ）と \uN をどちらも正しく読む。段落は改行 1 つで区切られて返る。
         $box = New-Object System.Windows.Forms.RichTextBox
         $box.Rtf = [System.IO.File]::ReadAllText($rtfPath, [System.Text.Encoding]::ASCII)
-        $paragraphs = $box.Text -split "`r?`n" | ForEach-Object { $_.TrimEnd() } | Where-Object { $_ -ne '' }
+        # RTF の \line（段落内の改行）は、垂直タブ（U+000B）や U+2028 で返る。そのままだと、文字化けのような 1 文字になるため、改行 1 つにする。
+        $lineBreak = [string][char]0xE000   # 一時の目印（私用領域の文字）
+        $plain = $box.Text -replace "[\u000B\u2028]", $lineBreak
+        $paragraphs = $plain -split "`r?`n" | ForEach-Object { $_.TrimEnd() } | Where-Object { $_ -ne '' } | ForEach-Object { $_.Replace($lineBreak, "`r`n") }
         $text = ($paragraphs -join "`r`n`r`n") + "`r`n"
         $bytes = $utf8Bom.GetPreamble() + $utf8Bom.GetBytes($text)
 

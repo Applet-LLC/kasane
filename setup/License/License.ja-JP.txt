@@ -44,4 +44,5 @@
 
 本契約は、本ソフトウェアに関するお客様と許諾者との間の完全な合意を構成し、本件に関する事前のすべての合意に優先します。許諾者は本契約を随時更新することがあり、変更後も本ソフトウェアの使用を継続した場合、変更後の条件に同意したものとみなされます。
 
-Applet LLChttps://appletllc.com/ appletllc@gmail.com
+Applet LLC
+https://appletllc.com/ appletllc@gmail.com
