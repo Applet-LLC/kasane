@@ -11,6 +11,14 @@ internal static class Program
     [STAThread]
     private static void Main()
     {
+        // mutex に加えて、同じ名前のプロセスがすでに動いていないかも見る。昇格して起動した 2 つ目が、先の mutex を見つけられなかった
+        // 事例（管理者保護の環境で、msiexec を起動したあと）があったため。プロセス名の列挙は、権限や昇格の違いに左右されない。
+        if (AnotherInstanceIsRunning())
+        {
+            ActivateExisting();
+            return;
+        }
+
         bool createdNew;
         Mutex? mutex = null;
         try
@@ -37,6 +45,28 @@ internal static class Program
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new MainForm());
         }
+    }
+
+    private static bool AnotherInstanceIsRunning()
+    {
+        try
+        {
+            using var me = System.Diagnostics.Process.GetCurrentProcess();
+            foreach (var p in System.Diagnostics.Process.GetProcessesByName(me.ProcessName))
+            {
+                using (p)
+                {
+                    try { if (p.Id != me.Id && !p.HasExited) return true; }
+                    catch (InvalidOperationException) { /* 列挙のあとに終わったプロセス */ }
+                    catch (System.ComponentModel.Win32Exception) { return true; /* 状態を読めないほど、別の権限で動いている */ }
+                }
+            }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            // 列挙できなければ、mutex だけに任せる。
+        }
+        return false;
     }
 
     /// <summary>先に起動しているランチャーのウィンドウを前面に出す。見つからない（別セッション・タイトルが変わった）ときは何もしない。</summary>
