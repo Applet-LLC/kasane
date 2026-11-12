@@ -181,8 +181,9 @@
         <!-- フォルダ選択ダイアログ（CA_BrowseKasaneDir）。選ぶと KASANE_DIR が更新され、上の欄に反映される。 -->
         <Control Id="BrowseKasaneDir" Type="PushButton" X="25" Y="167" Width="80" Height="17" Text="!(loc.DataDirDlg_Browse)">
           <Publish Event="DoAction" Value="CA_BrowseKasaneDir" Order="1">1</Publish>
-          <!-- Edit は、カスタムアクションが変えたプロパティを、自分では読み直さない。同じダイアログを開き直して、欄に反映する。 -->
-          <Publish Event="NewDialog" Value="DataDirDlg" Order="2">1</Publish>
+          <!-- Edit は、カスタムアクションが変えたプロパティを読み直さない（同じダイアログへの NewDialog はエラー 2856 になる）。
+               カスタムアクションは選んだパスを KASANE_DIR_PICKED に入れ、コントロールイベントの Property で KASANE_DIR へ移すと、欄に反映される。 -->
+          <Publish Property="KASANE_DIR" Value="[KASANE_DIR_PICKED]" Order="2"><![CDATA[KASANE_DIR_PICKED <> ""]]></Publish>
         </Control>
 
         <Control Id="Back" Type="PushButton" X="192" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)">
@@ -721,6 +722,7 @@ Do While p <> "" And Not fso.FolderExists(p)
 Loop
 outFile = fso.GetSpecialFolder(2) & "\kasane-browse.txt"
 If fso.FileExists(outFile) Then fso.DeleteFile outFile
+Session.Property("KASANE_DIR_PICKED") = ""
 Set env = sh.Environment("Process")
 env("KASANE_BROWSE_INIT") = p
 env("KASANE_BROWSE_TITLE") = Session.Property("BROWSE_TITLE")
@@ -731,7 +733,7 @@ If fso.FileExists(outFile) Then
   r = f.ReadAll
   f.Close
   fso.DeleteFile outFile
-  Session.Property("KASANE_DIR") = Trim(r)
+  Session.Property("KASANE_DIR_PICKED") = Trim(r)
 End If
 ]]></CustomAction>
     <CustomAction Id="CA_CheckImportFile" Script="vbscript" Execute="immediate" Return="ignore"><![CDATA[p=Replace(Session.Property("IMPORT_SETTINGS_FILE"),Chr(34),""):Session.Property("IMPORT_SETTINGS_FILE")=p:Session.Property("IMPORT_FILE_OK")="":If CreateObject("Scripting.FileSystemObject").FileExists(p) Then Session.Property("IMPORT_FILE_OK")="1"]]></CustomAction>
