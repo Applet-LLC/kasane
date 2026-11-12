@@ -16,7 +16,8 @@ When you extract the zip, you get these files.
 |---|---|
 | `Install-kasane.exe` | The installer's start screen. Begin here |
 | `KasaneSetup-ja-JP.msi`, `KasaneSetup-en-US.msi` | The installer itself, one per language. `Install-kasane.exe` picks one automatically |
-| `License.ja-JP.rtf`, `License.en-US.rtf` | The license agreement |
+| `License.ja-JP.txt`, `License.en-US.txt` | The license agreement (plain text) |
+| `License.ja-JP.rtf`, `License.en-US.rtf` | The license agreement (the same content as shown on the installer screen, in RTF format) |
 | `README.ja-JP.txt`, `README.en-US.txt` | The installation guide |
 | `THIRD-PARTY-NOTICES.txt`, the `third-party` folder | The list of third-party software, and the full license texts |
 

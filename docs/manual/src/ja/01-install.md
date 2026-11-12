@@ -16,7 +16,8 @@ zip を展開すると、次のファイルが入っています。
 |---|---|
 | `Install-kasane.exe` | インストールの起動画面。ここから始めます |
 | `KasaneSetup-ja-JP.msi`, `KasaneSetup-en-US.msi` | 言語別のインストーラー本体。`Install-kasane.exe` が自動で選びます |
-| `License.ja-JP.rtf`, `License.en-US.rtf` | 使用許諾 |
+| `License.ja-JP.txt`, `License.en-US.txt` | 使用許諾（テキスト） |
+| `License.ja-JP.rtf`, `License.en-US.rtf` | 使用許諾（インストーラーの画面に出るものと同じ内容。RTF 形式） |
 | `README.ja-JP.txt`, `README.en-US.txt` | インストールガイド |
 | `THIRD-PARTY-NOTICES.txt`, `third-party` フォルダ | 第三者のソフトウェアの一覧と、ライセンスの全文 |
 

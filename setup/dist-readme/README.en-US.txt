@@ -109,9 +109,12 @@ Files in this package
 - KasaneSetup-ja-JP.msi
   The launcher automatically selects and runs the right one.
 
+- License.en-US.txt
+- License.ja-JP.txt
 - License.en-US.rtf
 - License.ja-JP.rtf
   The license agreement covering your subscription.
+  The .txt files have the same content as the .rtf files, in plain text (UTF-8).
 
 - README.en-US.txt
 - README.ja-JP.txt
@@ -123,7 +126,7 @@ Files in this package
   (THIRD-PARTY-NOTICES.txt) and the full text of each license (the
   third-party folder).
 
-The license agreements (License.*.rtf), the README, THIRD-PARTY-NOTICES.txt,
+The license agreements (License.*.txt and License.*.rtf), the README, THIRD-PARTY-NOTICES.txt,
 and the third-party folder are also placed directly in the installation folder
 (C:\Program Files\applet\kasane).
 
@@ -169,7 +172,7 @@ License
 -------
 kasane is licensed for use on a single PC only.
 Transferring or reselling the files or the license key is not permitted.
-See License.ja-JP.rtf / License.en-US.rtf for details.
+See License.ja-JP.txt / License.en-US.txt for details.
 
 kasane contains parts derived from the following third-party software and data.
 - nodoka4 (のどか): Eclipse Public License 2.0

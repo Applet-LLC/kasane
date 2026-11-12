@@ -94,9 +94,12 @@ Subscription 版から移るときは、先に Subscription 版をアンイン�
 - KasaneProSetup-ja-JP.msi
   ランチャーが自動で選んで実行します。
 
+- License.en-US.txt
+- License.ja-JP.txt
 - License.en-US.rtf
 - License.ja-JP.rtf
   ご購入のPro版のライセンスキーに適用される、使用許諾ライセンスです。
+  .txt は、.rtf と同じ内容の、読みやすいテキスト版（UTF-8）です。
 
 - README.en-US.txt
 - README.ja-JP.txt
@@ -107,7 +110,7 @@ Subscription 版から移るときは、先に Subscription 版をアンイン�
   kasane に含まれる第三者のソフトウェアの一覧（THIRD-PARTY-NOTICES.txt）と、
   それぞれのライセンスの全文（third-party フォルダ）です。
 
-使用許諾（License.*.rtf）、README、THIRD-PARTY-NOTICES.txt、third-party フォルダは、
+使用許諾（License.*.txt、License.*.rtf）、README、THIRD-PARTY-NOTICES.txt、third-party フォルダは、
 インストール先（C:\Program Files\applet\kasane）の直下にも入ります。
 
 
@@ -148,7 +151,7 @@ Subscription 版から移るときは、先に Subscription 版をアンイン�
 ------------------
 かさね は、1台のPCに対してのみ有効なライセンスです。
 各ファイルやライセンスキーの譲渡、販売などは許可していません。
-詳しくは License.ja-JP.rtf / License.en-US.rtf をご確認ください。
+詳しくは License.ja-JP.txt / License.en-US.txt をご確認ください。
 
 かさね には、次の第三者のソフトウェアやデータに由来する部分があります。
 - nodoka4（のどか）: Eclipse Public License 2.0
