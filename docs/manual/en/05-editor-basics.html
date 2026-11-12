@@ -25,11 +25,11 @@
 <li><a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a></li>
 <li><a href="12-recipes.html">12. Setup Examples</a></li>
 <li><a href="13-settings.html">13. Settings Dialog</a></li>
-<li><a href="../ja/14-import-export.html">14. Import and Export (日本語)</a></li>
-<li><a href="../ja/15-backup-migrate.html">15. Backup and Migration (日本語)</a></li>
-<li><a href="../ja/16-reference.html">16. Troubleshooting and Known Limitations (日本語)</a></li>
-<li><a href="../ja/17-keymaptool.html">17. KeymapTool and Samples (日本語)</a></li>
-<li><a href="../ja/18-readme.html">18. README and Background (日本語)</a></li>
+<li><a href="14-import-export.html">14. Import and Export</a></li>
+<li><a href="15-backup-migrate.html">15. Backup and Migration</a></li>
+<li><a href="16-reference.html">16. Troubleshooting and Known Limitations</a></li>
+<li><a href="17-keymaptool.html">17. KeymapTool and Samples</a></li>
+<li><a href="18-readme.html">18. README and Background</a></li>
 <li><a href="19-terms.html">19. Terms of Use</a></li>
 <li><a href="20-third-party.html">20. Third-Party Notices</a></li>
 </ol>
@@ -160,7 +160,7 @@
 <li><strong>Press to identify...</strong>: use this when you cannot tell which keyboard is the one you want, for example when an external keyboard is connected to a laptop. A small window opens, so press any one key on the keyboard you want. The keyboard you pressed is selected. The key you pressed is not sent to Windows. Administrator rights are required.</li>
 <li><strong>Rename...</strong>: gives the selected keyboard an easy-to-recognize name (for example, &quot;Work&quot;). If you leave it empty, the name is removed. The name is used only in the display and in exported files, and has nothing to do with how keys behave.</li>
 <li><strong>Refresh list</strong>: gets the keyboard list again.</li>
-<li>If the list shows only &quot;(Driver not connected: edit and export only)&quot;, the driver is not running or the license is not active. See <a href="../ja/16-reference.html">16. Troubleshooting and Known Limitations</a>.</li>
+<li>If the list shows only &quot;(Driver not connected: edit and export only)&quot;, the driver is not running or the license is not active. See <a href="16-reference.html">16. Troubleshooting and Known Limitations</a>.</li>
 </ul>
 <h2 id="checking-the-layout">Checking the layout</h2>
 <p>Check that <strong>Layout</strong> matches your keyboard.</p>
@@ -307,7 +307,7 @@ override 1 &quot;Ctrl-1&quot;: Ctrl+1  -&gt; Macro 0           : MOD_LCTL + KC_1
 <li>What is shown is what is currently open in the editor. It includes changes you have not saved or applied. If you change assignments while this window is open, press <strong>Refresh</strong>.</li>
 <li>With <strong>Copy</strong> you can send it to the clipboard, and with <strong>Save...</strong> you can write it to a text file (UTF-8). You cannot edit in this window.</li>
 </ul>
-<p>You can also write it out from the command line, from saved settings (<code>kasane.exe --dump-text &lt;UniqId&gt; &lt;output&gt;</code>; see <a href="../ja/16-reference.html">16. Troubleshooting and Known Limitations</a>).</p>
+<p>You can also write it out from the command line, from saved settings (<code>kasane.exe --dump-text &lt;UniqId&gt; &lt;output&gt;</code>; see <a href="16-reference.html">16. Troubleshooting and Known Limitations</a>).</p>
 <h2 id="layers">Layers</h2>
 <p>Press <strong>+ Add</strong> to add a layer. If you assign <code>MO(1)</code> or the like to some key on layer 0, the assignments of layer 1 are used only while you hold that key. Right-click the layer list to see this menu.</p>
 <table>
@@ -381,9 +381,9 @@ override 1 &quot;Ctrl-1&quot;: Ctrl+1  -&gt; Macro 0           : MOD_LCTL + KC_1
 <h2 id="opening-help">Opening help</h2>
 <p>Press <strong>Help</strong> at the bottom of the window, or press F1, and this help opens in your browser. You can also open the same help from <strong>Help</strong> in the tray menu (<a href="04-tray.html">4. Tray</a>).</p>
 <p>Many screens have a <strong>?</strong> button at the lower left (or lower right). When you press it (or press F1), the section of this help that matches that screen (or the current tab or mode, if there is one) opens.</p>
-<p>This help is in the <code>manual</code> folder of the installation folder. Which browser opens is decided by the Windows setting (default apps). When the display language is English, the English help opens. Chapters that have not been translated yet open in Japanese.</p>
+<p>This help is in the <code>manual</code> folder of the installation folder. Which browser opens is decided by the Windows setting (default apps). When the display language is English, the English help opens.</p>
 <h2 id="saving-and-the-confirmation-when-you-close">Saving, and the confirmation when you close</h2>
-<p>The editor has no Save button. The settings you edited are saved automatically when you close kasane, when you switch to another keyboard, and when you press <strong>Apply to keyboard (ON)</strong> (for where they are saved, see <a href="../ja/15-backup-migrate.html">15. Backup and Migration</a>).</p>
+<p>The editor has no Save button. The settings you edited are saved automatically when you close kasane, when you switch to another keyboard, and when you press <strong>Apply to keyboard (ON)</strong> (for where they are saved, see <a href="15-backup-migrate.html">15. Backup and Migration</a>).</p>
 <p>When there are settings that are saved but not yet reflected on the keyboard, a confirmation appears when you close.</p>
 <ul>
 <li>In read-only mode: it says &quot;The settings were saved but are not reflected on the keyboard. If needed, start kasane with administrator rights and reflect them with &quot;Apply to keyboard (ON)&quot;. Close as it is?&quot; <strong>OK</strong> closes, and <strong>Cancel</strong> takes you back without closing.</li>

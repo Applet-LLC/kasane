@@ -25,11 +25,11 @@
 <li><a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a></li>
 <li><a href="12-recipes.html">12. Setup Examples</a></li>
 <li><a href="13-settings.html">13. Settings Dialog</a></li>
-<li><a href="../ja/14-import-export.html">14. Import and Export (日本語)</a></li>
-<li><a href="../ja/15-backup-migrate.html">15. Backup and Migration (日本語)</a></li>
-<li><a href="../ja/16-reference.html">16. Troubleshooting and Known Limitations (日本語)</a></li>
-<li><a href="../ja/17-keymaptool.html">17. KeymapTool and Samples (日本語)</a></li>
-<li><a href="../ja/18-readme.html">18. README and Background (日本語)</a></li>
+<li><a href="14-import-export.html">14. Import and Export</a></li>
+<li><a href="15-backup-migrate.html">15. Backup and Migration</a></li>
+<li><a href="16-reference.html">16. Troubleshooting and Known Limitations</a></li>
+<li><a href="17-keymaptool.html">17. KeymapTool and Samples</a></li>
+<li><a href="18-readme.html">18. README and Background</a></li>
 <li><a href="19-terms.html">19. Terms of Use</a></li>
 <li><a href="20-third-party.html">20. Third-Party Notices</a></li>
 </ol>
@@ -140,7 +140,7 @@
 <h2 id="applying-the-result">Applying the result</h2>
 <p>A key whose measured value differs from the standard gets an orange border in the keyboard diagram. The result is applied when you press <strong>Apply to keyboard (ON)</strong>.</p>
 <blockquote>
-<p>Measured values are not carried over to another device. When you buy a new keyboard, do it again (<a href="../ja/15-backup-migrate.html">15. Backup and Migration</a>).</p>
+<p>Measured values are not carried over to another device. When you buy a new keyboard, do it again (<a href="15-backup-migrate.html">15. Backup and Migration</a>).</p>
 </blockquote>
 <p><a id="special-keys"></a></p>
 <h2 id="the-pause-numlock-copilot-office-and-altgr-keys">The Pause, NumLock, Copilot, Office, and AltGr keys</h2>
@@ -148,7 +148,7 @@
 <li>Pause / Break: the physical key arrives as two signals (<code>E1 1D</code> and <code>45</code>). The driver handles them together as one key. You can replace Pause with another key, and you can make some key into Pause.</li>
 <li>NumLock: the scan code is <code>0x45</code>, the same value as the second signal of Pause. The driver tells them apart, so you do not usually need to think about it.</li>
 <li>Copilot key, Office key: on many keyboards, they arrive not as one key but as several keys pressed together (Copilot is Win + Shift + F23, and Office is Ctrl + Shift + Alt + Win). So you cannot change them with a single assignment. If you change the assignment of each key in the combination (left Win, left Shift, F23, and so on), the whole combination changes. Use <strong>Input check</strong> to see which keys arrive on your keyboard.</li>
-<li>AltGr: in Windows with a layout that has AltGr (German and others), right Alt works as AltGr. kasane cannot change it. See <a href="../ja/16-reference.html">16. Troubleshooting and Known Limitations</a>.</li>
+<li>AltGr: in Windows with a layout that has AltGr (German and others), right Alt works as AltGr. kasane cannot change it. See <a href="16-reference.html">16. Troubleshooting and Known Limitations</a>.</li>
 </ul>
 <h2 id="known-limitations">Known limitations</h2>
 <p>A keyboard that sends right Shift as <code>E0 36</code> may not be handled by calibration. We have not been able to confirm this on real hardware.</p>

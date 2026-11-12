@@ -25,11 +25,11 @@
 <li><a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a></li>
 <li><a href="12-recipes.html">12. Setup Examples</a></li>
 <li><a href="13-settings.html">13. Settings Dialog</a></li>
-<li><a href="../ja/14-import-export.html">14. Import and Export (日本語)</a></li>
-<li><a href="../ja/15-backup-migrate.html">15. Backup and Migration (日本語)</a></li>
-<li><a href="../ja/16-reference.html">16. Troubleshooting and Known Limitations (日本語)</a></li>
-<li><a href="../ja/17-keymaptool.html">17. KeymapTool and Samples (日本語)</a></li>
-<li><a href="../ja/18-readme.html">18. README and Background (日本語)</a></li>
+<li><a href="14-import-export.html">14. Import and Export</a></li>
+<li><a href="15-backup-migrate.html">15. Backup and Migration</a></li>
+<li><a href="16-reference.html">16. Troubleshooting and Known Limitations</a></li>
+<li><a href="17-keymaptool.html">17. KeymapTool and Samples</a></li>
+<li><a href="18-readme.html">18. README and Background</a></li>
 <li><a href="19-terms.html">19. Terms of Use</a></li>
 <li><a href="20-third-party.html">20. Third-Party Notices</a></li>
 </ol>
@@ -111,7 +111,7 @@
 <li>When you type in the box, enter a full path that starts with a drive letter, such as <code>D:\kasane</code>. Even if the path has <code>&quot;</code> around it, as when you copy a path in Explorer, the installer removes them.</li>
 <li>If the folder you specify does not exist, the installer creates it. It does not change the permissions of a folder that already exists.</li>
 <li>Even if you specify the same settings folder again, the i8042prt settings are not restored. They are stored in the driver and are deleted by uninstalling. If you want to keep them, export your settings, including the recovery settings, before you uninstall (<a href="02-uninstall.html">2. Uninstallation</a>).</li>
-<li>If you use administrator protection (a Windows 11 feature), specify the folder here. The elevated editor and the normal tray then look at the same folder. If the folder cannot be written to, see <a href="../ja/15-backup-migrate.html">15. Backup and Migration</a> for how to fix it.</li>
+<li>If you use administrator protection (a Windows 11 feature), specify the folder here. The elevated editor and the normal tray then look at the same folder. If the folder cannot be written to, see <a href="15-backup-migrate.html">15. Backup and Migration</a> for how to fix it.</li>
 </ul>
 <p>To change it later, run the installer again (the &quot;Data folder&quot; tab of the <a href="13-settings.html">settings dialog</a> shows the current value). After changing it, restart, or sign out and sign in again, as needed.</p>
 <h4 id="import-settings-file">Import settings file</h4>
@@ -124,9 +124,9 @@
 </ol>
 <p><img src="../img/ja/install-wizard-import-filled.png" alt="Entering the settings file" /></p>
 <p><img src="../img/ja/install-wizard-import-missing.png" alt="Settings file not found" /></p>
-<p>For a new installation, if the settings folder (the folder you specified on the previous page) contains <code>kasane-recovery.kasane.json</code>, that file is selected automatically, and the page appears with <strong>Import a settings file</strong> already selected. Clear the check box if you do not need it. This file is created in the settings folder when you choose <strong>Include recovery settings</strong> in Export (<a href="../ja/14-import-export.html">14. Import and Export</a>). In an installation that shows no screens, the same file is imported if it is found in the settings folder given with <code>KASANE_DIR</code>. To stop that, see &quot;Silent installation&quot; and pass <code>IMPORT_SETTINGS=0</code>. An overwrite installation on a PC that already has kasane (an update or a repair) does not look for the file, so it is not selected automatically. Your settings are still in place, and this avoids replacing them with an old file. If you want to import, select <strong>Import a settings file</strong> and enter the path of the file.</p>
+<p>For a new installation, if the settings folder (the folder you specified on the previous page) contains <code>kasane-recovery.kasane.json</code>, that file is selected automatically, and the page appears with <strong>Import a settings file</strong> already selected. Clear the check box if you do not need it. This file is created in the settings folder when you choose <strong>Include recovery settings</strong> in Export (<a href="14-import-export.html">14. Import and Export</a>). In an installation that shows no screens, the same file is imported if it is found in the settings folder given with <code>KASANE_DIR</code>. To stop that, see &quot;Silent installation&quot; and pass <code>IMPORT_SETTINGS=0</code>. An overwrite installation on a PC that already has kasane (an update or a repair) does not look for the file, so it is not selected automatically. Your settings are still in place, and this avoids replacing them with an old file. If you want to import, select <strong>Import a settings file</strong> and enter the path of the file.</p>
 <p>When you import a file that contains recovery settings, the emergency-release key combination, the i8042prt settings, and the sharing scope of each keyboard are also restored to the driver. The tray settings (colors, language, how desktop icons are shown, and so on) and layouts you added yourself are restored when the tray first starts, only for the items that do not exist yet.</p>
-<p>The imported settings take effect after a restart (or when you reconnect the keyboard). For a model that already has settings, they are replaced, and the previous settings are kept for one generation. You can restore the kept settings from the &quot;Data folder&quot; tab of the settings dialog (<a href="../ja/14-import-export.html">14. Import and Export</a>). The result is recorded in <code>%ProgramData%\applet\kasane\import.log</code>.</p>
+<p>The imported settings take effect after a restart (or when you reconnect the keyboard). For a model that already has settings, they are replaced, and the previous settings are kept for one generation. You can restore the kept settings from the &quot;Data folder&quot; tab of the settings dialog (<a href="14-import-export.html">14. Import and Export</a>). The result is recorded in <code>%ProgramData%\applet\kasane\import.log</code>.</p>
 <h3 id="run-the-installation">3. Run the installation</h3>
 <p>Press <strong>Install</strong> to start copying and registering files. If you want to check your choices so far, press <strong>Back</strong> to return to the previous pages.</p>
 <p><img src="../img/ja/install-wizard-ready.png" alt="Ready to install" /></p>
@@ -212,7 +212,7 @@
 <h2 id="moving-from-subscription-to-pro">Moving from Subscription to Pro</h2>
 <p>You cannot install over it. Uninstall first, then install again, in this order.</p>
 <ol>
-<li>If you want to keep your settings, export them from kasane (<a href="../ja/14-import-export.html">14. Import and Export</a>).</li>
+<li>If you want to keep your settings, export them from kasane (<a href="14-import-export.html">14. Import and Export</a>).</li>
 <li>Uninstall the Subscription edition and restart (<a href="02-uninstall.html">2. Uninstallation</a>).</li>
 <li>Run <code>Install-kasane-pro.exe</code>, enter the Pro license key, and install.</li>
 <li>Restart.</li>

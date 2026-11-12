@@ -224,7 +224,7 @@ Press **Help** at the bottom of the window, or press F1, and this help opens in 
 
 Many screens have a **?** button at the lower left (or lower right). When you press it (or press F1), the section of this help that matches that screen (or the current tab or mode, if there is one) opens.
 
-This help is in the `manual` folder of the installation folder. Which browser opens is decided by the Windows setting (default apps). When the display language is English, the English help opens. Chapters that have not been translated yet open in Japanese.
+This help is in the `manual` folder of the installation folder. Which browser opens is decided by the Windows setting (default apps). When the display language is English, the English help opens.
 
 ## Saving, and the confirmation when you close
 

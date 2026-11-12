@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>14. Import and Export - kasane Help</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane Help</a>
+<ol>
+<li><a href="index.html">Introduction</a></li>
+<li><a href="01-install.html">1. Installation</a></li>
+<li><a href="02-uninstall.html">2. Uninstallation</a></li>
+<li><a href="03-license.html">3. License Activation</a></li>
+<li><a href="04-tray.html">4. Tray</a></li>
+<li><a href="05-editor-basics.html">5. Editor Basics</a></li>
+<li><a href="06-calibration.html">6. Calibration</a></li>
+<li><a href="07-emergency.html">7. Emergency Release</a></li>
+<li><a href="08-key-assign.html">8. Assigning Keys</a></li>
+<li><a href="09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides</a></li>
+<li><a href="10-ime-nicola.html">10. IME Linking and NICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a></li>
+<li><a href="12-recipes.html">12. Setup Examples</a></li>
+<li><a href="13-settings.html">13. Settings Dialog</a></li>
+<li class="current"><a href="14-import-export.html">14. Import and Export</a></li>
+<li><a href="15-backup-migrate.html">15. Backup and Migration</a></li>
+<li><a href="16-reference.html">16. Troubleshooting and Known Limitations</a></li>
+<li><a href="17-keymaptool.html">17. KeymapTool and Samples</a></li>
+<li><a href="18-readme.html">18. README and Background</a></li>
+<li><a href="19-terms.html">19. Terms of Use</a></li>
+<li><a href="20-third-party.html">20. Third-Party Notices</a></li>
+</ol>
+
+</nav>
+<main>
+<div class="pagehead">kasane 1.01 2026-11-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/14-import-export.html">日本語</a></div>
+<h1 id="import-and-export">14. Import and Export</h1>
+<p>With <strong>Import / Export...</strong> at the bottom of the editor window, you can write settings out to a file (<code>*.kasane.json</code>) and read them back in. Use it for backups, for moving to another keyboard or another PC, and for resetting settings.</p>
+<p><img src="../img/ja/impexp-export.png" alt="Import / Export" /></p>
+<p>The window has three tabs: <strong>Export</strong>, <strong>Import</strong>, and <strong>Reset</strong>.</p>
+<p><a id="export"></a></p>
+<h2 id="export">Export</h2>
+<p>This writes settings to a file. You choose the scope.</p>
+<table>
+<thead>
+<tr>
+<th>Scope</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Everything</td>
+<td>The settings of all keyboards and of the tray</td>
+</tr>
+<tr>
+<td>This keyboard</td>
+<td>The settings of the one keyboard you selected</td>
+</tr>
+<tr>
+<td>One layer</td>
+<td>One layer. The macros, tap dances, and helper actions that the layer uses go in with it</td>
+</tr>
+</tbody>
+</table>
+<p>You can also open it by right-clicking the layer list and choosing <strong>Export this layer...</strong>.</p>
+<p>The license key is not included in the file you export.</p>
+<p>Keys are written as scan codes, so the file can be imported into a keyboard with a different layout. Measured values are included only for backups (when restoring to the same device).</p>
+<p>Save the file with <strong>Export...</strong>. With the check boxes <strong>Include helper settings</strong> (actions, triggers, and per-app layers) and <strong>Measured scan codes</strong> (for backing up to the same keyboard), you choose what to include.</p>
+<p>When the scope is <strong>Everything</strong>, you can also choose <strong>Include recovery settings</strong>. This adds the following settings, which are not in an ordinary file. They are for restoring to the same PC.</p>
+<ul>
+<li>Tray settings: the display (how the layer number is overlaid on the icon), colors, language, how the IME state is read, the setting to remap only while the tray is running, and how desktop icons are shown</li>
+<li>The emergency-release key combination</li>
+<li>The i8042prt settings</li>
+<li>The sharing scope of each keyboard</li>
+<li>Layouts you added yourself (those in the <code>Layouts</code> folder)</li>
+</ul>
+<p>When you include recovery settings, the default in the save window is <code>kasane-recovery.kasane.json</code> in the settings folder. If you leave it in the settings folder with that name, the installer finds it and imports it when you reinstall (<a href="01-install.html">1. Installation</a>).</p>
+<p>Exports of <strong>One layer</strong> and <strong>This keyboard</strong> do not include recovery settings. This is so that settings from your own PC do not get mixed into a file you give to someone else.</p>
+<p><strong>Open the output location in Explorer</strong> can always be used. The current output location is shown to the right of the button. After you have exported, it opens with that file selected (the folder, for JSON for KeymapTool). Before you export, it opens the settings folder.</p>
+<h3 id="json-for-keymaptool">JSON for KeymapTool</h3>
+<p>When you choose <strong>This keyboard</strong> as the scope, you can choose <strong>JSON for KeymapTool</strong> as the format. It writes <code>keymap.json</code> and <code>profile.json</code> to the folder you choose. These are input files for the command-line <code>KeymapTool --apply-simple</code>. Use this format only when you want to manage settings from the command line.</p>
+<p>Macros, combos, tap dances, and key overrides are not included (set them separately with <code>--set-macro</code> and the like of <code>KeymapTool</code>). For backups and for handing settings to another PC, use the default <code>*.kasane.json</code>.</p>
+<p><a id="import"></a></p>
+<h2 id="import">Import</h2>
+<p>This reads in a file you exported.</p>
+<p><img src="../img/ja/impexp-import.png" alt="Import" /></p>
+<ol>
+<li>In the <strong>Import</strong> tab, choose a file with <strong>Choose File...</strong>.</li>
+<li>Choose the <strong>Items to import</strong> (layers, macros, combos, and so on). The items and the import mode cannot be chosen until the file has been loaded, because the items you can choose depend on the contents of the file. Measured scan codes can be imported only when the layout is the same. When the file contains recovery settings, you can also choose <strong>Recovery settings</strong>. The emergency release, i8042prt, and the sharing scope are imported only when it is opened as administrator. The sharing scope is imported only for connected keyboards with the same UniqId. Layouts are not overwritten if a file with the same name exists.</li>
+<li>Match the keyboards in the file to the connected keyboards. They are matched automatically. If they do not match, choose on the screen (<a href="15-backup-migrate.html">15. Backup and Migration</a>).</li>
+<li>Choose the import mode, <strong>Replace</strong> or <strong>Add</strong>.
+<ul>
+<li>Replace: replaces the chosen items with the contents of the file.</li>
+<li>Add: keeps the current settings and adds the contents of the file. Macros and the like with overlapping numbers are renumbered.</li>
+</ul>
+</li>
+<li>Press <strong>Preview</strong> to check the result of importing without changing anything. If there is no problem, press <strong>Import</strong>.</li>
+</ol>
+<p>What you import only goes into the state being edited. Press <strong>Apply to keyboard (ON)</strong> afterward. Saving is automatic (only helper settings are saved immediately).</p>
+<p>Keys that are not in the current layout are not imported and are shown on the screen.</p>
+<p>Layers are imported as follows.</p>
+<ul>
+<li>The layers in the file are imported by number (from layer 0 in order). Layer 0 of the file goes into the current layer 0, and layer 1 into the current layer 1.</li>
+<li>Replace: rebuilds the current layer from the contents of the layer in the file. Add: adds the keys of the file on top of the current layer. Missing layers are added.</li>
+<li>If you clear the <strong>Layers</strong> check, no layer of the file is imported. You cannot choose the layers in the file and import them one by one.</li>
+<li>For a file in which only one layer was exported, you can choose which layer to import into.</li>
+</ul>
+<blockquote>
+<p>Before importing, export your current settings and keep them. Except for importing everything, no automatic backup is made.</p>
+</blockquote>
+<p>Before importing everything, the current settings are backed up automatically to <code>backup</code> in the settings folder.</p>
+<h3 id="importing-the-emacs-example">Importing the Emacs example</h3>
+<p>Press <strong>Emacs Example...</strong> under <strong>Choose File...</strong> in the <strong>Import</strong> tab, and the Emacs-style key operation example bundled with the installation (<code>samples\emacs\emacs.kasane.json</code>) is loaded (the same folder also has <code>EMACS-KEYBINDINGS.md</code>, which explains how to use it). Choose the three items &quot;Layers&quot;, &quot;Macros&quot;, and &quot;Key overrides&quot;, set the mode to <strong>Replace</strong>, check the contents, and press <strong>Import</strong>. Then press <strong>Apply to keyboard (ON)</strong>.</p>
+<p><a id="nodoka"></a></p>
+<h2 id="importing-nodoka-settings">Importing nodoka settings</h2>
+<p>You can convert a nodoka (nodoka4) settings file (<code>.nodoka</code>) into kasane settings and import it. nodoka and kasane differ in how key remapping works and is expressed, and kasane lacks some features. The file is converted and imported, but some things cannot be read correctly and some cannot be imported, so please use it with care.</p>
+<p><img src="../img/ja/nodoka-import.png" alt="Importing nodoka settings" /></p>
+<ol>
+<li>In the <strong>Import</strong> tab, press <strong>Import Nodoka Settings...</strong>.</li>
+<li>Choose from the list of nodoka settings (★ marks the one in use now), or specify a <code>.nodoka</code> file with <strong>Choose File...</strong>. The symbol that corresponds to nodoka's <code>-D</code> (such as <code>USE109</code>) is entered when you choose from the list. You may also edit it.</li>
+<li>Press <strong>Convert</strong>. The result is divided into &quot;converted&quot;, &quot;approximated&quot;, and &quot;cannot convert&quot;, each shown with <code>file name:line</code>. You can switch with <strong>Show</strong>.</li>
+<li>When you press <strong>Import with these contents</strong>, you return to the import window. As with other imports, you choose the items and the destination and import. For nodoka settings, <strong>Add</strong> is the default. If you choose Replace, items that nodoka does not have are also removed.</li>
+</ol>
+<p><img src="../img/ja/nodoka-result.png" alt="The conversion result" /></p>
+<p>Files that are <code>include</code>d are also read. The character encoding is determined in this order: BOM (UTF-16, UTF-8), UTF-8, CP932.</p>
+<h3 id="how-it-is-converted">How it is converted</h3>
+<p>A nodoka setting is a table of &quot;key × modifier state × keymap&quot;, while kasane has a table of &quot;key → action, for each layer&quot;. So it is flattened as follows.</p>
+<table>
+<thead>
+<tr>
+<th>nodoka</th>
+<th>kasane</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>key *X = *Y</code> (Global)</td>
+<td>Layer 0: X → Y</td>
+</tr>
+<tr>
+<td><code>key C-X = Home</code></td>
+<td>A key override (Ctrl, X → Home)</td>
+</tr>
+<tr>
+<td>The right side has several keys</td>
+<td>A macro (types them in order when pressed; up to 64 steps). Long ones, and ones with waits or strings, become helper sequences</td>
+</tr>
+<tr>
+<td><code>mod M0 = !Up</code> and <code>key M0-Left = …</code></td>
+<td><code>MO(layer)</code> on Up, and an assignment for Left on that layer</td>
+</tr>
+<tr>
+<td><code>mod M0 = !!Space</code></td>
+<td><code>LT(layer, Space)</code></td>
+</tr>
+<tr>
+<td><code>mod shift += !!Space</code> (SandS)</td>
+<td><code>MT(MOD_LSFT, KC_SPC)</code></td>
+</tr>
+<tr>
+<td><code>&amp;Toggle(Lock0)</code></td>
+<td><code>TG(layer)</code></td>
+</tr>
+<tr>
+<td><code>&amp;Prefix(km)</code></td>
+<td><code>OSL(layer)</code></td>
+</tr>
+<tr>
+<td><code>&amp;EditNextModifier(M-)</code></td>
+<td><code>OSM(MOD_LALT)</code></td>
+</tr>
+<tr>
+<td><code>&amp;ShellExecute</code>, <code>&amp;SendText</code>, <code>&amp;Wait</code>, <code>&amp;MouseMove</code>, <code>&amp;MouseWheel</code></td>
+<td>A helper action as <code>HLP(n)</code></td>
+</tr>
+<tr>
+<td><code>combo A B = X</code> (2 keys)</td>
+<td>A combo</td>
+</tr>
+<tr>
+<td><code>taphold X tap=A hold=LShift</code></td>
+<td><code>MT(MOD_LSFT, A)</code></td>
+</tr>
+<tr>
+<td><code>tapdance X tap1= tap2= tap3=</code></td>
+<td>A tap dance</td>
+</tr>
+<tr>
+<td><code>window W /class/</code></td>
+<td>A layer for W, and a per-app layer rule</td>
+</tr>
+<tr>
+<td><code>def option UnitID = …</code></td>
+<td>Made separately as a setting for that keyboard</td>
+</tr>
+</tbody>
+</table>
+<p>Layers: Global is layer 0, and the others are numbered 1, 2, … in the order they appear in the assignments. Anything beyond 16 layers is not converted and appears in the report. When you import with Add, they overlap the current layers with the same numbers. If you are using layer 1 or above now, move them away first, or check the destination.</p>
+<h3 id="what-cannot-be-converted">What cannot be converted</h3>
+<p>The following are not converted and are reported with <code>file name:line</code>. Only that line is treated as if it did not exist, and the other lines are converted.</p>
+<ul>
+<li>Conditions: <code>IL-</code> (IME on), <code>IC-</code> (converting), <code>NL-</code>, <code>CL-</code>, <code>SL-</code>, <code>KL-</code>, <code>MAX-</code>, <code>MIN-</code>, <code>DP-</code> (double press), <code>U-</code>, <code>D-</code>, <code>R-</code>, <code>T-</code> (touchpad), <code>K0-</code></li>
+<li>Functions: <code>&amp;Window*</code>, <code>&amp;Clipboard*</code>, <code>&amp;Emacs*</code>, <code>&amp;PostMessage</code>, <code>&amp;SendPostMessage</code>, <code>&amp;SetForegroundWindow</code>, <code>&amp;LoadSetting</code>, <code>&amp;HelpMessage</code>, <code>&amp;Repeat</code>, <code>&amp;MouseHook</code>, <code>&amp;SetIme*</code>, and so on</li>
+<li>Anything that uses a mouse or gamepad pseudo key (<code>LButton</code>, <code>GP_*</code>, and so on) on the left or right side</li>
+<li>Combos of 3 or more keys, combos other than Global, taphold, tapdance, <code>event</code></li>
+<li>&quot;A sequence of several keys&quot; and &quot;layer operations&quot; while holding modifiers</li>
+</ul>
+<h3 id="what-behaves-a-little-differently-from-nodoka">What behaves a little differently from nodoka</h3>
+<ul>
+<li>The condition &quot;only when no modifier is held&quot; is not distinguished in kasane.</li>
+<li>A sequence of several keys does not behave as holding the last key down only while you hold the key.</li>
+<li><code>mod M0 = X</code> without a &quot;!&quot; keeps the key's own action in nodoka, but in kasane it works as a layer key.</li>
+<li><code>&amp;Prefix</code> is <code>OSL</code> (just the next one key).</li>
+<li>A helper action while holding modifiers is a keyboard hook trigger. It does not reach the app, and the tray must be running.</li>
+</ul>
+<p><a id="reset"></a></p>
+<h2 id="reset">Reset</h2>
+<p>This returns only the items you choose to their initial state. Items you did not choose remain.</p>
+<p><img src="../img/ja/impexp-clear.png" alt="Reset" /></p>
+<table>
+<thead>
+<tr>
+<th>What you choose</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Items</td>
+<td>Layers, macros, combos, tap dances, key overrides, timing, feature ON and OFF, NICOLA, helper settings, and measured scan codes. There are also <strong>Select All</strong> and <strong>Deselect All</strong> buttons</td>
+</tr>
+<tr>
+<td>Target</td>
+<td><strong>This keyboard</strong>, <strong>All connected keyboards</strong>, or <strong>Selected keyboards</strong> (check them in the list)</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>After choosing the items, press <strong>Reset...</strong>.</li>
+<li>When running as administrator, the settings stored in the driver are also removed at the same time. In read-only mode, only the settings on the screen are reset.</li>
+<li>For keyboards that are &quot;Shared by keyboards of the same model&quot;, removing the driver's settings affects every keyboard of the same model. This is shown in the confirmation.</li>
+<li>Before it runs, the current settings are backed up automatically to <code>backup</code> in the settings folder (<code>before-clear-….kasane.json</code>). You can restore them with Import. Settings that are only in the driver and not shown on the screen are not included in the backup.</li>
+<li>When you reset <strong>Helper settings</strong>, each keyboard's <code>helper.json</code> is removed. When the target is <strong>All connected keyboards</strong>, the tray's shared helper settings are removed too.</li>
+</ul>
+<h2 id="restoring-from-the-backup-made-before-an-import">Restoring from the backup made before an import</h2>
+<p>Backups made before an import or a reset are in <code>backup</code> in the settings folder. They are in the same format as exported files, so you can restore them by importing with <strong>Import</strong>.</p>
+
+<div class="pager"><a href="13-settings.html">← 13. Settings Dialog</a><a href="15-backup-migrate.html">15. Backup and Migration →</a></div>
+</main>
+</div>
+</body>
+</html>

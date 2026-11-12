@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>15. Backup and Migration - kasane Help</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane Help</a>
+<ol>
+<li><a href="index.html">Introduction</a></li>
+<li><a href="01-install.html">1. Installation</a></li>
+<li><a href="02-uninstall.html">2. Uninstallation</a></li>
+<li><a href="03-license.html">3. License Activation</a></li>
+<li><a href="04-tray.html">4. Tray</a></li>
+<li><a href="05-editor-basics.html">5. Editor Basics</a></li>
+<li><a href="06-calibration.html">6. Calibration</a></li>
+<li><a href="07-emergency.html">7. Emergency Release</a></li>
+<li><a href="08-key-assign.html">8. Assigning Keys</a></li>
+<li><a href="09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides</a></li>
+<li><a href="10-ime-nicola.html">10. IME Linking and NICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a></li>
+<li><a href="12-recipes.html">12. Setup Examples</a></li>
+<li><a href="13-settings.html">13. Settings Dialog</a></li>
+<li><a href="14-import-export.html">14. Import and Export</a></li>
+<li class="current"><a href="15-backup-migrate.html">15. Backup and Migration</a></li>
+<li><a href="16-reference.html">16. Troubleshooting and Known Limitations</a></li>
+<li><a href="17-keymaptool.html">17. KeymapTool and Samples</a></li>
+<li><a href="18-readme.html">18. README and Background</a></li>
+<li><a href="19-terms.html">19. Terms of Use</a></li>
+<li><a href="20-third-party.html">20. Third-Party Notices</a></li>
+</ol>
+
+</nav>
+<main>
+<div class="pagehead">kasane 1.01 2026-11-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/15-backup-migrate.html">日本語</a></div>
+<h1 id="backup-and-migration">15. Backup and Migration</h1>
+<p>This explains where kasane's settings are stored, and how to back them up and move them to another PC or keyboard.</p>
+<h2 id="settings-are-kept-in-three-places">Settings are kept in three places</h2>
+<table>
+<thead>
+<tr>
+<th>Place</th>
+<th>What it holds</th>
+<th>What writes to it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The driver's registry</td>
+<td>The settings that actually affect key input</td>
+<td>When you press <strong>Apply to keyboard (ON)</strong> (administrator rights required)</td>
+</tr>
+<tr>
+<td>The settings folder</td>
+<td>The source data of the settings you edit in the editor, and the tray settings</td>
+<td>The editor and the tray</td>
+</tr>
+<tr>
+<td><code>%ProgramData%\kbdlayer-license</code></td>
+<td>The license token and signing key</td>
+<td>The license service</td>
+</tr>
+</tbody>
+</table>
+<p>What actually swaps the keys is the setting in the driver's registry. <code>project.json</code> in the settings folder is the source data for editing in the editor, and is written to the driver each time you apply. The editor has no Save button. It saves automatically when you close it, when you switch to another keyboard, and when you apply.</p>
+<p>The license is not something to back up or take with you. You can check the license key in your Gumroad library. With the Subscription edition, after reinstalling, the service checks again with the saved key. With the Pro edition, you enter the key again when you reinstall.</p>
+<h2 id="the-settings-folder">The settings folder</h2>
+<p>If the environment variable <code>KASANE</code> has an absolute path, it is that folder. If not, it is <code>%LOCALAPPDATA%\applet\kasane</code>. You can check the current location in the &quot;Data folder&quot; tab of the settings dialog (<a href="13-settings.html">13. Settings Dialog</a>).</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Contents</th>
+<th>Back it up?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;UniqId&gt;\project.json</code></td>
+<td>The settings of one keyboard (layers, macros, combos, tap dances, key overrides, timing, NICOLA, the layout name, measured scan codes, the name you gave it)</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>&lt;UniqId&gt;\helper.json</code></td>
+<td>That keyboard's helper actions, triggers, and per-app layers</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>tray.json</code></td>
+<td>The tray settings (IME link, color mode, display language, and so on) and the helper settings shared by all keyboards</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>Layouts\kle-&lt;name&gt;.json</code></td>
+<td>Layouts saved with &quot;Add from KLE&quot;</td>
+<td>Yes. Without it, settings that use that layout cannot be opened</td>
+</tr>
+<tr>
+<td><code>backup\</code></td>
+<td>Backups made automatically before an import or a reset</td>
+<td>Good to keep</td>
+</tr>
+<tr>
+<td><code>tray-state.json</code> and other <code>tray-*.json</code>, <code>tray.log</code></td>
+<td>The tray's state records and log</td>
+<td>Not needed</td>
+</tr>
+</tbody>
+</table>
+<p><code>&lt;UniqId&gt;</code> is an 8-digit hexadecimal number for each keyboard. Even for the same keyboard, it changes if you plug it into a different USB port. If you put the port back, the original settings can be used as they are.</p>
+<h2 id="making-a-backup">Making a backup</h2>
+<p>In <strong>Export</strong> of <a href="14-import-export.html">14. Import and Export</a>, choose <strong>Everything</strong> as the scope. The settings of all keyboards and the tray settings go into a single <code>*.kasane.json</code>.</p>
+<p>If you choose <strong>Include recovery settings</strong> in the export, these settings for restoring to the same PC are also included: the tray settings (colors, language, how desktop icons are shown, and so on), the emergency-release key combination, the i8042prt settings, the sharing scope of each keyboard, and layouts you added yourself.</p>
+<p>The license is not included in the export. Recovery settings are included only when you choose them.</p>
+<p>If you only want to restore to the same keyboard on the same PC, you can also copy the <code>&lt;UniqId&gt;</code> folder, <code>tray.json</code>, and <code>Layouts\</code> in the settings folder.</p>
+<h2 id="moving-to-another-pc-or-another-keyboard">Moving to another PC or another keyboard</h2>
+<ol>
+<li>On the original PC, export <strong>Everything</strong>.</li>
+<li>Install kasane on the new PC and connect the keyboard.</li>
+<li>In the editor, import the file with <strong>Import / Export...</strong>. The keyboards in the file are matched to the connected keyboards automatically. Those with the same <code>UniqId</code> are assigned first, then those with the same <code>HardwareId</code>. If they do not match, you can choose on the screen.</li>
+<li>When moving to a keyboard with a different layout (JIS and US, one with a numpad, and so on), assignments you did not intend may result. Check the import report.</li>
+<li>Measured values (the results of calibration) are not carried over to another device. Do the calibration again if needed.</li>
+</ol>
+<p>You can also import at installation time (<a href="01-install.html">1. Installation</a>).</p>
+<h2 id="quick-reference-by-situation">Quick reference by situation</h2>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Buying a new PC</td>
+<td>Export everything on the old PC and import on the new PC. If you have layouts you added yourself, copy <code>Layouts\</code> too</td>
+</tr>
+<tr>
+<td>Buying a new keyboard</td>
+<td>Import the old keyboard's settings into the new keyboard. If the layout differs, check the report and do calibration again</td>
+</tr>
+<tr>
+<td>You changed the USB port</td>
+<td>The editor settings and tray settings are not carried over. Put it back in the original port, or move them with export and import. The driver settings carry over if the sharing scope is &quot;Share across the same model&quot;</td>
+</tr>
+<tr>
+<td>Reinstalling</td>
+<td>With an overwrite, the settings remain. Uninstalling deletes the driver settings. Export everything first</td>
+</tr>
+<tr>
+<td>Resetting settings</td>
+<td>Use the &quot;Reset&quot; tab of Import / Export</td>
+</tr>
+<tr>
+<td>Using administrator protection</td>
+<td>The elevated editor runs as a different user, so the save location differs. Pin the settings folder with the environment variable <code>KASANE</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="when-you-use-administrator-protection">When you use administrator protection</h2>
+<p>When Windows 11 administrator protection is enabled, the elevated editor and the tray run as a different account whose name starts with <code>ADMIN_</code> (for example, <code>ADMIN_applet</code>). The <code>%LOCALAPPDATA%</code> of this account is separate from that of the account you normally use.</p>
+<p>If you specify the settings folder in the installer (the environment variable <code>KASANE</code> is set), the elevated editor and the tray see the same settings as your normal account. When you use administrator protection, specify the settings folder.</p>
+<p>If the <code>ADMIN_</code> account cannot write to the folder you specified, <strong>Fix data folder access…</strong> appears in the tray menu. When you choose it, a single authentication prompt appears, and then it can be written to. The same guidance also appears in the notification when the tray starts.</p>
+<p>If you try to close the editor while it still cannot write, it shows that saving failed, along with the save location and the user it runs as. If you choose <strong>Yes</strong>, your current changes are discarded and it closes. If you choose <strong>No</strong>, you return to the editor.</p>
+<p>The installer switches how the tray starts automatically depending on whether administrator protection is on (<a href="04-tray.html">4. Tray</a>).</p>
+<blockquote>
+<p>If you want to restore the &quot;i8042prt&quot; and &quot;Desktop&quot; settings of the settings dialog after a reinstall, before you uninstall, export everything with <strong>Include recovery settings</strong> chosen. If you leave the save location at its default (<code>kasane-recovery.kasane.json</code> in the settings folder), the installer imports it automatically when you specify the settings folder at the reinstall. Importing a file for which you did not choose it does not restore these.</p>
+</blockquote>
+
+<div class="pager"><a href="14-import-export.html">← 14. Import and Export</a><a href="16-reference.html">16. Troubleshooting and Known Limitations →</a></div>
+</main>
+</div>
+</body>
+</html>

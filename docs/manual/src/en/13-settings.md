@@ -54,7 +54,7 @@ With **Color mode**, you can choose **Light (default)** or **Dark**. When you sa
 
 With **Language**, you choose the display language of kasane and the tray from **Auto (default)**, **Japanese**, and **English**. Auto follows the Windows display language. The change takes effect after kasane and the tray are restarted. When you save, a confirmation recommends restarting kasane. The tray restarts automatically after a few seconds.
 
-The help also follows this language. When you choose English, the English help opens. Chapters that have not been translated yet open in Japanese.
+The help also follows this language. When you choose English, the English help opens.
 
 ![The confirmation after changing the display language](../img/ja/settings-language-restart.png)
 
