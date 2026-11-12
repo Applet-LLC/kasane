@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3. License Activation - kasane Help</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane Help</a>
+<ol>
+<li><a href="index.html">Introduction</a></li>
+<li><a href="01-install.html">1. Installation</a></li>
+<li><a href="02-uninstall.html">2. Uninstallation</a></li>
+<li class="current"><a href="03-license.html">3. License Activation</a></li>
+<li><a href="04-tray.html">4. Tray</a></li>
+<li><a href="05-editor-basics.html">5. Editor Basics</a></li>
+<li><a href="../ja/06-calibration.html">6. Calibration (日本語)</a></li>
+<li><a href="../ja/07-emergency.html">7. Emergency Release (日本語)</a></li>
+<li><a href="../ja/08-key-assign.html">8. Assigning Keys (日本語)</a></li>
+<li><a href="../ja/09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides (日本語)</a></li>
+<li><a href="../ja/10-ime-nicola.html">10. IME Linking and NICOLA (日本語)</a></li>
+<li><a href="../ja/11-helper-apprules.html">11. Helper Actions and Per-App Layers (日本語)</a></li>
+<li><a href="../ja/12-recipes.html">12. Setup Examples (日本語)</a></li>
+<li><a href="13-settings.html">13. Settings Dialog</a></li>
+<li><a href="../ja/14-import-export.html">14. Import and Export (日本語)</a></li>
+<li><a href="../ja/15-backup-migrate.html">15. Backup and Migration (日本語)</a></li>
+<li><a href="../ja/16-reference.html">16. Troubleshooting and Known Limitations (日本語)</a></li>
+<li><a href="../ja/17-keymaptool.html">17. KeymapTool and Samples (日本語)</a></li>
+<li><a href="../ja/18-readme.html">18. README and Background (日本語)</a></li>
+<li><a href="../ja/19-terms.html">19. Terms of Use (日本語)</a></li>
+<li><a href="../ja/20-third-party.html">20. Third-Party Notices (日本語)</a></li>
+</ol>
+
+</nav>
+<main>
+<div class="pagehead">kasane 1.01 2026-11-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/03-license.html">日本語</a></div>
+<h1 id="license-activation">3. License Activation</h1>
+<p>kasane comes as a Gumroad subscription edition (Subscription) and a one-time purchase edition (Pro). They handle the license key differently, so this chapter covers both.</p>
+<p>You can tell which edition is installed from the name shown in Windows &quot;Installed apps&quot; (&quot;kasane Subscription&quot; or &quot;kasane Pro&quot;). Or, if the menu you get by right-clicking the tray icon has no <strong>License</strong> item, it is the Pro edition.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Subscription edition</th>
+<th>Pro edition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>When you enter the license key</td>
+<td>After installation, in License Manager</td>
+<td>During installation</td>
+</tr>
+<tr>
+<td>Checking the key</td>
+<td>The license service asks the license server about every 24 hours</td>
+<td>Asked just once, at installation</td>
+</tr>
+<tr>
+<td>Cancellation and expiry</td>
+<td>When the subscription becomes invalid, remapping stops</td>
+<td>Does not expire</td>
+</tr>
+<tr>
+<td>License Manager and the license service</td>
+<td>Installed</td>
+<td>Not installed</td>
+</tr>
+<tr>
+<td>&quot;License&quot; in the tray</td>
+<td>Present</td>
+<td>Absent</td>
+</tr>
+</tbody>
+</table>
+<p>The Pro edition does not need an internet connection once installation is done.</p>
+<h2 id="subscription-edition">Subscription edition</h2>
+<p>kasane provides its features according to your Gumroad subscription. After installation, you enter the license key in License Manager and activate it.</p>
+<h3 id="opening-license-manager">Opening License Manager</h3>
+<ul>
+<li>It opens automatically, just once, when you sign in after the restart that follows installation.</li>
+<li>To open it later, choose <strong>kasane License Manager</strong> in the <code>applet</code> folder of the Start menu, or right-click the tray icon and choose <strong>License</strong>.</li>
+</ul>
+<p>In the list at the top right, you can choose the display language, Japanese or English.</p>
+<h3 id="entering-the-license-key">Entering the license key</h3>
+<p>You can find the license key in the email from your Gumroad purchase, or in your Gumroad library.</p>
+<p><img src="../img/ja/license-input.png" alt="Entering the license key" /></p>
+<ol>
+<li>Paste or type the key in the <strong>License key</strong> box.</li>
+<li>Press <strong>Activate</strong>.</li>
+<li>When it succeeds, the key box changes to a read-only display (the key with its middle hidden) and the status becomes &quot;Active&quot;.</li>
+</ol>
+<p><img src="../img/ja/license-activated.png" alt="After activation" /></p>
+<p>If you have not purchased a license, you can open the purchase page from the <strong>Buy on Gumroad</strong> link on the screen.</p>
+<p>After activation, restart once more, or reconnect the keyboard, and remapping becomes available.</p>
+<h3 id="reading-the-screen">Reading the screen</h3>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Status</td>
+<td>&quot;Active (token valid for 6 more day(s))&quot;, &quot;Trial (valid for 5 more day(s))&quot;, &quot;Not activated&quot;, &quot;Activating...&quot;, and so on</td>
+</tr>
+<tr>
+<td>Next automatic renewal, Trial expires</td>
+<td>For a subscription, the date of the next automatic check. For the trial, the date it expires</td>
+</tr>
+<tr>
+<td>User</td>
+<td>The email address registered at purchase</td>
+</tr>
+<tr>
+<td><strong>Re-check license</strong></td>
+<td>Asks the license server and gets the status again</td>
+</tr>
+<tr>
+<td>License key (registered)</td>
+<td>The registered key. The middle is hidden and only the last 4 characters are shown</td>
+</tr>
+<tr>
+<td>Connection diagnostics</td>
+<td>&quot;Service connection: OK&quot;, &quot;License server: OK (license valid)&quot;, and so on. Shown after activation or a re-check</td>
+</tr>
+</tbody>
+</table>
+<p><img src="../img/ja/license-diagnostics.png" alt="Connection diagnostics" /></p>
+<p>About every 24 hours, the license service connects to the license server (run by Applet LLC) and checks that the subscription is active. The license server returns the result it confirmed with Gumroad. Only the license key and a PC identifier are sent, and the license server neither stores nor logs them. It uses the result of the latest check, so you can keep using kasane offline for up to 7 days even if you cannot connect to the network.</p>
+<h3 id="the-trial">The trial</h3>
+<p>When you enter a trial license key, you can use kasane as a trial for 6 days. The screen shows &quot;Trial (valid for 5 more day(s))&quot; and the trial expiry date, and displays &quot;Your 6-day trial has been activated.&quot; When the trial ends, remapping can no longer be used.</p>
+<p>The trial is established by matching against Gumroad's free trial product.</p>
+<p><img src="../img/ja/license-trial.png" alt="The trial display" /></p>
+<h3 id="when-the-license-becomes-invalid">When the license becomes invalid</h3>
+<p>When the subscription becomes invalid, the layer remapping features can no longer be used. Basic keyboard input keeps working as usual.</p>
+<h3 id="when-an-error-appears">When an error appears</h3>
+<p>The red message on the screen tells you the cause.</p>
+<table>
+<thead>
+<tr>
+<th>Kind of message</th>
+<th>Cause and fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>&quot;The license key is invalid. Please confirm your purchase on Gumroad.&quot;</td>
+<td>You mistyped the key, or it is a key for another product. Check the license key in your Gumroad library. The screen also shows the details Gumroad returned (for example, <code>That license does not exist for the provided product.</code>). The status box may then keep showing &quot;Activating...&quot;</td>
+</tr>
+<tr>
+<td>Network, timeout</td>
+<td>You cannot connect to the internet. Check your connection and press <strong>Re-check license</strong></td>
+</tr>
+<tr>
+<td>Server error, parse error</td>
+<td>There may be a temporary problem on the license server or at Gumroad. Try again after a while</td>
+</tr>
+<tr>
+<td>Service not running</td>
+<td>The license service (<code>kasaneLicenseSvc</code>) is not running. Restart, or start it in the Windows Services screen</td>
+</tr>
+</tbody>
+</table>
+<p><img src="../img/ja/license-error.png" alt="An error message" /></p>
+<h3 id="when-you-cannot-connect-to-the-license-server">When you cannot connect to the license server</h3>
+<p>Check that your company network or security software is not blocking communication (HTTPS, port 443) to these destinations.</p>
+<table>
+<thead>
+<tr>
+<th>Edition</th>
+<th>Destination</th>
+<th>When it communicates</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Subscription</td>
+<td><code>https://kasane-license.applet-llc.workers.dev</code></td>
+<td>At activation, and in the check about every 24 hours</td>
+</tr>
+<tr>
+<td>Pro</td>
+<td><code>https://api.gumroad.com/v2/licenses/verify</code></td>
+<td>At installation (just once)</td>
+</tr>
+</tbody>
+</table>
+<p>With the Subscription edition, even if communication stops after activation, you can keep using kasane for up to 7 days.</p>
+<p>The logs are <code>debug.log</code> and <code>gui-debug.log</code> in <code>%ProgramData%\kbdlayer-license</code>.</p>
+<h2 id="pro-edition">Pro edition</h2>
+<p>You can find the Pro license key in your Gumroad purchase email or in your Gumroad library. When you enter it during installation, the installer asks Gumroad, and only a valid key lets you go on. If the key is invalid, nothing is installed.</p>
+<h3 id="entering-the-key">Entering the key</h3>
+<p>When you run <code>Install-kasane-pro.exe</code>, the first screen has a box for the key. Paste the key and press <strong>Install</strong>. You can also paste into this box with right-click.</p>
+<p>If you run the <code>.msi</code> directly, the key entry page appears after the settings file import page. Right-click does not work on this page, so paste with <code>Ctrl+V</code> on the keyboard.</p>
+<p>In a silent installation, pass it with <code>LICENSEKEY</code> (see &quot;Silent installation&quot; in <a href="01-install.html">1. Installation</a>).</p>
+<h3 id="when-the-key-could-not-be-confirmed">When the key could not be confirmed</h3>
+<p>If you started from <code>Install-kasane-pro.exe</code>, the reason is shown on the screen. When the check fails, installation is cancelled and the PC is not changed.</p>
+<table>
+<thead>
+<tr>
+<th>What the screen says</th>
+<th>Cause and fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The license key is invalid</td>
+<td>You mistyped the key, or it is a key for another product. Check the license key in your Gumroad library. A key that was refunded or charged back also shows this</td>
+</tr>
+<tr>
+<td>The key could not be confirmed because the internet is unavailable</td>
+<td>Check your connection and run it again. If you ran the <code>.msi</code> directly, this reason is not shown and only error 1722 appears (see &quot;Causes of error 1722&quot; in <a href="01-install.html">1. Installation</a>)</td>
+</tr>
+<tr>
+<td>The usage limit has been exceeded</td>
+<td>A single key can be confirmed up to 100 times. If you exceed the limit, contact Gumroad support</td>
+</tr>
+</tbody>
+</table>
+<p>The detailed progress is recorded in <code>C:\Windows\Temp\kasane-pro-activator.log</code>.</p>
+<h3 id="when-you-install-again">When you install again</h3>
+<p>When you reinstall the Pro edition, you enter the key again. Each check adds one to the usage count of that key. An overwrite installation of a newer version does not need the key.</p>
+
+<div class="pager"><a href="02-uninstall.html">← 2. Uninstallation</a><a href="04-tray.html">4. Tray →</a></div>
+</main>
+</div>
+</body>
+</html>

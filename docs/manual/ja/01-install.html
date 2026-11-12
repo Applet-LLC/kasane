@@ -36,7 +36,7 @@
 
 </nav>
 <main>
-<div class="pagehead">かさね1.01 2026-11-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a></div>
+<div class="pagehead">かさね1.01 2026-11-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../en/01-install.html">English</a></div>
 <h1 id="section">1. インストール</h1>
 <p>kasane のインストーラーは、キーボードドライバ（kbdlayer）、ライセンス管理サービス、エディタ（kasane）、トレイ（常駐アプリ）をまとめて入れます。インストール先は <code>C:\Program Files\applet\kasane</code> に固定されていて、変更できません。</p>
 <p>この章は Subscription 版の手順で書いています。買い切り版（Pro）の違いは「Pro 版のインストール」に、Subscription 版からの移行は「Subscription 版から Pro 版へ移る」にまとめました。</p>
@@ -102,7 +102,8 @@
 <p><img src="../img/ja/install-wizard-datadir.png" alt="設定フォルダの指定" /></p>
 <ul>
 <li>空欄のままにすると、各ユーザーの <code>%LOCALAPPDATA%\applet\kasane</code> に保存されます。</li>
-<li>指定するときは、<code>D:\kasane</code> のように、ドライブ文字から始まるフルパスにします。エクスプローラーでコピーしたパスのように、前後に <code>&quot;</code> が付いていても、インストーラーが外します。</li>
+<li><strong>参照...</strong> を押すと、フォルダを選ぶ画面が開きます。欄にパスが入っているとき（すでに環境変数 <code>KASANE</code> が設定されているときを含む）は、そのフォルダを選んだ状態で開きます。</li>
+<li>欄に入力するときは、<code>D:\kasane</code> のように、ドライブ文字から始まるフルパスにします。エクスプローラーでコピーしたパスのように、前後に <code>&quot;</code> が付いていても、インストーラーが外します。</li>
 <li>指定したフォルダが無ければ、インストーラーが作ります。すでにあるフォルダの権限は変えません。</li>
 <li>設定フォルダを同じ場所に指定しても、i8042prt の設定は戻りません。ドライバに保存されていて、アンインストールで消えるためです。残したいときは、アンインストールの前に、復旧用の設定を含めてエクスポートしてください（<a href="02-uninstall.html">2. アンインストール</a>）。</li>
 <li>管理者保護（Windows 11 の機能）を使っているときは、ここで指定してください。昇格したエディタと通常のトレイが、同じフォルダを見るようになります。書き込めないときの直し方は、<a href="15-backup-migrate.html">15. バックアップと移行</a>を見てください。</li>

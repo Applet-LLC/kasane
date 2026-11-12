@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2. Uninstallation - kasane Help</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane Help</a>
+<ol>
+<li><a href="index.html">Introduction</a></li>
+<li><a href="01-install.html">1. Installation</a></li>
+<li class="current"><a href="02-uninstall.html">2. Uninstallation</a></li>
+<li><a href="03-license.html">3. License Activation</a></li>
+<li><a href="04-tray.html">4. Tray</a></li>
+<li><a href="05-editor-basics.html">5. Editor Basics</a></li>
+<li><a href="../ja/06-calibration.html">6. Calibration (日本語)</a></li>
+<li><a href="../ja/07-emergency.html">7. Emergency Release (日本語)</a></li>
+<li><a href="../ja/08-key-assign.html">8. Assigning Keys (日本語)</a></li>
+<li><a href="../ja/09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides (日本語)</a></li>
+<li><a href="../ja/10-ime-nicola.html">10. IME Linking and NICOLA (日本語)</a></li>
+<li><a href="../ja/11-helper-apprules.html">11. Helper Actions and Per-App Layers (日本語)</a></li>
+<li><a href="../ja/12-recipes.html">12. Setup Examples (日本語)</a></li>
+<li><a href="13-settings.html">13. Settings Dialog</a></li>
+<li><a href="../ja/14-import-export.html">14. Import and Export (日本語)</a></li>
+<li><a href="../ja/15-backup-migrate.html">15. Backup and Migration (日本語)</a></li>
+<li><a href="../ja/16-reference.html">16. Troubleshooting and Known Limitations (日本語)</a></li>
+<li><a href="../ja/17-keymaptool.html">17. KeymapTool and Samples (日本語)</a></li>
+<li><a href="../ja/18-readme.html">18. README and Background (日本語)</a></li>
+<li><a href="../ja/19-terms.html">19. Terms of Use (日本語)</a></li>
+<li><a href="../ja/20-third-party.html">20. Third-Party Notices (日本語)</a></li>
+</ol>
+
+</nav>
+<main>
+<div class="pagehead">kasane 1.01 2026-11-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/02-uninstall.html">日本語</a></div>
+<h1 id="uninstallation">2. Uninstallation</h1>
+<p>These are the steps to remove kasane from your PC. The driver is in use by the keyboard, so it is removed completely only after you restart.</p>
+<p>If you only want to install a newer version, you do not need to uninstall (see &quot;Overwrite installation&quot; in <a href="01-install.html">1. Installation</a>). You do need to uninstall when you move from the Subscription edition to the Pro edition (see &quot;Moving from Subscription to Pro&quot; in <a href="01-install.html">1. Installation</a>).</p>
+<h2 id="steps">Steps</h2>
+<h3 id="turn-remapping-off">1. Turn remapping OFF</h3>
+<p>Open kasane (the editor) and press <strong>OFF</strong>. Keyboard remapping stops and the keys return to their original layout.</p>
+<p><img src="../img/ja/uninstall-off.png" alt="The state after pressing OFF" /></p>
+<p>If you skip this step, the driver may keep running until you restart. If you turn remapping OFF in step 1, your assignments have no effect.</p>
+<h3 id="remove-it-from-apps">2. Remove it from Apps</h3>
+<p>In Windows Settings, under &quot;Installed apps&quot; (also called &quot;Apps &amp; features&quot;), find &quot;kasane Subscription&quot; (&quot;kasane Pro&quot; for the Pro edition). Typing &quot;kasane&quot; in the search box narrows the list. Press <strong>…</strong> at the right end to see <strong>Modify</strong> and <strong>Uninstall</strong>. Choose <strong>Uninstall</strong>. Administrator rights are required.</p>
+<p><img src="../img/ja/uninstall-apps.png" alt="Finding kasane in Windows Settings" /></p>
+<p><img src="../img/ja/uninstall-apps-menu.png" alt="The … menu" /></p>
+<p>When a confirmation screen appears, press <strong>Yes</strong>.</p>
+<p><img src="../img/ja/uninstall-confirm.png" alt="Uninstall confirmation" /></p>
+<h4 id="the-files-in-use-screen">The files-in-use screen</h4>
+<p>If the tray is running, a screen appears saying that the following applications need to be closed to continue. The list shows <code>kasane-tray</code>.</p>
+<ul>
+<li><strong>Automatically close applications and attempt to restart them after setup is complete</strong>: the PC restarts automatically after the uninstall.</li>
+<li><strong>Do not close applications. (A reboot may be required.)</strong>: you restart by yourself.</li>
+</ul>
+<p>Uninstallation completes with either choice. The restart in step 3 is needed in both cases.</p>
+<h3 id="restart">3. Restart</h3>
+<p>Restart your PC. Removal of the driver is completed when you restart.</p>
+<h2 id="what-is-removed">What is removed</h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Program</td>
+<td>The contents of <code>C:\Program Files\applet\kasane</code>, and the Start menu items</td>
+</tr>
+<tr>
+<td>License management service</td>
+<td><code>kasaneLicenseSvc</code> (Subscription edition only)</td>
+</tr>
+<tr>
+<td>Driver</td>
+<td><code>kbdlayer</code>, and the settings stored in the driver (keymaps, macros, combos, timing, NICOLA, the emergency-release key combination, and so on)</td>
+</tr>
+<tr>
+<td>Environment variable</td>
+<td><code>KASANE</code> (if you set it in the installer)</td>
+</tr>
+<tr>
+<td>Autostart</td>
+<td>The tray's autostart entry (Run key). If you use administrator protection, also the Task Scheduler task <code>kasane-tray-&lt;user name&gt;</code></td>
+</tr>
+</tbody>
+</table>
+<p>The i8042prt settings are stored in the driver, not in the settings folder, so uninstalling deletes them. If you want to keep them, export everything before you uninstall, with <strong>Include recovery settings</strong> selected (<a href="../ja/14-import-export.html">14. Import and Export</a>).</p>
+<h2 id="what-remains">What remains</h2>
+<p>So that they carry over when you install again, the following are kept.</p>
+<table>
+<thead>
+<tr>
+<th>Location</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>%ProgramData%\kbdlayer-license</code></td>
+<td>The license key and the logs (Subscription edition only). When you install again, the key is checked again automatically, so you do not need to activate again. It is not created for the Pro edition</td>
+</tr>
+<tr>
+<td><code>%LOCALAPPDATA%\applet\kasane</code></td>
+<td>The settings for each keyboard (<code>project.json</code>), the tray settings, and the logs. If you specified the environment variable <code>KASANE</code>, that folder</td>
+</tr>
+</tbody>
+</table>
+<h2 id="removing-everything">Removing everything</h2>
+<p>After you uninstall and restart, delete the two folders above by hand. If you delete <code>%LOCALAPPDATA%\applet\kasane</code>, your saved settings are lost. If you want to keep them, <a href="../ja/14-import-export.html">export</a> first. If you delete <code>%ProgramData%\kbdlayer-license</code>, the saved license key is lost. The inside of <code>license-svc</code> in this folder cannot be deleted without administrator rights. The next time you install, you enter the key again in License Manager. The license key is not included in exports, so make sure you can look it up in your Gumroad email or library.</p>
+<h2 id="when-you-install-again">When you install again</h2>
+<ul>
+<li>The license is checked again automatically with the saved key.</li>
+<li>The saved keymap (<code>project.json</code>) is loaded when you open kasane. The driver-side settings have been deleted, so press <strong>Apply to keyboard (ON)</strong> to restore them.</li>
+</ul>
+
+<div class="pager"><a href="01-install.html">← 1. Installation</a><a href="03-license.html">3. License Activation →</a></div>
+</main>
+</div>
+</body>
+</html>

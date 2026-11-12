@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1. Installation - kasane Help</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane Help</a>
+<ol>
+<li><a href="index.html">Introduction</a></li>
+<li class="current"><a href="01-install.html">1. Installation</a></li>
+<li><a href="02-uninstall.html">2. Uninstallation</a></li>
+<li><a href="03-license.html">3. License Activation</a></li>
+<li><a href="04-tray.html">4. Tray</a></li>
+<li><a href="05-editor-basics.html">5. Editor Basics</a></li>
+<li><a href="../ja/06-calibration.html">6. Calibration (日本語)</a></li>
+<li><a href="../ja/07-emergency.html">7. Emergency Release (日本語)</a></li>
+<li><a href="../ja/08-key-assign.html">8. Assigning Keys (日本語)</a></li>
+<li><a href="../ja/09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides (日本語)</a></li>
+<li><a href="../ja/10-ime-nicola.html">10. IME Linking and NICOLA (日本語)</a></li>
+<li><a href="../ja/11-helper-apprules.html">11. Helper Actions and Per-App Layers (日本語)</a></li>
+<li><a href="../ja/12-recipes.html">12. Setup Examples (日本語)</a></li>
+<li><a href="13-settings.html">13. Settings Dialog</a></li>
+<li><a href="../ja/14-import-export.html">14. Import and Export (日本語)</a></li>
+<li><a href="../ja/15-backup-migrate.html">15. Backup and Migration (日本語)</a></li>
+<li><a href="../ja/16-reference.html">16. Troubleshooting and Known Limitations (日本語)</a></li>
+<li><a href="../ja/17-keymaptool.html">17. KeymapTool and Samples (日本語)</a></li>
+<li><a href="../ja/18-readme.html">18. README and Background (日本語)</a></li>
+<li><a href="../ja/19-terms.html">19. Terms of Use (日本語)</a></li>
+<li><a href="../ja/20-third-party.html">20. Third-Party Notices (日本語)</a></li>
+</ol>
+
+</nav>
+<main>
+<div class="pagehead">kasane 1.01 2026-11-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/01-install.html">日本語</a></div>
+<h1 id="installation">1. Installation</h1>
+<p>The kasane installer installs the keyboard driver (kbdlayer), the license management service, the editor (kasane), and the tray (the resident app) together. The installation folder is fixed at <code>C:\Program Files\applet\kasane</code> and cannot be changed.</p>
+<p>This chapter describes the Subscription edition. The differences in the one-time purchase edition (Pro) are in &quot;Installing the Pro edition&quot;, and moving from Subscription to Pro is in &quot;Moving from Subscription to Pro&quot;.</p>
+<h2 id="what-you-need">What you need</h2>
+<ul>
+<li>Windows 11 25H2 (x64 or ARM64)</li>
+<li>An account with administrator rights</li>
+<li>The downloaded <code>kasane-subscription_1.01.zip</code> (<code>kasane-pro_1.01.zip</code> for the Pro edition). You can download it again at any time from your Gumroad library</li>
+</ul>
+<p>When you extract the zip, you get these files.</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Install-kasane.exe</code></td>
+<td>The installer's start screen. Begin here</td>
+</tr>
+<tr>
+<td><code>KasaneSetup-ja-JP.msi</code>, <code>KasaneSetup-en-US.msi</code></td>
+<td>The installer itself, one per language. <code>Install-kasane.exe</code> picks one automatically</td>
+</tr>
+<tr>
+<td><code>License.ja-JP.rtf</code>, <code>License.en-US.rtf</code></td>
+<td>The license agreement</td>
+</tr>
+<tr>
+<td><code>README.ja-JP.txt</code>, <code>README.en-US.txt</code></td>
+<td>The installation guide</td>
+</tr>
+<tr>
+<td><code>THIRD-PARTY-NOTICES.txt</code>, the <code>third-party</code> folder</td>
+<td>The list of third-party software, and the full license texts</td>
+</tr>
+</tbody>
+</table>
+<p>Run <code>Install-kasane.exe</code> with the <code>.msi</code> files left in the same folder.</p>
+<h2 id="steps">Steps</h2>
+<h3 id="run-install-kasane.exe">1. Run Install-kasane.exe</h3>
+<p>Run <code>Install-kasane.exe</code>. It is shown in Japanese if Windows is set to Japanese, and in English otherwise. You can switch with the link at the top right.</p>
+<p><img src="../img/ja/install-launcher.png" alt="The installer start screen" /></p>
+<p>As the text says, you enter the license key in License Manager, which appears after installation (<a href="03-license.html">3. License Activation</a>). Press <strong>Install</strong> to start the installer. If the <code>.msi</code> is not in the same folder, a message appears in red and the button cannot be pressed.</p>
+<p>If you start <code>Install-kasane.exe</code> a second time while it is already open, the window that is already open is brought to the front. Only one installer can run at a time.</p>
+<h3 id="follow-the-setup-wizard">2. Follow the setup wizard</h3>
+<p>The wizard goes through these pages in order.</p>
+<ol>
+<li>Welcome</li>
+<li>License agreement: read it, and select <strong>I accept the terms in the License Agreement</strong>.</li>
+<li>Feature selection: all six features (driver, tray, license service, license manager, editor, common files) are required. You cannot change the selection.</li>
+<li>Settings folder</li>
+<li>Import settings file</li>
+<li>Ready to install, and progress</li>
+<li>Finish</li>
+</ol>
+<p><img src="../img/ja/install-wizard-welcome.png" alt="The first page of the wizard" /></p>
+<p><img src="../img/ja/install-wizard-license.png" alt="The license agreement" /></p>
+<p><img src="../img/ja/install-wizard-features.png" alt="Feature selection" /></p>
+<h4 id="settings-folder">Settings folder</h4>
+<p>Specify where settings files (the settings for each keyboard, the tray settings, and the logs) are stored. It is set machine-wide as the environment variable <code>KASANE</code>.</p>
+<p><img src="../img/ja/install-wizard-datadir.png" alt="Settings folder" /></p>
+<ul>
+<li>If you leave it empty, settings are stored in each user's <code>%LOCALAPPDATA%\applet\kasane</code>.</li>
+<li>Press <strong>Browse...</strong> to open a screen for choosing a folder. If the box already contains a path (including when the environment variable <code>KASANE</code> is already set), that folder is selected when the screen opens.</li>
+<li>When you type in the box, enter a full path that starts with a drive letter, such as <code>D:\kasane</code>. Even if the path has <code>&quot;</code> around it, as when you copy a path in Explorer, the installer removes them.</li>
+<li>If the folder you specify does not exist, the installer creates it. It does not change the permissions of a folder that already exists.</li>
+<li>Even if you specify the same settings folder again, the i8042prt settings are not restored. They are stored in the driver and are deleted by uninstalling. If you want to keep them, export your settings, including the recovery settings, before you uninstall (<a href="02-uninstall.html">2. Uninstallation</a>).</li>
+<li>If you use administrator protection (a Windows 11 feature), specify the folder here. The elevated editor and the normal tray then look at the same folder. If the folder cannot be written to, see <a href="../ja/15-backup-migrate.html">15. Backup and Migration</a> for how to fix it.</li>
+</ul>
+<p>To change it later, run the installer again (the &quot;Data folder&quot; tab of the <a href="13-settings.html">settings dialog</a> shows the current value). After changing it, restart, or sign out and sign in again, as needed.</p>
+<h4 id="import-settings-file">Import settings file</h4>
+<p>This applies a settings file (<code>*.kasane.json</code>) exported from a previous environment to the driver during installation. It is off by default.</p>
+<p><img src="../img/ja/install-wizard-import.png" alt="Import settings file" /></p>
+<ol>
+<li>Select <strong>Import a settings file</strong>.</li>
+<li>Enter the full path of the settings file. Right-click does not work in this box, so paste with <code>Ctrl+V</code> on the keyboard.</li>
+<li>When you press <strong>Next</strong>, if the file does not exist, a confirmation screen saying &quot;Settings file not found&quot; appears. Fix the path, or clear &quot;Import a settings file&quot;.</li>
+</ol>
+<p><img src="../img/ja/install-wizard-import-filled.png" alt="Entering the settings file" /></p>
+<p><img src="../img/ja/install-wizard-import-missing.png" alt="Settings file not found" /></p>
+<p>For a new installation, if the settings folder (the folder you specified on the previous page) contains <code>kasane-recovery.kasane.json</code>, that file is selected automatically, and the page appears with <strong>Import a settings file</strong> already selected. Clear the check box if you do not need it. This file is created in the settings folder when you choose <strong>Include recovery settings</strong> in Export (<a href="../ja/14-import-export.html">14. Import and Export</a>). In an installation that shows no screens, the same file is imported if it is found in the settings folder given with <code>KASANE_DIR</code>. To stop that, see &quot;Silent installation&quot; and pass <code>IMPORT_SETTINGS=0</code>. An overwrite installation on a PC that already has kasane (an update or a repair) does not look for the file, so it is not selected automatically. Your settings are still in place, and this avoids replacing them with an old file. If you want to import, select <strong>Import a settings file</strong> and enter the path of the file.</p>
+<p>When you import a file that contains recovery settings, the emergency-release key combination, the i8042prt settings, and the sharing scope of each keyboard are also restored to the driver. The tray settings (colors, language, how desktop icons are shown, and so on) and layouts you added yourself are restored when the tray first starts, only for the items that do not exist yet.</p>
+<p>The imported settings take effect after a restart (or when you reconnect the keyboard). For a model that already has settings, they are replaced, and the previous settings are kept for one generation. You can restore the kept settings from the &quot;Data folder&quot; tab of the settings dialog (<a href="../ja/14-import-export.html">14. Import and Export</a>). The result is recorded in <code>%ProgramData%\applet\kasane\import.log</code>.</p>
+<h3 id="run-the-installation">3. Run the installation</h3>
+<p>Press <strong>Install</strong> to start copying and registering files. If you want to check your choices so far, press <strong>Back</strong> to return to the previous pages.</p>
+<p><img src="../img/ja/install-wizard-ready.png" alt="Ready to install" /></p>
+<p><img src="../img/ja/install-wizard-progress.png" alt="Installing" /></p>
+<p>Installation finishes within a few minutes.</p>
+<h3 id="restart">4. Restart</h3>
+<p>When installation finishes, the final page asks you to restart.</p>
+<p><img src="../img/ja/install-wizard-finish.png" alt="The final page" /></p>
+<p>After you restart and sign in, License Manager opens automatically, just once. The tray icon also appears in the notification area. Until you restart, the driver is still stopped, so remapping does not work.</p>
+<h3 id="activate-the-license-and-restart-again">5. Activate the license and restart again</h3>
+<p>Enter the license key in License Manager and activate it (<a href="03-license.html">3. License Activation</a>). Then restart once more, or reconnect the keyboard, and kasane is ready to use.</p>
+<h2 id="what-is-installed">What is installed</h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Start menu</td>
+<td>In the <code>kasane Subscription</code> folder inside the <code>applet</code> folder: &quot;kasane&quot; (the editor), &quot;kasane Tray&quot;, and &quot;kasane License Manager&quot;</td>
+</tr>
+<tr>
+<td>Autostart</td>
+<td>The tray starts automatically at sign-in. If you use administrator protection, it is started by a Task Scheduler task so that no UAC prompt appears (<a href="04-tray.html">4. Tray</a>)</td>
+</tr>
+<tr>
+<td>Service</td>
+<td>The license management service <code>kasaneLicenseSvc</code> (starts automatically)</td>
+</tr>
+<tr>
+<td>Driver</td>
+<td>The keyboard class filter driver <code>kbdlayer</code> (takes effect after a restart)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="overwrite-installation">Overwrite installation</h2>
+<p>You can install a newer version directly over the old one. You do not need to uninstall. The driver settings and the license carry over.</p>
+<p>Before an overwrite, an uninstall, or a repair, the installer stops the tray automatically.</p>
+<h2 id="installing-the-pro-edition">Installing the Pro edition</h2>
+<p>For the Pro edition, extract <code>kasane-pro_1.01.zip</code> and install. The steps are almost the same as for the Subscription edition, with these differences.</p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Pro edition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Start screen</td>
+<td><code>Install-kasane-pro.exe</code>. The screen has a box for the license key</td>
+</tr>
+<tr>
+<td>The installer itself</td>
+<td><code>KasaneProSetup-ja-JP.msi</code>, <code>KasaneProSetup-en-US.msi</code>. You can also install by starting an <code>.msi</code> on its own. An overwrite installation can be done without entering the license key. However, if the license key information is not left on the PC, you must enter the license key even when you start the <code>.msi</code> on its own</td>
+</tr>
+<tr>
+<td>License key</td>
+<td>Paste it into the box and press <strong>Install</strong>; the installer checks it with Gumroad just once (<a href="03-license.html">3. License Activation</a>)</td>
+</tr>
+<tr>
+<td>Feature selection</td>
+<td>License Manager and the license service are not installed</td>
+</tr>
+<tr>
+<td>After the restart</td>
+<td>License Manager does not open. After you restart, kasane is ready to use</td>
+</tr>
+<tr>
+<td>Start menu</td>
+<td>The <code>kasane Pro</code> folder inside the <code>applet</code> folder</td>
+</tr>
+<tr>
+<td>Service</td>
+<td>The license management service is not installed</td>
+</tr>
+</tbody>
+</table>
+<p>You cannot install the Subscription and Pro editions on the same PC. If you start installing the Pro edition on a PC that has the Subscription edition, a message appears and you cannot go on.</p>
+<h2 id="moving-from-subscription-to-pro">Moving from Subscription to Pro</h2>
+<p>You cannot install over it. Uninstall first, then install again, in this order.</p>
+<ol>
+<li>If you want to keep your settings, export them from kasane (<a href="../ja/14-import-export.html">14. Import and Export</a>).</li>
+<li>Uninstall the Subscription edition and restart (<a href="02-uninstall.html">2. Uninstallation</a>).</li>
+<li>Run <code>Install-kasane-pro.exe</code>, enter the Pro license key, and install.</li>
+<li>Restart.</li>
+</ol>
+<p>If you install the Pro edition without restarting after the uninstall, the driver removal may not be finished, and installation may stop with an error (1722). In that case, restart and run it again. If you get the same error even after restarting, the license key may not have been confirmed (<a href="#troubleshooting">If something goes wrong</a>).</p>
+<p>The settings for each keyboard (<code>project.json</code>) and the tray settings carry over as they are. The Subscription license records (<code>%ProgramData%\kbdlayer-license</code>) are deleted when the Pro edition is installed, because the Pro edition does not use them.</p>
+<h2 id="silent-installation">Silent installation</h2>
+<p>You can install without showing any screens by using <code>msiexec</code>. Pass the settings folder and the settings file import with these properties.</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Meaning</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>KASANE_DIR</code></td>
+<td>The settings folder (environment variable <code>KASANE</code>)</td>
+<td><code>KASANE_DIR=D:\kasane</code></td>
+</tr>
+<tr>
+<td><code>IMPORT_SETTINGS</code></td>
+<td><code>1</code> imports a settings file. <code>0</code> also stops the automatic import of the recovery file in the settings folder</td>
+<td><code>IMPORT_SETTINGS=1</code></td>
+</tr>
+<tr>
+<td><code>IMPORT_SETTINGS_FILE</code></td>
+<td>The full path of the settings file to import</td>
+<td><code>IMPORT_SETTINGS_FILE=C:\work\settings.kasane.json</code></td>
+</tr>
+</tbody>
+</table>
+<pre><code>msiexec /i KasaneSetup-en-US.msi /qn KASANE_DIR=D:\kasane IMPORT_SETTINGS=1 IMPORT_SETTINGS_FILE=C:\work\settings.kasane.json
+</code></pre>
+<p>When administrator protection is enabled, a silent installation also creates an autostart task for each signed-in user. When nobody is signed in (for example, when a deployment tool runs it before sign-in), the task cannot be created, so autostart stays as a Run key. In that case a UAC prompt appears at every sign-in. Run the installer again (repair) while the user who will use kasane is signed in.</p>
+<p>With the Pro edition, pass the license key in <code>LICENSEKEY</code>. The value of the key is not written to the silent installation log (<code>/l*v</code>).</p>
+<pre><code>msiexec /i KasaneProSetup-en-US.msi /qn LICENSEKEY=XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX
+</code></pre>
+<p><a id="troubleshooting"></a></p>
+<h2 id="if-something-goes-wrong">If something goes wrong</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Cause and fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>&quot;This is the wrong Windows version. It's for Windows 11.&quot; appears and you cannot go on</td>
+<td>kasane cannot be installed on anything other than Windows 11</td>
+</tr>
+<tr>
+<td>An error (1722) saying to restart and try again, and the installation is rolled back</td>
+<td>There are two possible causes. Use &quot;Causes of error 1722&quot; below to tell them apart</td>
+</tr>
+<tr>
+<td>You want to see the log of a failed installation</td>
+<td>Check <code>%TEMP%\MSI*.LOG</code> and <code>%ProgramData%\kbdlayer-license\debug.log</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="causes-of-error-1722">Causes of error 1722</h3>
+<p>Error 1722 means that a program the installer called partway through failed. In kasane, there are two possible causes. In both cases, installation is cancelled and the PC is not changed.</p>
+<table>
+<thead>
+<tr>
+<th>Cause</th>
+<th>When it applies</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Removal of the driver is waiting for a restart</td>
+<td>You uninstalled just before and have not restarted</td>
+<td>Restart the computer, then install again</td>
+</tr>
+<tr>
+<td>The Pro license key could not be confirmed</td>
+<td>During installation of the Pro edition. You are not connected to the internet, the key is wrong, the usage limit was exceeded, and so on</td>
+<td>Find the reason with the steps below</td>
+</tr>
+</tbody>
+</table>
+<p>If the same error appears even after you restarted, suspect the second cause. The Pro edition asks Gumroad about the key just once, partway through installation. If you cannot connect to the internet, this check fails and you get 1722.</p>
+<p>Check the reason in this order.</p>
+<ol>
+<li>If you started from <code>Install-kasane-pro.exe</code>, the reason for the failure is shown on the screen. You can look up the wording in the &quot;When the key could not be confirmed&quot; table in <a href="03-license.html">3. License Activation</a>.</li>
+<li>If you ran the <code>.msi</code> directly, the reason is not shown and only 1722 appears. In that case, open <code>C:\Windows\Temp\kasane-pro-activator.log</code>. It records the progress of the check and the reason for the failure.</li>
+<li>If the network was the cause, check your connection and run <code>Install-kasane-pro.exe</code> again. Also check that communication with Gumroad (<code>https://api.gumroad.com</code>) is not blocked, for example by a company network. The list of destinations is in &quot;When you cannot connect to the license server&quot; in <a href="03-license.html">3. License Activation</a>.</li>
+</ol>
+<p>If you could not connect to the internet and nothing reached Gumroad, the usage count of the key does not increase. After you fix the connection, you can enter the same key as it is.</p>
+<p><img src="../img/ja/install-launcher-failed.png" alt="The screen when installation fails" /></p>
+
+<div class="pager"><a href="index.html">← Introduction</a><a href="02-uninstall.html">2. Uninstallation →</a></div>
+</main>
+</div>
+</body>
+</html>
