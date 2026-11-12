@@ -22,8 +22,10 @@
 
   <String Id="DataDirDlg_Title">設定フォルダの指定</String>
   <String Id="DataDirDlg_Description">環境変数 KASANE で、設定ファイルの保存先を固定できます</String>
-  <String Id="DataDirDlg_Explain">設定ファイルの保存フォルダを指定します。空欄の場合には、各ユーザーの %LOCALAPPDATA%\applet\kasane を使います。ドライブ文字から始まるフルパスで指定してください。マウスの右クリックは利用できないので、キーボードを使用して、Ctrl+Vで貼り付けてください。</String>
+  <String Id="DataDirDlg_Explain">設定ファイルの保存フォルダを指定します。空欄の場合には、各ユーザーの %LOCALAPPDATA%\applet\kasane を使います。ドライブ文字から始まるフルパスで指定してください。「参照...」でフォルダを選べます。パスを貼り付けるときは、右クリックが使えないので、Ctrl+V を使ってください。</String>
   <String Id="DataDirDlg_Label">設定フォルダ（環境変数 KASANE）:</String>
+  <String Id="DataDirDlg_Browse">参照...</String>
+  <String Id="DataDirDlg_BrowseTitle">設定フォルダを選んでください</String>
   <String Id="ImportSettingsDlg_Title">設定ファイルの取り込み</String>
   <String Id="ImportSettingsDlg_Description">kasane で書き出した設定を、ドライバに反映します（任意）</String>
   <String Id="ImportSettingsDlg_Explain">kasane のエクスポートで書き出した設定ファイル(*.kasane.json)を指定可能です。ライセンスが有効な場合、再起動後(またはキーボードを接続し直したとき)から有効になります。</String>

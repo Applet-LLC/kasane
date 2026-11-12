@@ -59,6 +59,26 @@ internal static class Strings
         : "This installs the kasane subscription license edition.\nYou'll enter your license key afterward, from the License Manager it installs.";
 #endif
 
+    /// <summary>二重起動したときに、先のウィンドウを探すための、両言語のタイトル。</summary>
+    public static string[] AllWindowTitles
+    {
+        get
+        {
+            bool saved = IsJapanese;
+            try
+            {
+                IsJapanese = true;
+                string ja = WindowTitle;
+                IsJapanese = false;
+                return new[] { ja, WindowTitle };
+            }
+            finally
+            {
+                IsJapanese = saved;
+            }
+        }
+    }
+
     public static string InstallButton => IsJapanese ? "インストール" : "Install";
 
     public static string CancelButton => IsJapanese ? "キャンセル" : "Cancel";
