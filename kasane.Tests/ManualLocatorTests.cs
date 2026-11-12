@@ -58,6 +58,55 @@ public class ManualLocatorTests : IDisposable
     }
 
     [Fact]
+    public void English_PrefersTheEnglishManual()
+    {
+        MakeFile("manual", "ja", "index.html");
+        string en = MakeFile("manual", "en", "index.html");
+        string baseDir = Path.Combine(_root, "tray");
+        Directory.CreateDirectory(baseDir);
+
+        Assert.Equal(en, ManualLocator.Find(baseDir, english: true));
+        Assert.Equal(Path.Combine(_root, "manual", "ja", "index.html"), ManualLocator.Find(baseDir, english: false));
+    }
+
+    [Fact]
+    public void English_FallsBackToJapanese_WhenThereIsNoEnglishManual()
+    {
+        string ja = MakeFile("manual", "ja", "index.html");
+        string baseDir = Path.Combine(_root, "tray");
+        Directory.CreateDirectory(baseDir);
+
+        Assert.Equal(ja, ManualLocator.Find(baseDir, english: true));
+    }
+
+    [Fact]
+    public void FindPage_UsesTheEnglishChapter_AndFallsBackToJapaneseForUntranslatedOnes()
+    {
+        MakeFile("manual", "ja", "index.html");
+        string jaSettings = MakeFile("manual", "ja", "13-settings.html");
+        MakeFile("manual", "ja", "05-editor-basics.html");
+        MakeFile("manual", "en", "index.html");
+        string enEditor = MakeFile("manual", "en", "05-editor-basics.html");
+        string baseDir = Path.Combine(_root, "keymap-gui");
+        Directory.CreateDirectory(baseDir);
+
+        Assert.Equal(enEditor, ManualLocator.FindPage(baseDir, "05-editor-basics.html", english: true));
+        Assert.Equal(jaSettings, ManualLocator.FindPage(baseDir, "13-settings.html", english: true)); // 英語版に無い章
+        Assert.Equal(Path.Combine(_root, "manual", "ja", "05-editor-basics.html"), ManualLocator.FindPage(baseDir, "05-editor-basics.html", english: false));
+    }
+
+    [Fact]
+    public void FindPage_MissingChapter_OpensTheIndex()
+    {
+        MakeFile("manual", "ja", "index.html");
+        string en = MakeFile("manual", "en", "index.html");
+        string baseDir = Path.Combine(_root, "tray");
+        Directory.CreateDirectory(baseDir);
+
+        Assert.Equal(en, ManualLocator.FindPage(baseDir, "99-none.html", english: true));
+    }
+
+    [Fact]
     public void Missing_ReturnsNull_AndOpenReportsAnError()
     {
         string baseDir = Path.Combine(_root, "tray");

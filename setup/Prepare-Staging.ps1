@@ -552,6 +552,12 @@ Get-ChildItem -LiteralPath (Join-Path $manualSource "img\ja") -Filter *.png |
     Where-Object { $_.Name -notlike "*-raw.png" -and $_.Name -notlike "tray-strip-*.png" } |
     ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $manualStaging "img\ja") -Force }
 Write-Host "[manual] staged: ja\ $((Get-ChildItem (Join-Path $manualStaging 'ja')).Count) pages, img\ja\ $((Get-ChildItem (Join-Path $manualStaging 'img\ja')).Count) images"
+# 英語版（章ごとに少しずつ訳している）。ある分だけ入れる。画像は日本語版と同じ img\ja を参照する。無い章は、日本語版へ戻る。
+if (Test-Path -LiteralPath (Join-Path $manualSource "en\index.html")) {
+    New-Item -ItemType Directory -Path (Join-Path $manualStaging "en") -Force | Out-Null
+    Copy-Item -Path (Join-Path $manualSource "en\*.html") -Destination (Join-Path $manualStaging "en") -Force
+    Write-Host "[manual] staged: en\ $((Get-ChildItem (Join-Path $manualStaging 'en')).Count) pages"
+}
 
 # 手順書: マニュアルに書いていないもの(KeymapTool の手順書)だけを、インストール先の docs\ に入れる
 # (MSI は KasaneSetup.wixproj の HarvestDirectory で収穫する)。マニュアルに書いてある内容の md は、二重管理になるので入れない。

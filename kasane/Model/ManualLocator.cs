@@ -6,8 +6,8 @@ using System.Diagnostics;
 namespace Kasane.Model;
 
 /// <summary>
-/// マニュアル（インストール先の <c>manual\ja\index.html</c>）の場所と、開く処理。エディタ（kasane.exe）とトレイ（kasane-tray.exe）で共有する。
-/// 英語の表示でも、同じ HTML を開く（英語版のマニュアルは、まだ無い）。
+/// マニュアル（インストール先の <c>manual\ja\index.html</c> と <c>manual\en\index.html</c>）の場所と、開く処理。エディタ（kasane.exe）とトレイ（kasane-tray.exe）で共有する。
+/// 英語の表示では、英語版（<c>manual\en</c>）を開く。英語版が無い章（まだ訳していない章）は、日本語版を開く。
 /// 開くときは、エクスプローラー（explorer.exe）にファイルを渡す。どのブラウザで開くかは、Windows の設定（既定のアプリ）に任せる。
 /// </summary>
 public static class ManualLocator
@@ -20,18 +20,52 @@ public static class ManualLocator
     /// どちらも <c>&lt;install&gt;\manual\ja\index.html</c> の1つ下。開発時は、<c>kasane.sln</c> のあるフォルダの <c>docs\manual\ja\index.html</c>。見つからなければ null。
     /// </summary>
     /// <param name="baseDir">実行ファイルのあるフォルダ（<c>AppContext.BaseDirectory</c>）。</param>
-    public static string? Find(string baseDir)
+    public static string? Find(string baseDir) => Find(baseDir, english: false);
+
+    /// <summary><paramref name="english"/> が true のときは、英語版の入口（<c>manual\en\index.html</c>）を先に探し、無ければ日本語版。</summary>
+    public static string? Find(string baseDir, bool english)
     {
-        string installed = Path.GetFullPath(Path.Combine(new[] { baseDir, ".." }.Concat(IndexRelativeParts).ToArray()));
+        if (english)
+        {
+            string? en = FindLanguage(baseDir, "en");
+            if (en != null) return en;
+        }
+        return FindLanguage(baseDir, "ja");
+    }
+
+    private static string? FindLanguage(string baseDir, string lang)
+    {
+        string installed = Path.GetFullPath(Path.Combine(new[] { baseDir, "..", IndexRelativeParts[0], lang, IndexRelativeParts[2] }));
         if (File.Exists(installed)) return installed;
 
         for (var dir = new DirectoryInfo(baseDir); dir != null; dir = dir.Parent)
         {
             if (!File.Exists(Path.Combine(dir.FullName, "kasane.sln"))) continue;
-            string dev = Path.Combine(dir.FullName, "docs", "manual", "ja", "index.html");
+            string dev = Path.Combine(dir.FullName, "docs", "manual", lang, "index.html");
             return File.Exists(dev) ? dev : null;
         }
         return null;
+    }
+
+    /// <summary>
+    /// 章（<paramref name="page"/>）のファイルを探す。<paramref name="english"/> が true なら英語版の章を先に探し、無ければ日本語版の同じ章、
+    /// それも無ければ入口。マニュアルが無ければ null。
+    /// </summary>
+    public static string? FindPage(string baseDir, string page, bool english)
+    {
+        if (english)
+        {
+            string? enIndex = FindLanguage(baseDir, "en");
+            if (enIndex != null)
+            {
+                string enPage = Path.Combine(Path.GetDirectoryName(enIndex)!, page);
+                if (File.Exists(enPage)) return enPage;
+            }
+        }
+        string? jaIndex = FindLanguage(baseDir, "ja");
+        if (jaIndex == null) return english ? FindLanguage(baseDir, "en") : null;
+        string jaPage = Path.Combine(Path.GetDirectoryName(jaIndex)!, page);
+        return File.Exists(jaPage) ? jaPage : Find(baseDir, english);
     }
 
     private static string NotFound => Loc.T("マニュアルが見つかりません(インストールし直してください)。", "The manual was not found (please reinstall).");
@@ -39,7 +73,7 @@ public static class ManualLocator
     /// <summary>マニュアルを、エクスプローラー経由で開く。失敗したら理由を返す（成功は null）。</summary>
     public static string? Open(string baseDir)
     {
-        string? path = Find(baseDir);
+        string? path = Find(baseDir, english: !Loc.IsJapanese);
         return path == null ? NotFound : OpenFile(path);
     }
 
@@ -51,10 +85,8 @@ public static class ManualLocator
     /// </summary>
     public static string? OpenSection(string baseDir, string page, string? anchor)
     {
-        string? index = Find(baseDir);
-        if (index == null) return NotFound;
-        string path = Path.Combine(Path.GetDirectoryName(index)!, page);
-        if (!File.Exists(path)) return OpenFile(index);
+        string? path = FindPage(baseDir, page, english: !Loc.IsJapanese); // 英語の表示では、英語版の章。英語版に無い章は、日本語版の同じ章
+        if (path == null) return NotFound;
         if (string.IsNullOrEmpty(anchor)) return OpenFile(path);
         try
         {

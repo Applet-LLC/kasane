@@ -31,6 +31,24 @@ public class HelpTopicsTests
         Assert.True(count == 1, $"{topic}: {s.Page} の id=\"{s.Anchor}\" が {count} 個（1 個であること。docs/manual/build-manual.ps1 で作り直したか）");
     }
 
+    /// <summary>英語版（docs/manual/en）は、章ごとに少しずつ訳している。訳した章は、日本語版と同じアンカー（<c>&lt;a id="…"&gt;&lt;/a&gt;</c>）を、すべて持つこと。</summary>
+    [Fact]
+    public void EnglishPages_HaveTheSameAnchorsAsJapanese()
+    {
+        string ja = ManualDir();
+        string en = Path.Combine(Path.GetDirectoryName(ja)!, "en");
+        if (!Directory.Exists(en)) return;
+        var anchor = new System.Text.RegularExpressions.Regex("<a id=\"([^\"]+)\"></a>");
+        foreach (string enPage in Directory.GetFiles(en, "*.html"))
+        {
+            string jaPage = Path.Combine(ja, Path.GetFileName(enPage));
+            Assert.True(File.Exists(jaPage), $"{Path.GetFileName(enPage)}: 日本語版にない章");
+            var jaIds = anchor.Matches(File.ReadAllText(jaPage)).Select(m => m.Groups[1].Value).OrderBy(x => x).ToArray();
+            var enIds = anchor.Matches(File.ReadAllText(enPage)).Select(m => m.Groups[1].Value).OrderBy(x => x).ToArray();
+            Assert.True(jaIds.SequenceEqual(enIds), $"{Path.GetFileName(enPage)}: アンカーが日本語版と違う（日本語版: {string.Join(",", jaIds)} / 英語版: {string.Join(",", enIds)}）");
+        }
+    }
+
     [Fact]
     public void UnknownTopic_FallsBackToTheEditor()
     {
