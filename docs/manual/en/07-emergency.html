@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7. Emergency Release - kasane Help</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane Help</a>
+<ol>
+<li><a href="index.html">Introduction</a></li>
+<li><a href="01-install.html">1. Installation</a></li>
+<li><a href="02-uninstall.html">2. Uninstallation</a></li>
+<li><a href="03-license.html">3. License Activation</a></li>
+<li><a href="04-tray.html">4. Tray</a></li>
+<li><a href="05-editor-basics.html">5. Editor Basics</a></li>
+<li><a href="06-calibration.html">6. Calibration</a></li>
+<li class="current"><a href="07-emergency.html">7. Emergency Release</a></li>
+<li><a href="08-key-assign.html">8. Assigning Keys</a></li>
+<li><a href="09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides</a></li>
+<li><a href="10-ime-nicola.html">10. IME Linking and NICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a></li>
+<li><a href="12-recipes.html">12. Setup Examples</a></li>
+<li><a href="13-settings.html">13. Settings Dialog</a></li>
+<li><a href="../ja/14-import-export.html">14. Import and Export (日本語)</a></li>
+<li><a href="../ja/15-backup-migrate.html">15. Backup and Migration (日本語)</a></li>
+<li><a href="../ja/16-reference.html">16. Troubleshooting and Known Limitations (日本語)</a></li>
+<li><a href="../ja/17-keymaptool.html">17. KeymapTool and Samples (日本語)</a></li>
+<li><a href="../ja/18-readme.html">18. README and Background (日本語)</a></li>
+<li><a href="19-terms.html">19. Terms of Use</a></li>
+<li><a href="20-third-party.html">20. Third-Party Notices</a></li>
+</ol>
+
+</nav>
+<main>
+<div class="pagehead">kasane 1.01 2026-11-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/07-emergency.html">日本語</a></div>
+<h1 id="emergency-release">7. Emergency Release</h1>
+<p>This is an emergency measure for when a wrong setting leaves you unable to type on the keyboard. If you hold down a predetermined combination of keys at the same time for 3 seconds, every connected keyboard goes OFF.</p>
+<p>The default combination is left and right Ctrl and left and right Shift (four keys).</p>
+<p>After releasing, fix the settings in the editor and press <strong>Apply to keyboard (ON)</strong>, and remapping comes back.</p>
+<p><a id="emergency-tab"></a></p>
+<h2 id="changing-the-combination">Changing the combination</h2>
+<p>Open <strong>Settings...</strong> in the editor and choose the <strong>Emergency release</strong> tab. When you did not start as administrator, you are in read-only mode and the boxes and buttons cannot be pressed.</p>
+<p><img src="../img/ja/emergency-tab-admin.png" alt="The Emergency release tab (opened as administrator)" /></p>
+<ul>
+<li>The combination is made of 2 to 6 keys, entered in the boxes <strong>Key 1</strong> to <strong>Key 6</strong>. All the keys of the combination must be on the same keyboard.</li>
+<li>Press <strong>Press to enter</strong> next to a box, and the next key you press goes into it. With <strong>Pick...</strong>, you can also choose from the on-screen keyboard or from a list. You do not need to write key names by hand.</li>
+<li><strong>Clear</strong> empties all the boxes.</li>
+<li><strong>Reset to default</strong> enters the default combination (left and right Ctrl, and left and right Shift).</li>
+<li>The combination you entered takes effect when you move to another tab or press <strong>OK</strong>. After it takes effect, closing the settings dialog with <strong>Cancel</strong> does not undo it. If all the boxes are empty, nothing is changed.</li>
+<li>If there is only one key, a duplicated key, or anything other than a plain key, an error appears and you cannot move to another tab.</li>
+</ul>
+<p>There is one combination for the whole driver.</p>
+<p><a id="emergency-test"></a></p>
+<h2 id="testing-simultaneous-press">Testing simultaneous press</h2>
+<p>Press <strong>Test simultaneous press...</strong> to open the &quot;Test the emergency release combination&quot; window. You can check whether your keyboard can detect the keys of the combination at the same time.</p>
+<p><img src="../img/ja/emergency-check-admin.png" alt="Testing simultaneous press (opened as administrator)" /></p>
+<p>The keys of the combination are lined up on the screen. When you press all of them, the keys you are pressing turn green. When all of them are green, it succeeded. End with <strong>Close</strong>. While this window is open, the keys you press do not reach other apps. After 3 seconds the release would actually take effect, so let go as soon as they turn green.</p>
+<h3 id="as-administrator">As administrator</h3>
+<p>Keys are received directly from the driver, so you can check accurately.</p>
+<h3 id="when-not-administrator">When not administrator</h3>
+<p>It checks with a low-level keyboard hook, so depending on the selected keyboard layout, some keys may not be read correctly. The tab and the test window say &quot;Restart as administrator&quot;.</p>
+<p><img src="../img/ja/emergency-check.png" alt="The display when not administrator" /></p>
+<p>When you are not an administrator, the boxes and buttons of the tab cannot be pressed either.</p>
+<p><img src="../img/ja/emergency-tab.png" alt="The Emergency release tab when not administrator" /></p>
+<h2 id="keyboards-that-cannot-press-four-keys-at-once">Keyboards that cannot press four keys at once</h2>
+<p>Some keyboards cannot press four keys at the same time. This is the limit of simultaneous presses of each keyboard, and not a problem with kasane. Some keyboards can press all four.</p>
+<p>If you use a keyboard that cannot press four keys, change to a combination with the number of keys it can press (for example, three keys: left Ctrl, left Shift, and right Ctrl).</p>
+<h2 id="when-the-release-actually-works">When the release actually works</h2>
+<p>Every connected keyboard goes OFF. Open the editor and check that the status mark in the status bar is OFF. The settings remain in the driver.</p>
+
+<div class="pager"><a href="06-calibration.html">← 6. Calibration</a><a href="08-key-assign.html">8. Assigning Keys →</a></div>
+</main>
+</div>
+</body>
+</html>

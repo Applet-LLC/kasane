@@ -114,7 +114,7 @@ After checking that **Layer** is `0`, do the following for JIS.
 1. Click the **Eisu (Caps Lock)** key in the keyboard diagram.
 2. In the list at the left of the screen that opens, choose **Modifiers**, press **LCtrl (KC_LCTRL)**, and press **OK**.
 3. Click the **Left Ctrl (LCtrl)** key in the keyboard diagram.
-4. In the list at the left, choose **Symbols and editing**, press **Caps (KC_CAPSLOCK)**, and press **OK**.
+4. In the list at the left, choose **Symbols / Editing**, press **Caps (KC_CAPSLOCK)**, and press **OK**.
 
 For US, use the same steps: set **Caps Lock** to `KC_LCTRL` and **Left Ctrl** to `KC_CAPSLOCK`.
 
