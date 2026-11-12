@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>16. Troubleshooting and Known Limitations - kasane Help</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane Help</a>
+<ol>
+<li><a href="index.html">Introduction</a></li>
+<li><a href="01-install.html">1. Installation</a></li>
+<li><a href="02-uninstall.html">2. Uninstallation</a></li>
+<li><a href="03-license.html">3. License Activation</a></li>
+<li><a href="04-tray.html">4. Tray</a></li>
+<li><a href="05-editor-basics.html">5. Editor Basics</a></li>
+<li><a href="06-calibration.html">6. Calibration</a></li>
+<li><a href="07-emergency.html">7. Emergency Release</a></li>
+<li><a href="08-key-assign.html">8. Assigning Keys</a></li>
+<li><a href="09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides</a></li>
+<li><a href="10-ime-nicola.html">10. IME Linking and NICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a></li>
+<li><a href="12-recipes.html">12. Setup Examples</a></li>
+<li><a href="13-settings.html">13. Settings Dialog</a></li>
+<li><a href="14-import-export.html">14. Import and Export</a></li>
+<li><a href="15-backup-migrate.html">15. Backup and Migration</a></li>
+<li class="current"><a href="16-reference.html">16. Troubleshooting and Known Limitations</a></li>
+<li><a href="17-keymaptool.html">17. KeymapTool and Samples</a></li>
+<li><a href="18-readme.html">18. README and Background</a></li>
+<li><a href="19-terms.html">19. Terms of Use</a></li>
+<li><a href="20-third-party.html">20. Third-Party Notices</a></li>
+</ol>
+
+</nav>
+<main>
+<div class="pagehead">kasane 1.01 2026-11-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/16-reference.html">日本語</a></div>
+<h1 id="troubleshooting-and-known-limitations">16. Troubleshooting and Known Limitations</h1>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Cause and fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The keyboard list shows only &quot;(Driver not connected: edit and export only)&quot;</td>
+<td>The driver is not loaded, or the license is not active. Check that you restarted after installation, and check the state of <a href="03-license.html">License Manager</a></td>
+</tr>
+<tr>
+<td>You press a key in <strong>Press to identify...</strong> but the keyboard is not found</td>
+<td>The driver does not recognize that keyboard. Check that you restarted after activating the license</td>
+</tr>
+<tr>
+<td>&quot;Cannot apply&quot; is shown</td>
+<td>Fix the reason shown and apply again. At that point, the keyboard's settings have not changed. Examples are a <code>MO(n)</code> to a layer that does not exist, and the same scan code being recorded for two keys (the latter needs calibration to be redone)</td>
+</tr>
+<tr>
+<td>You set something up, but a different key is swapped</td>
+<td>This is a keyboard that sends a signal different from the standard. In <strong>Calibrate...</strong>, measure that key with single-key calibration and apply again (<a href="06-calibration.html">6. Calibration</a>)</td>
+</tr>
+<tr>
+<td>There is a key with a red border</td>
+<td>It is a key that cannot be identified. Measure it with single-key calibration only when you want to change it. If you do not change it, you can leave it as it is</td>
+</tr>
+<tr>
+<td>&quot;It swaps even though it is OFF&quot; or &quot;I set it up but it has no effect&quot;</td>
+<td>Look first at the status marks (ON, OFF, No settings) in the status bar at the bottom of the window (<a href="05-editor-basics.html">5. Editor Basics</a>)</td>
+</tr>
+<tr>
+<td>A wrong setting left you unable to type</td>
+<td>Hold down the emergency-release combination for 3 seconds (<a href="07-emergency.html">7. Emergency Release</a>)</td>
+</tr>
+<tr>
+<td>Settings disappeared after you changed the USB port, or re-paired a Bluetooth keyboard</td>
+<td>A keyboard is treated as a different keyboard for each port. Put it back in the original port, or move the settings with export and import (<a href="15-backup-migrate.html">15. Backup and Migration</a>). Also see &quot;Sharing scope&quot; in <a href="13-settings.html">13. Settings Dialog</a></td>
+</tr>
+<tr>
+<td>When you press right Alt, the output is that of a simultaneous press of left Ctrl and left Alt (AltGr)</td>
+<td>This is how Windows keyboard layouts work when the Windows language settings use a keyboard layout other than US, Japanese, or Korean. kasane cannot solve it. Review the Windows keyboard layout settings</td>
+</tr>
+<tr>
+<td>You cannot press Apply to keyboard (ON)</td>
+<td>You are in read-only mode. Press <strong>Restart as administrator</strong> at the top of the window</td>
+</tr>
+<tr>
+<td>You use administrator protection, and a UAC prompt appears at every sign-in</td>
+<td>Autostart is still the Run key, not the task. The installer may not have found the signed-in user at installation. Run the installer (repair) while signed in as the user who will use kasane (<a href="04-tray.html">4. Tray</a>)</td>
+</tr>
+<tr>
+<td>You use administrator protection, and settings are not saved. When you try to close the editor, it says saving failed</td>
+<td>The account whose name starts with <code>ADMIN_</code> cannot write to the settings folder. Choose <strong>Fix data folder access…</strong> in the tray menu. One authentication prompt appears. If it does not appear in the menu, install again with the settings folder specified (<a href="15-backup-migrate.html">15. Backup and Migration</a>)</td>
+</tr>
+<tr>
+<td>You use administrator protection, and the tray icon stays hidden and does not appear on the taskbar</td>
+<td>If autostart is not a task, the setting to show the icon may not be writable. Run the installer (repair), as above</td>
+</tr>
+<tr>
+<td>The tray still starts from Task Scheduler even after you disabled administrator protection</td>
+<td>Choose repair in an overwrite installation, or uninstall and install again. Starting goes back to the Run key</td>
+</tr>
+<tr>
+<td>Installation failed</td>
+<td>See &quot;If something goes wrong&quot; in <a href="01-install.html">1. Installation</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="known-limitations">Known limitations</h2>
+<p>These are the limitations known now. Some individual limitations are written in each chapter.</p>
+<ul>
+<li>You cannot use or save separate keyboard settings for each user. The settings are common to all users. You can apply your own settings after you sign in and use them. In that case, it is a good idea to put the settings back before you sign out.</li>
+<li>Even if the Windows keyboard layout setting does not match the legends on the keycaps, you can remap keys by scan code. However, even with the Windows keyboard layout set to &quot;Connected keyboard&quot;, Windows may not recognize an ACPI (PS/2) keyboard, or a keyboard that does not support Plug and Play, automatically. Also consider the settings in the i8042prt tab of the settings dialog. You can check the current Windows settings with the keyboard layout tool &quot;Mana&quot; (<a href="https://github.com/Applet-LLC/mana">https://github.com/Applet-LLC/mana</a>).</li>
+<li>This help has an English version, but the screenshots show the Japanese display language. Please read them together with the English text.</li>
+<li>When you are not an administrator, &quot;Input check&quot; in calibration and &quot;Test simultaneous press&quot; in emergency release check with Windows key input (a low-level keyboard hook). There are limits such as right Shift not being handled, and the release not arriving for some keys. When you start as administrator, keys are received directly from the driver, so you can check accurately.</li>
+<li>A keyboard that sends right Shift as <code>E0 36</code> may not be handled by calibration (not confirmed on real hardware).</li>
+<li>The feature that reads the IME state with TSF is experimental. The problem that using it makes Explorer start slowly has not been solved (<a href="10-ime-nicola.html">10. IME Linking and NICOLA</a>).</li>
+</ul>
+<h2 id="the-environment-variable-kasane">The environment variable KASANE</h2>
+<p>This specifies the settings folder. It is valid only when you enter an absolute path. When it is invalid or not set, <code>%LOCALAPPDATA%\applet\kasane</code> is used.</p>
+<ul>
+<li>You normally specify it in the installer (<a href="01-install.html">1. Installation</a>).</li>
+<li>The value is read again each time it is used. After you change it, restart, or sign out and sign in, as needed.</li>
+</ul>
+<h2 id="command-line">Command line</h2>
+<p>You do not use these in normal operation. They are for being called from the installer, from diagnostics, and from other tools.</p>
+<table>
+<thead>
+<tr>
+<th>Executable</th>
+<th>Arguments</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kasane.exe</code></td>
+<td><code>--install-import &lt;file&gt;</code></td>
+<td>Writes a <code>*.kasane.json</code> to the driver's registry. Used by the installer</td>
+</tr>
+<tr>
+<td><code>kasane.exe</code></td>
+<td><code>--restore-import-backup [model or --all]</code></td>
+<td>Restores the settings from before the import at installation</td>
+</tr>
+<tr>
+<td><code>kasane.exe</code></td>
+<td><code>--import-pending</code></td>
+<td>Imports <code>kasane-import.json</code> in the settings folder, only for keyboards without settings. The tray calls it at startup</td>
+</tr>
+<tr>
+<td><code>kasane.exe</code></td>
+<td><code>--prepare-data-dir &lt;folder&gt; &lt;file&gt;</code></td>
+<td>Creates the settings folder and sets its permissions. Used by the installer</td>
+</tr>
+<tr>
+<td><code>kasane.exe</code></td>
+<td><code>--dump-text &lt;UniqId&gt; [&lt;output&gt;]</code></td>
+<td>Writes the assignment list as text from saved settings (<a href="05-editor-basics.html#remap-text">5. Editor Basics</a>). If you omit the output, it writes to standard output, so receive it like <code>kasane.exe --dump-text 55F70000 &gt; a.txt</code></td>
+</tr>
+<tr>
+<td><code>kasane-tray.exe</code></td>
+<td><code>--probe-ime</code></td>
+<td>Diagnostics. Waits 3 seconds and writes the IME state to <code>%TEMP%\kasane-ime-probe.txt</code></td>
+</tr>
+<tr>
+<td><code>DriverManager.exe</code></td>
+<td><code>install keyboard</code>, <code>uninstall keyboard</code>, <code>check-pending</code></td>
+<td>Installs and removes the driver, and checks for a pending removal. Administrator rights are required</td>
+</tr>
+<tr>
+<td><code>KeymapTool.exe</code></td>
+<td><code>--apply-simple</code> and others</td>
+<td>The command-line configuration tool</td>
+</tr>
+</tbody>
+</table>
+<p>How to configure from commands is in <a href="17-keymaptool.html">17. KeymapTool and Samples</a>.</p>
+<h2 id="logs-and-files">Logs and files</h2>
+<table>
+<thead>
+<tr>
+<th>Location</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tray.log</code> in the settings folder</td>
+<td>A record of tray problems</td>
+</tr>
+<tr>
+<td><code>import.log</code> in the settings folder</td>
+<td>A record of settings imports</td>
+</tr>
+<tr>
+<td><code>%ProgramData%\applet\kasane\import.log</code></td>
+<td>The result of the import at installation</td>
+</tr>
+<tr>
+<td><code>%ProgramData%\kbdlayer-license\debug.log</code></td>
+<td>The log of the license service</td>
+</tr>
+<tr>
+<td><code>%ProgramData%\kbdlayer-license\gui-debug.log</code></td>
+<td>The log of License Manager</td>
+</tr>
+<tr>
+<td><code>%TEMP%\MSI*.LOG</code></td>
+<td>The installation log</td>
+</tr>
+<tr>
+<td>The Windows event log (source <code>kasaneLicenseSvc</code>)</td>
+<td>Events of the license service</td>
+</tr>
+</tbody>
+</table>
+<h2 id="internal-names">Internal names</h2>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>What it is for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kbdlayer</code>, <code>kbdlayer.sys</code></td>
+<td>The keyboard driver, and its service name</td>
+</tr>
+<tr>
+<td><code>kbdlayer-license</code></td>
+<td>The license storage location, an internal name used by license management</td>
+</tr>
+</tbody>
+</table>
+
+<div class="pager"><a href="15-backup-migrate.html">← 15. Backup and Migration</a><a href="17-keymaptool.html">17. KeymapTool and Samples →</a></div>
+</main>
+</div>
+</body>
+</html>

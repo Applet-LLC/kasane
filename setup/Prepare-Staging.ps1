@@ -515,11 +515,15 @@ New-Item -ItemType Directory -Path $noticesStaging -Force | Out-Null
 $noticesSource = Join-Path $repoRoot "THIRD-PARTY-NOTICES.txt"
 if (-not (Test-Path -LiteralPath $noticesSource)) { throw "THIRD-PARTY-NOTICES.txt not found: $noticesSource" }
 Copy-Item -LiteralPath $noticesSource -Destination $noticesStaging -Force
-# 使用許諾（License.*.rtf）と README も、インストール先の直下に入れる（配布の zip の直下と同じ並び）。
+# 使用許諾（License.*.rtf と、同じ内容のテキスト License.*.txt）と README も、インストール先の直下に入れる（配布の zip の直下と同じ並び）。
+# テキストは RTF から作る（Convert-LicenseToText.ps1）。RTF とずれていたら、ここで止める。
+& pwsh -NoProfile -STA -File (Join-Path $PSScriptRoot "Convert-LicenseToText.ps1") -Check
+if ($LASTEXITCODE -ne 0) { throw "License text is out of date (run setup\Convert-LicenseToText.ps1)" }
 $licenseSrcDir = if ($Edition -eq "Pro") { "License-Pro" } else { "License" }
 $readmeSrcDir = if ($Edition -eq "Pro") { "dist-readme-pro" } else { "dist-readme" }
 foreach ($f in @(
         (Join-Path $PSScriptRoot "$licenseSrcDir\License.en-US.rtf"), (Join-Path $PSScriptRoot "$licenseSrcDir\License.ja-JP.rtf"),
+        (Join-Path $PSScriptRoot "$licenseSrcDir\License.en-US.txt"), (Join-Path $PSScriptRoot "$licenseSrcDir\License.ja-JP.txt"),
         (Join-Path $PSScriptRoot "$readmeSrcDir\README.en-US.txt"), (Join-Path $PSScriptRoot "$readmeSrcDir\README.ja-JP.txt"))) {
     if (-not (Test-Path -LiteralPath $f)) { throw "install-root document not found: $f" }
     Copy-Item -LiteralPath $f -Destination $noticesStaging -Force
@@ -552,6 +556,12 @@ Get-ChildItem -LiteralPath (Join-Path $manualSource "img\ja") -Filter *.png |
     Where-Object { $_.Name -notlike "*-raw.png" -and $_.Name -notlike "tray-strip-*.png" } |
     ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $manualStaging "img\ja") -Force }
 Write-Host "[manual] staged: ja\ $((Get-ChildItem (Join-Path $manualStaging 'ja')).Count) pages, img\ja\ $((Get-ChildItem (Join-Path $manualStaging 'img\ja')).Count) images"
+# 英語版（章ごとに少しずつ訳している）。ある分だけ入れる。画像は日本語版と同じ img\ja を参照する。無い章は、日本語版へ戻る。
+if (Test-Path -LiteralPath (Join-Path $manualSource "en\index.html")) {
+    New-Item -ItemType Directory -Path (Join-Path $manualStaging "en") -Force | Out-Null
+    Copy-Item -Path (Join-Path $manualSource "en\*.html") -Destination (Join-Path $manualStaging "en") -Force
+    Write-Host "[manual] staged: en\ $((Get-ChildItem (Join-Path $manualStaging 'en')).Count) pages"
+}
 
 # 手順書: マニュアルに書いていないもの(KeymapTool の手順書)だけを、インストール先の docs\ に入れる
 # (MSI は KasaneSetup.wixproj の HarvestDirectory で収穫する)。マニュアルに書いてある内容の md は、二重管理になるので入れない。

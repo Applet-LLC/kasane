@@ -1,0 +1,47 @@
+﻿kasane Subscription Software License Agreement 1.01 2026-11-10 Applet LLC
+
+This agreement applies to the installation and use of kasane Subscription ("the Software"), consisting of the kbdlayer.sys kernel-mode device driver and its accompanying license management service, license management application, and installer. This is a legal agreement between you (either an individual or a single entity) and Applet LLC ("Licensor"). By clicking "I Agree," or by installing or using the Software, you agree to be bound by the terms of this Agreement. If you do not agree to these terms, do not install or use the Software.
+
+1. Subscription License Grant
+
+Subject to your compliance with this Agreement and for as long as you maintain an active, paid subscription to the Software purchased on Gumroad, Licensor grants you a limited, non-exclusive, non-transferable license to install and use one (1) copy of the Software on one (1) personal computer per subscription. A separate, active subscription is required for each additional computer on which the Software is installed and activated.
+
+2. License Validation
+
+The Software's license management service communicates with Licensor's license validation service approximately once every 24 hours to confirm the status of your subscription. In this communication, your license key and an identifier of the computer on which the Software is used are sent to the license validation service, which queries Gumroad to confirm that the license is valid. The information sent is used only to validate the license and is neither stored nor logged. Using the result of the last successful check, the licensed feature continues to operate offline for up to 7 days without a network connection; beyond that period, or if your subscription lapses, is cancelled, refunded, or charged back, the licensed feature is automatically disabled at the next check. Basic keyboard input is never affected. You agree that this validation may occur automatically while the Software is running.
+
+3. Prohibited Uses
+
+You may not use the Software for any of the following purposes: (a) gaining unauthorized access to third-party computer systems, or assisting such access; (b) cheating in online games, circumventing terms of service or anti-cheat mechanisms, or otherwise gaining an unfair advantage; (c) monitoring or recording another person's keyboard input without their consent, including unauthorized surveillance; or (d) any other purpose that violates applicable law or this Agreement. Licensor may revoke your license without prior notice if such a violation is discovered.
+
+4. Restrictions
+
+You may not: (a) sell, resell, rent, lease, sublicense, or otherwise transfer the Software or your subscription to any third party; (b) reverse engineer, decompile, or disassemble the Software, except to the extent such restriction is prohibited by applicable law; (c) remove or alter any proprietary notices on the Software; or (d) use the Software on more computers than the number of active subscriptions you hold.
+
+5. Ownership
+
+The Software is licensed, not sold. Licensor and its licensors retain all right, title, and interest in and to the Software, including all intellectual property rights therein.
+
+6. No Warranty
+
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. BECAUSE THE SOFTWARE INSTALLS KERNEL-MODE DRIVER COMPONENTS, YOU ACKNOWLEDGE THAT IMPROPER USE MAY AFFECT SYSTEM STABILITY, AND YOU ASSUME ALL RISK ASSOCIATED WITH SUCH USE. IN PARTICULAR, WHERE CERTAIN KEYBOARDS CANNOT BE DISTINGUISHED AS SEPARATE DEVICES, LICENSOR DOES NOT GUARANTEE A FIX OR IMPROVEMENT, WHETHER THE CAUSE IS DETERMINED TO BE A DEFECT IN THE SOFTWARE OR IN WINDOWS ITSELF; THAT SAID, LICENSOR INTENDS TO CONTINUE WORKING TO IMPROVE QUALITY.
+
+7. Limitation of Liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL LICENSOR BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF DATA, PROFITS, OR BUSINESS OPPORTUNITY, ARISING OUT OF OR RELATED TO THIS AGREEMENT OR YOUR USE OF, OR INABILITY TO USE, THE SOFTWARE. LICENSOR'S TOTAL LIABILITY UNDER THIS AGREEMENT SHALL NOT EXCEED THE AMOUNT OF ONE PAYMENT OF THE SUBSCRIPTION FEE THAT YOU ACTUALLY PAID AS CONSIDERATION FOR THIS LICENSE; FOR EXAMPLE, IF YOU PAY EVERY 3 MONTHS, LIABILITY IS CAPPED AT THE FEE FOR THAT 3-MONTH PERIOD.
+
+8. Termination
+
+This Agreement terminates automatically if you fail to comply with any of its terms, including Section 3 (Prohibited Uses), or upon expiration or cancellation of your subscription. Upon termination, you must cease all use of the Software and uninstall it from your computer.
+
+9. Governing Law
+
+This Agreement shall be governed by, and construed in accordance with, the laws of Japan.
+
+10. Entire Agreement
+
+This Agreement constitutes the entire agreement between you and Licensor regarding the Software and supersedes any prior agreements relating to its subject matter. Licensor may update this Agreement from time to time; continued use of the Software after such changes constitutes acceptance of the revised terms.
+
+Applet LLC
+
+https://appletllc.com/ appletllc@gmail.com

@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6. Calibration - kasane Help</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane Help</a>
+<ol>
+<li><a href="index.html">Introduction</a></li>
+<li><a href="01-install.html">1. Installation</a></li>
+<li><a href="02-uninstall.html">2. Uninstallation</a></li>
+<li><a href="03-license.html">3. License Activation</a></li>
+<li><a href="04-tray.html">4. Tray</a></li>
+<li><a href="05-editor-basics.html">5. Editor Basics</a></li>
+<li class="current"><a href="06-calibration.html">6. Calibration</a></li>
+<li><a href="07-emergency.html">7. Emergency Release</a></li>
+<li><a href="08-key-assign.html">8. Assigning Keys</a></li>
+<li><a href="09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides</a></li>
+<li><a href="10-ime-nicola.html">10. IME Linking and NICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a></li>
+<li><a href="12-recipes.html">12. Setup Examples</a></li>
+<li><a href="13-settings.html">13. Settings Dialog</a></li>
+<li><a href="14-import-export.html">14. Import and Export</a></li>
+<li><a href="15-backup-migrate.html">15. Backup and Migration</a></li>
+<li><a href="16-reference.html">16. Troubleshooting and Known Limitations</a></li>
+<li><a href="17-keymaptool.html">17. KeymapTool and Samples</a></li>
+<li><a href="18-readme.html">18. README and Background</a></li>
+<li><a href="19-terms.html">19. Terms of Use</a></li>
+<li><a href="20-third-party.html">20. Third-Party Notices</a></li>
+</ol>
+
+</nav>
+<main>
+<div class="pagehead">kasane 1.01 2026-11-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/06-calibration.html">日本語</a></div>
+<h1 id="calibration">6. Calibration</h1>
+<p>Calibration is the task of pressing keys to confirm which real key each key in the keyboard diagram corresponds to.</p>
+<p>On a standard JIS or US keyboard, which key in the diagram is which real key is decided automatically from the layout. Calibration is therefore usually not needed. Do it in cases like these.</p>
+<ul>
+<li>The keyboard diagram has a key with a red border (a key that cannot be identified), and you want to change that key</li>
+<li>You set something up, but a different key is swapped</li>
+</ul>
+<p>If you need to specify the Windows keyboard layout, please also consider the keyboard layout setting tool &quot;Mana&quot;. Even when the legends on the keycaps do not match the keyboard layout, you can still remap keys. However, whether Shift + 2 produces <code>@</code> or <code>&quot;</code>, for example, is decided by the Windows keyboard layout setting. This matters when you make macros, so take care.</p>
+<ul>
+<li>Keyboard layout setting tool &quot;Mana&quot;: <a href="https://appletllc.com/2026/10/07/%E3%82%AD%E3%83%BC%E3%83%9C%E3%83%BC%E3%83%89%E3%83%AC%E3%82%A4%E3%82%A2%E3%82%A6%E3%83%88%E8%A8%AD%E5%AE%9A%E3%83%84%E3%83%BC%E3%83%AB-%E3%81%BE%E3%81%AA-1-00/">Applet LLC page</a> (in Japanese), <a href="https://github.com/Applet-LLC/mana">GitHub</a></li>
+</ul>
+<p>If the physical layout of your keyboard is far from the provided JP109, US104, and 10KEY, and the positions of the physical keys differ from the scan codes obtained, see <a href="05-editor-basics.html#kle-import">Adding a layout from KLE</a> and make a layout that matches your keyboard.</p>
+<h2 id="opening-it">Opening it</h2>
+<p>Press <strong>Calibrate...</strong> at the bottom of the editor window.</p>
+<p><img src="../img/ja/calib-main.png" alt="The calibration window" /></p>
+<p>With <strong>Mode</strong> at the top of the window, choose one of three. The first time, it is &quot;Input check&quot;.</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Administrator rights</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Input check</td>
+<td>Not needed (more accurate as administrator)</td>
+<td>Press keys and check whether the matching key in the keyboard diagram lights up</td>
+</tr>
+<tr>
+<td>Single key</td>
+<td>Required</td>
+<td>Choose a key you want to measure, then press it for real to measure it</td>
+</tr>
+<tr>
+<td>All keys</td>
+<td>Required</td>
+<td>Press the keys shown, one after another, to measure them</td>
+</tr>
+</tbody>
+</table>
+<p>While this window is in front, the keys you press are not sent to Windows (the window shows &quot;While this window is in front, keys do not reach Windows&quot;). Pressing Enter or the Win key does nothing. Use the mouse. If you click another window, it pauses and the keys go back to normal.</p>
+<p><a id="calibration-check"></a></p>
+<h2 id="input-check">Input check</h2>
+<p>When you press a key on the keyboard, the matching key in the keyboard diagram turns orange, and goes back when you release it. A key you have pressed once gets a ✓.</p>
+<p>Press all the keys once. If there are keys that do not get a ✓, or keys where a different key lights up from the one you pressed, calibration is needed. <strong>Reset checked keys</strong> clears the ✓ marks.</p>
+<h3 id="as-administrator">As administrator</h3>
+<p>Keys are received directly from the driver. You see the physical key before remapping replaces it. The presses and releases of right Shift and of the Katakana/Hiragana, Eisu, and Hankaku/Zenkaku keys also arrive reliably. It looks only at input from the selected keyboard.</p>
+<p><img src="../img/ja/calib-main-admin.png" alt="Input check as administrator" /></p>
+<h3 id="when-not-administrator">When not administrator</h3>
+<p>The window shows &quot;Restart as administrator to check accurately&quot;. In this case, it checks with Windows key input (a low-level keyboard hook), so there are these limits.</p>
+<ul>
+<li>What you can check is the key after remapping has replaced it. If a key is replaced, press <strong>OFF</strong> first.</li>
+<li>It cannot tell which keyboard the input came from.</li>
+<li>Right Shift appears as an extended key (with E0), so it cannot be handled.</li>
+<li>For some keys, the release does not arrive and the key looks as if it is still held down.</li>
+</ul>
+<p><img src="../img/ja/calib-main.png" alt="Input check when not administrator" /></p>
+<p><a id="calibration-single"></a></p>
+<h2 id="single-key-calibration">Single-key calibration</h2>
+<ol>
+<li>In the keyboard diagram, click the key you want to measure. It turns yellow.</li>
+<li>Press the matching key on the keyboard.</li>
+<li>You can then measure other keys in the same way.</li>
+<li>When you are done, press <strong>Save measurements and close</strong>.</li>
+</ol>
+<p><img src="../img/ja/calib-single.png" alt="Single-key calibration" /></p>
+<p><a id="calibration-all"></a></p>
+<h2 id="all-keys-calibration">All-keys calibration</h2>
+<p>Press the keys shown in yellow, one after another.</p>
+<p><img src="../img/ja/calib-all.png" alt="All-keys calibration" /></p>
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Back</strong></td>
+<td>Goes back to the previous key</td>
+</tr>
+<tr>
+<td><strong>Skip this key</strong></td>
+<td>Skips a key that the keyboard does not have</td>
+</tr>
+<tr>
+<td><strong>Save measurements and close</strong></td>
+<td>Saves the measured values and closes</td>
+</tr>
+<tr>
+<td><strong>Close</strong></td>
+<td>Closes without saving measurements. Use it when you measured nothing (when you only did an input check)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="clearing-measured-values">Clearing measured values</h2>
+<p>To clear a measured value and go back to the default scan code, right-click the key in the keyboard diagram and choose <strong>Clear measured value</strong>.</p>
+<h2 id="applying-the-result">Applying the result</h2>
+<p>A key whose measured value differs from the standard gets an orange border in the keyboard diagram. The result is applied when you press <strong>Apply to keyboard (ON)</strong>.</p>
+<blockquote>
+<p>Measured values are not carried over to another device. When you buy a new keyboard, do it again (<a href="15-backup-migrate.html">15. Backup and Migration</a>).</p>
+</blockquote>
+<p><a id="special-keys"></a></p>
+<h2 id="the-pause-numlock-copilot-office-and-altgr-keys">The Pause, NumLock, Copilot, Office, and AltGr keys</h2>
+<ul>
+<li>Pause / Break: the physical key arrives as two signals (<code>E1 1D</code> and <code>45</code>). The driver handles them together as one key. You can replace Pause with another key, and you can make some key into Pause.</li>
+<li>NumLock: the scan code is <code>0x45</code>, the same value as the second signal of Pause. The driver tells them apart, so you do not usually need to think about it.</li>
+<li>Copilot key, Office key: on many keyboards, they arrive not as one key but as several keys pressed together (Copilot is Win + Shift + F23, and Office is Ctrl + Shift + Alt + Win). So you cannot change them with a single assignment. If you change the assignment of each key in the combination (left Win, left Shift, F23, and so on), the whole combination changes. Use <strong>Input check</strong> to see which keys arrive on your keyboard.</li>
+<li>AltGr: in Windows with a layout that has AltGr (German and others), right Alt works as AltGr. kasane cannot change it. See <a href="16-reference.html">16. Troubleshooting and Known Limitations</a>.</li>
+</ul>
+<h2 id="known-limitations">Known limitations</h2>
+<p>A keyboard that sends right Shift as <code>E0 36</code> may not be handled by calibration. We have not been able to confirm this on real hardware.</p>
+
+<div class="pager"><a href="05-editor-basics.html">← 5. Editor Basics</a><a href="07-emergency.html">7. Emergency Release →</a></div>
+</main>
+</div>
+</body>
+</html>

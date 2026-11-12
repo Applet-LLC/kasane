@@ -22,8 +22,10 @@
 
   <String Id="DataDirDlg_Title">Settings Folder</String>
   <String Id="DataDirDlg_Description">Pin where kasane stores its settings with the KASANE environment variable</String>
-  <String Id="DataDirDlg_Explain">Specify the folder where settings files are stored. If left empty, each user's %LOCALAPPDATA%\applet\kasane is used. Enter a full path starting with a drive letter. Right-click is not available here, so use the keyboard and paste with Ctrl+V.</String>
+  <String Id="DataDirDlg_Explain">Specify the folder where settings files are stored. If left empty, each user's %LOCALAPPDATA%\applet\kasane is used. Enter a full path starting with a drive letter. Choose a folder with Browse..., or paste a path with Ctrl+V (right-click is not available here).</String>
   <String Id="DataDirDlg_Label">Settings folder (environment variable KASANE):</String>
+  <String Id="DataDirDlg_Browse">Browse...</String>
+  <String Id="DataDirDlg_BrowseTitle">Select the settings folder</String>
   <String Id="ImportSettingsDlg_Title">Import Settings File</String>
   <String Id="ImportSettingsDlg_Description">Apply settings exported from kasane to the driver (optional)</String>
   <String Id="ImportSettingsDlg_Explain">You can specify a settings file (*.kasane.json) exported with kasane's Export. If the license is valid, it takes effect after a restart (or after you reconnect the keyboard).</String>

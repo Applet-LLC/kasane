@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4. Tray - kasane Help</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane Help</a>
+<ol>
+<li><a href="index.html">Introduction</a></li>
+<li><a href="01-install.html">1. Installation</a></li>
+<li><a href="02-uninstall.html">2. Uninstallation</a></li>
+<li><a href="03-license.html">3. License Activation</a></li>
+<li class="current"><a href="04-tray.html">4. Tray</a></li>
+<li><a href="05-editor-basics.html">5. Editor Basics</a></li>
+<li><a href="06-calibration.html">6. Calibration</a></li>
+<li><a href="07-emergency.html">7. Emergency Release</a></li>
+<li><a href="08-key-assign.html">8. Assigning Keys</a></li>
+<li><a href="09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides</a></li>
+<li><a href="10-ime-nicola.html">10. IME Linking and NICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a></li>
+<li><a href="12-recipes.html">12. Setup Examples</a></li>
+<li><a href="13-settings.html">13. Settings Dialog</a></li>
+<li><a href="14-import-export.html">14. Import and Export</a></li>
+<li><a href="15-backup-migrate.html">15. Backup and Migration</a></li>
+<li><a href="16-reference.html">16. Troubleshooting and Known Limitations</a></li>
+<li><a href="17-keymaptool.html">17. KeymapTool and Samples</a></li>
+<li><a href="18-readme.html">18. README and Background</a></li>
+<li><a href="19-terms.html">19. Terms of Use</a></li>
+<li><a href="20-third-party.html">20. Third-Party Notices</a></li>
+</ol>
+
+</nav>
+<main>
+<div class="pagehead">kasane 1.01 2026-11-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/04-tray.html">日本語</a></div>
+<h1 id="tray">4. Tray</h1>
+<p>The tray is a small app that stays resident after you sign in. The kasane icon appears in the taskbar's notification area (at the bottom right of the screen; inside &quot;^&quot; when it is hidden).</p>
+<p>The tray does the following.</p>
+<ul>
+<li>It is the entry point for opening the editor</li>
+<li>It temporarily stops remapping on all keyboards</li>
+<li>It switches layers by hand</li>
+<li>It switches layers and NICOLA automatically to match the IME (<a href="10-ime-nicola.html">10. IME Linking and NICOLA</a>)</li>
+<li>It runs helper actions and per-app layers (<a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a>)</li>
+</ul>
+<p>The remapping itself is done by the driver. Even when the tray is stopped, your settings keep working (with the default settings, key remapping is enabled only while the tray is running).</p>
+<h2 id="icon-states">Icon states</h2>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Icon</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Running</td>
+<td>The normal color</td>
+</tr>
+<tr>
+<td>Paused</td>
+<td>Gray, with a mark</td>
+</tr>
+<tr>
+<td>Cannot connect to the driver</td>
+<td>Gray</td>
+</tr>
+</tbody>
+</table>
+<p><img src="../img/ja/tray-icons.png" alt="Icon states (running, paused)" /></p>
+<p>At the lower right of the icon, the number of the current layer is shown (1 to 9, and A to F for 10 and above). When only the base layer 0 is active, nothing is shown. If the number gets in the way, you can turn it off in &quot;General&quot; of the settings dialog (<a href="13-settings.html">13. Settings Dialog</a>).</p>
+<p>When you hold the mouse over the icon, the state is shown: &quot;kasane 1.01 - Running (N)&quot;, &quot;kasane 1.01 - Paused&quot;, or &quot;kasane 1.01 - No keyboards are being remapped&quot;. If the tray cannot connect to the driver, that is shown. When NICOLA is set up, &quot;NICOLA on&quot; or &quot;NICOLA standby (IME link)&quot; is also shown.</p>
+<h2 id="left-click">Left click</h2>
+<p>This opens kasane (the editor). If it is already open, it comes to the front.</p>
+<p>When starting takes time, such as the first time, a small notice saying &quot;Starting kasane editor…&quot; is shown until the window appears. It disappears automatically when the window appears (after 30 seconds at the longest).</p>
+<p><img src="../img/ja/tray-starting.png" alt="Starting" /></p>
+<h2 id="the-right-click-menu">The right-click menu</h2>
+<p><img src="../img/ja/tray-menu.png" alt="The right-click menu" /></p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Settings/Editor</td>
+<td>Opens kasane (the editor)</td>
+</tr>
+<tr>
+<td>Pause</td>
+<td>Stops remapping on all keyboards. Press it again to resume. While it is checked, remapping is paused</td>
+</tr>
+<tr>
+<td>Layers</td>
+<td>Turns layers 1 to 15 on and off by hand</td>
+</tr>
+<tr>
+<td>License</td>
+<td>Opens License Manager (Subscription edition only; it does not appear in the Pro edition)</td>
+</tr>
+<tr>
+<td>Fix data folder access…</td>
+<td>Shown only when the settings folder cannot be written to. When you choose it, a single authentication prompt appears, and then the folder can be written to (<a href="#admin-protection">When you use administrator protection</a>)</td>
+</tr>
+<tr>
+<td>Help</td>
+<td>Opens the help. The browser is the Windows default browser</td>
+</tr>
+<tr>
+<td>About</td>
+<td>The version, the build date and time, and the website</td>
+</tr>
+<tr>
+<td>Exit</td>
+<td>Exits the tray</td>
+</tr>
+</tbody>
+</table>
+<h3 id="pause">Pause</h3>
+<p><img src="../img/ja/tray-menu-paused.png" alt="The menu and icon while paused" /></p>
+<p>When you press it, remapping on all keyboards stops and the icon turns gray. When you press it again, the keyboards that were ON before you paused go back to ON. It cannot be pressed when no keyboard is being remapped.</p>
+<p>If you restart the PC while paused, it stays paused. Start the tray again (it starts automatically at sign-in) and press <strong>Pause</strong> to resume. Pressing <strong>Apply to keyboard (ON)</strong> in the editor also resumes.</p>
+<h3 id="layers">Layers</h3>
+<p>From the submenu, you turn layers 1 to 15 on and off by hand. This is handy when you want to try a layer before you assign keys to it. The checked layers are the ones that are active now.</p>
+<p><img src="../img/ja/tray-layers.png" alt="The Layers submenu" /></p>
+<ul>
+<li>When there are several keyboards, the list is split by keyboard.</li>
+<li>Layers turned on by <code>TG</code> on the keyboard, by IME linking, or by per-app layers stay checked but are grayed out, and cannot be turned off from here.</li>
+<li>A layer you turned on here is turned off by choosing it again.</li>
+<li>It cannot be pressed while paused, or when no keyboard is being remapped.</li>
+<li>There is no item for layer 0. The base layer is always active, so it is not something you turn on or off. When <code>DF(n)</code> has replaced the base with layer n, the item for layer n shows a grayed-out check.</li>
+</ul>
+<h3 id="exit">Exit</h3>
+<p>This exits the tray. When <strong>Remap only while the tray is running</strong> in &quot;General&quot; of the settings dialog (ON by default) is ON, remapping also goes OFF. If you exit while paused, it stays paused.</p>
+<p>After exiting, you can start it again by clicking <strong>kasane Tray</strong> in the <code>applet</code> folder of the Start menu. If you click it while the tray is already running, a second one does not start.</p>
+<h2 id="when-you-are-connected-with-remote-desktop">When you are connected with Remote Desktop</h2>
+<p>In a session connected with Remote Desktop (RDP), the tray works the same as at the physical console. While you are connected and the screen is not locked, the session counts as &quot;in use&quot;.</p>
+<ul>
+<li>A session that you disconnected from RDP, and a locked session, are not in use. When &quot;Remap only while the tray is running&quot; in the settings is ON, keyboard remapping goes OFF in the meantime.</li>
+<li>When you reconnect and unlock, the keyboards that were turned OFF come back ON automatically.</li>
+<li>Right after you connect with RDP, Windows may lock the session. Until you unlock it, it is not counted as in use.</li>
+</ul>
+<p>Not every key operation is necessarily sent through. We recommend trying it for real. Also, with remote connection apps other than RDP, we cannot guarantee that key remapping works.</p>
+<h2 id="the-difference-between-pause-and-off">The difference between Pause and OFF</h2>
+<p><strong>OFF</strong> in the editor and <strong>Pause</strong> in the tray both stop remapping, but what they apply to and how you undo them differ.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>OFF</th>
+<th>Pause</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Where you do it</td>
+<td>The editor</td>
+<td>The tray</td>
+</tr>
+<tr>
+<td>What it applies to</td>
+<td>The keyboard you selected</td>
+<td>All keyboards that are being remapped</td>
+</tr>
+<tr>
+<td>How to undo it</td>
+<td><strong>Apply to keyboard (ON)</strong></td>
+<td>Press <strong>Pause</strong> in the tray again. <strong>Apply to keyboard (ON)</strong> also undoes it</td>
+</tr>
+<tr>
+<td>Settings</td>
+<td>Stay in the driver</td>
+<td>Stay in the driver</td>
+</tr>
+</tbody>
+</table>
+<p>With both, your settings are not lost.</p>
+<h2 id="remapping-linked-to-the-tray">Remapping linked to the tray</h2>
+<p>When <strong>Remap only while the tray is running</strong> in &quot;General&quot; of the settings dialog (ON by default) is ON, remapping goes OFF in these situations.</p>
+<ul>
+<li>The tray exits</li>
+<li>Sign-out or shutdown</li>
+<li>The screen is locked (including switching users)</li>
+</ul>
+<p>When the tray starts, and when the screen is unlocked, only the keyboards that this mechanism turned OFF go back to ON. Keyboards you stopped with emergency release or the <strong>OFF</strong> button do not come back.</p>
+<p>When the tray ends abnormally (a crash, a forced exit, a power loss, and so on), or when the installer stops the tray, remapping cannot be turned OFF. If you want to keep using remapping while it is OFF, turn this setting OFF.</p>
+<h2 id="status-notifications">Status notifications</h2>
+<p>The tray tells you about failures with a balloon (notification).</p>
+<h2 id="autostart-and-the-two-executables">Autostart and the two executables</h2>
+<p>The tray starts automatically at sign-in for all users. There are two executables.</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kasane-tray.exe</code></td>
+<td>The normal edition. Used for autostart at sign-in. It can send key input even to windows that run with administrator rights</td>
+</tr>
+<tr>
+<td><code>kasane-tray-nua.exe</code></td>
+<td>The edition without UI access. It is for starting by hand</td>
+</tr>
+</tbody>
+</table>
+<p>The editor opens with normal rights. When administrator rights are needed, for example to apply to the keyboard, use <strong>Restart as administrator</strong> in the editor (<a href="05-editor-basics.html">5. Editor Basics</a>).</p>
+<p><a id="admin-protection"></a></p>
+<h3 id="when-you-use-administrator-protection">When you use administrator protection</h3>
+<p>When Windows 11 administrator protection is enabled, the tray runs under an account whose name starts with <code>ADMIN_</code> (for example, <code>ADMIN_applet</code>). The installer checks the administrator protection setting at installation time and switches how the tray starts at sign-in, as follows.</p>
+<table>
+<thead>
+<tr>
+<th>Administrator protection</th>
+<th>How autostart works</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Disabled</td>
+<td>A startup entry at sign-in (the Run key)</td>
+</tr>
+<tr>
+<td>Enabled</td>
+<td>The Task Scheduler task <code>kasane-tray-&lt;user name&gt;</code>. The Run key is disabled</td>
+</tr>
+</tbody>
+</table>
+<p>With the Run key, a UAC confirmation dialog appears at every sign-in. With the task, it starts without a prompt.</p>
+<ul>
+<li>If the administrator protection setting changes and administrator protection becomes disabled, and you want to stop starting from Task Scheduler, choose repair in an overwrite installation, or uninstall and then install again. Autostart goes back to the Run key. The same applies when you enable administrator protection.</li>
+<li>The task is created only for the user who was signed in at installation. When another user will use kasane, run the installer again while signed in as that user.</li>
+<li>When the settings folder cannot be written to, the tray shows a notification. <strong>Fix data folder access…</strong> appears in the tray menu, so choose it. A single authentication prompt appears, and then the tray and the editor can write to the settings folder.</li>
+</ul>
+
+<div class="pager"><a href="03-license.html">← 3. License Activation</a><a href="05-editor-basics.html">5. Editor Basics →</a></div>
+</main>
+</div>
+</body>
+</html>

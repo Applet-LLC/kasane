@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Introduction - kasane Help</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane Help</a>
+<ol>
+<li class="current"><a href="index.html">Introduction</a></li>
+<li><a href="01-install.html">1. Installation</a></li>
+<li><a href="02-uninstall.html">2. Uninstallation</a></li>
+<li><a href="03-license.html">3. License Activation</a></li>
+<li><a href="04-tray.html">4. Tray</a></li>
+<li><a href="05-editor-basics.html">5. Editor Basics</a></li>
+<li><a href="06-calibration.html">6. Calibration</a></li>
+<li><a href="07-emergency.html">7. Emergency Release</a></li>
+<li><a href="08-key-assign.html">8. Assigning Keys</a></li>
+<li><a href="09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides</a></li>
+<li><a href="10-ime-nicola.html">10. IME Linking and NICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a></li>
+<li><a href="12-recipes.html">12. Setup Examples</a></li>
+<li><a href="13-settings.html">13. Settings Dialog</a></li>
+<li><a href="14-import-export.html">14. Import and Export</a></li>
+<li><a href="15-backup-migrate.html">15. Backup and Migration</a></li>
+<li><a href="16-reference.html">16. Troubleshooting and Known Limitations</a></li>
+<li><a href="17-keymaptool.html">17. KeymapTool and Samples</a></li>
+<li><a href="18-readme.html">18. README and Background</a></li>
+<li><a href="19-terms.html">19. Terms of Use</a></li>
+<li><a href="20-third-party.html">20. Third-Party Notices</a></li>
+</ol>
+
+</nav>
+<main>
+<div class="pagehead">kasane 1.01 2026-11-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/index.html">日本語</a></div>
+<div class="banner"><img src="../img/ja/editor-main-admin.png" alt="The kasane editor window"></div>
+<div class="title-row">
+<h1 id="kasane">kasane Help</h1>
+<img src="../assets/about.png" alt="kasane">
+</div>
+<p>kasane is a tool that changes how the keys on a Windows keyboard behave. For each keyboard, you can swap keys, switch layers, change what a key does depending on whether you hold or tap it (Mod-Tap and Layer-Tap), record macros, use thumb-shift (NICOLA), and more.</p>
+<p>This help walks through every feature, from installation to uninstallation, with pictures of the screens. The screenshots are taken with the Japanese display language for now.</p>
+<h2 id="system-requirements">System requirements</h2>
+<ul>
+<li>Windows 11 25H2 (x64 or ARM64)</li>
+<li>Administrator rights for installation</li>
+<li>An internet connection. With the Subscription edition, the license management service connects to the license server (run by Applet LLC) about every 24 hours to check that the subscription is active. It uses the result of the latest check, so you can keep using kasane offline for up to 7 days. With the Pro edition, a connection is needed only once, when the license key is checked during installation.</li>
+</ul>
+<h2 id="new-to-kasane">New to kasane</h2>
+<ol>
+<li><a href="01-install.html">Install</a> kasane and restart.</li>
+<li><a href="03-license.html">Activate the license</a> (with the Pro edition this is already done during installation).</li>
+<li>In the <a href="05-editor-basics.html">editor</a>, choose a keyboard, swap some keys, and apply the changes to the keyboard.</li>
+<li>In case something goes wrong, it helps to read about <a href="07-emergency.html">emergency release</a> and <a href="02-uninstall.html">uninstallation</a> first.</li>
+</ol>
+<h2 id="names-and-files">Names and files</h2>
+<table>
+<thead>
+<tr>
+<th>Part</th>
+<th>Name</th>
+<th>File and location</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Product</td>
+<td>kasane</td>
+<td>Installed in <code>C:\Program Files\applet\kasane</code></td>
+</tr>
+<tr>
+<td>Editor</td>
+<td>kasane</td>
+<td><code>kasane.exe</code> (<code>keymap-gui</code> folder)</td>
+</tr>
+<tr>
+<td>Tray (resident)</td>
+<td>kasane-tray</td>
+<td><code>kasane-tray.exe</code> (<code>tray</code> folder; starts automatically at sign-in). The edition without UI access is <code>kasane-tray-nua.exe</code> (start it manually)</td>
+</tr>
+<tr>
+<td>Device driver</td>
+<td>kbdlayer</td>
+<td><code>kbdlayer.sys</code> (the internal and service name is <code>kbdlayer</code>; <code>kbdlayer</code> folder)</td>
+</tr>
+<tr>
+<td>License manager (License Manager, Subscription edition only)</td>
+<td>kasane-license</td>
+<td><code>kasane-license.exe</code> (<code>license-gui</code> folder)</td>
+</tr>
+<tr>
+<td>License service (Subscription edition only)</td>
+<td>kasaneLicenseSvc (display name: kasane License Service)</td>
+<td><code>kasane-license-svc.exe</code> (<code>license-svc</code> folder). License records are in <code>%ProgramData%\kbdlayer-license</code></td>
+</tr>
+<tr>
+<td>Driver management tool</td>
+<td>DriverManager</td>
+<td><code>DriverManager.exe</code> (directly under the installation folder)</td>
+</tr>
+<tr>
+<td>Command-line configuration tool</td>
+<td>KeymapTool</td>
+<td><code>KeymapTool.exe</code> (directly under the installation folder). See <a href="17-keymaptool.html">17. KeymapTool and Samples</a></td>
+</tr>
+<tr>
+<td>Installer</td>
+<td>Install-kasane</td>
+<td><code>Install-kasane.exe</code>, <code>KasaneSetup-ja-JP.msi</code>, <code>KasaneSetup-en-US.msi</code></td>
+</tr>
+<tr>
+<td>Help</td>
+<td></td>
+<td><code>manual\en\index.html</code> (directly under the installation folder; opened from <strong>Help</strong> in the editor and <strong>Help</strong> in the tray menu)</td>
+</tr>
+<tr>
+<td>Settings folder</td>
+<td></td>
+<td><code>%LOCALAPPDATA%\applet\kasane</code> (can be changed with the <code>KASANE</code> environment variable)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="find-what-you-want-to-do">Find what you want to do</h2>
+<table>
+<thead>
+<tr>
+<th>What you want to do</th>
+<th>Chapter</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Install kasane and choose the settings folder</td>
+<td><a href="01-install.html">1. Installation</a></td>
+</tr>
+<tr>
+<td>Bring in earlier settings during installation</td>
+<td><a href="01-install.html">1. Installation</a>, <a href="14-import-export.html">14. Import and Export</a></td>
+</tr>
+<tr>
+<td>Uninstall kasane</td>
+<td><a href="02-uninstall.html">2. Uninstallation</a></td>
+</tr>
+<tr>
+<td>Activate the license, use the trial, or confirm a Pro license key</td>
+<td><a href="03-license.html">3. License Activation</a></td>
+</tr>
+<tr>
+<td>Stop key remapping for a while</td>
+<td><a href="04-tray.html">4. Tray</a> (Pause), <a href="05-editor-basics.html">5. Editor Basics</a> (OFF)</td>
+</tr>
+<tr>
+<td>Swap keys</td>
+<td><a href="05-editor-basics.html">5. Editor Basics</a>, <a href="12-recipes.html">12. Setup Examples</a></td>
+</tr>
+<tr>
+<td>Use another keyboard (add a layout)</td>
+<td><a href="05-editor-basics.html">5. Editor Basics</a> (Add from KLE)</td>
+</tr>
+<tr>
+<td>Learn what the marks on the screen (ON, Not applied, Read-only, H, T, and so on) mean, or read the explanation for each screen</td>
+<td><a href="05-editor-basics.html">5. Editor Basics</a> (status marks, reading the keyboard diagram, opening help)</td>
+</tr>
+<tr>
+<td>A different key is swapped from the one you set</td>
+<td><a href="06-calibration.html">6. Calibration</a></td>
+</tr>
+<tr>
+<td>A wrong setting left you unable to type on the keyboard</td>
+<td><a href="07-emergency.html">7. Emergency Release</a></td>
+</tr>
+<tr>
+<td>Do one thing on a short press and another on a long press</td>
+<td><a href="08-key-assign.html">8. Assigning Keys</a>, <a href="12-recipes.html">12. Setup Examples</a></td>
+</tr>
+<tr>
+<td>Switch to another key layout only while a key is held</td>
+<td><a href="08-key-assign.html">8. Assigning Keys</a> (layers), <a href="12-recipes.html">12. Setup Examples</a></td>
+</tr>
+<tr>
+<td>Send a fixed sequence of keys with one key</td>
+<td><a href="09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides</a> (macros)</td>
+</tr>
+<tr>
+<td>Send another key when two keys are pressed together</td>
+<td><a href="09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides</a> (combos)</td>
+</tr>
+<tr>
+<td>Turn a combination such as Ctrl+X into another action</td>
+<td><a href="09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides</a> (key overrides), <a href="12-recipes.html">12. Setup Examples</a></td>
+</tr>
+<tr>
+<td>Switch key layouts to match the Japanese input method (IME), or use thumb-shift</td>
+<td><a href="10-ime-nicola.html">10. IME Linking and NICOLA</a></td>
+</tr>
+<tr>
+<td>Launch a program or type a string with a key</td>
+<td><a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a></td>
+</tr>
+<tr>
+<td>Use a different key layout for each app, or pause kasane only while a game runs</td>
+<td><a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a></td>
+</tr>
+<tr>
+<td>Change the colors or the display language</td>
+<td><a href="13-settings.html">13. Settings Dialog</a></td>
+</tr>
+<tr>
+<td>Back up settings, or move them to another PC</td>
+<td><a href="14-import-export.html">14. Import and Export</a>, <a href="15-backup-migrate.html">15. Backup and Migration</a></td>
+</tr>
+<tr>
+<td>Configure from the command line, or use the sample keymaps</td>
+<td><a href="17-keymaptool.html">17. KeymapTool and Samples</a></td>
+</tr>
+<tr>
+<td>Use nodoka settings</td>
+<td><a href="14-import-export.html">14. Import and Export</a></td>
+</tr>
+<tr>
+<td>Something does not work, or you want to see the logs</td>
+<td><a href="16-reference.html">16. Troubleshooting and Known Limitations</a></td>
+</tr>
+<tr>
+<td>See what changed since 1.00</td>
+<td><a href="18-readme.html">18. README and Background</a></td>
+</tr>
+<tr>
+<td>Check the terms of use and the licenses of bundled software</td>
+<td><a href="19-terms.html">19. Terms of Use</a>, <a href="20-third-party.html">20. Third-Party Notices</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="chapter-guide">Chapter guide</h2>
+<table>
+<thead>
+<tr>
+<th>Chapter</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="01-install.html">1. Installation</a></td>
+<td>The installer screens, choosing the settings folder, importing a settings file</td>
+</tr>
+<tr>
+<td><a href="02-uninstall.html">2. Uninstallation</a></td>
+<td>Steps, what is removed, what remains</td>
+</tr>
+<tr>
+<td><a href="03-license.html">3. License Activation</a></td>
+<td>License Manager, the trial, confirming a Pro key</td>
+</tr>
+<tr>
+<td><a href="04-tray.html">4. Tray</a></td>
+<td>The resident icon, Pause, switching layers by hand</td>
+</tr>
+<tr>
+<td><a href="05-editor-basics.html">5. Editor Basics</a></td>
+<td>The parts of the screen, status marks, reading the keyboard diagram, swapping keys, applying and OFF, the assignment list</td>
+</tr>
+<tr>
+<td><a href="06-calibration.html">6. Calibration</a></td>
+<td>Measuring keys, input check</td>
+</tr>
+<tr>
+<td><a href="07-emergency.html">7. Emergency Release</a></td>
+<td>Releasing kasane when a wrong setting stops your input</td>
+</tr>
+<tr>
+<td><a href="08-key-assign.html">8. Assigning Keys</a></td>
+<td>The assignment screen, layers, Mod-Tap, Layer-Tap</td>
+</tr>
+<tr>
+<td><a href="09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides</a></td>
+<td>How to use each editor</td>
+</tr>
+<tr>
+<td><a href="10-ime-nicola.html">10. IME Linking and NICOLA</a></td>
+<td>Switching layers to match the IME, thumb-shift</td>
+</tr>
+<tr>
+<td><a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a></td>
+<td>Launching programs, typing strings, switching by the foreground app</td>
+</tr>
+<tr>
+<td><a href="12-recipes.html">12. Setup Examples</a></td>
+<td>Common setups, with steps</td>
+</tr>
+<tr>
+<td><a href="13-settings.html">13. Settings Dialog</a></td>
+<td>The tabs: General, Features, Timing, and more</td>
+</tr>
+<tr>
+<td><a href="14-import-export.html">14. Import and Export</a></td>
+<td>Exporting and importing settings, importing nodoka settings</td>
+</tr>
+<tr>
+<td><a href="15-backup-migrate.html">15. Backup and Migration</a></td>
+<td>Where settings are kept, moving to another PC</td>
+</tr>
+<tr>
+<td><a href="16-reference.html">16. Troubleshooting and Known Limitations</a></td>
+<td>Troubleshooting, known limitations, command line, environment variables, logs</td>
+</tr>
+<tr>
+<td><a href="17-keymaptool.html">17. KeymapTool and Samples</a></td>
+<td>Configuring from the command line, sample keymaps, how keyboard IDs are calculated</td>
+</tr>
+<tr>
+<td><a href="18-readme.html">18. README and Background</a></td>
+<td>The README in the installation folder, and the changes in each version</td>
+</tr>
+<tr>
+<td><a href="19-terms.html">19. Terms of Use</a></td>
+<td>The license agreement in the installation folder</td>
+</tr>
+<tr>
+<td><a href="20-third-party.html">20. Third-Party Notices</a></td>
+<td>Licenses of the bundled software</td>
+</tr>
+</tbody>
+</table>
+
+<div class="pager"><span></span><a href="01-install.html">1. Installation →</a></div>
+</main>
+</div>
+</body>
+</html>

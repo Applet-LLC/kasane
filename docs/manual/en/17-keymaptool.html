@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>17. KeymapTool and Samples - kasane Help</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane Help</a>
+<ol>
+<li><a href="index.html">Introduction</a></li>
+<li><a href="01-install.html">1. Installation</a></li>
+<li><a href="02-uninstall.html">2. Uninstallation</a></li>
+<li><a href="03-license.html">3. License Activation</a></li>
+<li><a href="04-tray.html">4. Tray</a></li>
+<li><a href="05-editor-basics.html">5. Editor Basics</a></li>
+<li><a href="06-calibration.html">6. Calibration</a></li>
+<li><a href="07-emergency.html">7. Emergency Release</a></li>
+<li><a href="08-key-assign.html">8. Assigning Keys</a></li>
+<li><a href="09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides</a></li>
+<li><a href="10-ime-nicola.html">10. IME Linking and NICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a></li>
+<li><a href="12-recipes.html">12. Setup Examples</a></li>
+<li><a href="13-settings.html">13. Settings Dialog</a></li>
+<li><a href="14-import-export.html">14. Import and Export</a></li>
+<li><a href="15-backup-migrate.html">15. Backup and Migration</a></li>
+<li><a href="16-reference.html">16. Troubleshooting and Known Limitations</a></li>
+<li class="current"><a href="17-keymaptool.html">17. KeymapTool and Samples</a></li>
+<li><a href="18-readme.html">18. README and Background</a></li>
+<li><a href="19-terms.html">19. Terms of Use</a></li>
+<li><a href="20-third-party.html">20. Third-Party Notices</a></li>
+</ol>
+
+</nav>
+<main>
+<div class="pagehead">kasane 1.01 2026-11-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/17-keymaptool.html">日本語</a></div>
+<h1 id="keymaptool-and-samples">17. KeymapTool and Samples</h1>
+<p>KeymapTool (<code>KeymapTool.exe</code>) is a tool for configuring the keyboard from the command line. You can do calibration, writing a keymap, and switching ON and OFF from the console. If you work on screen, start reading from <a href="05-editor-basics.html">5. Editor Basics</a>.</p>
+<p>The installation folder holds a tutorial and sample keymaps for use with KeymapTool. This chapter is a guide to them. When you click a link, the file opens in the Windows default app.</p>
+<h2 id="tutorial">Tutorial</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../docs/TUTORIAL-CLI.md">TUTORIAL-CLI.md</a></td>
+<td>Steps, done with commands, from installation through calibration, writing a key swap, and checking that it works. It covers both JIS and US keyboards. It also covers a numpad alone, thumb-shift (NICOLA), and IME linking. (The tutorial is in Japanese)</td>
+</tr>
+</tbody>
+</table>
+<p>The tutorial is kept in the <code>docs</code> folder of the installation folder.</p>
+<h2 id="sample-keymaps">Sample keymaps</h2>
+<p>They are in the <code>samples</code> folder of the installation folder. <a href="../../samples/README.md">samples/README.md</a> explains how to use each file and what to check.</p>
+<p>Start with these four. They are used in the steps of <a href="../../docs/TUTORIAL-CLI.md">TUTORIAL-CLI.md</a>.</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../samples/tutorial-jis109-eisu-lctrl.json">tutorial-jis109-eisu-lctrl.json</a></td>
+<td>Swaps the Eisu key and left Ctrl on a JIS keyboard</td>
+</tr>
+<tr>
+<td><a href="../../samples/tutorial-us104-caps-lctrl.json">tutorial-us104-caps-lctrl.json</a></td>
+<td>Swaps CapsLock and left Ctrl on a US keyboard</td>
+</tr>
+<tr>
+<td><a href="../../samples/tutorial-swap-2key.json">tutorial-swap-2key.json</a></td>
+<td>Swaps just two keys. Works on both JIS and US</td>
+</tr>
+<tr>
+<td><a href="../../samples/tutorial-10key-numbers.json">tutorial-10key-numbers.json</a></td>
+<td>On a numpad-only keyboard, always sends digits regardless of NumLock</td>
+</tr>
+</tbody>
+</table>
+<p>These are samples for checking each feature.</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../samples/nicola.json">nicola.json</a></td>
+<td>The thumb-shift (NICOLA) layout. Figure 1 of the NICOLA layout standard, written out as it is</td>
+</tr>
+<tr>
+<td><a href="../../samples/nicola-enter-space.json">nicola-enter-space.json</a></td>
+<td>The same layout as <code>nicola.json</code>, but makes Muhenkan Enter and Henkan Space when a thumb key is pressed alone</td>
+</tr>
+<tr>
+<td><a href="../../samples/test-keymap-nicola-toggle.json">test-keymap-nicola-toggle.json</a></td>
+<td>A one-key layer that has only the key that switches thumb-shift ON and OFF</td>
+</tr>
+<tr>
+<td><a href="../../samples/test-keymap-modtap.json">test-keymap-modtap.json</a></td>
+<td>An example of Mod-Tap and Layer-Tap, which change the action between a long press and a tap</td>
+</tr>
+<tr>
+<td><a href="../../samples/test-keymap-macro.json">test-keymap-macro.json</a></td>
+<td>An example of a macro</td>
+</tr>
+<tr>
+<td><a href="../../samples/test-keymap-combo.json">test-keymap-combo.json</a></td>
+<td>An example of a combo, which sends another key when two keys are pressed together</td>
+</tr>
+<tr>
+<td><a href="../../samples/test-keymap-tapdance.json">test-keymap-tapdance.json</a></td>
+<td>An example of a tap dance, which changes the action by the number of taps</td>
+</tr>
+<tr>
+<td><a href="../../samples/test-keymap-helper.json">test-keymap-helper.json</a></td>
+<td>An example of helper action keys that call things such as launching programs and typing strings</td>
+</tr>
+<tr>
+<td><a href="../../samples/test-keymap-simple.json">test-keymap-simple.json</a></td>
+<td>A minimal example with only 10 keys</td>
+</tr>
+<tr>
+<td><a href="../../samples/test-keymap-us104.json">test-keymap-us104.json</a></td>
+<td>A keymap that lists every key of a US 104 keyboard</td>
+</tr>
+<tr>
+<td><a href="../../samples/test-keymap-jis.json">test-keymap-jis.json</a></td>
+<td>A keymap that lists every key of a JIS 109 keyboard</td>
+</tr>
+<tr>
+<td><a href="../../samples/test-keymap-10key.json">test-keymap-10key.json</a></td>
+<td>A keymap for a numpad alone (17 keys)</td>
+</tr>
+</tbody>
+</table>
+<p>If you want to set up helper actions on screen, see <a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a>.</p>
+
+<div class="pager"><a href="16-reference.html">← 16. Troubleshooting and Known Limitations</a><a href="18-readme.html">18. README and Background →</a></div>
+</main>
+</div>
+</body>
+</html>

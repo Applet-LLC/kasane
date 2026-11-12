@@ -36,7 +36,7 @@
 
 </nav>
 <main>
-<div class="pagehead">かさね1.01 2026-11-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a></div>
+<div class="pagehead">かさね1.01 2026-11-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../en/16-reference.html">English</a></div>
 <h1 id="section">16. トラブル対応、既知の制限など</h1>
 <h2 id="section-1">トラブル対応</h2>
 <table>
@@ -114,7 +114,7 @@
 <ul>
 <li>ユーザーごとに、別々のキーボードの設定を使ったり保存したりすることはできません。設定は、すべてのユーザーで共通です。サインイン（ログイン）したあとに自分の設定を反映して使うことは、できます。その場合は、サインアウト（ログアウト）の前に、設定を元に戻しておくとよいでしょう。</li>
 <li>Windows のキーボードレイアウトの設定が、キートップの刻印と合っていなくても、スキャンコードに対するキーのリマップはできます。ただし、Windows のキーボードレイアウトを「接続されているキーボード」にしていても、ACPI（PS/2）キーボードや、プラグアンドプレイに対応していないキーボードは、Windows が自動で認識できないことがあります。設定ダイアログの i8042prt タブの設定も、検討してください。現在の Windows の設定は、キーボードレイアウトツール「まな」（https://github.com/Applet-LLC/mana）で確かめられます。</li>
-<li>このヘルプの英語版は、まだ用意していません。対策としては、ブラウザーの翻訳機能をお使いください。ただし、画面の図は、日本語表示となります。</li>
+<li>このヘルプには、英語版があります。ただし、画面の図は、日本語表示のままです。</li>
 <li>管理者でないときは、キャリブレーションの「入力確認」と、緊急解除の「同時押しを試す」が、Windows のキー入力（低レベルキーフック）で確認する方式になります。右 Shift が扱えない、一部のキーで解放が届かない、などの制限があります。管理者として起動すると、ドライバから直接受け取るので、正確に確認できます。</li>
 <li>右 Shift を <code>E0 36</code> で出すキーボードは、キャリブレーションで扱えない場合があります（実機では未確認です）。</li>
 <li>IME の状態を TSF で取得する機能は、実験的です。使うと Explorer の起動が遅くなる問題が、解決していません（<a href="10-ime-nicola.html">10. IME 連動とNICOLA</a>）。</li>

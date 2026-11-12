@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>12. Setup Examples - kasane Help</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane Help</a>
+<ol>
+<li><a href="index.html">Introduction</a></li>
+<li><a href="01-install.html">1. Installation</a></li>
+<li><a href="02-uninstall.html">2. Uninstallation</a></li>
+<li><a href="03-license.html">3. License Activation</a></li>
+<li><a href="04-tray.html">4. Tray</a></li>
+<li><a href="05-editor-basics.html">5. Editor Basics</a></li>
+<li><a href="06-calibration.html">6. Calibration</a></li>
+<li><a href="07-emergency.html">7. Emergency Release</a></li>
+<li><a href="08-key-assign.html">8. Assigning Keys</a></li>
+<li><a href="09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides</a></li>
+<li><a href="10-ime-nicola.html">10. IME Linking and NICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a></li>
+<li class="current"><a href="12-recipes.html">12. Setup Examples</a></li>
+<li><a href="13-settings.html">13. Settings Dialog</a></li>
+<li><a href="14-import-export.html">14. Import and Export</a></li>
+<li><a href="15-backup-migrate.html">15. Backup and Migration</a></li>
+<li><a href="16-reference.html">16. Troubleshooting and Known Limitations</a></li>
+<li><a href="17-keymaptool.html">17. KeymapTool and Samples</a></li>
+<li><a href="18-readme.html">18. README and Background</a></li>
+<li><a href="19-terms.html">19. Terms of Use</a></li>
+<li><a href="20-third-party.html">20. Third-Party Notices</a></li>
+</ol>
+
+</nav>
+<main>
+<div class="pagehead">kasane 1.01 2026-11-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/12-recipes.html">日本語</a></div>
+<h1 id="setup-examples">12. Setup Examples</h1>
+<p>These are common setups, with steps. How to use the key assignment window and each editor is explained in <a href="08-key-assign.html">8. Assigning Keys</a> and <a href="09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides</a>.</p>
+<table>
+<thead>
+<tr>
+<th>What you want to do</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Swap Caps Lock and left Ctrl</td>
+<td><a href="#recipe1">Example 1</a></td>
+</tr>
+<tr>
+<td>Make Caps Lock Esc on a short press and Ctrl on a long press</td>
+<td><a href="#recipe2">Example 2</a></td>
+</tr>
+<tr>
+<td>Use Space as Shift while holding it</td>
+<td><a href="#recipe3">Example 3</a></td>
+</tr>
+<tr>
+<td>Type arrow keys with H, J, K, and L while holding Space</td>
+<td><a href="#recipe4">Example 4</a></td>
+</tr>
+<tr>
+<td>Disable Caps Lock</td>
+<td><a href="#recipe5">Example 5</a></td>
+</tr>
+<tr>
+<td>Turn the IME on and off with Caps Lock, and make Shift+Caps Lock work as Caps Lock</td>
+<td><a href="#recipe6">Example 6</a></td>
+</tr>
+<tr>
+<td>Make right Alt a simultaneous press of left Ctrl and left Alt (AltGr)</td>
+<td><a href="#recipe7">Example 7</a></td>
+</tr>
+<tr>
+<td>Make Shift+2 produce <code>&quot;</code></td>
+<td><a href="#recipe8">Example 8</a></td>
+</tr>
+<tr>
+<td>Make Shift+BS into Delete</td>
+<td><a href="#recipe9">Example 9</a></td>
+</tr>
+<tr>
+<td>Send a sequence of keys (a macro) with Ctrl+1</td>
+<td><a href="#recipe10">Example 10</a></td>
+</tr>
+<tr>
+<td>Make the numpad switch among three layouts each time you press a key</td>
+<td><a href="#recipe11">Example 11</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="steps-for-assigning-a-key">Steps for assigning a key</h2>
+<ol>
+<li>In the editor, choose the keyboard and the layout to configure (<a href="05-editor-basics.html">5. Editor Basics</a>).</li>
+<li>Click a key in the keyboard diagram to open the &quot;Key assignment&quot; window.</li>
+<li>Choose from the list on the left to assign, or type the key code written in the example, as it is, into the <strong>Key code</strong> box at the bottom of the window, and press <strong>OK</strong>.</li>
+<li>When you are done, press <strong>Apply to keyboard (ON)</strong> (you must have started as administrator).</li>
+</ol>
+<p>You can write the key codes in this chapter in the <strong>Key code</strong> box. You can check a key's name by pressing the key in the keyboard diagram.</p>
+<p>To set keys on another layer, choose the layer number in the layer list at the top of the window, then click the key. To add layers, press <strong>+ Add</strong>.</p>
+<p><a id="recipe1"></a></p>
+<h2 id="example-1-swap-caps-lock-and-left-ctrl">Example 1: Swap Caps Lock and left Ctrl</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Key code to assign</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Caps Lock (the Eisu key on JIS)</td>
+<td><code>KC_LCTRL</code></td>
+</tr>
+<tr>
+<td>Left Ctrl</td>
+<td><code>KC_CAPSLOCK</code></td>
+</tr>
+</tbody>
+</table>
+<p><img src="../img/ja/editor-swapped.png" alt="The swapped keys" /></p>
+<p>The detailed steps are in &quot;Swapping keys&quot; in <a href="05-editor-basics.html">5. Editor Basics</a>.</p>
+<p><a id="recipe2"></a></p>
+<h2 id="example-2-make-caps-lock-esc-on-a-short-press-and-ctrl-on-a-long-press">Example 2: Make Caps Lock Esc on a short press and Ctrl on a long press</h2>
+<p>This uses Mod-Tap.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Key code to assign</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Caps Lock</td>
+<td><code>MT(MOD_LCTL,KC_ESC)</code></td>
+</tr>
+</tbody>
+</table>
+<p>In the &quot;Key assignment&quot; window, choose <strong>Mod-Tap (MT)</strong> in the list on the left, specify left Ctrl as the modifier and <code>KC_ESC</code> as the tap key, and press <strong>Insert into key code</strong>.</p>
+<ul>
+<li>If you press and release it briefly, it is Esc.</li>
+<li>If you hold it and press another key, Ctrl is held. For example, if you hold Caps Lock and press <code>C</code>, it is Ctrl+C.</li>
+<li>If it is unintentionally treated as a hold when you type fast, change the tap-hold mode in the &quot;Timing&quot; tab of the settings dialog (<a href="13-settings.html">13. Settings Dialog</a>).</li>
+</ul>
+<p><a id="recipe3"></a></p>
+<h2 id="example-3-use-space-as-shift-while-holding-it">Example 3: Use Space as Shift while holding it</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Key code to assign</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Space</td>
+<td><code>MT(MOD_LSFT,KC_SPC)</code></td>
+</tr>
+</tbody>
+</table>
+<p>A short press is Space. If you hold it and press another key, Shift is held.</p>
+<p><a id="recipe4"></a></p>
+<h2 id="example-4-type-arrow-keys-with-h-j-k-and-l-while-holding-space">Example 4: Type arrow keys with H, J, K, and L while holding Space</h2>
+<p>Using Layer-Tap, you switch to another layout (layer 1) only while Space is held.</p>
+<ol>
+<li>Make layer 1 with <strong>+ Add</strong>.</li>
+<li>Assign <code>LT(1,KC_SPC)</code> to Space on layer 0. You can also specify 1 as the layer and <code>KC_SPC</code> as the tap key with <strong>Layer-Tap (LT)</strong> in the &quot;Key assignment&quot; window.</li>
+<li>Choose layer 1 and assign these keys.</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Key code to assign</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>H</td>
+<td><code>KC_LEFT</code></td>
+</tr>
+<tr>
+<td>J</td>
+<td><code>KC_DOWN</code></td>
+</tr>
+<tr>
+<td>K</td>
+<td><code>KC_UP</code></td>
+</tr>
+<tr>
+<td>L</td>
+<td><code>KC_RIGHT</code></td>
+</tr>
+</tbody>
+</table>
+<p>Leave the other keys on layer 1 as ▽ (transparent). While Space is held, the other keys work as usual.</p>
+<p><a id="recipe5"></a></p>
+<h2 id="example-5-disable-caps-lock">Example 5: Disable Caps Lock</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Key code to assign</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Caps Lock</td>
+<td><code>KC_NO</code></td>
+</tr>
+</tbody>
+</table>
+<p>Choosing <strong>KC_NO</strong> (✕) in the <strong>Basic</strong> category does the same.</p>
+<p><a id="recipe6"></a></p>
+<h2 id="example-6-turn-the-ime-on-and-off-with-caps-lock">Example 6: Turn the IME on and off with Caps Lock</h2>
+<p>You make Caps Lock a key that toggles the Japanese input method (IME) on and off. Alt+Hankaku/Zenkaku is a combination that toggles Microsoft IME on and off on both JIS and US keyboards.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Key code to assign</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Caps Lock</td>
+<td><code>LALT(KC_ZKHK)</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>KC_ZKHK</code> is the Hankaku/Zenkaku key. Choosing <strong>Hankaku/Zenkaku</strong> in the <strong>NLS</strong> category and checking the <strong>Left Alt</strong> modifier gives the same assignment.</p>
+<blockquote>
+<p>When you want one key to turn the IME on and another to turn it off, assign <strong>IME on</strong> (<code>KC_LNG1</code>) and <strong>IME off</strong> (<code>KC_LNG2</code>) from the <strong>NLS</strong> category. You do not need to change any IME setting. Pressing IME on when it is already on leaves it on (<a href="08-key-assign.html">8. Assigning Keys</a>).</p>
+<p>If you have assigned IME-On to Henkan and IME-Off to Muhenkan in Microsoft IME's &quot;Customize keys and touch&quot;, you can use Henkan (<code>KC_HENK</code>) and Muhenkan (<code>KC_MHEN</code>) in the same way. If you press Henkan without this assignment, the IME treats it as reconversion.</p>
+</blockquote>
+<h3 id="making-shiftcaps-lock-the-original-caps-lock">Making Shift+Caps Lock the original Caps Lock</h3>
+<p>If you assign <code>LALT(KC_ZKHK)</code> to the Caps Lock key, the same assignment works even while you hold Shift. If you want to use Shift+Caps Lock as the original Caps Lock, add a key override.</p>
+<ol>
+<li>Open <strong>Key overrides...</strong> at the bottom of the editor window, enter the following, and press <strong>OK</strong>.</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Input</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Modifiers</td>
+<td><code>MOD_LSFT</code></td>
+</tr>
+<tr>
+<td>Key</td>
+<td><code>KC_ZKHK</code></td>
+</tr>
+<tr>
+<td>Replace with</td>
+<td><code>LSFT(KC_CAPSLOCK)</code></td>
+</tr>
+</tbody>
+</table>
+<ol start="2">
+<li>In the &quot;Features&quot; tab of <strong>Settings...</strong>, check that key overrides are ON.</li>
+<li>Press <strong>Apply to keyboard (ON)</strong>.</li>
+</ol>
+<ul>
+<li>For <strong>Key</strong>, write the output key that the key override targets. It is the key part (<code>KC_ZKHK</code>) of the <code>LALT(KC_ZKHK)</code> assigned to Caps Lock.</li>
+<li>For <strong>Replace with</strong>, use <code>LSFT(KC_CAPSLOCK)</code> on Windows with a JIS layout. On a JIS layout, the Caps Lock key without Shift works as the &quot;Eisu&quot; key, and Caps Lock toggles only while Shift is held. On Windows with a US layout, <code>KC_CAPSLOCK</code> is enough.</li>
+</ul>
+<p>It then works as follows.</p>
+<ul>
+<li>When you press Caps Lock alone, the IME is toggled on and off.</li>
+<li>When you press Caps Lock while holding Shift, Caps Lock is toggled.</li>
+</ul>
+<blockquote>
+<p>A key override decides its target by the output key. So even when you press the real Hankaku/Zenkaku key together with Shift, it is replaced with Caps Lock.</p>
+</blockquote>
+<p><a id="recipe7"></a></p>
+<h2 id="example-7-make-right-alt-a-simultaneous-press-of-left-ctrl-and-left-alt-altgr">Example 7: Make right Alt a simultaneous press of left Ctrl and left Alt (AltGr)</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Key code to assign</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Right Alt</td>
+<td><code>LCTL(KC_LALT)</code></td>
+</tr>
+</tbody>
+</table>
+<p>When you press right Alt, left Ctrl and left Alt are held at the same time. On Windows with a keyboard layout that has AltGr (German and others), the characters typed with AltGr come out. With layouts without AltGr (US, Japanese, Korean), it works as the Ctrl+Alt shortcut.</p>
+<p>Conversely, if right Alt unintentionally becomes AltGr (a simultaneous press of left Ctrl and left Alt) and causes trouble, see the troubleshooting in <a href="16-reference.html">16. Troubleshooting and Known Limitations</a>.</p>
+<p><a id="recipe8"></a></p>
+<h2 id="example-8-make-shift2-produce">Example 8: Make Shift+2 produce <code>&quot;</code></h2>
+<p>This is an example of using a US keyboard on Windows with a US layout, and changing Shift+2 from <code>@</code> to <code>&quot;</code>. It uses a key override.</p>
+<ol>
+<li>Set the keyboard layout to <code>US104</code>.</li>
+<li>Open <strong>Key overrides...</strong> at the bottom of the editor window.</li>
+<li>Enter the following and press <strong>OK</strong>.</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Input</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Modifiers</td>
+<td><code>MOD_LSFT</code></td>
+</tr>
+<tr>
+<td>Key</td>
+<td><code>KC_2</code></td>
+</tr>
+<tr>
+<td>Replace with</td>
+<td><code>LSFT(KC_QUOTE)</code></td>
+</tr>
+</tbody>
+</table>
+<ol start="4">
+<li>In the &quot;Features&quot; tab of <strong>Settings...</strong>, check that key overrides are ON.</li>
+<li>Press <strong>Apply to keyboard (ON)</strong>.</li>
+</ol>
+<p>For the replacement, write the apostrophe key with Shift (<code>LSFT(KC_QUOTE)</code>). While the replacement is in effect, the condition's Shift is temporarily released, so if you do not write Shift in the replacement, <code>'</code> comes out.</p>
+<blockquote>
+<p>Conversely, if you use a US keyboard on Windows with a JIS layout, Shift+2 produces <code>&quot;</code>. If you want <code>@</code>, specify <code>KC_LBRC</code> as the replacement (&quot;Key overrides&quot; in <a href="09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides</a>).</p>
+</blockquote>
+<p><a id="recipe9"></a></p>
+<h2 id="example-9-make-shiftbs-into-delete">Example 9: Make Shift+BS into Delete</h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Input</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Modifiers</td>
+<td><code>MOD_LSFT</code></td>
+</tr>
+<tr>
+<td>Key</td>
+<td><code>KC_BSPACE</code></td>
+</tr>
+<tr>
+<td>Replace with</td>
+<td><code>KC_DELETE</code></td>
+</tr>
+</tbody>
+</table>
+<p>The steps are the same as in Example 8.</p>
+<p><a id="recipe10"></a></p>
+<h2 id="example-10-send-a-sequence-of-keys-a-macro-with-ctrl1">Example 10: Send a sequence of keys (a macro) with Ctrl+1</h2>
+<p>As an example, you send a macro that selects all and copies (Ctrl+A, Ctrl+C) with Ctrl+1. It uses a macro and a key override.</p>
+<ol>
+<li>Open <strong>Macros...</strong> at the bottom of the editor window.</li>
+<li>In the contents of macro 0, enter the following (keys separated by spaces).</li>
+</ol>
+<pre><code>LCTL(KC_A) LCTL(KC_C)
+</code></pre>
+<ol start="3">
+<li>Press <strong>OK</strong>.</li>
+<li>Open <strong>Key overrides...</strong>, enter the following, and press <strong>OK</strong>.</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Input</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Modifiers</td>
+<td><code>MOD_LCTL</code></td>
+</tr>
+<tr>
+<td>Key</td>
+<td><code>KC_1</code></td>
+</tr>
+<tr>
+<td>Replace with</td>
+<td><code>MACRO(0)</code></td>
+</tr>
+</tbody>
+</table>
+<ol start="5">
+<li>In the &quot;Features&quot; tab of <strong>Settings...</strong>, check that macros and key overrides are ON.</li>
+<li>Press <strong>Apply to keyboard (ON)</strong>.</li>
+</ol>
+<p>When you press Ctrl+1, macro 0 runs once. Ctrl+1 itself does not reach the app. The Ctrl you are holding is released only during the run, so write keys that use Ctrl inside the macro like <code>LCTL(KC_A)</code>.</p>
+<p>When you want to send a sequence that includes strings or waits (delays), use a helper action trigger (<a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a>).</p>
+<p><a id="recipe11"></a></p>
+<h2 id="example-11-make-the-numpad-switch-among-three-layouts-each-time-you-press-a-key">Example 11: Make the numpad switch among three layouts each time you press a key</h2>
+<p>With a keyboard that is only a numpad, you switch layer 0 → 1 → 2 → 0 with the 0 key.</p>
+<ul>
+<li>Layer 1: some keys become shortcuts and modifiers.</li>
+<li>Layer 2: the keys 1 to 9 type fixed strings.</li>
+</ul>
+<h3 id="preparation">Preparation</h3>
+<ol>
+<li>Choose the numpad keyboard and set the layout to <code>10KEY</code>.</li>
+<li>Press <strong>+ Add</strong> twice to make layers 1 and 2.</li>
+</ol>
+<h3 id="switching-layers">Switching layers</h3>
+<p><code>TO(n)</code> enables only layer n. If you assign <code>TO(n)</code> that goes to the next layer to the 0 key on each of the three layers, each press moves 0 → 1 → 2 → 0.</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>0 key</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td><code>TO(1)</code></td>
+</tr>
+<tr>
+<td>1</td>
+<td><code>TO(2)</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>TO(0)</code></td>
+</tr>
+</tbody>
+</table>
+<p>In the &quot;Key assignment&quot; window, choose <code>TO</code> for <strong>Type</strong> under <strong>Layer actions</strong>, specify the number for <strong>Layer</strong>, and press <strong>Insert into key code</strong>.</p>
+<h3 id="layer-1-assignments">Layer 1 assignments</h3>
+<p>The 0 key on layer 1 is used for switching, so left Shift is assigned to the <code>+</code> key.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>What it sends</th>
+<th>Key code (Windows with a US layout)</th>
+<th>Key code (Windows with a JIS layout)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4</td>
+<td>Ctrl+<code>]</code></td>
+<td><code>LCTL(KC_RBRACKET)</code></td>
+<td><code>LCTL(KC_BSLASH)</code></td>
+</tr>
+<tr>
+<td>1</td>
+<td>Ctrl+<code>[</code></td>
+<td><code>LCTL(KC_LBRACKET)</code></td>
+<td><code>LCTL(KC_RBRACKET)</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td>Ctrl+Shift+P</td>
+<td><code>LCTL(LSFT(KC_P))</code></td>
+<td>Same</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Ctrl+Shift+O</td>
+<td><code>LCTL(LSFT(KC_O))</code></td>
+<td>Same</td>
+</tr>
+<tr>
+<td><code>+</code></td>
+<td>Left Shift</td>
+<td><code>KC_LSHIFT</code></td>
+<td>Same</td>
+</tr>
+<tr>
+<td><code>.</code></td>
+<td>Left Ctrl</td>
+<td><code>KC_LCTRL</code></td>
+<td>Same</td>
+</tr>
+<tr>
+<td>Enter</td>
+<td>Left Alt</td>
+<td><code>KC_LALT</code></td>
+<td>Same</td>
+</tr>
+<tr>
+<td>0</td>
+<td>Go to layer 2</td>
+<td><code>TO(2)</code></td>
+<td>Same</td>
+</tr>
+</tbody>
+</table>
+<p>The key codes for <code>[</code> and <code>]</code> differ by layout because a key code represents the position of the key (the scan code). When the Windows layout is JIS, the <code>]</code> key is <code>KC_BSLASH</code> and the <code>[</code> key is <code>KC_RBRACKET</code>.</p>
+<h3 id="layer-2-assignments">Layer 2 assignments</h3>
+<p>Assign the helper action &quot;Type text&quot; to the keys 1 to 9. The 0 key goes back to layer 0.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Assignment</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 to 9</td>
+<td>A helper action (Type text). Example: 1 is &quot;Thank you for your continued support.&quot;, 2 is &quot;Best regards.&quot;</td>
+</tr>
+<tr>
+<td>0</td>
+<td><code>TO(0)</code></td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li>Choose layer 2 and click the 1 key.</li>
+<li>In the list on the left, choose <strong>Helper actions</strong> and press <strong>New action...</strong>.</li>
+<li>Set the type to <strong>Type text (Text)</strong>, write the string to type, and press <strong>OK</strong>. A code such as <code>HLP(1)</code> goes into the key.</li>
+<li>Do the same for the keys 2 to 9.</li>
+</ol>
+<p>Helper actions work only while the tray is running (<a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a>).</p>
+<h3 id="apply-and-check">Apply and check</h3>
+<p>Press <strong>Apply to keyboard (ON)</strong>. Open Notepad and check as follows.</p>
+<ol>
+<li>Press the 0 key. It becomes layer 1 (the layer number 1 appears on the tray icon).</li>
+<li>Press 4 and check that Ctrl+<code>]</code> works. If you press another key while holding <code>+</code>, Shift is held.</li>
+<li>Press the 0 key. It becomes layer 2. The keys 1 to 9 type the strings you set.</li>
+<li>Press the 0 key. It goes back to layer 0.</li>
+</ol>
+<p>You can also switch layers from <strong>Layers</strong> in the tray menu (<a href="04-tray.html">4. Tray</a>).</p>
+
+<div class="pager"><a href="11-helper-apprules.html">← 11. Helper Actions and Per-App Layers</a><a href="13-settings.html">13. Settings Dialog →</a></div>
+</main>
+</div>
+</body>
+</html>

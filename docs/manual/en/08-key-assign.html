@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8. Assigning Keys - kasane Help</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane Help</a>
+<ol>
+<li><a href="index.html">Introduction</a></li>
+<li><a href="01-install.html">1. Installation</a></li>
+<li><a href="02-uninstall.html">2. Uninstallation</a></li>
+<li><a href="03-license.html">3. License Activation</a></li>
+<li><a href="04-tray.html">4. Tray</a></li>
+<li><a href="05-editor-basics.html">5. Editor Basics</a></li>
+<li><a href="06-calibration.html">6. Calibration</a></li>
+<li><a href="07-emergency.html">7. Emergency Release</a></li>
+<li class="current"><a href="08-key-assign.html">8. Assigning Keys</a></li>
+<li><a href="09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides</a></li>
+<li><a href="10-ime-nicola.html">10. IME Linking and NICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a></li>
+<li><a href="12-recipes.html">12. Setup Examples</a></li>
+<li><a href="13-settings.html">13. Settings Dialog</a></li>
+<li><a href="14-import-export.html">14. Import and Export</a></li>
+<li><a href="15-backup-migrate.html">15. Backup and Migration</a></li>
+<li><a href="16-reference.html">16. Troubleshooting and Known Limitations</a></li>
+<li><a href="17-keymaptool.html">17. KeymapTool and Samples</a></li>
+<li><a href="18-readme.html">18. README and Background</a></li>
+<li><a href="19-terms.html">19. Terms of Use</a></li>
+<li><a href="20-third-party.html">20. Third-Party Notices</a></li>
+</ol>
+
+</nav>
+<main>
+<div class="pagehead">kasane 1.01 2026-11-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/08-key-assign.html">日本語</a></div>
+<h1 id="assigning-keys">8. Assigning Keys</h1>
+<p>When you click a key in the editor's keyboard diagram, the &quot;Key assignment&quot; window opens. Here you choose the action to assign to that key.</p>
+<p><img src="../img/ja/assign-main.png" alt="Key assignment" /></p>
+<p>The window is made of these parts.</p>
+<table>
+<thead>
+<tr>
+<th>Part</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The list on the left</td>
+<td>The categories of actions</td>
+</tr>
+<tr>
+<td>The area on the right</td>
+<td>The keys of the selected category, or its setting boxes. The heading at the top shows the key being assigned and the layer (for example, <code>#1 Esc (KC_ESC) / Layer 0</code>)</td>
+</tr>
+<tr>
+<td>Modifier check boxes</td>
+<td>Left and right Ctrl, Shift, Alt, and Win. Check them before choosing a key to make a shortcut</td>
+</tr>
+<tr>
+<td>The key code box</td>
+<td>The name of the selected action (in Consolas). You can rewrite it directly</td>
+</tr>
+<tr>
+<td><strong>Press to enter</strong></td>
+<td>Enters the key code of the next key you press (Esc cancels)</td>
+</tr>
+<tr>
+<td>The message box</td>
+<td>Shows whether the input is valid (for example, <code>OK: Esc</code>)</td>
+</tr>
+<tr>
+<td><strong>OK</strong>, <strong>Cancel</strong></td>
+<td>Assigns and closes, or closes without assigning</td>
+</tr>
+</tbody>
+</table>
+<p>If you click another key, the window that is already open comes to the front. The key assignment window can be used while editing windows such as macros stay open.</p>
+<p>If you click a key that has a layer action, Mod-Tap, Layer-Tap, macro, tap dance, or helper action assigned, the window opens with that category selected. The boxes hold the current setting (for example, for <code>LT(3,KC_ENTER)</code>, layer 3 and the tap key <code>KC_ENTER</code>). To fix only part of it, you do not need to choose everything again from the start.</p>
+<p><a id="categories"></a></p>
+<h2 id="categories">Categories</h2>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Basic</td>
+<td>Transparent (<code>KC_TRNS</code>, ▽), do nothing (<code>KC_NO</code>)</td>
+</tr>
+<tr>
+<td>Letters, digits</td>
+<td>A to Z, 0 to 9</td>
+</tr>
+<tr>
+<td>Symbols / Editing</td>
+<td>Esc, Tab, Enter, BS, Space, Caps, symbol keys</td>
+</tr>
+<tr>
+<td>Function</td>
+<td>F1 to F24</td>
+</tr>
+<tr>
+<td>Modifiers</td>
+<td>Left and right Ctrl, Shift, Alt, Win, and the Application key</td>
+</tr>
+<tr>
+<td>Navigation</td>
+<td>PrintScreen, Pause, Insert, Home, End, PgUp, PgDn, arrows, Delete</td>
+</tr>
+<tr>
+<td>Numpad</td>
+<td>NumLock, numpad digits and symbols</td>
+</tr>
+<tr>
+<td>NLS</td>
+<td>Hankaku/Zenkaku, Ro, Kana, ¥, Henkan, Muhenkan (keys on a Japanese keyboard), IME on, IME off</td>
+</tr>
+<tr>
+<td>Media / System</td>
+<td>Volume, play, calculator, browser keys, mail, sleep, power</td>
+</tr>
+<tr>
+<td>Layer actions</td>
+<td><code>MO</code>, <code>TG</code>, <code>DF</code>, <code>OSL</code>, <code>TO</code>, <code>TT</code>, <code>LM</code>, <code>OSM</code></td>
+</tr>
+<tr>
+<td>Mod-Tap (MT)</td>
+<td>A key on a short press, a modifier on a long press</td>
+</tr>
+<tr>
+<td>Layer-Tap (LT)</td>
+<td>A key on a short press, a layer on a long press</td>
+</tr>
+<tr>
+<td>Macro / Tap dance</td>
+<td><code>MACRO(n)</code>, <code>TAPDANCE(n)</code></td>
+</tr>
+<tr>
+<td>Helper actions</td>
+<td><code>HLP(id)</code></td>
+</tr>
+<tr>
+<td>Keyboard view</td>
+<td>Choose from a picture of the keyboard</td>
+</tr>
+<tr>
+<td>Combo</td>
+<td>Opens a combo that uses this key, or makes a combo with this key (this key's assignment does not change)</td>
+</tr>
+<tr>
+<td>Key override</td>
+<td>Opens a key override that uses this key as its condition, or makes one with this key (this key's assignment does not change)</td>
+</tr>
+</tbody>
+</table>
+<p>Keys that your keyboard has no physical key for, such as F13 to F24, NLS keys, and browser keys, can still be assigned as outputs. For example, you can assign &quot;Henkan&quot; to a key on a US layout.</p>
+<p>The NLS <strong>IME on</strong> and <strong>IME off</strong> (<code>KC_LNG1</code>, <code>KC_LNG2</code>) put the IME in the ON or the OFF state, unlike Hankaku/Zenkaku, which toggles each time you press it. They are used like the Mac &quot;Kana&quot; and &quot;Eisu&quot; keys. They can be used on a Japanese keyboard layout. You can also write them with the QMK names (<code>KC_LANG1</code>, <code>KC_LANG2</code>, <code>KC_HAEN</code>, <code>KC_HANJ</code>).</p>
+<p>For a key that is not in the list, you can write <code>SC_XXXX</code> directly in the key code box. <code>XXXX</code> is a 4-digit hexadecimal scan code (the upper 2 digits are one of <code>00</code>, <code>E0</code>, and <code>E1</code>; the lower 2 digits are not <code>00</code>). For example, the browser &quot;Back&quot; key is <code>SC_E06A</code>.</p>
+<h3 id="power-keys">Power keys</h3>
+<p>When you assign the sleep, power, or wake-up key, a confirmation appears, because pressing it may put the PC to sleep or shut it down. A ⚠ is also shown on the keycap.</p>
+<p><img src="../img/ja/assign-power.png" alt="Power key confirmation" /></p>
+<h2 id="keys-with-modifiers">Keys with modifiers</h2>
+<p>This is how to assign a shortcut such as Ctrl+C. Check the modifier check boxes at the bottom of the window first, then choose the key. For example, check left Ctrl and choose <code>C</code>, and you get <code>LCTL(KC_C)</code> (Ctrl+C). In the keyboard diagram, it is shown like <code>^C</code>.</p>
+<p>You can also write it directly in the key code box, like <code>LCTL(LSFT(KC_T))</code>.</p>
+<p>Even if you hold the key and press the next key, the added modifier is not applied to the next key. For example, the &quot;a&quot; right after the key that types &quot;!&quot; stays &quot;a&quot;.</p>
+<p><a id="capture"></a></p>
+<h2 id="press-to-enter">Press to enter</h2>
+<p>After you press <strong>Press to enter</strong>, press the key you want to enter, and that key's key code goes in. Esc cancels.</p>
+<p>Left and right modifier keys, the numpad Enter, and Japanese keys (Muhenkan, Henkan, and so on) are entered distinguished from each other. Keys that Windows handles first, such as the Win key and Alt+Tab, cannot be captured. In that case, choose from <strong>Keyboard view</strong> or from the list.</p>
+<p><a id="keyboard-view-pick"></a></p>
+<h2 id="choosing-from-the-keyboard-diagram">Choosing from the keyboard diagram</h2>
+<p>If you choose <strong>Keyboard view</strong> at the end of the list on the left, you can choose from a picture of the keyboard. If you check a modifier, it takes the form of <code>LCTL(KC_C)</code>.</p>
+<p><img src="../img/ja/assign-softkeyboard.png" alt="Keyboard view" /></p>
+<p><a id="layer-actions"></a></p>
+<h2 id="layer-actions">Layer actions</h2>
+<p>When you choose <strong>Layer actions</strong>, boxes for <strong>Type</strong> and <strong>Layer</strong> appear. After choosing, press <strong>Insert into key code</strong>, and it goes into the key code box in a form like <code>MO(1)</code>.</p>
+<p><img src="../img/ja/assign-layer.png" alt="Layer actions" /></p>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MO(n)</code></td>
+<td>Enables layer n only while the key is held</td>
+</tr>
+<tr>
+<td><code>TG(n)</code></td>
+<td>Each press toggles layer n on and off</td>
+</tr>
+<tr>
+<td><code>DF(n)</code></td>
+<td>Switches the base layer to n</td>
+</tr>
+<tr>
+<td><code>OSL(n)</code></td>
+<td>Uses layer n for just the next key you press</td>
+</tr>
+<tr>
+<td><code>TO(n)</code></td>
+<td>Enables only layer n (other layers are disabled)</td>
+</tr>
+<tr>
+<td><code>TT(n)</code></td>
+<td>Layer n while held. If you tap several times in a row, it stays enabled</td>
+</tr>
+<tr>
+<td><code>LM(n,mod)</code></td>
+<td>While held, enables layer n and also holds down a modifier</td>
+</tr>
+<tr>
+<td><code>OSM(mod)</code></td>
+<td>Applies a modifier to just the next key you press</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Choose the modifier for <code>LM</code> and <code>OSM</code> with the check boxes at the bottom of the window.</li>
+<li>The number of taps needed to lock <code>TT(n)</code> is 5 by default. You can change it in the &quot;Timing&quot; tab of the settings dialog (<a href="13-settings.html">13. Settings Dialog</a>).</li>
+<li>With <code>OSM</code>, if you press and release the key briefly, the modifier is applied to just the next key you press. For example, <code>a</code> after a Shift <code>OSM</code> gives &quot;A&quot;. If you tap again while waiting, it is cancelled. If you use it while holding it down, it is an ordinary modifier.</li>
+<li>If you hold <code>LM(1,MOD_LCTL)</code> and press <code>C</code>, which is still ▽ on layer 1, you get Ctrl+C.</li>
+</ul>
+<h3 id="adding-a-layer">Adding a layer</h3>
+<p>Add layers with <strong>+ Add</strong> in the editor. On layer 1 and above, all keys are ▽ (transparent) at first. ▽ means to use the same action as the layer below.</p>
+<p><a id="mod-tap"></a></p>
+<h2 id="mod-tap-and-layer-tap">Mod-Tap and Layer-Tap</h2>
+<p>These change the action between a short press and a long press. Set them with <strong>Mod-Tap (MT)</strong> and <strong>Layer-Tap (LT)</strong> in the list on the left.</p>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Short press</th>
+<th>Long press</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mod-Tap (<code>MT(mod,kc)</code>)</td>
+<td><code>kc</code></td>
+<td>A modifier (<code>mod</code>)</td>
+</tr>
+<tr>
+<td>Layer-Tap (<code>LT(n,kc)</code>)</td>
+<td><code>kc</code></td>
+<td>Enables layer n</td>
+</tr>
+</tbody>
+</table>
+<p><img src="../img/ja/assign-modtap.png" alt="Mod-Tap" /></p>
+<p>The <strong>Tap key</strong> box already holds the current key code of the key you clicked. For the A key, that is <code>KC_A</code>, so you only choose a modifier or a layer, and you get a key that gives &quot;A on a short press&quot;. When the current assignment is not a plain key (such as ▽ or <code>LCTL(KC_C)</code>), the key code of the key's legend is entered.</p>
+<ul>
+<li>If you press another key while holding, it is treated as a hold. That key is entered with the assignment of the layer you switched to. For example, if you press <code>J</code> while holding <code>LT(1,KC_SPC)</code>, you get the key at the <code>J</code> position on layer 1.</li>
+<li>If you press again and keep holding right after a short press, the key of the short press repeats. You can hit the space bar repeatedly, or hold it.</li>
+<li>You can change the detection time and mode in the &quot;Timing&quot; tab of the settings dialog. If Mod-Tap is unintentionally treated as a hold when you type fast, try changing the mode.</li>
+</ul>
+<p><a id="macro-tapdance-helper"></a></p>
+<h2 id="macros-tap-dances-and-helper-actions">Macros, tap dances, and helper actions</h2>
+<ul>
+<li><strong>Macro / Tap dance</strong>: assigns <code>MACRO(n)</code> and <code>TAPDANCE(n)</code>. Choose the type and enter a number. Press <strong>Macro...</strong> next to the number (<strong>Tap dance...</strong> when the type is <code>TAPDANCE</code>) to choose from a list. For how to make the contents, see <a href="09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides</a>.
+<ul>
+<li>Press <strong>Edit...</strong> to open the selected number in the macro (or tap dance) window.</li>
+<li>Press <strong>New...</strong> to open an unused number. For a tap dance, it is made with this key's current key (for example, <code>KC_A</code>) put in <strong>Single tap</strong>. After you decide the contents, use <strong>Insert TAPDANCE(n) into the key assignment field</strong> in that window to assign it to this key.</li>
+</ul>
+</li>
+<li><strong>Helper actions</strong>: when you press the key, the tray runs something such as launching a program. Assign one with <strong>Assign selected action</strong>, or make one with <strong>New action...</strong>. You can fix the contents of an action selected in the list with <strong>Edit...</strong> (what you fix is saved on the spot). For details, see <a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a>.
+<ul>
+<li>With <strong>Trigger</strong> at the bottom of the same window, you can choose a trigger (a key the tray watches; see <a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a>) and assign its key (in the form <code>LCTL(KC_F13)</code> if it has a modifier) to this key. Press <strong>Assign selected trigger's key</strong>. You can also make a trigger with <strong>New trigger...</strong> and assign it right away. A key assigned this way gets a <strong>T</strong> mark in the keyboard diagram (<strong>H</strong> for a <code>HLP(id)</code> key).</li>
+</ul>
+</li>
+</ul>
+<p><a id="combo-keyoverride"></a></p>
+<h2 id="combos-and-key-overrides">Combos and key overrides</h2>
+<p>With <strong>Combo</strong> and <strong>Key override</strong> at the end of the list on the left, you open or make the combos and key overrides that involve this key, each in its own window. This key's assignment does not change, so <strong>OK</strong> cannot be pressed while you have these two selected. To change the assignment, choose another category.</p>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>When one already exists</th>
+<th>When you make a new one</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Combo</td>
+<td>A list of the combos that use this key appears. Choose one and press <strong>Open...</strong> to open that number in the combo window</td>
+<td><strong>Create a combo with this key...</strong> makes a combo in an unused number, with this key as <strong>Key 1</strong>. Choose key 2 and the key to send, and press <strong>OK</strong> in the combo window to confirm</td>
+</tr>
+<tr>
+<td>Key override</td>
+<td>A list of the key overrides that use this key as their condition appears. Choose one and press <strong>Open...</strong> to open that number in the key override window</td>
+<td><strong>Create a key override with this key...</strong> makes a key override in an unused number, with this key as <strong>Key</strong>. Write the modifiers and the replacement, and press <strong>OK</strong> in the key override window to confirm</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>One key can be used in only one combo. When this key is already used in an enabled combo, <strong>Create a combo with this key...</strong> cannot be pressed.</li>
+<li>The condition of a key override is the key that this key sends on this layer. A ▽ key is decided by the assignment of the layer below. For a key with modifiers such as <code>LALT(KC_ZKHK)</code>, the condition is <code>KC_ZKHK</code>. For an assignment that sends no key, such as <code>MO(1)</code>, you cannot make a key override.</li>
+<li>You can make several key overrides with different modifiers for the same key.</li>
+<li>Disabled combos and key overrides also appear in the list, with &quot; (disabled)&quot; added. You can open one and enable it again.</li>
+<li>A combo or key override you made does not go into the settings until you press <strong>OK</strong> or <strong>Apply</strong> in its own window. If you cancel, nothing changes.</li>
+</ul>
+<p>You can do the same by right-clicking a key in the keyboard diagram. The menu shows items like &quot;Open combo 3...&quot; if there is something involving this key, and <strong>Create a combo with this key...</strong> and the like if there is not. <strong>Create a tap dance with this key...</strong> opens this key's assignment window together with the tap dance window.</p>
+<h2 id="keyword-list">Keyword list</h2>
+<p>This is a list of the short names you write in assignment boxes, macros, combos, and so on. Most are the same names as in QMK Firmware. <code>n</code> is a layer number and <code>kc</code> is a key code.</p>
+<table>
+<thead>
+<tr>
+<th>Keyword</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MO(n)</code>, <code>TG(n)</code>, <code>DF(n)</code>, <code>OSL(n)</code>, <code>TO(n)</code>, <code>TT(n)</code></td>
+<td>Layer actions (the table above)</td>
+</tr>
+<tr>
+<td><code>LM(n,mod)</code></td>
+<td>While held, enables layer n and also holds down a modifier</td>
+</tr>
+<tr>
+<td><code>OSM(mod)</code></td>
+<td>Applies a modifier to just the next key you press</td>
+</tr>
+<tr>
+<td><code>MT(mod,kc)</code></td>
+<td><code>kc</code> on a short press, a modifier on a long press</td>
+</tr>
+<tr>
+<td><code>LT(n,kc)</code></td>
+<td><code>kc</code> on a short press, layer n on a long press</td>
+</tr>
+<tr>
+<td><code>MACRO(n)</code></td>
+<td>Runs macro n. It can also be used as the output of key overrides, combos, and tap dances</td>
+</tr>
+<tr>
+<td><code>TAPDANCE(n)</code></td>
+<td>Runs tap dance n, which changes the action by the number of taps or a long press</td>
+</tr>
+<tr>
+<td><code>HLP(id)</code></td>
+<td>The key itself sends nothing, and the tray runs an action (specific to kasane)</td>
+</tr>
+<tr>
+<td><code>LCTL(kc)</code>, <code>LSFT(kc)</code>, <code>LALT(kc)</code>, <code>LGUI(kc)</code></td>
+<td>Presses <code>kc</code> while holding the left modifier. The right ones work the same with <code>RCTL</code> and so on</td>
+</tr>
+<tr>
+<td><code>MOD_LCTL</code>, <code>MOD_LSFT</code>, <code>MOD_LALT</code>, <code>MOD_LGUI</code></td>
+<td>Names of modifiers (used in <code>LM</code>, <code>MT</code>, <code>OSM</code>, and key override conditions). The right ones are <code>MOD_RCTL</code> and so on</td>
+</tr>
+<tr>
+<td><code>KC_xxx</code></td>
+<td>An ordinary key (<code>KC_A</code>, <code>KC_F1</code>, <code>KC_ENTER</code>, and so on)</td>
+</tr>
+<tr>
+<td><code>KC_TRNS</code></td>
+<td>Transparent (▽). Uses the assignment of the layer below</td>
+</tr>
+<tr>
+<td><code>KC_NO</code></td>
+<td>A key that does nothing</td>
+</tr>
+<tr>
+<td><code>SC_xxxx</code></td>
+<td>Specifies a scan code directly in hexadecimal (for keys without a name)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="example-assigning-f13-or-the-browser-back-key">Example: assigning F13 or the browser &quot;Back&quot; key</h2>
+<ol>
+<li>Click the key you want to assign.</li>
+<li>Choose <strong>Function</strong> in the list on the left, and press <code>F13</code>. For the browser &quot;Back&quot; key, choose it from <strong>Media / System</strong>.</li>
+<li>Press <strong>OK</strong>, and then press <strong>Apply to keyboard (ON)</strong>.</li>
+</ol>
+<p>F13 to F24 are handy to use with other tools, and as triggers for helper actions. However, F24 may be used internally by kasane (<a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a>).</p>
+
+<div class="pager"><a href="07-emergency.html">← 7. Emergency Release</a><a href="09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides →</a></div>
+</main>
+</div>
+</body>
+</html>

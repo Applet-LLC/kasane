@@ -49,6 +49,9 @@ Copy-Item -LiteralPath (Join-Path $readmeDir "README.ja-JP.txt") -Destination $s
 Copy-Item -LiteralPath (Join-Path $readmeDir "README.en-US.txt") -Destination $stagingDir -Force
 Copy-Item -LiteralPath (Join-Path $licenseDir "License.ja-JP.rtf") -Destination $stagingDir -Force
 Copy-Item -LiteralPath (Join-Path $licenseDir "License.en-US.rtf") -Destination $stagingDir -Force
+# 同じ内容の、読みやすいテキスト版（Convert-LicenseToText.ps1 で RTF から作る）
+Copy-Item -LiteralPath (Join-Path $licenseDir "License.ja-JP.txt") -Destination $stagingDir -Force
+Copy-Item -LiteralPath (Join-Path $licenseDir "License.en-US.txt") -Destination $stagingDir -Force
 
 # サードパーティノーティス: zip の直下に THIRD-PARTY-NOTICES.txt と、各ライセンスのファイルを入れた third-party\ を置く（インストール先と同じ並び）。
 $repoRoot = Split-Path -Parent $setupDir

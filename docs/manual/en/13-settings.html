@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>13. Settings Dialog - kasane Help</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane Help</a>
+<ol>
+<li><a href="index.html">Introduction</a></li>
+<li><a href="01-install.html">1. Installation</a></li>
+<li><a href="02-uninstall.html">2. Uninstallation</a></li>
+<li><a href="03-license.html">3. License Activation</a></li>
+<li><a href="04-tray.html">4. Tray</a></li>
+<li><a href="05-editor-basics.html">5. Editor Basics</a></li>
+<li><a href="06-calibration.html">6. Calibration</a></li>
+<li><a href="07-emergency.html">7. Emergency Release</a></li>
+<li><a href="08-key-assign.html">8. Assigning Keys</a></li>
+<li><a href="09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides</a></li>
+<li><a href="10-ime-nicola.html">10. IME Linking and NICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a></li>
+<li><a href="12-recipes.html">12. Setup Examples</a></li>
+<li class="current"><a href="13-settings.html">13. Settings Dialog</a></li>
+<li><a href="14-import-export.html">14. Import and Export</a></li>
+<li><a href="15-backup-migrate.html">15. Backup and Migration</a></li>
+<li><a href="16-reference.html">16. Troubleshooting and Known Limitations</a></li>
+<li><a href="17-keymaptool.html">17. KeymapTool and Samples</a></li>
+<li><a href="18-readme.html">18. README and Background</a></li>
+<li><a href="19-terms.html">19. Terms of Use</a></li>
+<li><a href="20-third-party.html">20. Third-Party Notices</a></li>
+</ol>
+
+</nav>
+<main>
+<div class="pagehead">kasane 1.01 2026-11-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/13-settings.html">日本語</a></div>
+<h1 id="settings-dialog">13. Settings Dialog</h1>
+<p>Press <strong>Settings...</strong> at the bottom of the editor window to open the settings dialog, which has tabs.</p>
+<p><img src="../img/ja/settings-general.png" alt="The settings dialog" /></p>
+<table>
+<thead>
+<tr>
+<th>Tab</th>
+<th>Contents</th>
+<th>Chapter that explains it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>General</td>
+<td>Linking with the tray, showing the layer number, color mode, display language</td>
+<td>This chapter</td>
+</tr>
+<tr>
+<td>Features</td>
+<td>Turning macros, combos, tap dances, and key overrides ON and OFF</td>
+<td>This chapter</td>
+</tr>
+<tr>
+<td>Timing</td>
+<td>The detection times for hold, simultaneous press, and consecutive taps</td>
+<td>This chapter</td>
+</tr>
+<tr>
+<td>IME link</td>
+<td>Switching layers to match the IME, NICOLA</td>
+<td><a href="10-ime-nicola.html">10. IME Linking and NICOLA</a></td>
+</tr>
+<tr>
+<td>Helper actions</td>
+<td>Launching programs and the like with a key</td>
+<td><a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a></td>
+</tr>
+<tr>
+<td>Per-app layers</td>
+<td>Switching layers to match the foreground app</td>
+<td><a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a></td>
+</tr>
+<tr>
+<td>Emergency release</td>
+<td>The emergency-release key combination</td>
+<td><a href="07-emergency.html">7. Emergency Release</a></td>
+</tr>
+<tr>
+<td>Sharing scope</td>
+<td>The unit in which the driver stores settings</td>
+<td>This chapter</td>
+</tr>
+<tr>
+<td>Data folder</td>
+<td>The settings folder, restoring pre-import settings</td>
+<td>This chapter</td>
+</tr>
+<tr>
+<td>i8042prt</td>
+<td>The layout of PS/2 keyboards</td>
+<td>This chapter</td>
+</tr>
+<tr>
+<td>Desktop</td>
+<td>How desktop icons are shown</td>
+<td>This chapter</td>
+</tr>
+<tr>
+<td>About</td>
+<td>The version and build date and time</td>
+<td>This chapter</td>
+</tr>
+</tbody>
+</table>
+<p>Close the dialog with <strong>OK</strong> and <strong>Cancel</strong> at the bottom. The moment when a setting takes effect differs by tab.</p>
+<table>
+<thead>
+<tr>
+<th>Tab</th>
+<th>When it takes effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>General, Desktop</td>
+<td>Saved with <strong>OK</strong>. The tray reads it again within a few seconds</td>
+</tr>
+<tr>
+<td>Features, Timing, the NICOLA layout in IME link</td>
+<td>When you press <strong>Apply to keyboard (ON)</strong> in the editor after <strong>OK</strong></td>
+</tr>
+<tr>
+<td>Helper actions, Per-app layers</td>
+<td>Saved with <strong>OK</strong>. The tray reads it again within a few seconds</td>
+</tr>
+<tr>
+<td>Emergency release</td>
+<td>When you move to another tab, or press <strong>OK</strong> (only when started as administrator)</td>
+</tr>
+<tr>
+<td>Sharing scope</td>
+<td>When you press the button in the tab (unrelated to <strong>OK</strong> and <strong>Cancel</strong>)</td>
+</tr>
+<tr>
+<td>i8042prt</td>
+<td>When you press <strong>Save</strong> in the tab (unrelated to <strong>OK</strong> and <strong>Cancel</strong>)</td>
+</tr>
+</tbody>
+</table>
+<p><a id="general"></a></p>
+<h2 id="general">General</h2>
+<p><img src="../img/ja/settings-general.png" alt="General" /></p>
+<h3 id="tray">Tray</h3>
+<ul>
+<li><strong>Remap only while the tray is running</strong>: when ON, remapping goes OFF when the tray exits, on sign-out, on shutdown, and when the screen is locked, and goes back ON when the tray starts and when the screen is unlocked (ON by default). For details, see <a href="04-tray.html">4. Tray</a>.</li>
+<li><strong>Show the layer number on the tray icon</strong>: the number of the current layer is shown at the lower right of the icon. It is not shown when only the base layer is active. It hides most of the icon, so clear the check if you do not want it.</li>
+</ul>
+<h3 id="colors">Colors</h3>
+<p>With <strong>Color mode</strong>, you can choose <strong>Light (default)</strong> or <strong>Dark</strong>. When you save with <strong>OK</strong>, it applies to every window, both those already open and those you open from now on: the main window, settings, every editing window, key assignment, and so on. The title bar also becomes dark.</p>
+<p><img src="../img/ja/settings-dark.png" alt="Dark mode" /></p>
+<ul>
+<li>It also applies to the tray (the right-click menu and About) and to License Manager. The tray reads it each time you open a menu or dialog. License Manager reads it each time it starts. After you change the setting, it changes from the next time you open them. Reopen a License Manager that is already open.</li>
+<li>It does not follow the Windows mode setting. What you choose here takes priority.</li>
+<li>The colors of confirmation screens that Windows shows (messages, file selection screens) do not change.</li>
+</ul>
+<h3 id="display-language">Display language</h3>
+<p>With <strong>Language</strong>, you choose the display language of kasane and the tray from <strong>Auto (default)</strong>, <strong>Japanese</strong>, and <strong>English</strong>. Auto follows the Windows display language. The change takes effect after kasane and the tray are restarted. When you save, a confirmation recommends restarting kasane. The tray restarts automatically after a few seconds.</p>
+<p>The help also follows this language. When you choose English, the English help opens.</p>
+<p><img src="../img/ja/settings-language-restart.png" alt="The confirmation after changing the display language" /></p>
+<p><a id="features"></a></p>
+<h2 id="features">Features</h2>
+<p>You can turn macros, combos, tap dances, and key overrides OFF if you do not use them. The screen also shows the keyboard's current values (&quot;Macro ON / Combo ON / …&quot;).</p>
+<p><img src="../img/ja/settings-features.png" alt="Features" /></p>
+<ul>
+<li>Keys of a feature you turned OFF do nothing. The keys that make up a combo work as ordinary keys.</li>
+<li>Even if you turn a feature OFF, its contents (such as macro definitions) are not deleted.</li>
+<li>Layers and key replacement, Mod-Tap and Layer-Tap, and keys with modifiers cannot be turned OFF. They are always available.</li>
+<li>If you have never touched a check box, applying does not change the keyboard's settings. Values you changed with the command-line version (<code>--set-features</code>) remain as they are.</li>
+</ul>
+<p><a id="timing"></a></p>
+<h2 id="timing">Timing</h2>
+<p>You change the detection times for hold, simultaneous press, and consecutive taps, and similar settings.</p>
+<p><img src="../img/ja/settings-timing.png" alt="Timing" /></p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TapTerm</td>
+<td>For Mod-Tap and Layer-Tap, the time after which pressing longer counts as a hold (default 200)</td>
+</tr>
+<tr>
+<td>ComboTerm</td>
+<td>For combos, the upper limit of the interval between pressing the two keys (default 50)</td>
+</tr>
+<tr>
+<td>TapDanceTerm</td>
+<td>For tap dances, the tap interval and the time for detecting a hold (default 200)</td>
+</tr>
+<tr>
+<td>Tap-hold mode</td>
+<td>How Mod-Tap and Layer-Tap are detected. Three ways: <strong>Hold when another key is pressed</strong> (default), <strong>Hold when another key is pressed and released</strong>, and <strong>Tap if released in time</strong>. Tap dances always use the default mode</td>
+</tr>
+<tr>
+<td>Quick Tap</td>
+<td>A feature that repeats the key if you keep holding it right after a short press. Switch it ON and OFF with <strong>Enable</strong>. With a time of 0, it is the same as TapTerm</td>
+</tr>
+<tr>
+<td>TT count</td>
+<td>The number of taps needed to lock <code>TT(n)</code> (0 is the default of 5)</td>
+</tr>
+</tbody>
+</table>
+<p>The unit is milliseconds, and you enter an integer from 0 to 10000. With 0, the default value is used. The current values of the keyboard are also shown at the top of the screen. If Mod-Tap is unintentionally treated as a hold when you type fast, try the second or third mode.</p>
+<p><a id="scope"></a></p>
+<h2 id="sharing-scope">Sharing scope</h2>
+<p>A keyboard is treated as a different keyboard for each place it is connected (such as the USB port). The settings you made in the editor (<code>project.json</code>) and the tray settings are not carried over when you change ports (you can move them with export and import).</p>
+<p>The sharing scope is the unit in which the driver stores settings.</p>
+<p><img src="../img/ja/settings-scope-admin.png" alt="Sharing scope (opened as administrator)" /></p>
+<p>When you are not an administrator, you are in read-only mode and <strong>Change</strong> cannot be pressed.</p>
+<p><img src="../img/ja/settings-scope.png" alt="Sharing scope (read-only mode)" /></p>
+<table>
+<thead>
+<tr>
+<th>Choice</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Share across the same model (default)</td>
+<td>For the same model, the same settings are used even if you change ports</td>
+</tr>
+<tr>
+<td>This keyboard only</td>
+<td>The settings apply only to the keyboard in this connector</td>
+</tr>
+<tr>
+<td>Share across all keyboards</td>
+<td>One setting is used for all keyboards</td>
+</tr>
+</tbody>
+</table>
+<p>Choose one and press <strong>Change</strong> to apply it. At the bottom of the screen, the current scope and the keyboard's identifiers (InstanceKey, ModelKey) are shown. In read-only mode, you cannot change it.</p>
+<p>The two identifiers shown on the screen are 8-digit hexadecimal numbers, made from the keyboard's information as follows.</p>
+<table>
+<thead>
+<tr>
+<th>Identifier</th>
+<th>What it is calculated from</th>
+<th>Properties</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>InstanceKey</td>
+<td>The device instance ID (including the connection location)</td>
+<td>Different for each keyboard, and it changes when you change the USB port. It is the same value as <code>DeviceId</code> and <code>UniqId</code>, and becomes the name of the <code>&lt;UniqId&gt;</code> folder in the settings folder</td>
+</tr>
+<tr>
+<td>ModelKey</td>
+<td>The first of the hardware IDs</td>
+<td>The same value for the same model, and it does not change when you change ports. A different revision number (<code>REV_xxxx</code>) is treated as a different model</td>
+</tr>
+</tbody>
+</table>
+<p>Both are made from a 16-bit calculation result, so they occasionally match those of another keyboard.</p>
+<ul>
+<li>&quot;Share across all keyboards&quot; gives unintended assignments if you mix keyboards with different layouts (such as JIS and a numeric keypad). If a keyboard of a different model is connected, a confirmation appears.</li>
+<li>When you switch, the current settings are copied to the new scope, and the existing settings in the new scope are overwritten. For example, going back to &quot;same model&quot; from &quot;all&quot; or &quot;this keyboard&quot; replaces the settings shared across the same model.</li>
+<li>The change is not applied to another keyboard of the same model until you reconnect that keyboard (or restart the PC).</li>
+</ul>
+<p><a id="data-dir"></a></p>
+<h2 id="data-folder">Data folder</h2>
+<p>This shows the folder where the settings files (the settings for each keyboard, the tray settings, and the logs) are stored, and the value of the environment variable <code>KASANE</code>.</p>
+<p><img src="../img/ja/settings-datadir-admin.png" alt="Data folder" /></p>
+<ul>
+<li>If an absolute path is set in <code>KASANE</code>, that folder is used. If not, <code>%LOCALAPPDATA%\applet\kasane</code> is used.</li>
+<li>You change the value in &quot;Settings folder&quot; in the installer (<a href="01-install.html">1. Installation</a>). After the change, restart, or sign out and sign in, as needed.</li>
+<li>With <strong>Open folder</strong>, you can open it in Explorer.</li>
+</ul>
+<h3 id="restore-pre-import-settings">Restore pre-import settings</h3>
+<p>Models whose settings were replaced by importing a settings file at installation are listed at the bottom of this tab. <strong>Restore pre-import settings</strong> swaps the kept settings with the current settings. Press it again to undo.</p>
+<p>It writes the driver's registry, so it can be pressed only after you use <strong>Restart as administrator</strong>. It takes effect after you reconnect the keyboard (or after you restart the PC).</p>
+<p><a id="i8042"></a></p>
+<h2 id="i8042prt">i8042prt</h2>
+<p>The layout of a PS/2 (ACPI) keyboard can be specified only with values in the registry <code>HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\i8042prt\Parameters</code>. For HID keyboards, if these values remain, per-keyboard specification stops working.</p>
+<p>Use this setting when the built-in keyboard of a laptop is a PS/2 (ACPI) keyboard and you also use an external keyboard. It is for when you want to use different keyboard layouts for the built-in and the external keyboards. When enabled, the specified layout is applied at PC startup, when the PS/2 (ACPI) keyboard is recognized. Try it when the layout of the PS/2 (ACPI) keyboard does not become JIS even if you set the keyboard layout to &quot;Connected keyboard&quot; in the Windows &quot;Language &amp; region&quot; options.</p>
+<p><img src="../img/ja/settings-i8042-admin.png" alt="i8042prt (opened as administrator)" /></p>
+<p>When you are not an administrator, the input boxes and <strong>Save</strong> cannot be pressed.</p>
+<p><img src="../img/ja/settings-i8042.png" alt="i8042prt (read-only mode)" /></p>
+<p>When you enable <strong>Reset the i8042prt values on connection</strong>, every time a keyboard is connected (including at startup), the values are rewritten as follows.</p>
+<ul>
+<li>For a model that has a profile, the values you set are written (blank values are deleted).</li>
+<li>For a model that has no profile, <code>OverrideKeyboardType</code>, <code>OverrideKeyboardSubtype</code>, <code>OverrideKeyboardIdentifier</code>, <code>LayerDriver JPN</code>, and <code>LayerDriver KOR</code> are deleted, which restores the OS defaults.</li>
+</ul>
+<p>When disabled (the default), nothing is done. When you select <strong>Use the settings below for this keyboard</strong>, the values below are used as the profile for the model of the selected keyboard. Choose from <strong>Region/layout preset</strong>, or enter <strong>Type</strong>, <strong>Subtype</strong>, <code>OverrideKeyboardIdentifier</code>, <code>LayerDriver JPN</code>, and <code>LayerDriver KOR</code> (the layout DLL name, for example <code>kbd106.dll</code>) by hand. When other models are registered, they appear in the list. While disabled, you cannot set a profile, but what was saved remains and is used when you enable it. This is a driver-wide setting, and it is saved immediately when you press <strong>Save</strong>. The rewriting is done from the next time a keyboard is connected (reconnecting, or restarting).</p>
+<p>At the top of the screen, the <code>DeviceId</code> of the selected keyboard and the <code>ModelKey</code>, which represents its model, are shown. Profiles are stored per <code>ModelKey</code>, so they are shared by keyboards of the same model. For the two identifiers, see the earlier section &quot;Sharing scope&quot;.</p>
+<p><a id="desktop"></a></p>
+<h2 id="desktop">Desktop</h2>
+<p>This changes how desktop icons are shown (Icons, Details, Small icons, List, Tiles). It has nothing to do with key remapping; it carries over a feature that was in the nodoka settings.</p>
+<p><img src="../img/ja/settings-desktop.png" alt="Desktop" /></p>
+<p>If you leave it at <strong>Don't change (default)</strong>, nothing is done. The view you choose is applied when you save with <strong>OK</strong> and when the tray starts. Depending on the OS and the state of the desktop, the view you chose may not be applied.</p>
+<p><a id="about"></a></p>
+<h2 id="about">About</h2>
+<p>The product name, the version, the build date and time, the location of the running file, and the website are shown. You can also open it from the version display in the title bar of the main window, and from <strong>About</strong> in the tray.</p>
+<p><img src="../img/ja/settings-about.png" alt="About" /></p>
+
+<div class="pager"><a href="12-recipes.html">← 12. Setup Examples</a><a href="14-import-export.html">14. Import and Export →</a></div>
+</main>
+</div>
+</body>
+</html>

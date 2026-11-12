@@ -28,7 +28,7 @@ public sealed class TrayContext : ApplicationContext
     private DesktopViewApplier? _desktopView; // デスクトップのアイコンの表示方法を合わせている最中のもの（設定が無ければ null）
     private int? _desktopViewApplied;        // 最後に反映を始めた DesktopViewMode（設定が変わったかを見るため）
     private readonly ContextMenuStrip _menu = new();
-    private readonly ToolStripMenuItem _settingsItem = new(Loc.T("設定", "Settings")) { Name = "TraySettings" };
+    private readonly ToolStripMenuItem _settingsItem = new(Loc.T("設定/エディタ", "Settings/Editor")) { Name = "TraySettings" };
     private readonly ToolStripMenuItem _pauseItem = new(Loc.T("一時停止", "Pause")) { Name = "TrayPause" };
     private readonly ToolStripMenuItem _layerItem = new(Loc.T("レイヤー", "Layers")) { Name = "TrayLayers" };
     private readonly ToolStripMenuItem _licenseItem = new(Loc.T("ライセンス", "License")) { Name = "TrayLicense" };

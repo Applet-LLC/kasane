@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>9. Macros, Combos, Tap Dances and Key Overrides - kasane Help</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane Help</a>
+<ol>
+<li><a href="index.html">Introduction</a></li>
+<li><a href="01-install.html">1. Installation</a></li>
+<li><a href="02-uninstall.html">2. Uninstallation</a></li>
+<li><a href="03-license.html">3. License Activation</a></li>
+<li><a href="04-tray.html">4. Tray</a></li>
+<li><a href="05-editor-basics.html">5. Editor Basics</a></li>
+<li><a href="06-calibration.html">6. Calibration</a></li>
+<li><a href="07-emergency.html">7. Emergency Release</a></li>
+<li><a href="08-key-assign.html">8. Assigning Keys</a></li>
+<li class="current"><a href="09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides</a></li>
+<li><a href="10-ime-nicola.html">10. IME Linking and NICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a></li>
+<li><a href="12-recipes.html">12. Setup Examples</a></li>
+<li><a href="13-settings.html">13. Settings Dialog</a></li>
+<li><a href="14-import-export.html">14. Import and Export</a></li>
+<li><a href="15-backup-migrate.html">15. Backup and Migration</a></li>
+<li><a href="16-reference.html">16. Troubleshooting and Known Limitations</a></li>
+<li><a href="17-keymaptool.html">17. KeymapTool and Samples</a></li>
+<li><a href="18-readme.html">18. README and Background</a></li>
+<li><a href="19-terms.html">19. Terms of Use</a></li>
+<li><a href="20-third-party.html">20. Third-Party Notices</a></li>
+</ol>
+
+</nav>
+<main>
+<div class="pagehead">kasane 1.01 2026-11-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/09-advanced.html">日本語</a></div>
+<h1 id="macros-combos-tap-dances-and-key-overrides">9. Macros, Combos, Tap Dances and Key Overrides</h1>
+<p>With <strong>Macros...</strong>, <strong>Combos...</strong>, <strong>Tap dances...</strong>, and <strong>Key overrides...</strong> at the bottom of the editor window, you make more complex actions. These four kinds of actions are processed by the driver, so they work even when the tray is not running.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Macro</td>
+<td>Types a sequence of keys in order. Up to 128 (0 to 127). One macro can have up to 64 steps</td>
+</tr>
+<tr>
+<td>Combo</td>
+<td>Sends another key when two keys are pressed together. Up to 16</td>
+</tr>
+<tr>
+<td>Tap dance</td>
+<td>Changes the action by the number of taps or a long press. Up to 16 (0 to 15)</td>
+</tr>
+<tr>
+<td>Key override</td>
+<td>Replaces a combination of modifiers and a key with another key or action. Up to 128 (0 to 127)</td>
+</tr>
+</tbody>
+</table>
+<p>In the &quot;Features&quot; tab of the settings dialog, you can turn off features you do not use (<a href="13-settings.html">13. Settings Dialog</a>). Even if you turn one off, the contents of the definitions are not deleted.</p>
+<p>You can also start from a key in the keyboard diagram. With <strong>Combo</strong>, <strong>Key override</strong>, and <strong>Macro / Tap dance</strong> in the key assignment window, or with the key's right-click menu, you can open the definitions that involve that key, or make a definition that includes that key (<a href="08-key-assign.html#combo-keyoverride">8. Assigning Keys</a>).</p>
+<p><a id="editors-common"></a></p>
+<h2 id="operations-common-to-the-editing-windows">Operations common to the editing windows</h2>
+<p>All four editing windows can be kept open at the same time. The windows open slightly offset from each other. If you try to open the same window again, the one that is open comes to the front.</p>
+<p>The buttons at the bottom of a window are, from the left, as follows.</p>
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Apply</strong></td>
+<td>Reflects the changes in the project without closing the window</td>
+</tr>
+<tr>
+<td><strong>OK</strong></td>
+<td>Reflects the changes and closes</td>
+</tr>
+<tr>
+<td><strong>Cancel</strong></td>
+<td>Closes without reflecting. Esc does the same</td>
+</tr>
+</tbody>
+</table>
+<p>If you close without pressing <strong>Apply</strong> or <strong>OK</strong>, the edits in that window are discarded. To send the changes to the keyboard, press <strong>Apply to keyboard (ON)</strong> in the editor afterward.</p>
+<p>The list on the left shows the definitions in the form <code>number: name — contents</code>. In the <strong>Name (optional)</strong> box at the top of the right side, you can give an easy-to-recognize name. The name is used only in the display and in exported files, and has nothing to do with how it works. You can put just a name on a number whose contents are empty. A number with only a name stays unused, and is not applied to the keyboard until you put contents in it.</p>
+<p>Press <strong>×</strong> at the right of a key code box to empty that box.</p>
+<p><a id="list-ops"></a></p>
+<h3 id="deleting-duplicating-and-reordering">Deleting, duplicating, and reordering</h3>
+<p>The buttons below the list act on the number shown on the right. None of them go into the project until you press <strong>Apply</strong> or <strong>OK</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Delete</strong></td>
+<td>Removes the contents and the name and makes it unused again. A confirmation appears</td>
+</tr>
+<tr>
+<td><strong>Duplicate</strong></td>
+<td>Copies the contents and the name to an unused number. &quot; (copy)&quot; is added to the name</td>
+</tr>
+<tr>
+<td><strong>Up</strong>, <strong>Down</strong></td>
+<td>Swaps with the previous or next number. Combos and key overrides only</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Macros and tap dances are assigned to keys by number as <code>MACRO(n)</code> and <code>TAPDANCE(n)</code>, so their numbers cannot be moved. Even if you delete one, the later numbers are not closed up. The reorder buttons do not appear either.</li>
+<li>Combos and key overrides are not used by number from anywhere else, so when you delete one, the later numbers move up by one. Key overrides are matched starting from the smallest number, so you can change which takes priority by reordering.</li>
+<li>A duplicated combo uses the same keys as the original, so it is disabled. Change the keys, then clear the <strong>Disable</strong> check.</li>
+</ul>
+<p>When you delete a macro or tap dance, if there are places that use that number, a list appears in the confirmation. What is checked is all layers of the keymap, the outputs of combos, each box of tap dances, and the replacements of key overrides. If you leave <strong>Also remove it where it is used</strong> (on by default) as it is, they are removed as follows.</p>
+<table>
+<thead>
+<tr>
+<th>Where it is used</th>
+<th>How it is removed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A key assignment</td>
+<td>Goes back to ▽ (transparent). On layer 0, the key works as its legend</td>
+</tr>
+<tr>
+<td>A tap dance box</td>
+<td>Becomes empty (no action). A tap dance whose four boxes are all empty becomes unused</td>
+</tr>
+<tr>
+<td>The output of a combo, the replacement of a key override</td>
+<td>That definition is disabled (its contents are kept)</td>
+</tr>
+</tbody>
+</table>
+<p>If you clear the check, the places that use it stay as they are, and pressing that key does nothing. Deleting a helper action uses the same confirmation (<a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a>).</p>
+<h3 id="disabling-a-definition">Disabling a definition</h3>
+<p>When you want to keep what you wrote but not apply it to the keyboard, check <strong>Disable</strong> on the right. The row in the list shows <code>[Off]</code>. If you clear the check, it is applied again.</p>
+<ul>
+<li>When you press <strong>Apply to keyboard (ON)</strong>, disabled definitions are not sent to the keyboard. A definition that is already on the keyboard is removed.</li>
+<li>The contents of a disabled definition are not validated. Even half-written, it does not stop applying. It is validated when you clear the check.</li>
+<li>You cannot check it on a number whose contents are empty.</li>
+<li>If a disabled macro or tap dance is used from a key assignment (<code>MACRO(n)</code>, <code>TAPDANCE(n)</code>) or from a combo's output, you are told &quot;it is disabled&quot; when you apply. Pressing that key does nothing.</li>
+<li>The keys of a disabled combo can be used in other combos.</li>
+<li>The buttons at the bottom of the editor also show the number of disabled ones (<code>Macros(2・1 off)...</code>). Disabled combos and key overrides do not get the <strong>C</strong> and <strong>R</strong> marks in the keyboard diagram.</li>
+<li>The disabled setting stays in the settings file and in exported files. If you read the settings back from the driver, definitions that were disabled do not come back (because they are not in the driver).</li>
+</ul>
+<p><a id="macro"></a></p>
+<h2 id="macros">Macros</h2>
+<p>With <strong>Macros...</strong>, you make a sequence of keys to type in order. A macro you made runs when you assign <code>MACRO(n)</code> to a key.</p>
+<p><img src="../img/ja/macro-editor.png" alt="Editing a macro" /></p>
+<ul>
+<li>In the macro contents box, line up key codes separated by spaces (for example, <code>KC_H KC_I</code>). You can also write keys with modifiers, such as <code>LCTL(KC_C)</code> (<code>C(KC_C)</code> is the same; Ctrl+Shift+T is <code>LCTL(LSFT(KC_T))</code>).</li>
+<li>One macro can have up to 64 steps. One key uses 2 steps, and each modifier uses 2 more steps.</li>
+<li><strong>Press to enter</strong> keeps capturing. Each key you press is added after the previous key, with a space between. Esc, or pressing the button again, ends it.</li>
+<li><strong>Pick...</strong> adds to the end of the box with <strong>Add</strong>. You can keep choosing with the window open. End with <strong>Close</strong>.</li>
+</ul>
+<h3 id="putting-in-macron">Putting in MACRO(n)</h3>
+<p>You can put in <code>MACRO(n)</code> without typing the number.</p>
+<ul>
+<li>Press <strong>Macro...</strong> to the right of an input box that can take <code>MACRO(n)</code> (a combo's &quot;Output key&quot;, each tap and the hold of a tap dance, the replacement of a key override), and a list of &quot;number: name — contents&quot; appears. When you choose one, <code>MACRO(n)</code> goes in.</li>
+<li>Another way: keep the macro window open, click once in the input box you want to fill in another window, and double-click a row of the list in the macro window. The button <strong>Insert MACRO(n) into the field in the other window</strong> does the same. It goes into the input box you clicked last.</li>
+<li>There are two aids so that you do not forget to put it in. When you changed the macro's contents and have not put it in yet (you clicked the target input box, and that box does not contain <code>MACRO(n)</code>), the <strong>Insert MACRO(n) into the field in the other window</strong> button stands out in bold and in color. If you press <strong>OK</strong> in that state, you are asked whether to put it in before closing. <strong>Yes</strong> puts it in and closes, <strong>No</strong> closes without putting it in, and <strong>Cancel</strong> goes back without closing. The same goes for <code>TAPDANCE(n)</code> in the tap dance window.</li>
+</ul>
+<p><a id="combo"></a></p>
+<h2 id="combos">Combos</h2>
+<p>With <strong>Combos...</strong>, you assign another key to a simultaneous press of two keys.</p>
+<p><img src="../img/ja/combo-editor.png" alt="Editing a combo" /></p>
+<ul>
+<li>Choose <strong>Key 1</strong> and <strong>Key 2</strong> from the list. Only two keys can be the target of a simultaneous press.</li>
+<li>One key can be used in only one combo. The keys of a disabled combo can be used in other combos.</li>
+<li>Combos act on physical keys, so they work the same on every layer.</li>
+<li>For <strong>Output key</strong>, besides an ordinary key, you can specify a key with modifiers such as <code>LCTL(KC_Z)</code> (while held), or <code>MACRO(n)</code> (once when the combo is recognized).</li>
+<li>The keys that are the target of a combo get a C mark in the keyboard diagram.</li>
+<li>The time within which presses count as simultaneous (ComboTerm) can be changed in the &quot;Timing&quot; tab of the settings dialog.</li>
+</ul>
+<p><a id="tapdance"></a></p>
+<h2 id="tap-dances">Tap dances</h2>
+<p>With <strong>Tap dances...</strong>, you assign a different action to each of <strong>Single tap</strong>, <strong>Hold</strong>, <strong>Double tap</strong>, and <strong>Triple tap</strong>. Each box has the buttons <strong>Press to enter</strong>, <strong>Pick...</strong>, and <strong>Macro...</strong> at its right. A tap dance you made runs when you assign <code>TAPDANCE(n)</code> to a key.</p>
+<p><img src="../img/ja/tapdance-editor.png" alt="Editing a tap dance" /></p>
+<ul>
+<li>For the single, double, and triple taps, besides an ordinary key, you can specify a key with modifiers such as <code>LCTL(KC_C)</code>, or <code>MACRO(n)</code>.</li>
+<li>For the hold, you can specify a modifier such as <code>MT(MOD_LCTL,KC_NO)</code>, a layer such as <code>LT(1,KC_NO)</code>, and also a key with modifiers (while held), <code>LM(1,MOD_LCTL)</code>, and <code>MACRO(n)</code> (once when the hold is recognized). The tap-side key of <code>MT</code> and <code>LT</code> is not used.</li>
+<li>A box left empty (or <code>KC_NO</code>) means &quot;no action&quot;. Nothing happens for that number of taps or that hold. If you empty all four boxes, that number becomes unused.</li>
+<li>The tap interval and the time for detecting a hold (TapDanceTerm) can be changed in the &quot;Timing&quot; tab of the settings dialog.</li>
+<li>In the tap dance window too, double-clicking a row of the list (or the button <strong>Insert TAPDANCE(n) into the key assignment field</strong>) puts <code>TAPDANCE(n)</code> into the key code box of the key assignment window. <code>TAPDANCE(n)</code> is an action you assign to a key, so the only place to put it is the key code box of the key assignment window.</li>
+</ul>
+<p><a id="key-override"></a></p>
+<h2 id="key-overrides">Key overrides</h2>
+<p>With <strong>Key overrides...</strong>, you replace a combination of modifiers and a key with another key. You enter three things: <strong>Modifiers</strong>, <strong>Key</strong>, and <strong>Replace with</strong>. For the modifiers, you can write several, like <code>MOD_LCTL|MOD_LSFT</code>. You can also enter them with the <strong>Shift</strong>, <strong>Alt</strong>, <strong>Ctrl</strong>, and <strong>Win</strong> check boxes at the right of the box (the check boxes and the box are linked: checking adds the left-side modifier, and clearing removes both the left and the right). The replacement happens when all of them are held (left and right are not distinguished).</p>
+<p><img src="../img/ja/keyoverride-editor.png" alt="Editing a key override" /></p>
+<table>
+<thead>
+<tr>
+<th>Example</th>
+<th>Setting</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Make Shift+BS into Delete</td>
+<td>Modifiers <code>MOD_LSFT</code>, key <code>KC_BSPACE</code>, replace with <code>KC_DELETE</code></td>
+<td>Shift+BS becomes Delete</td>
+</tr>
+<tr>
+<td>Use a keyboard with US legends on Windows set to JIS</td>
+<td>Modifiers <code>MOD_LSFT</code>, key <code>KC_2</code>, replace with <code>KC_LBRC</code></td>
+<td>Shift+2 gives @</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Key</strong> is compared using the key that comes out after layer switching. If you empty all three boxes, that number becomes unused.</li>
+<li>While the replacement is in effect, the condition's modifiers are temporarily released. If you write something like <code>LSFT(KC_X)</code> as the replacement, that modifier is applied.</li>
+<li>You can also specify <code>MACRO(n)</code> as the replacement. It runs the macro once when the key is pressed (only when the macro feature is ON). If you check <strong>Repeat the macro while the key is held</strong>, it repeats with each auto-repeat.</li>
+<li>As the replacement, you can also specify layer actions (<code>OSL(n)</code>, <code>TG(n)</code>, <code>TO(n)</code>, <code>DF(n)</code>), helper actions (<code>HLP(n)</code>), and mark mode (<code>MARK(on)</code>, <code>MARK(off)</code>, <code>MARK(toggle)</code>). No key is sent, and it is handled the same as when you put the same action in a key assignment. The condition's modifiers are not released. Example: if you make Ctrl+X into <code>OSL(1)</code>, only the next one key you press uses the assignment of layer 1.</li>
+<li><code>MARK(on)</code> enters Emacs-style mark mode (<code>MARK(off)</code> ends it, and <code>MARK(toggle)</code> switches). While it is on, the movement keys (←↑→↓, Home, End, PageUp, PageDown) get Shift, and the selection grows with each movement. If you press a key other than a movement key or a modifier, it ends after sending that key. It also ends when the foreground window changes (while the tray is running). Example: make Ctrl+Space <code>MARK(on)</code>.</li>
+<li>If you put a key with modifiers such as <code>LCTL(KC_S)</code> on the layer you switched to with <code>OSL(n)</code> or the like, the output key (Ctrl+S in this example) may hit another key override. To avoid that, assign <code>MACRO(n)</code> to that key.</li>
+<li><code>MO(n)</code>, <code>LT(n, kc)</code>, <code>KC_NO</code>, and the like cannot be used as a replacement.</li>
+<li>With an old driver (one that supports only 32 key overrides), the 33rd and later, and replacements that are layer actions or helper actions, are not applied.</li>
+</ul>
+<h3 id="example-run-a-macro-with-ctrlf1">Example: run a macro with Ctrl+F1</h3>
+<p>It is processed by the driver, so it works even when the tray is not running.</p>
+<ol>
+<li>With <strong>Macros...</strong>, make a macro with the contents you want (for example, macro 0).</li>
+<li>In the &quot;Features&quot; tab of <strong>Settings...</strong>, check that macros and key overrides are ON.</li>
+<li>Open <strong>Key overrides...</strong>, specify <code>MOD_LCTL</code> as the modifier, <code>KC_F1</code> as the key, and <code>MACRO(0)</code> as the replacement, and press <strong>OK</strong>.</li>
+<li>Press <strong>Apply to keyboard (ON)</strong>.</li>
+<li>When you press Ctrl+F1, macro 0 runs once. Ctrl+F1 itself does not reach the app.</li>
+</ol>
+<p>Only during the run, the Ctrl you are holding is released from the OS, and if you are still holding it when it ends, it is put back. This is so that Ctrl is not applied to the macro's output. If you want to use Ctrl inside the macro, write it in the macro's contents, like <code>LCTL(KC_C)</code>.</p>
+<p>When Alt or Win is the condition, a Ctrl tap is inserted in between so that the menu or Start does not open.</p>
+<p>If you keep holding the key, the macro does not repeat by default. If you want it to repeat, check <strong>Repeat the macro while the key is held</strong>, which appears when the replacement is <code>MACRO(n)</code>.</p>
+<p>When the macro feature is OFF, this replacement does not work, and Ctrl+F1 reaches the app as it is.</p>
+<blockquote>
+<p>If you want to run a procedure that includes strings, waits (delays), or mouse operations with Ctrl+F1 in the same way, use a helper action trigger (<a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a>). However, the tray must be running.</p>
+</blockquote>
+
+<div class="pager"><a href="08-key-assign.html">← 8. Assigning Keys</a><a href="10-ime-nicola.html">10. IME Linking and NICOLA →</a></div>
+</main>
+</div>
+</body>
+</html>

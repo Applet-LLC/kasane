@@ -1,5 +1,5 @@
 // Copyright (c) 2026 Applet LLC
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 //
 // i8042prt\Parameters の書き換え／初期化（キーボードの接続時）。
 // 仕様は common/kbdlayer_ioctl.h の KBDLAYER_I8042_CONFIG のコメント参照。

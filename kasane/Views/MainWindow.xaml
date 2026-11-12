@@ -75,10 +75,10 @@
             <Button x:Name="BtnCombos" Content="コンボ..." Click="BtnCombos_Click" />
             <Button x:Name="BtnTapDances" Content="タップダンス..." Click="BtnTapDances_Click" />
             <Button x:Name="BtnKeyOverrides" Content="キー置換..." Click="BtnKeyOverrides_Click" />
-            <Button x:Name="BtnSettings" Content="設定..." Click="BtnSettings_Click"
-                    ToolTip="機能のON/OFF・タイミング・NICOLA・緊急解除・共有範囲" />
             <Button x:Name="BtnRemapText" Content="割り当ての一覧..." Click="BtnRemapText_Click"
                     ToolTip="割り当てを 1 行ずつ文字で表示します" />
+            <Button x:Name="BtnSettings" Content="設定..." Click="BtnSettings_Click"
+                    ToolTip="機能のON/OFF・タイミング・NICOLA・緊急解除・共有範囲" />
             <Separator Width="24" Background="Transparent" />
             <Button x:Name="BtnImportExport" Content="インポート／エクスポート..." Click="BtnImportExport_Click"
                     ToolTip="設定をファイル(*.kasane.json)に書き出す・読み込む。選んだ項目を初期化する" />

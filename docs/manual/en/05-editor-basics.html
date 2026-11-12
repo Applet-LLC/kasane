@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>5. Editor Basics - kasane Help</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane Help</a>
+<ol>
+<li><a href="index.html">Introduction</a></li>
+<li><a href="01-install.html">1. Installation</a></li>
+<li><a href="02-uninstall.html">2. Uninstallation</a></li>
+<li><a href="03-license.html">3. License Activation</a></li>
+<li><a href="04-tray.html">4. Tray</a></li>
+<li class="current"><a href="05-editor-basics.html">5. Editor Basics</a></li>
+<li><a href="06-calibration.html">6. Calibration</a></li>
+<li><a href="07-emergency.html">7. Emergency Release</a></li>
+<li><a href="08-key-assign.html">8. Assigning Keys</a></li>
+<li><a href="09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides</a></li>
+<li><a href="10-ime-nicola.html">10. IME Linking and NICOLA</a></li>
+<li><a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a></li>
+<li><a href="12-recipes.html">12. Setup Examples</a></li>
+<li><a href="13-settings.html">13. Settings Dialog</a></li>
+<li><a href="14-import-export.html">14. Import and Export</a></li>
+<li><a href="15-backup-migrate.html">15. Backup and Migration</a></li>
+<li><a href="16-reference.html">16. Troubleshooting and Known Limitations</a></li>
+<li><a href="17-keymaptool.html">17. KeymapTool and Samples</a></li>
+<li><a href="18-readme.html">18. README and Background</a></li>
+<li><a href="19-terms.html">19. Terms of Use</a></li>
+<li><a href="20-third-party.html">20. Third-Party Notices</a></li>
+</ol>
+
+</nav>
+<main>
+<div class="pagehead">kasane 1.01 2026-11-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/05-editor-basics.html">日本語</a></div>
+<h1 id="editor-basics">5. Editor Basics</h1>
+<p>kasane (the editor) is the app where you edit what each key on your keyboard does, and apply it to the keyboard. This chapter explains the parts of the main window, and the basic flow from swapping keys to checking that they work. The key assignment screen, and editing macros and the like, are explained in later chapters.</p>
+<h2 id="starting-the-editor">Starting the editor</h2>
+<p>Left-click <strong>kasane</strong> in the <code>applet</code> folder of the Start menu. If you want to start with administrator rights from the beginning, right-click it and start with <strong>Run as administrator</strong>. You can also open it by left-clicking the tray icon.</p>
+<p>Applying to the keyboard, calibration (single keys and all keys), and identifying a keyboard need administrator rights. The driver restricts them so that an app with ordinary user rights cannot spy on your key input or slip key input in without your knowledge.</p>
+<h3 id="read-only-mode">Read-only mode</h3>
+<p>If you start normally, without administrator rights, a yellow bar appears at the top of the window and shows &quot;Read-only mode&quot;. In this mode, the buttons for applying to the keyboard, calibration, and identifying a keyboard cannot be used (hold the mouse over the bar to see this explanation). You can still edit, export, and use OFF in read-only mode.</p>
+<p><img src="../img/ja/editor-readonly.png" alt="The read-only mode bar" /></p>
+<p>Press <strong>Restart as administrator</strong> on the bar to reopen with administrator rights. If a confirmation screen (UAC) appears, allow it. If there are unsaved settings, a confirmation dialog may appear. Go on with <strong>OK</strong> or <strong>Cancel</strong> as needed.</p>
+<p>After it reopens, the bar is gone, and <strong>Calibrate...</strong>, <strong>Press to identify...</strong>, and <strong>Apply to keyboard (ON)</strong> can be pressed.</p>
+<p><img src="../img/ja/editor-main-admin.png" alt="The main window opened as administrator" /></p>
+<p><a id="editor-parts"></a></p>
+<h2 id="the-parts-of-the-window">The parts of the window</h2>
+<p><img src="../img/ja/editor-main-labeled.png" alt="The parts of the main window" /></p>
+<table>
+<thead>
+<tr>
+<th>No.</th>
+<th>Part</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Title bar</td>
+<td>The product name, the version, and the mark for unsaved changes (<code>*</code>)</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Keyboard row and layout</td>
+<td>Choose the keyboard to configure (<strong>Rename...</strong>, <strong>Press to identify...</strong>, <strong>Refresh list</strong>). On the right, choose the keyboard's layout (<strong>Add from KLE...</strong>)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Layer row</td>
+<td>The list of layers. <strong>+ Add</strong>, <strong>− Remove last</strong></td>
+</tr>
+<tr>
+<td>4</td>
+<td>Keyboard diagram</td>
+<td>Click to change a key's assignment. Right-click for a menu</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Buttons at the bottom</td>
+<td><strong>Calibrate...</strong>, <strong>Helper...</strong>, <strong>Macros...</strong>, <strong>Combos...</strong>, <strong>Tap dances...</strong>, <strong>Key overrides...</strong>, <strong>Assignment list...</strong>, <strong>Settings...</strong>, <strong>Import / Export...</strong>, <strong>Legend</strong>, <strong>Help</strong>, <strong>Apply to keyboard (ON)</strong>, <strong>OFF</strong></td>
+</tr>
+<tr>
+<td>6</td>
+<td>Status bar</td>
+<td>On the left, the status marks (driver state, not applied, read-only, editing); on the right, the result of an operation</td>
+</tr>
+</tbody>
+</table>
+<h3 id="title-bar">Title bar</h3>
+<p>The product name and the version are shown (for example, <code>kasane 1.01</code>). A <code>*</code> is added when there are unsaved changes.</p>
+<p><a id="status-indicators"></a></p>
+<h3 id="the-status-marks-in-the-status-bar">The status marks in the status bar</h3>
+<p>At the left of the status bar at the very bottom of the window, marks made of a colored dot and a short word are lined up. Hold the mouse over one to see a detailed explanation. When &quot;remapping happens even though it is OFF&quot; or &quot;I set it up but it has no effect&quot;, look here first.</p>
+<p><img src="../img/ja/editor-statusbar.png" alt="The status marks in the status bar" /></p>
+<table>
+<thead>
+<tr>
+<th>Mark</th>
+<th>Color</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ON</td>
+<td>Green</td>
+<td>The settings are in the driver and remapping is working</td>
+</tr>
+<tr>
+<td>OFF</td>
+<td>Gray</td>
+<td>The settings are kept, but remapping is stopped</td>
+</tr>
+<tr>
+<td>No settings</td>
+<td>Gray</td>
+<td>The driver has no settings</td>
+</tr>
+<tr>
+<td>Keyboard not connected</td>
+<td>Gray</td>
+<td>The selected keyboard is not connected right now (you can only edit)</td>
+</tr>
+<tr>
+<td>Not connected</td>
+<td>Red</td>
+<td>Cannot connect to the driver (you can only edit and export)</td>
+</tr>
+<tr>
+<td>Not applied</td>
+<td>Orange</td>
+<td>The changes on the screen have not been applied to the keyboard yet</td>
+</tr>
+<tr>
+<td>Read-only</td>
+<td>Orange</td>
+<td>You are not running as administrator</td>
+</tr>
+<tr>
+<td>Editing</td>
+<td>Blue</td>
+<td>A macro or combo editing screen, or the key assignment screen, is open. While it is open, you cannot switch keyboards or layouts, import, or add or remove layers</td>
+</tr>
+</tbody>
+</table>
+<p>To the right of the marks, the result of an operation is shown. The symbol at the start shows the kind. ℹ is information (it fades after a few seconds), ⚠ is a warning, and ✖ is an error. Warnings and errors stay until the next message appears.</p>
+<p>When an input has a mistake, ✖ is put at the start of the sentence and the border of the key code box turns red. In editing screens such as macros, ⚠ is put on the row with the numbered mistake.</p>
+<p><a id="select-keyboard"></a></p>
+<h2 id="choosing-the-keyboard-to-configure">Choosing the keyboard to configure</h2>
+<p>From the <strong>Keyboard</strong> list, choose the keyboard you want to configure. Each row is shown in this order (items that do not exist are left out).</p>
+<p><code>UniqId</code> (8 digits), the name you gave it, the name on Windows (the Device Manager name or the product name), the hardware ID</p>
+<p><img src="../img/ja/editor-keyboard-list.png" alt="The keyboard list" /></p>
+<ul>
+<li><strong>Press to identify...</strong>: use this when you cannot tell which keyboard is the one you want, for example when an external keyboard is connected to a laptop. A small window opens, so press any one key on the keyboard you want. The keyboard you pressed is selected. The key you pressed is not sent to Windows. Administrator rights are required.</li>
+<li><strong>Rename...</strong>: gives the selected keyboard an easy-to-recognize name (for example, &quot;Work&quot;). If you leave it empty, the name is removed. The name is used only in the display and in exported files, and has nothing to do with how keys behave.</li>
+<li><strong>Refresh list</strong>: gets the keyboard list again.</li>
+<li>If the list shows only &quot;(Driver not connected: edit and export only)&quot;, the driver is not running or the license is not active. See <a href="16-reference.html">16. Troubleshooting and Known Limitations</a>.</li>
+</ul>
+<h2 id="checking-the-layout">Checking the layout</h2>
+<p>Check that <strong>Layout</strong> matches your keyboard.</p>
+<table>
+<thead>
+<tr>
+<th>Layout</th>
+<th>Keyboard</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>JP109</code></td>
+<td>Japanese (JIS)</td>
+</tr>
+<tr>
+<td><code>US104</code></td>
+<td>English (US)</td>
+</tr>
+<tr>
+<td><code>10KEY</code></td>
+<td>A numeric keypad alone (17 keys)</td>
+</tr>
+</tbody>
+</table>
+<p>The first time, <code>JP109</code> or <code>US104</code> is selected to match the Windows display language. If it is wrong, change it. When you change it, a confirmation says that the assignments will be reset; press <strong>OK</strong>.</p>
+<p><a id="kle-import"></a></p>
+<h3 id="adding-a-layout-from-kle">Adding a layout from KLE</h3>
+<p>For a layout that is not among the bundled layouts (ISO, 60%, special layouts, and so on), you can import a layout made with <a href="https://www.keyboard-layout-editor.com/">Keyboard Layout Editor</a> (KLE) and use it.</p>
+<ol>
+<li>Make the layout on the KLE site. Save the contents of the <strong>Raw data</strong> tab to a JSON file (<strong>Download JSON</strong> also works). Layouts with rotated keys can be imported too.</li>
+<li>Press <strong>Add from KLE...</strong>. On the KLE import screen, choose the file with <strong>Choose File...</strong> and press <strong>Import</strong>.</li>
+<li>The list shows the default key code of each key, estimated from its label and position (the columns are Label, Key code, State, and Note). Green means confirmed, yellow means estimated, and red means unassigned. For keys whose estimate is wrong, and for red keys, rewrite <strong>Key code</strong> in the list, or choose with <strong>Choose from list...</strong>. You can save and use the layout with red keys left as they are, but those keys need calibration.</li>
+<li>Give it a <strong>Name</strong> (letters, digits, and hyphens) and press <strong>Save and use</strong>. It appears in the <strong>Layout</strong> list.</li>
+</ol>
+<p><img src="../img/ja/editor-kle.png" alt="KLE import" /></p>
+<p>You cannot use the same name as a bundled layout. If you save again with the same name, it is overwritten.</p>
+<h2 id="swapping-keys">Swapping keys</h2>
+<p>As an example, set up the following swap.</p>
+<table>
+<thead>
+<tr>
+<th>Keyboard</th>
+<th>Keys to swap</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JIS</td>
+<td>The Eisu key (the key marked <code>Caps Lock 英数</code>) and left Ctrl</td>
+</tr>
+<tr>
+<td>US</td>
+<td>Caps Lock and left Ctrl</td>
+</tr>
+</tbody>
+</table>
+<p>After checking that <strong>Layer</strong> is <code>0</code>, do the following for JIS.</p>
+<ol>
+<li>Click the <strong>Eisu (Caps Lock)</strong> key in the keyboard diagram.</li>
+<li>In the list at the left of the screen that opens, choose <strong>Modifiers</strong>, press <strong>LCtrl (KC_LCTRL)</strong>, and press <strong>OK</strong>.</li>
+<li>Click the <strong>Left Ctrl (LCtrl)</strong> key in the keyboard diagram.</li>
+<li>In the list at the left, choose <strong>Symbols / Editing</strong>, press <strong>Caps (KC_CAPSLOCK)</strong>, and press <strong>OK</strong>.</li>
+</ol>
+<p>For US, use the same steps: set <strong>Caps Lock</strong> to <code>KC_LCTRL</code> and <strong>Left Ctrl</strong> to <code>KC_CAPSLOCK</code>.</p>
+<p>The changed keys turn blue, and the new action (<code>LCtrl</code>, <code>Caps</code>) is shown in the center. For the details of the key assignment screen, see <a href="08-key-assign.html">8. Assigning Keys</a>.</p>
+<p><img src="../img/ja/editor-swapped.png" alt="The swapped keys" /></p>
+<p>If you make a mistake, right-click the key and choose <strong>Restore this layer's assignment</strong>.</p>
+<p><a id="keyboard-view"></a></p>
+<h3 id="reading-the-keyboard-diagram">Reading the keyboard diagram</h3>
+<p>The small characters at the upper left of a key are the key's legend, and the large characters in the center are the action currently assigned to the key. A key you have not changed is the same as its legend.</p>
+<table>
+<thead>
+<tr>
+<th>Color or mark</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Blue</td>
+<td>A key whose assignment you changed</td>
+</tr>
+<tr>
+<td>Green</td>
+<td>A key with an action such as a layer or Mod-Tap assigned</td>
+</tr>
+<tr>
+<td>Orange border</td>
+<td>A key whose value measured by calibration differs from the standard</td>
+</tr>
+<tr>
+<td>Red border</td>
+<td>A key that cannot be identified (unknown scan code)</td>
+</tr>
+<tr>
+<td>▽</td>
+<td>Transparent (uses the assignment of the layer below)</td>
+</tr>
+<tr>
+<td>M at the lower right</td>
+<td>A macro (the assignment is <code>MACRO(n)</code>)</td>
+</tr>
+<tr>
+<td>D at the lower right</td>
+<td>A tap dance (<code>TAPDANCE(n)</code>)</td>
+</tr>
+<tr>
+<td>C at the lower right</td>
+<td>A key that is part of a combo (shown on every layer)</td>
+</tr>
+<tr>
+<td>R at the lower right</td>
+<td>A key that is the target of a key override (shown on the layer that produces that key)</td>
+</tr>
+<tr>
+<td>H at the lower right</td>
+<td>A helper action (the assignment is <code>HLP(Id)</code>). Hold the mouse over it to see the action's name and contents</td>
+</tr>
+<tr>
+<td>T at the lower right</td>
+<td>A helper trigger key. Shown when the key that this key sends has a trigger (the <strong>Helper actions</strong> tab of Settings). Hold the mouse over it to see the trigger's contents</td>
+</tr>
+</tbody>
+</table>
+<p>The marks are lined up in the order M, D, C, R, H, T. Press <strong>Legend</strong> at the bottom of the window to see samples of the colors and marks. When you hold the mouse over a key, its contents are shown (for example, &quot;Key override 3: while holding MOD_LSFT → KC_Z&quot;).</p>
+<p><img src="../img/ja/editor-legend.png" alt="The legend popup" /></p>
+<p><strong>Macros...</strong>, <strong>Combos...</strong>, <strong>Tap dances...</strong>, and <strong>Key overrides...</strong> at the bottom of the window show the number of definitions (for example, <code>Macros(2)...</code>). When a feature is turned OFF in the settings dialog, it is shown like <code>(2・OFF)</code>. The definitions exist, but they do not work.</p>
+<p><a id="remap-text"></a></p>
+<h3 id="the-assignment-list-text">The assignment list (text)</h3>
+<p>Press <strong>Assignment list...</strong> at the bottom of the window to see the assignments you changed as text, one per line. Things that are easy to miss in the keyboard diagram, such as keys on upper layers and the contents of combos, key overrides, and macros, can be checked all together.</p>
+<pre><code>## Layer 0
+key Caps -&gt; Alt+半/全 : LALT(KC_ZKHK)
+
+## Key overrides
+override 1 &quot;Ctrl-1&quot;: Ctrl+1  -&gt; Macro 0           : MOD_LCTL + KC_1 -&gt; MACRO(0)
+# override 2: Shift+P         -&gt; Macro 1 &quot;apple&quot;   : MOD_LSFT + KC_P -&gt; MACRO(1)
+</code></pre>
+<ul>
+<li>For layer 0, only keys changed from their legend are shown. For layer 1 and above, only keys that are not ▽ (transparent) are shown.</li>
+<li>A line has the form &quot;key -&gt; action : original key code&quot;. Within the same heading, the positions of <code>-&gt;</code> and <code>:</code> are aligned. Japanese characters are aligned as two half-width characters, so when you paste the list into Notepad or the like, view it in a monospaced font such as MS Gothic.</li>
+<li>The original key code is useful when you ask for support. If you paste this list, your settings are communicated as they are.</li>
+<li>All layers (layer 0, 1, 2…) are shown in order. Combos, tap dances, key overrides, macros, NICOLA, helper actions (including triggers), rules for the foreground app, and IME-linked layers are shown only when they have definitions. For helper actions and triggers, the steps of the operation and the contents of strings are also shown. A setting you disabled has <code># </code> at the start of its line. A section whose feature is OFF says so in its heading.</li>
+<li>What is shown is what is currently open in the editor. It includes changes you have not saved or applied. If you change assignments while this window is open, press <strong>Refresh</strong>.</li>
+<li>With <strong>Copy</strong> you can send it to the clipboard, and with <strong>Save...</strong> you can write it to a text file (UTF-8). You cannot edit in this window.</li>
+</ul>
+<p>You can also write it out from the command line, from saved settings (<code>kasane.exe --dump-text &lt;UniqId&gt; &lt;output&gt;</code>; see <a href="16-reference.html">16. Troubleshooting and Known Limitations</a>).</p>
+<h2 id="layers">Layers</h2>
+<p>Press <strong>+ Add</strong> to add a layer. If you assign <code>MO(1)</code> or the like to some key on layer 0, the assignments of layer 1 are used only while you hold that key. Right-click the layer list to see this menu.</p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Export this layer...</td>
+<td>Writes one layer to a file</td>
+</tr>
+<tr>
+<td>Import layer...</td>
+<td>Reads a layer from a file</td>
+</tr>
+<tr>
+<td>Name layer N...</td>
+<td>Gives it an easy-to-recognize name (used only in the display and in exported files)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="applying">Applying</h2>
+<p>Press <strong>Apply to keyboard (ON)</strong> at the bottom of the window. When the status bar says &quot;Applied (ON). …&quot;, you are done. From that moment, the swap is in effect.</p>
+<p>The settings are stored in the driver, so basic key remapping, other than what is done by the helper, stays in effect even after you restart the PC. You do not need to keep kasane running.</p>
+<p><img src="../img/ja/editor-applied.png" alt="Applied" /></p>
+<p>When &quot;Cannot apply&quot; appears, fix the reason shown and press it again. At that point, nothing about the keyboard's settings has changed.</p>
+<h2 id="checking-that-it-works">Checking that it works</h2>
+<p>Open Notepad and check.</p>
+<p><strong>JIS (swapping Eisu and left Ctrl)</strong></p>
+<ul>
+<li>Hold the Eisu key and press <code>A</code>, and everything is selected. <code>C</code> and <code>V</code> copy and paste.</li>
+<li>When you press left Ctrl with the Japanese input method (IME) ON, it works as the Eisu key.</li>
+<li>When you press Shift and left Ctrl, CapsLock is toggled.</li>
+</ul>
+<p><strong>US (swapping CapsLock and left Ctrl)</strong></p>
+<ul>
+<li>Hold CapsLock and press <code>A</code>, and everything is selected. <code>C</code> and <code>V</code> copy and paste.</li>
+<li>When you press left Ctrl, CapsLock is toggled. The lamp turns on and off.</li>
+</ul>
+<p>In both cases, right Ctrl and the other keys work as before.</p>
+<h2 id="undoing">Undoing</h2>
+<table>
+<thead>
+<tr>
+<th>What you want to do</th>
+<th>How</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stop the swap for a while (the settings stay)</td>
+<td>Press <strong>OFF</strong>. To resume, press <strong>Apply to keyboard (ON)</strong></td>
+</tr>
+<tr>
+<td>Change the settings</td>
+<td>Click the key and change it, then press <strong>Apply to keyboard (ON)</strong> again</td>
+</tr>
+<tr>
+<td>Stop swapping</td>
+<td>Right-click the swapped key, choose <strong>Restore this layer's assignment</strong>, and press <strong>Apply to keyboard (ON)</strong></td>
+</tr>
+<tr>
+<td>Uninstall</td>
+<td>See <a href="02-uninstall.html">2. Uninstallation</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="opening-help">Opening help</h2>
+<p>Press <strong>Help</strong> at the bottom of the window, or press F1, and this help opens in your browser. You can also open the same help from <strong>Help</strong> in the tray menu (<a href="04-tray.html">4. Tray</a>).</p>
+<p>Many screens have a <strong>?</strong> button at the lower left (or lower right). When you press it (or press F1), the section of this help that matches that screen (or the current tab or mode, if there is one) opens.</p>
+<p>This help is in the <code>manual</code> folder of the installation folder. Which browser opens is decided by the Windows setting (default apps). When the display language is English, the English help opens.</p>
+<h2 id="saving-and-the-confirmation-when-you-close">Saving, and the confirmation when you close</h2>
+<p>The editor has no Save button. The settings you edited are saved automatically when you close kasane, when you switch to another keyboard, and when you press <strong>Apply to keyboard (ON)</strong> (for where they are saved, see <a href="15-backup-migrate.html">15. Backup and Migration</a>).</p>
+<p>When there are settings that are saved but not yet reflected on the keyboard, a confirmation appears when you close.</p>
+<ul>
+<li>In read-only mode: it says &quot;The settings were saved but are not reflected on the keyboard. If needed, start kasane with administrator rights and reflect them with &quot;Apply to keyboard (ON)&quot;. Close as it is?&quot; <strong>OK</strong> closes, and <strong>Cancel</strong> takes you back without closing.</li>
+<li>When started as administrator: it says &quot;There are settings for 1 keyboard that are not reflected on the keyboard. Reflect them?&quot; <strong>Yes</strong> reflects them and closes. <strong>No</strong> closes without reflecting (the settings are already saved). <strong>Cancel</strong> takes you back.</li>
+</ul>
+<p>The confirmation in read-only mode:</p>
+<p><img src="../img/ja/editor-close-confirm-readonly.png" alt="The confirmation when closing (read-only)" /></p>
+<p>The confirmation when started as administrator:</p>
+<p><img src="../img/ja/editor-close-confirm-admin.png" alt="The confirmation when closing (administrator)" /></p>
+<p>When the saved settings cannot be read, or the layout cannot be found, kasane opens without using the saved settings. In this state it does not save automatically, and when you close or the like, it asks &quot;If you save, the saved settings will be replaced with this content. Save?&quot; This is so that you do not lose your original settings.</p>
+<h2 id="limits-while-an-editing-window-is-open">Limits while an editing window is open</h2>
+<p>The editing windows for macros, combos, tap dances, key overrides, and key assignment are separate windows. You can keep any number of them open at the same time.</p>
+<p>While an editing window is open, you cannot do the following, so that the contents of the main window and the project do not get out of step. When you close all the editing windows, you can use them again.</p>
+<ul>
+<li>Switching keyboards and layouts</li>
+<li><strong>Rename</strong>, <strong>Press to identify</strong>, <strong>Refresh list</strong>, <strong>Add from KLE</strong></li>
+<li>Import / Export</li>
+<li>Adding and removing layers</li>
+</ul>
+<p>If an editing window is open when you try to close kasane, a confirmation appears.</p>
+
+<div class="pager"><a href="04-tray.html">← 4. Tray</a><a href="06-calibration.html">6. Calibration →</a></div>
+</main>
+</div>
+</body>
+</html>

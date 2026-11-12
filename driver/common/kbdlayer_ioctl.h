@@ -1,5 +1,5 @@
 // Copyright (c) 2026 Applet LLC
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 
 /*
   common/kbdlayer_ioctl.h

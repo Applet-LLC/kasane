@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>11. Helper Actions and Per-App Layers - kasane Help</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<a class="brand" href="index.html">kasane Help</a>
+<ol>
+<li><a href="index.html">Introduction</a></li>
+<li><a href="01-install.html">1. Installation</a></li>
+<li><a href="02-uninstall.html">2. Uninstallation</a></li>
+<li><a href="03-license.html">3. License Activation</a></li>
+<li><a href="04-tray.html">4. Tray</a></li>
+<li><a href="05-editor-basics.html">5. Editor Basics</a></li>
+<li><a href="06-calibration.html">6. Calibration</a></li>
+<li><a href="07-emergency.html">7. Emergency Release</a></li>
+<li><a href="08-key-assign.html">8. Assigning Keys</a></li>
+<li><a href="09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides</a></li>
+<li><a href="10-ime-nicola.html">10. IME Linking and NICOLA</a></li>
+<li class="current"><a href="11-helper-apprules.html">11. Helper Actions and Per-App Layers</a></li>
+<li><a href="12-recipes.html">12. Setup Examples</a></li>
+<li><a href="13-settings.html">13. Settings Dialog</a></li>
+<li><a href="14-import-export.html">14. Import and Export</a></li>
+<li><a href="15-backup-migrate.html">15. Backup and Migration</a></li>
+<li><a href="16-reference.html">16. Troubleshooting and Known Limitations</a></li>
+<li><a href="17-keymaptool.html">17. KeymapTool and Samples</a></li>
+<li><a href="18-readme.html">18. README and Background</a></li>
+<li><a href="19-terms.html">19. Terms of Use</a></li>
+<li><a href="20-third-party.html">20. Third-Party Notices</a></li>
+</ol>
+
+</nav>
+<main>
+<div class="pagehead">kasane 1.01 2026-11-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/11-helper-apprules.html">日本語</a></div>
+<h1 id="helper-actions-and-per-app-layers">11. Helper Actions and Per-App Layers</h1>
+<p>kasane's tray runs actions outside the keyboard, triggered by keys.</p>
+<ul>
+<li>Helper actions: launching programs, opening URLs and files, typing strings (Japanese too), sequences of key input, mouse operations, layer operations, and toggling pause</li>
+<li>Per-app layers: enabling a layer to match the foreground app, or turning remapping OFF for that keyboard (for games and the like)</li>
+</ul>
+<p>Both need the tray to be running. Saving the settings does not need administrator rights. When you save with <strong>OK</strong> in the settings dialog, the tray reads them again within a few seconds.</p>
+<h2 id="two-ways-to-use-helper-actions">Two ways to use helper actions</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Contents</th>
+<th>Applying to the keyboard</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Assign an action to a key with <code>HLP(Id)</code></td>
+<td>When you press the key, the key itself sends nothing, and the tray runs the action</td>
+<td>Needed</td>
+</tr>
+<tr>
+<td>Make a trigger</td>
+<td>The tray watches keys such as F13 to F24 (and combinations with modifiers) and runs the action</td>
+<td>Not needed</td>
+</tr>
+</tbody>
+</table>
+<p>When the tray is stopped, a <code>HLP(Id)</code> key sends nothing. A trigger key passes through as an ordinary key.</p>
+<h2 id="example-launching-notepad-with-a-key">Example: launching Notepad with a key</h2>
+<ol>
+<li>In the editor, click the key you want to launch Notepad with.</li>
+<li>In the list on the left of the window that opens, choose <strong>Helper actions</strong> and press <strong>New action...</strong>.</li>
+<li>Set the type to <strong>Launch a program (Launch)</strong>, enter <code>notepad.exe</code> as the path, give it a name, and press <strong>OK</strong>. A code such as <code>HLP(1)</code> goes into the key.</li>
+<li>Close the key assignment window with <strong>OK</strong> too, and press <strong>Apply to keyboard (ON)</strong>.</li>
+<li>When you press that key, nothing is typed and Notepad launches.</li>
+</ol>
+<p><img src="../img/ja/helper-assign.png" alt="Assigning a helper action" /></p>
+<p>When you press <strong>Helper...</strong> at the bottom of the editor window, the settings dialog opens with the &quot;Helper actions&quot; tab shown.</p>
+<p><a id="helper-tab"></a></p>
+<h2 id="the-helper-actions-tab">The &quot;Helper actions&quot; tab</h2>
+<p>You manage actions and triggers in lists. Choose the target from <strong>This keyboard</strong> and <strong>All keyboards (shared)</strong>.</p>
+<p><img src="../img/ja/helper-tab.png" alt="The Helper actions tab" /></p>
+<table>
+<thead>
+<tr>
+<th>Scope</th>
+<th>Where it is saved</th>
+<th>When to use it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>This keyboard</td>
+<td><code>&lt;UniqId&gt;\helper.json</code> in the settings folder</td>
+<td>To run it only on that keyboard</td>
+</tr>
+<tr>
+<td>All keyboards (shared)</td>
+<td><code>tray.json</code> in the settings folder</td>
+<td>To run it on every keyboard</td>
+</tr>
+</tbody>
+</table>
+<p>When looking for an action, the per-keyboard settings come first and the shared settings after. The Id of an action is 0 to 65535, and should be a number that does not overlap between this keyboard's and the shared ones.</p>
+<p>With <strong>Up</strong> and <strong>Down</strong> below the list of actions, you can change the order of the list. The Id does not change, so <code>HLP(Id)</code> assignments stay as they are.</p>
+<p>When you <strong>Delete</strong> an action, the key assignments and key overrides that use that <code>HLP(Id)</code> are listed in the confirmation. If you leave <strong>Also remove it where it is used</strong> (on by default) as it is, then when you press <strong>OK</strong> in the settings dialog, the key assignments go back to ▽ (transparent), and key overrides whose replacement is that action are disabled (the same as &quot;Deleting, duplicating, and reordering&quot; in <a href="09-advanced.html">9. Macros, Combos, Tap Dances and Key Overrides</a>).</p>
+<ul>
+<li>Only the keyboard that is open now is checked. When you delete an action that belongs to <strong>All keyboards (shared)</strong>, the assignments on other keyboards cannot be checked.</li>
+<li>When an action with the same Id exists in the other scope, <code>HLP(Id)</code> keys keep running that one, so the assignments are not removed.</li>
+</ul>
+<p><a id="helper-kinds"></a></p>
+<h3 id="kinds-of-actions">Kinds of actions</h3>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Launch a program (Launch)</td>
+<td>Launches a program. For something on PATH such as <code>notepad.exe</code>, the name alone is fine. Environment variables such as <code>%USERPROFILE%</code> can be used. It does not elevate to administrator</td>
+</tr>
+<tr>
+<td>Open a URL, file, or folder (Open)</td>
+<td>Opens a URL, file, or folder with the associated app</td>
+</tr>
+<tr>
+<td>Key, text, and mouse actions (Sequence)</td>
+<td>Runs steps for keys, strings, waits, the mouse, the wheel, and IME on/off, in order</td>
+</tr>
+<tr>
+<td>Type text (Text)</td>
+<td>Types the string you set as it is. It is appended at the current position of wherever you can type now. A line break is sent as Enter and a tab as Tab. Japanese and symbols are sent as they are. Backslashes and the like have no special meaning. Up to 900 characters. You can also turn the IME off only while typing</td>
+</tr>
+<tr>
+<td>Control app-managed layers (AppLayer)</td>
+<td>The target is the keyboard on which the key was pressed. It works by OR together with IME linking and the foreground-app rules. It enables, disables, toggles, or enables app-managed layers only while the key is held</td>
+</tr>
+<tr>
+<td>Pause / resume (PauseToggle)</td>
+<td>Toggles pause and resume of the tray</td>
+</tr>
+<tr>
+<td>Cut to end of line (KillLine)</td>
+<td>Emacs C-k. Cuts to the end of the line, and chains what you press in succession onto the clipboard</td>
+</tr>
+</tbody>
+</table>
+<p><a id="helper-sequence"></a></p>
+<h3 id="how-to-write-a-sequence">How to write a sequence</h3>
+<p>Write one step per line. Lines that start with <code>#</code> are ignored. In <code>text</code>, <code>\\</code> is a backslash (in Japanese fonts it is shown as ¥ and can be typed with the ¥ key). <code>ime</code> looks at the current state and changes it only when it differs.</p>
+<pre><code>key LCTL(KC_C)       Press and release a key
+down KC_A            Press a key
+up KC_A              Release a key
+vk IME_ON            Press and release a virtual key (IME_ON, IME_OFF, 0x16, LSHIFT+F1, and so on)
+text Hello\n          Type a string (\n is Enter, \t is Tab)
+delay 50             Wait (milliseconds, 0 to 10000)
+mouse left           Click a button (left, right, middle, x1, x2)
+move 10 -5           Move the mouse from its current position
+moveto 100 200       Move the mouse to screen coordinates
+wheel -120           Vertical wheel (120 is one notch)
+hwheel 120           Horizontal wheel
+ime off              Turn the IME off (on, off, toggle)
+ime off abort        If it fails, stop the rest of this action
+</code></pre>
+<p><img src="../img/ja/helper-sequence.png" alt="Editing the steps of an operation" /></p>
+<p>With the buttons above the box, you can insert lines (they go in after the line with the cursor).</p>
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Press a key to insert</strong></td>
+<td>Choose a command (<code>key</code>, <code>down</code>, <code>up</code>), press this button, and then press the key you want to put in. Esc cancels. The Win key and Alt+Tab cannot be captured</td>
+</tr>
+<tr>
+<td><strong>Pick and insert...</strong></td>
+<td>Choose a key from the keyboard diagram or a list</td>
+</tr>
+<tr>
+<td><strong>Insert mouse action ▾</strong></td>
+<td>Choose a ready-made line for a button click, press, release, move, or wheel. Rewrite the numbers after inserting</td>
+</tr>
+<tr>
+<td><strong>Insert IME action ▾</strong></td>
+<td>Choose a line that turns the IME on, off, or toggles it. You can also choose lines with the method fixed</td>
+</tr>
+<tr>
+<td><strong>Insert virtual key ▾</strong></td>
+<td>Choose a line for a virtual key meant for the Japanese IME, such as IME ON, IME OFF, Hankaku/Zenkaku, Henkan, and Muhenkan</td>
+</tr>
+</tbody>
+</table>
+<p>A sequence can have up to 2000 steps. Waits are up to 10 seconds each, and up to 60 seconds in total for one action. To hold the mouse button only while a key is pressed (dragging), write <code>mouse left down</code> in the sequence, and <code>mouse left up</code> in the sequence for the release.</p>
+<p><a id="helper-ime"></a></p>
+<h3 id="ime-onoff">IME on/off</h3>
+<p>When a Japanese IME is ON, the keys you send with <code>key</code> become targets of kana input and conversion. Put <code>ime off</code> before a sequence where you want the intended characters to come out. It reads the current state of the IME, and does nothing if it is already OFF. It turns it OFF only when it is ON.</p>
+<p>You choose how it is switched with <strong>How to switch the IME</strong> in the <strong>IME link</strong> tab of the settings dialog.</p>
+<table>
+<thead>
+<tr>
+<th>Choice</th>
+<th>How it switches</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Automatic (default)</td>
+<td>The normal tray changes it with IMM32. If that cannot change it, it sends the IME on / IME off keys. When the tray runs as administrator, it sends Alt+Hankaku/Zenkaku first</td>
+</tr>
+<tr>
+<td>IME on / IME off keys</td>
+<td>Sends the IME on key to turn it ON, and the IME off key to turn it OFF. Can be used on a Japanese keyboard layout. No OS setting is needed</td>
+</tr>
+<tr>
+<td>Henkan / Muhenkan</td>
+<td>Sends Henkan to turn it ON, and Muhenkan to turn it OFF. In the Windows settings, in Microsoft IME's &quot;Customize keys and touch&quot;, assign IME-On to Henkan and IME-Off to Muhenkan beforehand</td>
+</tr>
+<tr>
+<td>Toggle with Alt+Hankaku/Zenkaku</td>
+<td>Sends Alt+Hankaku/Zenkaku. It is a key that toggles ON and OFF each time, so it is not sent to apps whose current state cannot be read</td>
+</tr>
+<tr>
+<td>IMM32</td>
+<td>Changes it with IMM32 without sending keys</td>
+</tr>
+</tbody>
+</table>
+<p>The IME on / IME off keys and Henkan / Muhenkan are keys that specify ON or OFF directly. They can also be sent to apps whose current state cannot be read. If the IME does not change after sending the key, it is changed with IMM32.</p>
+<blockquote>
+<p>If you choose Henkan / Muhenkan without assigning them in Microsoft IME, Henkan works as reconversion. Text you already typed becomes a target of conversion, and the text may change to the converting state. If the IME does not go OFF with Muhenkan, kasane assumes there is no assignment and stops sending Henkan / Muhenkan (one line is left in the log). After you assign them, change <strong>How to switch the IME</strong> to something else and press OK, then set it to <strong>Henkan / Muhenkan</strong> again and press OK, or restart the tray. However, the first time <code>ime on</code> runs, it still cannot tell.</p>
+</blockquote>
+<p>When the tray runs as administrator, it sends keys through the driver. They also reach windows running as administrator. The normal tray sends them with Windows SendInput.</p>
+<p>How the current state is read follows <strong>How to get the IME state</strong> in the same tab (<a href="10-ime-nicola.html">IME Linking and NICOLA</a>).</p>
+<p>When switching fails, the reason is left in the log (<code>tray.log</code>) and the sequence continues. If you add <code>abort</code>, as in <code>ime off abort</code>, the rest of that action is stopped. When it switches too, one line is left in the log saying which method was used.</p>
+<p>With Type text, you can do the same by checking <strong>Turn the IME off while typing</strong> (it is restored when finished). You can also choose whether to skip typing if that fails. Text sends characters as Unicode, so it is not usually affected by the IME state. Use it when an app garbles the text.</p>
+<h4 id="when-the-ime-does-not-switch">When the IME does not switch</h4>
+<p>In some apps, <code>ime</code> cannot switch the IME. In that case, change <strong>How to switch the IME</strong> to something else, or try <code>vk IME_ON</code> / <code>vk IME_OFF</code> instead of <code>ime</code>. You can insert them from <strong>Insert virtual key ▾</strong> (the next section).</p>
+<p>Lines written in earlier versions with the method specified (<code>ime off imm</code>, <code>ime on key</code>, <code>ime off altkanji</code>, <code>ime on tsf</code>) keep working as they are. They use only the method written, and do not switch to another method even if it fails. When you write new ones, write just <code>ime off</code> without the method.</p>
+<h4 id="sending-with-a-virtual-key-vk">Sending with a virtual key (vk)</h4>
+<p>The IME ON and IME OFF keys (Microsoft's <code>VK_IME_ON</code> and <code>VK_IME_OFF</code> for Japanese keyboards) cannot be sent with <code>key</code>, because they are keys without a scan code. Send them with <code>vk</code>.</p>
+<pre><code>vk IME_ON            The key that turns the IME ON
+vk IME_OFF           The key that turns the IME OFF
+vk KANJI             Hankaku/Zenkaku (the toggle key)
+vk LSHIFT+F1         Join modifiers with +
+</code></pre>
+<p>Unlike <code>ime</code>, <code>vk</code> does not read the current state of the IME. It just sends the key. The name works with or without <code>VK_</code>. You can also write letter keys (<code>A</code> to <code>Z</code>), numpad keys (<code>NUMPAD4</code>, <code>ADD</code>, and so on), <code>F1</code> to <code>F24</code>, arrow and editing keys (<code>LEFT</code>, <code>HOME</code>, <code>DELETE</code>, and so on), and volume and media keys (<code>VOLUME_UP</code>, and so on) by name. Digit keys (<code>0</code> to <code>9</code>) are written with <code>VK_</code>, like <code>vk VK_4</code> (<code>4</code> without <code>VK_</code> is read as a number). Other keys can be written as numbers too (<code>vk 0x70</code>). To separate press and release, use <code>vkdown</code> and <code>vkup</code>.</p>
+<h4 id="limitations">Limitations</h4>
+<p>IME on/off may not work. It depends on the combination of the IME and the app.</p>
+<ul>
+<li><strong>Some apps cannot have their IME switched.</strong> IMM32 operations do not reach apps that have no IME window, or apps that do not respond. When switching fails, the reason is left in the log (<code>tray.log</code>). When IMM32 does not work, it tries again with the IME keys, but if it still does not change, try <code>vk</code> above.</li>
+<li><strong>In windows running as administrator, some of <code>key</code>, <code>vk</code>, and strings may not arrive.</strong> Whether they arrive depends on the kind and order of the keys. In ordinary windows, everything arrives. The IME on/off itself can be switched with IMM32 even by the normal tray. When the tray runs as administrator, if the leading <code>ime off</code> of a sequence sends a key through the driver, the <code>key</code> steps after it also arrived (a test on 2026-11-02, confirmed with Alt+Hankaku/Zenkaku). When the IME was already OFF and nothing was sent, or when <strong>How to switch the IME</strong> is IMM32, this effect does not apply.</li>
+<li><strong>The &quot;restore&quot; of Text cannot be confirmed in some apps.</strong> In apps where the IME state cannot be read, it cannot be confirmed whether the IME was put back to its original state after typing.</li>
+<li>We have confirmed it with Microsoft IME. We have not confirmed other IMEs such as Google Japanese Input.</li>
+</ul>
+<p>In every case, even if switching the IME fails, the sequence or the string itself continues to run (when you add <code>abort</code>, the rest of that action is stopped).</p>
+<h2 id="example-sending-a-string-from-ctrlf1-with-a-trigger">Example: sending a string from Ctrl+F1 with a trigger</h2>
+<p>With &quot;modifier + key&quot;, you run a sequence you decided. Applying is not needed.</p>
+<ol>
+<li>Open <strong>Settings...</strong> at the bottom of the editor window, and press <strong>Add...</strong> under <strong>Triggers</strong> in the <strong>Helper actions</strong> tab.</li>
+<li>If needed, give it a <strong>Name</strong> (it appears in the list and in the assignment list). Specify <code>KC_F1</code> as the key and <strong>Ctrl</strong> as the modifier.</li>
+<li>Set the type to <strong>Key, text, and mouse actions (Sequence)</strong>, and write what you want to send in the steps (for example, <code>text Hello</code>). Press <strong>OK</strong>.</li>
+<li>When you press Ctrl+F1, the sequence runs. Ctrl+F1 itself does not reach the app.</li>
+</ol>
+<p><img src="../img/ja/helper-trigger.png" alt="Editing a trigger" /></p>
+<p>While it runs, the Ctrl you are holding is hidden from the OS. Ctrl is not applied to the output, so it does not turn into another shortcut such as Ctrl+A. When it finishes, if you are still holding Ctrl, it is put back to the held state.</p>
+<p>When you want to use Ctrl inside the sequence, write it in the steps, like <code>key LCTL(KC_C)</code>. When you want to send the held modifiers without hiding them, check <strong>Send held modifier keys while running</strong> in the trigger's editing window.</p>
+<p><a id="trigger-notes"></a></p>
+<h3 id="triggers-and-key-assignments">Triggers and key assignments</h3>
+<p>A trigger is not a key assignment. It is a key that the tray watches with a keyboard hook. If you tie <code>KC_F13</code> to a trigger, prepare a key on the keyboard that sends F13. If there is no physical F13 key, assign <code>KC_F13</code> to another key (you can choose it in <strong>Basic</strong> and other categories of the key assignment window).</p>
+<p>In the editor's keyboard diagram, you can tell them apart by these marks.</p>
+<ul>
+<li><strong>H</strong>: a key whose assignment is <code>HLP(Id)</code>. The name and contents of the action appear when you hold the mouse over it.</li>
+<li><strong>T</strong>: a key whose sent key has a trigger. The name and contents of the trigger appear.</li>
+</ul>
+<h3 id="notes-on-triggers">Notes on triggers</h3>
+<ul>
+<li>When there is even one trigger, the tray uses a keyboard hook. A key that matches no longer reaches the app. Keys you do not normally use, such as F13 to F24, are suitable.</li>
+<li>Modifiers match only when they exactly agree with what is held, with nothing extra or missing. Left and right are not distinguished.</li>
+<li>With Alt or Win, the menu or Start may open when you release the key alone. When a sequence hides and restores modifiers, an F24 input is put in between to prevent this. For other actions, the combination of Shift and Ctrl is recommended.</li>
+<li>If you choose F16 in a trigger that includes Win, a slide-to-shut-down screen may appear in some environments. When you use Win, choose another key, such as F13 to F15 or F17 to F24.</li>
+<li>For a sequence whose trigger modifiers include Alt or Win, input that presses and releases F24 once is sent to the app before and after the run. If an app or tool has a shortcut assigned to F24, it will fire. Triggers with only Ctrl and Shift do not use F24. If you do not want this, do not include Alt and Win in the trigger, or check <strong>Send held modifier keys while running</strong>.</li>
+</ul>
+<h2 id="pausing-and-resuming-with-a-key">Pausing and resuming with a key</h2>
+<p>You can do the same as <strong>Pause</strong> in the tray menu with one key.</p>
+<ol>
+<li>In the <strong>Helper actions</strong> tab of <strong>Settings...</strong>, make an action with the type &quot;Pause / resume&quot;.</li>
+<li>Tie a key such as F13 to it with a trigger.</li>
+</ol>
+<p>A trigger works even while paused, so you can resume with the same key. If you assigned it to a key with <code>HLP(Id)</code>, keyboard remapping stops while paused, so you cannot resume with the same key.</p>
+<p>While paused, only toggling pause works.</p>
+<h2 id="cut-to-end-of-line-emacs-c-k">Cut to end of line (Emacs C-k)</h2>
+<p>If you set the type to &quot;Cut to end of line&quot;, you can make a key that behaves like Emacs C-k. There are no items to set.</p>
+<ol>
+<li>In the <strong>Helper actions</strong> tab of <strong>Settings...</strong>, make an action with the type &quot;Cut to end of line&quot;.</li>
+<li>In the replacement of a <strong>Key override</strong>, write that action's <code>HLP(Id)</code>. For example, make the replacement of Ctrl+K <code>HLP(Id)</code>.</li>
+<li>Press <strong>Apply to keyboard (ON)</strong>.</li>
+</ol>
+<p>It behaves as follows.</p>
+<ul>
+<li>It sends Shift+End and Ctrl+X to cut to the end of the line. The cut string goes to the clipboard.</li>
+<li>If you press Ctrl+K in succession, the cut strings are joined into one. Ctrl+Y (paste) puts them all back together.</li>
+<li>When you press it at the end of a line, it joins the line break and sends Delete. The next line comes up.</li>
+<li>In apps where the cut also takes the line break (such as browser text fields), it does not add the line break to the chain, and sends Enter and ← to restore it.</li>
+<li>Chaining ends when you press a key other than Ctrl+K, when the foreground window changes, when other content goes onto the clipboard, and after 60 seconds.</li>
+<li>The Ctrl you are holding is hidden from the app only during the action. If it were not hidden, Shift+End would become Ctrl+Shift+End and select to the end of the document.</li>
+</ul>
+<p>Notes on using it.</p>
+<ul>
+<li>The tray must be running. When it is stopped, that key sends nothing.</li>
+<li>From the first time you use it, the tray watches real key input. This is to know whether a key other than Ctrl+K was pressed, and the contents of keys are not recorded.</li>
+<li>We have confirmed it in common apps such as Notepad. In apps such as VS Code, which cut the whole line when nothing is selected, the behavior does not match. Support for changing the behavior per app is still to come.</li>
+</ul>
+<p>How to put this action into the Emacs-style setup examples is in &quot;Making Ctrl+K behave like Emacs&quot; in <code>samples\emacs\EMACS-KEYBINDINGS.md</code> (in the installation folder).</p>
+<p><a id="app-rules"></a></p>
+<h2 id="per-app-layers">Per-app layers</h2>
+<p>Depending on the foreground app, this enables app-managed layers automatically, or turns remapping OFF for that keyboard (for games and the like). You set it in the <strong>Per-app layers</strong> tab of the settings dialog.</p>
+<p><img src="../img/ja/apprules-tab.png" alt="The Per-app layers tab" /></p>
+<h3 id="example-changing-layers-only-in-a-specific-app">Example: changing layers only in a specific app</h3>
+<ol>
+<li>Open the <strong>Per-app layers</strong> tab of <strong>Settings...</strong>.</li>
+<li>Choose the target (this keyboard, or all keyboards shared) and press <strong>Add...</strong>.</li>
+<li>With <strong>Choose from running apps...</strong>, choose the window of the target app. The exe name goes in.</li>
+<li>Check the layers to enable (0 to 15). If you want to stop remapping for a game or the like, check <strong>Turn remapping OFF</strong>. Press <strong>OK</strong>.</li>
+<li>Close the settings dialog with <strong>OK</strong> too, and it is saved. The layer is turned on only while that app is in front.</li>
+</ol>
+<p><img src="../img/ja/apprules-editor.png" alt="Foreground app rule" /></p>
+<p><img src="../img/ja/apprules-picker.png" alt="Choose from running apps" /></p>
+<p>Rules are checked from the top, and the first one that matches is used. The rules of <strong>This keyboard</strong> are checked before the rules of <strong>All keyboards (shared)</strong>. You can change the order with <strong>Up</strong> and <strong>Down</strong>. If none matches, the &quot;default&quot; rule is used.</p>
+<table>
+<thead>
+<tr>
+<th>Condition</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>exe</td>
+<td>The exe file name (<code>code.exe</code>). When it contains <code>\</code>, it is compared with the full path</td>
+</tr>
+<tr>
+<td>Path, Title</td>
+<td>A regular expression for the exe's full path and for the window title (a partial match, not case-sensitive)</td>
+</tr>
+<tr>
+<td>Class</td>
+<td>The window's class name (exact match)</td>
+</tr>
+<tr>
+<td>Same matching as nodoka</td>
+<td>A regular expression against the same string as nodoka's <code>window</code> (exe full path:class:…:focus class, or exe full path:title:…). If you check <strong>Nodoka conditions: either one is enough</strong>, it matches when either the class or the title matches (otherwise, both)</td>
+</tr>
+</tbody>
+</table>
+<p>A rule with <strong>Default rule</strong> checked is used when no rule matches. The conditions you specify match when all of them match. Empty items are not looked at. A rule with no conditions specified is not used. The layers you enable overlap with other layers, such as IME linking, separately.</p>
+<p>Even if the tray crashes, a keyboard whose remapping was turned OFF goes back ON at the next start. While paused, this OFF switching is not done.</p>
+<h2 id="when-it-works-and-its-limits">When it works, and its limits</h2>
+<ul>
+<li>When a window running as administrator is in front: <code>kasane-tray.exe</code>, which starts automatically at sign-in, runs with UI access rights, so both key input and sent input arrive. They do not arrive in these cases.
+<ul>
+<li>When you use the edition without UI access (<code>kasane-tray-nua.exe</code>), or a development build</li>
+<li>When the secure desktop is in front, such as a UAC confirmation screen</li>
+<li>When you started the tray from a program other than Explorer (autostart at sign-in, the Start menu, double-click), such as Command Prompt. No error appears, but it runs without UI access. Start it from Explorer, or sign in again. When you use administrator protection, UI access is also attached when it is started by the task the installer makes.</li>
+</ul>
+</li>
+<li>A tray whose signature is not trusted, or that is placed outside <code>Program Files</code>, fails and shows nothing when started from Explorer. This does not happen when installed with the signed installer. In that case, start <code>kasane-tray-nua.exe</code> in the same folder.</li>
+<li>Actions are not run while the lock screen is shown, while switching users, or while another session is active.</li>
+<li>Relative mouse movement (<code>move</code>) is affected by Windows pointer acceleration. Use <code>moveto</code> when you want to decide the position.</li>
+<li>A <code>HLP(Id)</code> press older than 5 seconds is discarded. This is so that keys from while the tray was stopped do not fire all together later.</li>
+</ul>
+<h2 id="when-it-does-not-work">When it does not work</h2>
+<ol>
+<li>Check that the tray is running, by the icon in the notification area.</li>
+<li>Check that there is an action for the <code>Id</code> of <code>HLP(Id)</code>. The key assignment window shows a warning.</li>
+<li>For a <code>HLP(Id)</code> key, check that you pressed <strong>Apply to keyboard (ON)</strong>.</li>
+<li>Check whether <code>tray.log</code> in the settings folder shows a load failure.</li>
+</ol>
+
+<div class="pager"><a href="10-ime-nicola.html">← 10. IME Linking and NICOLA</a><a href="12-recipes.html">12. Setup Examples →</a></div>
+</main>
+</div>
+</body>
+</html>

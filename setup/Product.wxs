@@ -178,6 +178,13 @@
 
         <Control Id="DirLabel" Type="Text" X="25" Y="135" Width="330" Height="10" Text="!(loc.DataDirDlg_Label)" />
         <Control Id="KasaneDirEdit" Type="Edit" X="25" Y="147" Width="320" Height="15" Property="KASANE_DIR" Sunken="yes" />
+        <!-- フォルダ選択ダイアログ（CA_BrowseKasaneDir）。選ぶと KASANE_DIR が更新され、上の欄に反映される。 -->
+        <Control Id="BrowseKasaneDir" Type="PushButton" X="25" Y="167" Width="80" Height="17" Text="!(loc.DataDirDlg_Browse)">
+          <Publish Event="DoAction" Value="CA_BrowseKasaneDir" Order="1">1</Publish>
+          <!-- Edit は、カスタムアクションが変えたプロパティを読み直さない（同じダイアログへの NewDialog はエラー 2856 になる）。
+               カスタムアクションは選んだパスを KASANE_DIR_PICKED に入れ、コントロールイベントの Property で KASANE_DIR へ移すと、欄に反映される。 -->
+          <Publish Property="KASANE_DIR" Value="[KASANE_DIR_PICKED]" Order="2"><![CDATA[KASANE_DIR_PICKED <> ""]]></Publish>
+        </Control>
 
         <Control Id="Back" Type="PushButton" X="192" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)">
           <Publish Event="NewDialog" Value="CustomizeDlg">1</Publish>
@@ -695,6 +702,40 @@ If d <> "" And Session.Property("IMPORT_SETTINGS") <> "0" And Session.Property("
 End If
 ]]></CustomAction>
     <CustomAction Id="CA_NormalizeKasaneDir" Script="vbscript" Execute="immediate" Return="ignore"><![CDATA[Session.Property("KASANE_DIR")=Trim(Replace(Session.Property("KASANE_DIR"),Chr(34),""))]]></CustomAction>
+    <Property Id="BROWSE_TITLE" Value="!(loc.DataDirDlg_BrowseTitle)" />
+    <!--
+      「参照...」ボタン。フォルダ選択ダイアログ（PowerShell の FolderBrowserDialog）を出し、選ばれたパスを KASANE_DIR に入れる。
+      初期位置は、欄に入っているパス（既存の KASANE を含む）。実在しなければ、実在する最も近い親にする。キャンセルなら何も変えない。
+      スクリプトは PowerShell の -EncodedCommand（UTF-16LE の Base64）で渡し、引用符のエスケープを避けている。結果は一時ファイルに UTF-16 で受ける。
+    -->
+    <CustomAction Id="CA_BrowseKasaneDir" Script="vbscript" Execute="immediate" Return="ignore"><![CDATA[
+Set sh = CreateObject("WScript.Shell")
+Set fso = CreateObject("Scripting.FileSystemObject")
+p = Trim(Replace(Session.Property("KASANE_DIR"), Chr(34), ""))
+Do While p <> "" And Not fso.FolderExists(p)
+  q = fso.GetParentFolderName(p)
+  If q = p Then
+    p = ""
+  Else
+    p = q
+  End If
+Loop
+outFile = fso.GetSpecialFolder(2) & "\kasane-browse.txt"
+If fso.FileExists(outFile) Then fso.DeleteFile outFile
+Session.Property("KASANE_DIR_PICKED") = ""
+Set env = sh.Environment("Process")
+env("KASANE_BROWSE_INIT") = p
+env("KASANE_BROWSE_TITLE") = Session.Property("BROWSE_TITLE")
+env("KASANE_BROWSE_OUT") = outFile
+sh.Run "powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand QQBkAGQALQBUAHkAcABlACAALQBBAHMAcwBlAG0AYgBsAHkATgBhAG0AZQAgAFMAeQBzAHQAZQBtAC4AVwBpAG4AZABvAHcAcwAuAEYAbwByAG0AcwAKACQAZAAgAD0AIABOAGUAdwAtAE8AYgBqAGUAYwB0ACAAUwB5AHMAdABlAG0ALgBXAGkAbgBkAG8AdwBzAC4ARgBvAHIAbQBzAC4ARgBvAGwAZABlAHIAQgByAG8AdwBzAGUAcgBEAGkAYQBsAG8AZwAKACQAZAAuAEQAZQBzAGMAcgBpAHAAdABpAG8AbgAgAD0AIAAkAGUAbgB2ADoASwBBAFMAQQBOAEUAXwBCAFIATwBXAFMARQBfAFQASQBUAEwARQAKACQAZAAuAFMAaABvAHcATgBlAHcARgBvAGwAZABlAHIAQgB1AHQAdABvAG4AIAA9ACAAJAB0AHIAdQBlAAoAaQBmACAAKAAkAGUAbgB2ADoASwBBAFMAQQBOAEUAXwBCAFIATwBXAFMARQBfAEkATgBJAFQAKQAgAHsAIAAkAGQALgBTAGUAbABlAGMAdABlAGQAUABhAHQAaAAgAD0AIAAkAGUAbgB2ADoASwBBAFMAQQBOAEUAXwBCAFIATwBXAFMARQBfAEkATgBJAFQAIAB9AAoAJABvACAAPQAgAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABTAHkAcwB0AGUAbQAuAFcAaQBuAGQAbwB3AHMALgBGAG8AcgBtAHMALgBGAG8AcgBtAAoAJABvAC4AVABvAHAATQBvAHMAdAAgAD0AIAAkAHQAcgB1AGUACgBpAGYAIAAoACQAZAAuAFMAaABvAHcARABpAGEAbABvAGcAKAAkAG8AKQAgAC0AZQBxACAAWwBTAHkAcwB0AGUAbQAuAFcAaQBuAGQAbwB3AHMALgBGAG8AcgBtAHMALgBEAGkAYQBsAG8AZwBSAGUAcwB1AGwAdABdADoAOgBPAEsAKQAgAHsACgAgACAAWwBTAHkAcwB0AGUAbQAuAEkATwAuAEYAaQBsAGUAXQA6ADoAVwByAGkAdABlAEEAbABsAFQAZQB4AHQAKAAkAGUAbgB2ADoASwBBAFMAQQBOAEUAXwBCAFIATwBXAFMARQBfAE8AVQBUACwAIAAkAGQALgBTAGUAbABlAGMAdABlAGQAUABhAHQAaAAsACAAWwBTAHkAcwB0AGUAbQAuAFQAZQB4AHQALgBFAG4AYwBvAGQAaQBuAGcAXQA6ADoAVQBuAGkAYwBvAGQAZQApAAoAfQA=", 0, True
+If fso.FileExists(outFile) Then
+  Set f = fso.OpenTextFile(outFile, 1, False, -1)
+  r = f.ReadAll
+  f.Close
+  fso.DeleteFile outFile
+  Session.Property("KASANE_DIR_PICKED") = Trim(r)
+End If
+]]></CustomAction>
     <CustomAction Id="CA_CheckImportFile" Script="vbscript" Execute="immediate" Return="ignore"><![CDATA[p=Replace(Session.Property("IMPORT_SETTINGS_FILE"),Chr(34),""):Session.Property("IMPORT_SETTINGS_FILE")=p:Session.Property("IMPORT_FILE_OK")="":If CreateObject("Scripting.FileSystemObject").FileExists(p) Then Session.Property("IMPORT_FILE_OK")="1"]]></CustomAction>
 
     <!--
