@@ -24,7 +24,7 @@ The remapping itself is done by the driver. Even when the tray is stopped, your 
 
 At the lower right of the icon, the number of the current layer is shown (1 to 9, and A to F for 10 and above). When only the base layer 0 is active, nothing is shown. If the number gets in the way, you can turn it off in "General" of the settings dialog ([13. Settings Dialog](13-settings.html)).
 
-When you hold the mouse over the icon, the state is shown: "kasane 1.01 - Running (N)", "kasane 1.01 - Paused", or "kasane 1.01 - No keyboards are being remapped". If the tray cannot connect to the driver, that is shown. When NICOLA is set up, "NICOLA on" or "NICOLA standby (IME link)" is also shown.
+When you hold the mouse over the icon, the state is shown: "kasane 1.02 - Running (N)", "kasane 1.02 - Paused", or "kasane 1.02 - No keyboards are being remapped". If the tray cannot connect to the driver, that is shown. When NICOLA is set up, "NICOLA on" or "NICOLA standby (IME link)" is also shown.
 
 ## Left click
 

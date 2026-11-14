@@ -1,4 +1,4 @@
-kasane Subscription - Installation Guide 1.01 2026-11-10 Applet LLC
+kasane Subscription - Installation Guide 1.02 2026-11-16 Applet LLC
 ==============================================================
 
 This package installs a key remapping tool named kasane. The installer
@@ -187,6 +187,33 @@ third-party folder.
 
 Release History
 ---------------
+2026-11-16 1.02
+New features
+  - Installer: added a "Browse..." button to the settings folder page (when the
+    box already holds a path, or the KASANE environment variable is already
+    set, the dialog opens with that folder selected)
+  - Added the English version of the help (it opens when the display language
+    is English)
+  - Added plain-text versions of the license agreement (License.ja-JP.txt,
+    License.en-US.txt)
+  - Emacs-style setup example: added C-q (send the next key as it is)
+
+Improvements
+  - Tray menu: "Settings" is now "Settings/Editor"
+  - Editor: the buttons at the bottom are now in the order "Assignment list..."
+    then "Settings..."
+  - The installer (Install-kasane.exe) can no longer be started twice at once
+  - The source license was inconsistent, so the source headers are now unified
+    to Apache-2.0
+  - License Manager, the license service, the installer, and the other
+    programs now carry version 1.02
+
+Bug fixes
+  - After a key override with Alt or Win as its condition, a lone Alt press
+    could reach the app and make the menu bar react in Notepad and similar
+    apps (Issue #2). The driver now inserts a Ctrl tap right after it puts the
+    released Alt or Win back
+
 2026-11-10 1.01
 New features
   - Import of settings files that enable Emacs-style operation; mark mode (MARK)

@@ -8,7 +8,7 @@ kasane は、Windows のキーボードの割り当てを変えるツールで�
 
 ## 入手と動作環境
 
-ビルド済みの kasane 1.01 は、Gumroad で配布しています。
+ビルド済みの kasane 1.02 は、Gumroad で配布しています。
 
 - Subscription 版（サブスクリプション）: https://applet.gumroad.com/l/crijiq
 - Pro 版（買い切り）: https://applet.gumroad.com/l/icbqj
@@ -75,7 +75,7 @@ dotnet test kasane.Tests
 
 kasane is a Windows keyboard remapping tool built on a keyboard filter driver (`kbdlayer.sys`). It supports key swaps, layers, Mod-Tap and Layer-Tap, macros, combos, tap dance and NICOLA (thumb-shift), configured per keyboard. It can also import nodoka configuration files.
 
-Prebuilt binaries (version 1.01) are sold on Gumroad: [Subscription](https://applet.gumroad.com/l/crijiq) and [Pro (one-time purchase)](https://applet.gumroad.com/l/icbqj). A [trial version](https://applet.gumroad.com/l/nbmmf) (a Subscription evaluation license key and zip file) works for 6 days; if you later buy a Subscription license key and enter it, it becomes the Subscription edition. It requires Windows 11 25H2 (x64 or ARM64). The help pages are currently available in Japanese only.
+Prebuilt binaries (version 1.02) are sold on Gumroad: [Subscription](https://applet.gumroad.com/l/crijiq) and [Pro (one-time purchase)](https://applet.gumroad.com/l/icbqj). A [trial version](https://applet.gumroad.com/l/nbmmf) (a Subscription evaluation license key and zip file) works for 6 days; if you later buy a Subscription license key and enter it, it becomes the Subscription edition. It requires Windows 11 25H2 (x64 or ARM64). The help pages are currently available in Japanese only.
 
 The source code in this repository is licensed under the [Apache License 2.0](LICENSE). The prebuilt binaries are covered by a separate end-user license, some files derived from nodoka4 are under the Eclipse Public License 2.0, and other third-party components are listed in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
 

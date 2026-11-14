@@ -8,7 +8,7 @@ kasane のインストーラーは、キーボードドライバ（kbdlayer）�
 
 - Windows 11 25H2（x64 または ARM64）
 - 管理者権限のあるアカウント
-- ダウンロードした `kasane-subscription_1.01.zip`（Pro 版は `kasane-pro_1.01.zip`）。Gumroad のライブラリから、いつでも再ダウンロードできます
+- ダウンロードした `kasane-subscription_1.02.zip`（Pro 版は `kasane-pro_1.02.zip`）。Gumroad のライブラリから、いつでも再ダウンロードできます
 
 zip を展開すると、次のファイルが入っています。
 
@@ -125,7 +125,7 @@ License Manager でライセンスキーを入力し、アクティベートし�
 
 ## Pro 版のインストール
 
-Pro 版は、`kasane-pro_1.01.zip` を展開して入れます。手順は Subscription 版とほぼ同じで、次の点が違います。
+Pro 版は、`kasane-pro_1.02.zip` を展開して入れます。手順は Subscription 版とほぼ同じで、次の点が違います。
 
 | 項目 | Pro 版 |
 |---|---|

@@ -8,7 +8,7 @@ This chapter describes the Subscription edition. The differences in the one-time
 
 - Windows 11 25H2 (x64 or ARM64)
 - An account with administrator rights
-- The downloaded `kasane-subscription_1.01.zip` (`kasane-pro_1.01.zip` for the Pro edition). You can download it again at any time from your Gumroad library
+- The downloaded `kasane-subscription_1.02.zip` (`kasane-pro_1.02.zip` for the Pro edition). You can download it again at any time from your Gumroad library
 
 When you extract the zip, you get these files.
 
@@ -127,7 +127,7 @@ Before an overwrite, an uninstall, or a repair, the installer stops the tray aut
 
 ## Installing the Pro edition
 
-For the Pro edition, extract `kasane-pro_1.01.zip` and install. The steps are almost the same as for the Subscription edition, with these differences.
+For the Pro edition, extract `kasane-pro_1.02.zip` and install. The steps are almost the same as for the Subscription edition, with these differences.
 
 | Item | Pro edition |
 |---|---|

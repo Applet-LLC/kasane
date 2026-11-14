@@ -36,7 +36,7 @@ After it reopens, the bar is gone, and **Calibrate...**, **Press to identify...*
 
 ### Title bar
 
-The product name and the version are shown (for example, `kasane 1.01`). A `*` is added when there are unsaved changes.
+The product name and the version are shown (for example, `kasane 1.02`). A `*` is added when there are unsaved changes.
 
 <a id="status-indicators"></a>
 ### The status marks in the status bar

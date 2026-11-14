@@ -38,7 +38,7 @@
     Id="*"
     Name="!(loc.ProductName$(var.LocSuffix))"
     Language="$(var.ProductLanguage)"
-    Version="1.1.0"
+    Version="1.2.0"
     Manufacturer="Applet LLC"
     UpgradeCode="$(var.UpgradeCodeValue)">
 

@@ -1,10 +1,10 @@
 <Project>
   <!--
-    かさね（kasane.exe・kasane-tray.exe）のバージョン。表示は「主.副」を2桁にした 1.01（AppInfo.FormatVersion）。
+    かさね（kasane.exe・kasane-tray.exe）のバージョン。表示は「主.副」を2桁にした 1.02（AppInfo.FormatVersion）。
     MSI（setup\Product.wxs の Version）は別管理で、ここにはつなげていない。
   -->
   <PropertyGroup>
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
   </PropertyGroup>
 
   <!--

@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Emacs 風のキー操作の設定例 - かさね ヘルプ</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --fg: #1f2328;
+  --sub: #59636e;
+  --line: #d1d9e0;
+  --panel: #f6f8fa;
+  --accent: #0b5cad;
+  --note-bg: #fff8e1;
+  --note-line: #e0b400;
+  --warn-bg: #fdecea;
+  --warn-line: #d1352b;
+  --code-bg: #eff1f3;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14181d;
+    --fg: #dde2e8;
+    --sub: #9aa5b1;
+    --line: #333b44;
+    --panel: #1b2027;
+    --accent: #6cb2ff;
+    --note-bg: #2b2610;
+    --note-line: #b8941a;
+    --warn-bg: #2d1715;
+    --warn-line: #d9534f;
+    --code-bg: #232a32;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.8 "Yu Gothic UI", "Meiryo UI", "Hiragino Sans", system-ui, sans-serif;
+}
+a { color: var(--accent); }
+.layout { display: flex; max-width: 1120px; margin: 0 auto; }
+nav.toc {
+  flex: 0 0 240px;
+  padding: 24px 16px;
+  border-right: 1px solid var(--line);
+  position: sticky; top: 0; align-self: flex-start;
+  max-height: 100vh; overflow-y: auto;
+  font-size: 14px; line-height: 1.6;
+}
+nav.toc .brand { font-weight: 700; font-size: 16px; margin-bottom: 12px; display: block; color: var(--fg); text-decoration: none; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; }
+nav.toc li a { display: block; padding: 3px 8px; border-radius: 4px; color: var(--fg); text-decoration: none; }
+nav.toc li a:hover { background: var(--panel); }
+nav.toc li.current a { background: var(--panel); color: var(--accent); font-weight: 700; }
+main { flex: 1 1 auto; min-width: 0; padding: 24px 32px 64px; }
+h1 { font-size: 28px; line-height: 1.4; margin: 0 0 16px; }
+h2 { font-size: 22px; margin: 40px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+h3 { font-size: 18px; margin: 28px 0 8px; }
+img { max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 4px; }
+figure { margin: 16px 0; }
+figcaption { color: var(--sub); font-size: 14px; margin-top: 4px; }
+table { border-collapse: collapse; margin: 16px 0; display: block; overflow-x: auto; }
+th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+th { background: var(--panel); }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 3px; font: 0.92em Consolas, "Cascadia Mono", monospace; }
+pre { background: var(--code-bg); padding: 12px; border-radius: 6px; overflow-x: auto; }
+pre code { background: none; padding: 0; }
+blockquote { margin: 16px 0; padding: 8px 16px; background: var(--note-bg); border-left: 4px solid var(--note-line); }
+blockquote p { margin: 4px 0; }
+.pager { display: flex; justify-content: space-between; gap: 16px; margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); }
+.pager a { text-decoration: none; }
+.todo { background: var(--warn-bg); border-left: 4px solid var(--warn-line); padding: 4px 12px; }
+@media (max-width: 800px) {
+  .layout { display: block; }
+  nav.toc { position: static; max-height: none; border-right: 0; border-bottom: 1px solid var(--line); padding: 16px; }
+  main { padding: 16px; }
+}
+.pagehead { text-align: right; color: var(--sub); font-size: 13px; line-height: 1.5; margin: 0 0 16px; }
+.pagehead a { color: var(--sub); }
+.title-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 16px; }
+.title-row h1 { margin: 0; }
+.title-row img { width: 96px; height: 96px; border: 0; border-radius: 0; flex: 0 0 auto; }
+.banner { margin: 0 0 24px; }
+.banner img { display: block; width: 100%; }
+
+</style>
+</head>
+<body>
+<div class="layout">
+<main>
+<h1 id="emacs">Emacs 風のキー操作の設定例</h1>
+<p>インストール先の <code>samples\emacs\</code> に、Emacs の基本的なカーソル移動と編集、C-x で始まる操作、C-q（次のキーをそのまま送る）、Ctrl+Space のマークモードを、Windows の一般のアプリで使えるようにする設定が入っています。基本の設定は、レイヤー 3 枚、マクロ 36 件、キー置換 35 件です。トレイには依存しません。トレイが動いていなくても効きます。</p>
+<p>動作は、内蔵キーボードで、Windows に届くキーの並びを見て確かめています（移動・編集の代表の操作、C-x の次の 1 キー、C-q の次の 1 キー、マークモード）。移動・編集の 32 件は、メモ帳でも確認しました。C-x の操作、C-q、マークモードの、アプリ上の実際の動きは、確かめていません。アプリによっては、期待どおりに動かないことがあります。</p>
+<h2 id="section">入っているもの</h2>
+<table>
+<thead>
+<tr>
+<th>ファイル</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>emacs.kasane.json</code></td>
+<td>設定の本体。レイヤー、マクロ、キー置換が入った、kasane の交換用ファイル</td>
+</tr>
+<tr>
+<td><code>apply-emacs.ps1</code></td>
+<td>上のファイルを読んで、KeymapTool でキーボードに書き込むスクリプト</td>
+</tr>
+</tbody>
+</table>
+<h2 id="section-1">割り当てるキー</h2>
+<p>Ctrl は左右どちらでも、Alt も左右どちらでも働きます。</p>
+<table>
+<thead>
+<tr>
+<th>押すキー</th>
+<th>出るキー</th>
+<th>Emacs の操作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ctrl+F / Ctrl+B</td>
+<td>→ / ←</td>
+<td>1 文字進む／戻る</td>
+</tr>
+<tr>
+<td>Ctrl+N / Ctrl+P</td>
+<td>↓ / ↑</td>
+<td>次の行／前の行</td>
+</tr>
+<tr>
+<td>Ctrl+A / Ctrl+E</td>
+<td>Home / End</td>
+<td>行頭／行末</td>
+</tr>
+<tr>
+<td>Ctrl+V / Alt+V</td>
+<td>PageDown / PageUp</td>
+<td>1 画面進む／戻る</td>
+</tr>
+<tr>
+<td>Alt+F / Alt+B</td>
+<td>Ctrl+→ / Ctrl+←</td>
+<td>1 単語進む／戻る</td>
+</tr>
+<tr>
+<td>Alt+Shift+, / Alt+Shift+.</td>
+<td>Ctrl+Home / Ctrl+End</td>
+<td>文書の先頭／末尾（M-&lt; と M-&gt;）</td>
+</tr>
+<tr>
+<td>Ctrl+D / Ctrl+H</td>
+<td>Delete / BackSpace</td>
+<td>後ろ／前の 1 文字を消す</td>
+</tr>
+<tr>
+<td>Alt+D / Alt+BackSpace</td>
+<td>Ctrl+Delete / Ctrl+BackSpace</td>
+<td>後ろ／前の 1 単語を消す</td>
+</tr>
+<tr>
+<td>Ctrl+K</td>
+<td>Shift+End のあと Ctrl+X</td>
+<td>行末まで切り取る</td>
+</tr>
+<tr>
+<td>Ctrl+W / Alt+W</td>
+<td>Ctrl+X / Ctrl+C</td>
+<td>切り取り／コピー</td>
+</tr>
+<tr>
+<td>Ctrl+Y</td>
+<td>Ctrl+V</td>
+<td>貼り付け</td>
+</tr>
+<tr>
+<td>Ctrl+/</td>
+<td>Ctrl+Z</td>
+<td>元に戻す</td>
+</tr>
+<tr>
+<td>Ctrl+S</td>
+<td>Ctrl+F</td>
+<td>検索</td>
+</tr>
+<tr>
+<td>Ctrl+G</td>
+<td>Esc</td>
+<td>取り消し</td>
+</tr>
+<tr>
+<td>Ctrl+M / Ctrl+J</td>
+<td>Enter</td>
+<td>改行</td>
+</tr>
+<tr>
+<td>Ctrl+O</td>
+<td>Enter のあと ←</td>
+<td>下に空行を開く</td>
+</tr>
+<tr>
+<td>Ctrl+Shift+F / B / N / P / A / E</td>
+<td>Shift+→ / ← / ↓ / ↑ / Home / End</td>
+<td>動かしながら選択範囲を広げる</td>
+</tr>
+</tbody>
+</table>
+<h3 id="section-2">選択範囲を広げるには</h3>
+<p>Ctrl+Shift の組み合わせは、マークモードに入らずに、選択範囲を広げる方法です。Ctrl と Shift を押したまま、移動のキーを押すたびに、選択範囲が 1 つ分ずつ広がります。始点を置く操作は要りません。今いる位置が始点です。</p>
+<p>例: 行の途中から、行末までを選ぶ。</p>
+<ol>
+<li>選び始めたい位置にカーソルを置きます。</li>
+<li>Ctrl と Shift を押したまま、E を押します。カーソルから行末までが選ばれます。</li>
+<li>範囲をそのまま切り取るなら、Shift を離し、Ctrl を押したまま W を押します。</li>
+</ol>
+<p>例: 3 行下まで選ぶ。Ctrl と Shift を押したまま、N を 3 回押します。押しっぱなしにすると、オートリピートで広がり続けます。</p>
+<ul>
+<li>選択を始めるときも、続けるときも、操作は同じです。Ctrl と Shift の両方を押している間だけ、選択が広がります。</li>
+<li>途中で Shift を離して Ctrl+F などを押すと、選択は解除され、カーソルだけが動きます。</li>
+<li>選択をやめるときは、Shift なしの移動（Ctrl+F など）を使います。Ctrl+G は Esc を送るだけなので、アプリによっては選択が解除されません。</li>
+<li>単語単位で選ぶ操作（M-S-f など）は、入っていません。</li>
+</ul>
+<h2 id="c-x">C-x で始まる操作</h2>
+<p>Ctrl+X を押したあと、次に押す 1 キーだけが、別の割り当てになります。Ctrl を押したままでも、離してからでも、同じです（C-x C-s でも、C-x s でも、保存になります）。</p>
+<table>
+<thead>
+<tr>
+<th>押すキー</th>
+<th>出るキー</th>
+<th>Emacs の操作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C-x C-s</td>
+<td>Ctrl+S</td>
+<td>保存</td>
+</tr>
+<tr>
+<td>C-x C-f</td>
+<td>Ctrl+O</td>
+<td>ファイルを開く</td>
+</tr>
+<tr>
+<td>C-x C-w</td>
+<td>F12</td>
+<td>名前を付けて保存（Word などの F12）</td>
+</tr>
+<tr>
+<td>C-x b</td>
+<td>Ctrl+Tab</td>
+<td>次のタブ（バッファの切り替え）</td>
+</tr>
+<tr>
+<td>C-x k</td>
+<td>Ctrl+W</td>
+<td>タブを閉じる（バッファを消す）</td>
+</tr>
+<tr>
+<td>C-x h</td>
+<td>Ctrl+A</td>
+<td>全選択</td>
+</tr>
+<tr>
+<td>C-x u</td>
+<td>Ctrl+Z</td>
+<td>元に戻す</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>上の表にないキーを C-x のあとに押すと、そのキーは普通に働きます（Ctrl を押していれば、Ctrl 付きのままです）。C-x の効果は、次の 1 キーで終わります。</li>
+<li>C-x を続けて 2 回押すと、待ちは 1 回分のままです。</li>
+<li>Windows の Ctrl+X（切り取り）は、C-x の前置きに変わります。切り取りは、C-w を使います。</li>
+</ul>
+<h2 id="c-q">C-q（次のキーをそのまま送る）</h2>
+<p>Ctrl+Q を押したあと、次に押す 1 キーだけは、Emacs 風の置き換えを受けずに、Ctrl 付きのキーとしてそのまま届きます。のどかの <code>key C-Q = &amp;Prefix(KeymapDefault)</code> と同じ使い方です。たとえば C-q C-f は、→ ではなく、アプリへ Ctrl+F をそのまま送ります。</p>
+<ul>
+<li>対象は、A〜Z と Space です（C-q C-Space は、マークモードに入らず、Ctrl+Space を送ります）。それ以外のキーは、C-q のあとでも、普通の置き換えを受けます（C-/ が Ctrl+Z になるなど）。</li>
+<li>C-q の効果は、次の 1 キーで終わります。もう一度 C-f を押せば、→ になります。</li>
+<li>仕組みは C-x と同じで、レイヤー 2 の各キーに、<code>LCTL(KC_F)</code> のような修飾付きキーを出すマクロを割り当てています。レイヤーに修飾付きキーを直接置くと、その出力が別の置き換えに当たってしまうためです。</li>
+</ul>
+<h2 id="ctrlspace">マークモード（Ctrl+Space）</h2>
+<p>Ctrl+Space で、マークモードに入ります。入っている間は、移動のキー（←↑→↓、Home、End、PageUp、PageDown）に Shift が付き、移動のたびに選択範囲が広がります。Ctrl+F や Alt+F のように、移動のキーを出す割り当てにも、そのまま Shift が付きます。</p>
+<table>
+<thead>
+<tr>
+<th>マークモードの間に押すキー</th>
+<th>出るキー</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ctrl+F / Ctrl+B / Ctrl+N / Ctrl+P</td>
+<td>Shift+→ / ← / ↓ / ↑</td>
+</tr>
+<tr>
+<td>Ctrl+A / Ctrl+E</td>
+<td>Shift+Home / Shift+End</td>
+</tr>
+<tr>
+<td>Ctrl+V / Alt+V</td>
+<td>Shift+PageDown / Shift+PageUp</td>
+</tr>
+<tr>
+<td>Alt+F / Alt+B</td>
+<td>Ctrl+Shift+→ / ←</td>
+</tr>
+<tr>
+<td>矢印キーなど、移動のキーそのもの</td>
+<td>Shift 付きの同じキー</td>
+</tr>
+</tbody>
+</table>
+<p>マークモードは、移動のキーと修飾キー以外のキーを押すと、終わります。そのキーを送ったあとで終わるので、C-w（切り取り）や Alt+W（コピー）は、これまでどおり働いたあとにマークモードが終わります。</p>
+<ul>
+<li><strong>終わるとき</strong>: C-w、Alt+W、Ctrl+G（Esc を送って終わります）、Enter、文字入力、BackSpace など。前面のウィンドウが変わったときも終わります（トレイが動いているとき）。</li>
+<li><strong>Ctrl+Space をもう一度押しても、マークモードは続きます。</strong> 選択範囲は変わりません（のどかと同じ動作です）。</li>
+<li><strong>マウスで選択範囲を変えても、マークモードは終わりません。</strong> 終わらせるには、移動以外のキーを 1 つ押します。</li>
+<li>範囲の始点は、移動を始めたときのカーソルの位置です。Ctrl+Space を押しても、見た目は変わりません。</li>
+</ul>
+<h2 id="section-3">書き込み方</h2>
+<h3 id="section-4">コマンドラインから</h3>
+<p>管理者権限の PowerShell で、<code>samples/emacs</code> のフォルダに移動して実行します。<code>&lt;ID&gt;</code> は、<code>KeymapTool --list</code> で表示される 8 桁の 16 進数です。</p>
+<p>PowerShell は、既定ではスクリプトの実行を許可していないことが多いので、<code>-ExecutionPolicy RemoteSigned</code> を付けて実行します。この指定は、このコマンドだけに効きます。</p>
+<pre><code>KeymapTool --list
+PowerShell -ExecutionPolicy RemoteSigned .\apply-emacs.ps1 -Id &lt;ID&gt;
+</code></pre>
+<p>反映は、実行した直後からです。元に戻すときは <code>-Remove</code> を付けます。</p>
+<pre><code>PowerShell -ExecutionPolicy RemoteSigned .\apply-emacs.ps1 -Id &lt;ID&gt; -Remove
+</code></pre>
+<p>ダウンロードして展開したファイルは、Windows に「インターネットから取得した」と印を付けられ、RemoteSigned では実行を止められることがあります。その場合は、<code>Unblock-File .\apply-emacs.ps1</code> を一度実行してから、もう一度試します。</p>
+<p>KeymapTool の場所が違うときは <code>-KeymapTool</code> で指定します。</p>
+<p>Ctrl+K を、Emacs と同じ動き（連続した切り取りの連結と、行末での改行の削除）にしたいときは、<code>-KillLine</code> を付けます。トレイが動いている必要があります。</p>
+<pre><code>PowerShell -ExecutionPolicy RemoteSigned .\apply-emacs.ps1 -Id &lt;ID&gt; -KillLine
+</code></pre>
+<p>詳しくは、後ろの「Ctrl+K を Emacs と同じ動きにする」を見てください。</p>
+<p><code>ID ... のキーボードを、ドライバが認識していません</code> と出る場合（KeymapTool 単体では <code>Error: 1168</code>）は、次を確かめます。</p>
+<ul>
+<li><code>KeymapTool --list</code> の表示に、その ID があるか。<code>UniqId=</code> の後ろの 8 桁を指定します。エディタや設定フォルダの名前にある ID と、同じとは限りません。</li>
+<li>表示が <code>DeviceCount=0</code> のときは、ドライバがキーボードを認識していません。キーボードをつなぎ直すか、再起動してから、もう一度 <code>--list</code> を実行します。インストール直後は、ライセンスの有効化と再起動が済んでいるかも確かめます。</li>
+<li>USB ポートを変えたり、Bluetooth を再ペアリングしたりすると、ID が変わります。そのときは、新しい ID を指定します。</li>
+</ul>
+<h3 id="section-5">エディタから</h3>
+<p><strong>インポート／エクスポート...</strong> の <strong>インポート</strong> タブで、<strong>Emacs の設定例...</strong> を押します（インストールに同梱の <code>samples\emacs\emacs.kasane.json</code> が読み込まれます。ダウンロードしたファイルを使うときは、<strong>ファイルを選ぶ...</strong> で <code>emacs.kasane.json</code> を選びます）。読み込む項目は「レイヤー」「マクロ」「キー置換」の 3 つにし、読み込み方に <strong>置き換え</strong> を選びます。キーボードの割り当てを確認してから読み込み、<strong>キーボードに適用(ON)</strong> を押します。この方法なら、設定が <code>project.json</code> に残るので、画面で内容を直せます。</p>
+<h2 id="section-6">注意点</h2>
+<ul>
+<li><strong>キーボードのレイヤーマップを、置き換えます。</strong> この設定は、A〜Z と Space の 27 キーだけのレイヤー 3 枚（0 が通常、1 が C-x、2 が C-q）を書き込みます。すでにレイヤーマップを設定しているキーボードでは、それが消えます。ほかのキーは、何も割り当てず、そのまま通ります。先にバックアップを取ってください。</li>
+<li><strong>キー置換は 0〜34 番、マクロは 92〜127 番を使います。</strong> 同じ番号を使っていた設定は、置き換わります。それ以外の番号は変わりません。<code>-Remove</code> は、レイヤーマップ全体と、この番号だけを消します。</li>
+<li><strong>コマンドラインで書き込んだ分は、エディタを使うときに消えることがあります。</strong> エディタの <strong>キーボードに適用(ON)</strong> は、画面が持っている設定で置き換えます。コマンドラインで書き込んだあとに画面から適用するなら、先に上のインポートも済ませてください。</li>
+<li><strong>全アプリに効きます。</strong> Ctrl+F や Ctrl+S など、アプリ自身のショートカットは使えなくなります。本物の Emacs や、Emacs 風の操作を持つエディタでは、二重に働くことがあります。そのアプリが前面のときだけ止めたいときは、トレイのアプリ別レイヤーで、<strong>リマップをOFFにする</strong> 規則を作ります（<a href="../../manual/ja/11-helper-apprules.html">11. ヘルパー動作とアプリ別レイヤー</a>）。</li>
+<li><strong>Ctrl+K は、アプリによって動きが違います。</strong> 既定の設定では、Shift+End のあと Ctrl+X を送るだけです。行末で押したとき、メモ帳などは何も切り取りません。VS Code など、選択がないと行全体を切り取るアプリでは、行ごと消えます。Emacs のように、行末で改行を消す動きにはなりません。<code>-KillLine</code> を付けると、メモ帳などの一般的なアプリでは、Emacs と同じ動きになります（次の節）。</li>
+<li>割り当てはキーの位置（スキャンコード）で決まります。Alt+Shift+, と Alt+Shift+. は、どちらの配列でも、「&lt;」と「&gt;」を打つキーです。</li>
+</ul>
+<h2 id="ctrlk-emacs">Ctrl+K を Emacs と同じ動きにする</h2>
+<p><code>apply-emacs.ps1</code> に <code>-KillLine</code> を付けると、Ctrl+K が、トレイのヘルパー動作 <code>KillLine</code> になります（のどかの <code>&amp;EmacsEditKillLine</code> と同じ作りです）。キーボードの <code>helper.json</code> に、動作を Id 100 で足します。ほかの動作は変えません。<code>-Remove</code> で、この動作も消えます。</p>
+<p>動きは、次のとおりです。</p>
+<ul>
+<li>行末まで切り取り、切り取った分をクリップボードに入れます。</li>
+<li>続けて Ctrl+K を押すと、切り取った分が 1 つにつながります。Ctrl+Y（貼り付け）で、まとめて戻せます。</li>
+<li>行末で押すと、改行をつないで、Delete を送ります（次の行が上がってきます）。</li>
+<li>つなぐのをやめるのは、Ctrl+K 以外のキーを押したとき、前面のウィンドウが変わったとき、クリップボードに別の内容が入ったとき、60 秒たったときです。</li>
+</ul>
+<p>注意点です。</p>
+<ul>
+<li><strong>トレイが動いている必要があります。</strong> 止まっていると、Ctrl+K は何も出しません。</li>
+<li><strong>VS Code などでは、そのままでは合いません。</strong> 選択がないと行全体を切り取るアプリや、改行の扱いが違うアプリでは、動きがずれます。メモ帳などの一般的なアプリで確かめています。アプリごとに動きを変える対応は、これからです。</li>
+<li>最初に使ったときから、トレイが、実際のキー入力を見張ります（Ctrl+K 以外のキーが押されたかを知るためです）。キーの内容は記録しません。</li>
+</ul>
+<h2 id="section-7">入っていないもの</h2>
+<h3 id="emacs-1">マークモードの、Emacs との違い</h3>
+<p>Emacs のように、マークの位置を持つわけではないので、次の点が違います。</p>
+<ul>
+<li>Ctrl+Space をもう一度押しても、マークの位置は置き直されません（のどかと同じです）。</li>
+<li>マークの位置に戻る操作（C-x C-x）はありません。</li>
+<li>マウスの操作では終わりません。</li>
+</ul>
+<h3 id="c-x-1">C-x のそのほかの操作</h3>
+<p>C-x C-c（終了）、ウィンドウの分割や切り替え（C-x 0、1、2、3、o）、矩形（C-x r …）、C-x C-x は入っていません。C-x のあとのキーは、レイヤー 1 に、<code>MACRO(n)</code> として足せます（<code>LCTL(KC_S)</code> のような修飾付きキーをレイヤー 1 に置くと、その出力が、Ctrl+S の置き換え（検索）に当たってしまうためです）。</p>
+<h3 id="section-8">そのほか</h3>
+<p>キルリング（切り取りの履歴を C-y のあとに M-y でたどる操作）、矩形選択、C-u の繰り返し指定、のどかの <code>&amp;Emacs*</code> 関数は、再現できません。</p>
+
+</main>
+</div>
+</body>
+</html>
