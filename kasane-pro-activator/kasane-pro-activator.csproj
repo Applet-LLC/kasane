@@ -1,4 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\AppVersion.props" />
 
   <!--
     kasane Pro（買い切り版）のインストーラーから、deferred CustomAction として一度だけ実行され、
