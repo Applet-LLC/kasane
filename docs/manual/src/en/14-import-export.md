@@ -77,7 +77,7 @@ Before importing everything, the current settings are backed up automatically to
 
 ### Importing the Emacs example
 
-Press **Emacs Example...** under **Choose File...** in the **Import** tab, and the Emacs-style key operation example bundled with the installation (`samples\emacs\emacs.kasane.json`) is loaded (the same folder also has `EMACS-KEYBINDINGS.md`, which explains how to use it). Choose the three items "Layers", "Macros", and "Key overrides", set the mode to **Replace**, check the contents, and press **Import**. Then press **Apply to keyboard (ON)**.
+Press **Emacs Example...** under **Choose File...** in the **Import** tab, and the Emacs-style key operation example bundled with the installation (`samples\emacs\emacs.kasane.json`) is loaded (the same folder also has <a href="../../samples/emacs/EMACS-KEYBINDINGS.html" target="_blank" rel="noopener">EMACS-KEYBINDINGS.html</a>, which explains how to use it; click it to open it in a new window. It is written in Japanese). Choose the three items "Layers", "Macros", and "Key overrides", set the mode to **Replace**, check the contents, and press **Import**. Then press **Apply to keyboard (ON)**.
 
 <a id="nodoka"></a>
 ## Importing nodoka settings

@@ -149,8 +149,49 @@ function Resolve-LinkTarget([string]$target) {
     $rel = $Matches[1]
     if ($rel -match '^(License\..+)$')                       { return (Join-Path $repoRoot "setup/License/$($Matches[1])") }
     if ($rel -match '^(README\..+)$')                        { return (Join-Path $repoRoot "setup/dist-readme/$($Matches[1])") }
+    if ($rel -match '^samples/emacs/(.+)$')                   { return (Join-Path $repoRoot "samples/emacs/$($Matches[1])") }
     if ($rel -match '^samples/(.+)$')                         { return (Join-Path $repoRoot "driver/KeymapTool/samples/$($Matches[1])") }
     return (Join-Path $repoRoot $rel)   # THIRD-PARTY-NOTICES.txt、third-party/、docs/
+}
+
+# Emacs 風の設定例の説明（samples/emacs/EMACS-KEYBINDINGS.md）の HTML 版を作る。ヘルプの 14 章が、別のウィンドウで開く。
+# md を表示できないブラウザーでも読めるように、インストール先の samples\emacs\ に HTML も入れる（setup\Prepare-Staging.ps1）。
+# 単独で開けるように、ヘルプの style.css を埋め込む。日本語だけなので、ja のときだけ作る。
+if ($Lang -eq 'ja') {
+    $guideMd = Join-Path $repoRoot 'samples/emacs/EMACS-KEYBINDINGS.md'
+    $guideHtml = Join-Path $repoRoot 'samples/emacs/EMACS-KEYBINDINGS.html'
+    $guideBody = (ConvertFrom-Markdown -Path $guideMd).Html
+    # md の中の、リポジトリ上の相対リンク（docs/manual/src/ja/NN-xxx.md）は、インストール先のヘルプ（manual\ja\NN-xxx.html）へ付け替える。
+    $guideBody = [regex]::Replace($guideBody, 'href="\.\./\.\./docs/manual/src/ja/([^"#]+)\.md((?:#[^"]*)?)"', 'href="../../manual/ja/$1.html$2"')
+    $guideCss = Get-Content -LiteralPath (Join-Path $root 'assets/style.css') -Raw -Encoding UTF8
+    $guideTitle = 'Emacs 風のキー操作の設定例'
+    $guidePage = @"
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>$guideTitle - $productName</title>
+<style>
+$guideCss
+</style>
+</head>
+<body>
+<div class="layout">
+<main>
+$guideBody
+</main>
+</div>
+</body>
+</html>
+"@
+    Set-Content -LiteralPath $guideHtml -Value $guidePage -Encoding utf8NoBOM
+    foreach ($m in [regex]::Matches($guideBody, '(?:href|src)="([^"#:]+)(?:#[^"]*)?"')) {
+        $target = $m.Groups[1].Value
+        # インストール先では ..\..\manual\ja\ がヘルプ。リポジトリでは docs/manual/ja/ にある。
+        $checkPath = if ($target -match '^\.\./\.\./manual/ja/(.+)$') { Join-Path $root "ja/$($Matches[1])" } else { Resolve-LinkTarget $target }
+        if (-not (Test-Path $checkPath)) { $problems.Add("EMACS-KEYBINDINGS: リンク先がありません: $target") }
+    }
 }
 
 # 内部リンクと画像の確認(全ページを書き出した後に行う)
