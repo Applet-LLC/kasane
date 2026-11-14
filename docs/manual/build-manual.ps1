@@ -59,9 +59,9 @@ $htmlLang = $Lang
 $productName = if ($isEnglish) { 'kasane Help' } else { 'かさね ヘルプ' }
 # 各ページの右上に出す、バージョンと著作権の表示。
 $pageHeadBase = if ($isEnglish) {
-    'kasane 1.01 2026-11-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a>'
+    'kasane 1.02 2026-11-16&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a>'
 } else {
-    'かさね1.01 2026-11-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a>'
+    'かさね1.02 2026-11-16&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a>'
 }
 
 function Escape-Html([string]$s) { [System.Net.WebUtility]::HtmlEncode($s) }
