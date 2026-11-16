@@ -22,17 +22,35 @@ public class BundledLayoutsTests
 
     [Theory]
     [MemberData(nameof(Files))]
-    public void EveryKey_HasAKnownDefaultKeycode_AndNoKeycodeIsUsedTwice(string fileName)
+    public void DefaultKeycodes_AreKnown_AndNotUsedTwice(string fileName)
     {
         var layout = KeyboardLayout.Load(PathOf(fileName));
         Assert.NotEmpty(layout.Slots);
         var unknown = layout.Slots
-            .Where(s => string.IsNullOrEmpty(s.DefaultKeycode) || !KeycodeTable.TryResolve(s.DefaultKeycode, out _))
+            // キーコードの無いキー（Fn のように、スキャンコードが届かないもの）は、ここでは対象にしない。書くなら空にする（KC_NO にしない）。
+            .Where(s => s.DefaultKeycode != null && !KeycodeTable.TryResolve(s.DefaultKeycode, out _))
             .Select(s => $"#{s.Index + 1} {s.PrintedLabel}: {s.DefaultKeycode}")
             .ToList();
         Assert.True(unknown.Count == 0, fileName + ": " + string.Join(" | ", unknown));
-        var dup = layout.Slots.GroupBy(s => s.DefaultKeycode).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+        var dup = layout.Slots.Where(s => s.DefaultKeycode != null).GroupBy(s => s.DefaultKeycode).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
         Assert.True(dup.Count == 0, fileName + ": キーコードが重なっている: " + string.Join(", ", dup));
+    }
+}
+
+public class BundledLayoutApplyTests
+{
+    [Theory]
+    [MemberData(nameof(BundledLayoutsTests.Files), MemberType = typeof(BundledLayoutsTests))]
+    public void FreshProject_AppliesWithoutWarnings(string fileName)
+    {
+        // 何も設定していない状態で適用したとき、警告が出ないこと（スキャンコードの無いキー、たとえば Fn が、毎回警告にならないこと）。
+        var layout = KeyboardLayout.Load(Path.Combine(AppContext.BaseDirectory, "Layouts", fileName));
+        var project = Kasane.Model.ProjectService.CreateDefault(0x1234, null, layout, bundled: true);
+        var warnings = new List<string>();
+        var errors = new List<string>();
+        Kasane.Model.ProjectService.ResolveMappedSlots(project, layout, warnings, errors);
+        Assert.True(warnings.Count == 0, fileName + ": " + string.Join(" | ", warnings));
+        Assert.Empty(errors);
     }
 }
 
