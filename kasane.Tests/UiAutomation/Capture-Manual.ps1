@@ -13,6 +13,9 @@
 .PARAMETER Admin  管理者モードの画面だけを撮る(画面IDに -admin を付ける)。昇格した PowerShell で実行する。
                  昇格したウィンドウは、昇格していない UIA からは操作できないため。キーボードへの適用や緊急解除の反映などは行わない。
 .PARAMETER Dark   ダークモードで撮る(画面IDに -dark を付けて保存。settings-dark だけ撮りたいときは -Only settings-dark)
+.PARAMETER Exe    撮る kasane.exe のパス。既定は、リポジトリの Debug|x64。VM で、インストール済みのものを撮るときに指定する
+                 (docs/manual/vm-capture/jobs-1.02/90-capture-manual.ps1)。
+.PARAMETER OutDir 画像の保存先。既定は、docs/manual/img/<lang>。VM では、共有の out\img\<lang> を指定する。
 前提: kasane を Debug|x64 でビルド済み。昇格していない PowerShell で実行する(閲覧専用の帯が写る)。
       DPI 100% の表示で撮ると、画像の大きさがそろう。
 #>
@@ -20,15 +23,17 @@ param(
     [ValidateSet('ja', 'en')][string]$Lang = 'ja',
     [string[]]$Only = @(),
     [switch]$Dark,
-    [switch]$Admin
+    [switch]$Admin,
+    [string]$Exe = '',
+    [string]$OutDir = ''
 )
 
 . "$PSScriptRoot\UiaLib.ps1"
 Add-Type -AssemblyName System.Drawing
 $ErrorActionPreference = 'Stop'
 
-$EXE = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\kasane\bin\Debug\net8.0-windows\win-x64\kasane.exe'))
-$OutDir = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\docs\manual\img\$Lang"))
+$EXE = if ($Exe) { $Exe } else { [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\kasane\bin\Debug\net8.0-windows\win-x64\kasane.exe')) }
+$OutDir = if ($OutDir) { $OutDir } else { [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\docs\manual\img\$Lang")) }
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 
 if (-not ('GuiUia.Shot' -as [type])) {

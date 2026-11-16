@@ -83,6 +83,14 @@ for ($i = 0; $i -lt $chapters.Count; $i++) {
 
     $body = (ConvertFrom-Markdown -Path $mdPath).Html
 
+    # 英語版: 画像は、img/en/ に同じ名前のものがあればそれ（英語の画面）、無ければ img/ja/（日本語の画面）を使う。
+    if ($isEnglish) {
+        $body = [regex]::Replace($body, 'src="\.\./img/ja/([^"]+)"', {
+            param($m)
+            if (Test-Path (Join-Path $root "img/en/$($m.Groups[1].Value)")) { 'src="../img/en/' + $m.Groups[1].Value + '"' } else { $m.Value }
+        })
+    }
+
     # 英語版: 訳していない章へのリンクは、日本語版の章へ付け替える。
     if ($isEnglish) {
         foreach ($c in $chapters) {

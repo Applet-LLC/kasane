@@ -1,5 +1,12 @@
 ﻿# VM 内で使う共通部品。ジョブの先頭で . \\100.64.1.22\kasanevm\out\lib\vmlib.ps1 として読み込む。
 $script:ShareOut = '\\100.64.1.22\kasanevm\out'
+# 撮影する言語（ja または en）。共有の out\lang.txt に書く（無ければ ja）。画像は out\img\<言語>\ に保存する。
+$script:Lang = if (Test-Path "$script:ShareOut\lang.txt") { ((Get-Content "$script:ShareOut\lang.txt" -Raw).Trim()) } else { 'ja' }
+if ($script:Lang -notin 'ja', 'en') { throw "lang.txt は ja か en: $script:Lang" }
+$script:ImgDir = "$script:ShareOut\img\$script:Lang"
+New-Item -ItemType Directory -Force $script:ImgDir | Out-Null
+# 言語ごとの文言を選ぶ。T '日本語' 'English'
+function T([string]$ja, [string]$en) { if ($script:Lang -eq 'en') { $en } else { $ja } }
 . "$script:ShareOut\lib\UiaLib.ps1"
 Add-Type -AssemblyName System.Drawing, System.Windows.Forms
 if (-not ('VmLib.Native' -as [type])) {
@@ -26,7 +33,7 @@ function Snap($win, [string]$id) {
     if ($w -le 0 -or $h -le 0) { throw "ウィンドウの大きさを取得できません: $id" }
     $bmp = New-Object System.Drawing.Bitmap($w, $h)
     $g = [System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen($r.Left, $r.Top, 0, 0, (New-Object System.Drawing.Size($w, $h))); $g.Dispose()
-    $bmp.Save("$script:ShareOut\img\$id.png", [System.Drawing.Imaging.ImageFormat]::Png); $bmp.Dispose()
+    $bmp.Save("$script:ImgDir\$id.png", [System.Drawing.Imaging.ImageFormat]::Png); $bmp.Dispose()
     "snap: $id ($w x $h)"
 }
 # タイトルが一致するトップレベルウィンドウの HWND を返す(Win32 の EnumWindows。UIA の FindAll は当てにならないため)。
@@ -85,14 +92,14 @@ function SnapMasked($win, [string]$id, $maskElements) {
         $b = $m.Current.BoundingRectangle
         $g.FillRectangle([System.Drawing.Brushes]::Black, [int]($b.X - $r.Left - 3), [int]($b.Y - $r.Top - 2), [int]($b.Width + 6), [int]($b.Height + 4))
     }
-    $g.Dispose(); $bmp.Save("$script:ShareOut\img\$id.png", [System.Drawing.Imaging.ImageFormat]::Png); $bmp.Dispose()
+    $g.Dispose(); $bmp.Save("$script:ImgDir\$id.png", [System.Drawing.Imaging.ImageFormat]::Png); $bmp.Dispose()
     "snap(masked): $id"
 }
 # 画面の領域を指定して保存する(トレイのアイコンやメニュー用)。
 function SnapRegion([int]$x, [int]$y, [int]$w, [int]$h, [string]$id) {
     $bmp = New-Object System.Drawing.Bitmap($w, $h)
     $g = [System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen($x, $y, 0, 0, (New-Object System.Drawing.Size($w, $h))); $g.Dispose()
-    $bmp.Save("$script:ShareOut\img\$id.png", [System.Drawing.Imaging.ImageFormat]::Png); $bmp.Dispose()
+    $bmp.Save("$script:ImgDir\$id.png", [System.Drawing.Imaging.ImageFormat]::Png); $bmp.Dispose()
     "snap(region): $id ($w x $h)"
 }
 function Right-Click($el) {

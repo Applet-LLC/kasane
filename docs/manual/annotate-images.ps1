@@ -51,7 +51,9 @@ function New-Canvas([int]$w, [int]$h) {
 function Save-Canvas($c, [string]$name) { $c.G.Dispose(); $c.Bmp.Save((Join-Path $dir "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png); $c.Bmp.Dispose(); Write-Host "  作成: $name.png" }
 
 # tray-icons: トレイの帯(動作中・一時停止中)を縦に並べ、状態の名前を付ける
-$strips = @(@{ File = 'tray-strip-active'; Label = '動作中(1台)' }, @{ File = 'tray-strip-paused'; Label = '一時停止中' })
+$labelActive = if ($Lang -eq 'en') { 'Running (1)' } else { '動作中(1台)' }   # トレイの吹き出しの文言（TrayContext.cs）に合わせる
+$labelPaused = if ($Lang -eq 'en') { 'Paused' } else { '一時停止中' }
+$strips = @(@{ File = 'tray-strip-active'; Label = $labelActive }, @{ File = 'tray-strip-paused'; Label = $labelPaused })
 if ($strips | Where-Object { Test-Path (Join-Path $dir "$($_.File).png") }) {
     $font = New-Object System.Drawing.Font('Yu Gothic UI', 15, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
     $c = New-Canvas 330 ((24 + 48) * $strips.Count)
