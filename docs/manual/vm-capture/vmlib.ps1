@@ -112,3 +112,18 @@ function Find-TrayButton {
     $cond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ClassNameProperty, 'SystemTray.NormalButton')
     $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond) | Where-Object { $_.Current.Name -match 'かさね|kasane' } | Select-Object -First 1
 }
+
+# インストーラーの起動画面を探す。起動画面は OS の表示言語で開く(日本語の OS なら、英語の撮影でも最初は日本語のタイトル)ので、どちらのタイトルも探す。
+function Find-LauncherWin([int]$timeoutMs = 20000) {
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    while ($sw.ElapsedMilliseconds -lt $timeoutMs) {
+        foreach ($p in '*セットアップ*', '*Setup*') { $h = Find-WinByTitle $p 1500; if ($h) { return $h } }
+    }
+}
+
+# 起動画面の右上のリンク(English)を、マウスで押して英語にする。リンクは LinkLabel で、InvokePattern を持たないため、Click-ByName は使えない。
+function Switch-LauncherToEnglish($hwnd) {
+    [void][VmLib.Native]::SetForegroundWindow($hwnd); Start-Sleep -Milliseconds 500
+    $el = Find-ByName (El $hwnd) 'English' 3000
+    if ($el) { Click-Center $el; Start-Sleep 2; 'launcher: switched to English' } else { 'launcher: English link not found (already English?)' }
+}

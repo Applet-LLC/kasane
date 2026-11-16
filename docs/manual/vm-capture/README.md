@@ -1,4 +1,4 @@
-# VM での撮影(インストーラー、ライセンス、トレイなど)
+﻿# VM での撮影(インストーラー、ライセンス、トレイなど)
 
 インストール、アンインストール、ライセンス、トレイ、ドライバが動いた状態のエディタは、ホストでは撮れないので、Windows 11 の VM(HLK クライアント)で撮った(2026-10-22)。ここに、そのときの部品とジョブを残す。再撮影の手順の参考にする。
 
@@ -87,7 +87,7 @@
 | `lib\vmlib.ps1` | このフォルダの `vmlib.ps1` |
 | `lib\UiaLib.ps1`、`lib\Capture-Manual.ps1` | `kasane.Tests\UiAutomation\` の同名のファイル |
 | `dist\` | 1.02 の配布物（Subscription 版: `Install-kasane.exe`、`KasaneSetup-ja-JP.msi`、`KasaneSetup-en-US.msi`） |
-| `keys\invalid.txt`、`trial.txt`、`subscription.txt` | 撮影用のキー（1 行に、キーだけ）。スクリプトにも、画像にも、キーは残さない（License Manager の画像は、塗りつぶす） |
+| `keys\trial.txt`、`subscription.txt`(無効なキーは、`30` に偽のキーを書いてある) | 撮影用のキー（1 行に、キーだけ）。スクリプトにも、画像にも、キーは残さない（License Manager の画像は、塗りつぶす） |
 | `lang.txt` | `ja` か `en`（無ければ `ja`） |
 | `only.txt`（任意） | `90`・`91` で撮る画面の前方一致（カンマ区切り）。無ければ、日本語は変わった分だけ、英語は全部 |
 

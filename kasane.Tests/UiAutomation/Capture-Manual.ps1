@@ -27,6 +27,7 @@ param(
     [string]$Exe = '',
     [string]$OutDir = ''
 )
+$Only = @($Only | ForEach-Object { $_ -split ',' } | Where-Object { $_ })   # -File で呼ぶと、a,b は 1 つの文字列になるため、分ける
 
 . "$PSScriptRoot\UiaLib.ps1"
 Add-Type -AssemblyName System.Drawing
@@ -255,7 +256,7 @@ try {
     Run-Shot 'helper-trigger' {
         $d = Open-Settings $main; Select-TabById $d 'TabHelper'; Start-Sleep -Milliseconds 500
         $before = Get-AllTopWindowHandles $script:proc.Id
-        Invoke-Element (Find-ByName $d '追加...' 1)     # 2 つ目(トリガー)
+        Invoke-Element (Find-ChildByAutomationId $d 'AddTriggerButton')     # トリガーの「追加...」(英語では Add...。名前ではなく AutomationId で探す)
         $e = Find-NewTopWindow $script:proc.Id $before -timeoutMs 6000
         $cb = Find-ChildByAutomationId $e 'ActionType'; Select-ComboItemByIndex $cb 2; Start-Sleep -Milliseconds 400
         try { $cb.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern).Collapse() } catch { }; Start-Sleep -Milliseconds 400
@@ -264,7 +265,7 @@ try {
     Run-Shot 'apprules-editor' {
         $d = Open-Settings $main; Select-TabById $d 'TabAppRules'; Start-Sleep -Milliseconds 500
         $before = Get-AllTopWindowHandles $script:proc.Id
-        Invoke-Element (Find-ByName $d '追加...' 0)
+        Invoke-Element (Find-ChildByAutomationId $d 'AddRuleButton')
         $e = Find-NewTopWindow $script:proc.Id $before -timeoutMs 6000
         Save-Shot $e 'apprules-editor'; Close-Top $e; Start-Sleep -Milliseconds 500; Close-Top $d
     }

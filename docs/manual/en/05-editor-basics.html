@@ -44,13 +44,13 @@
 <p>Applying to the keyboard, calibration (single keys and all keys), and identifying a keyboard need administrator rights. The driver restricts them so that an app with ordinary user rights cannot spy on your key input or slip key input in without your knowledge.</p>
 <h3 id="read-only-mode">Read-only mode</h3>
 <p>If you start normally, without administrator rights, a yellow bar appears at the top of the window and shows &quot;Read-only mode&quot;. In this mode, the buttons for applying to the keyboard, calibration, and identifying a keyboard cannot be used (hold the mouse over the bar to see this explanation). You can still edit, export, and use OFF in read-only mode.</p>
-<p><img src="../img/ja/editor-readonly.png" alt="The read-only mode bar" /></p>
+<p><img src="../img/en/editor-readonly.png" alt="The read-only mode bar" /></p>
 <p>Press <strong>Restart as administrator</strong> on the bar to reopen with administrator rights. If a confirmation screen (UAC) appears, allow it. If there are unsaved settings, a confirmation dialog may appear. Go on with <strong>OK</strong> or <strong>Cancel</strong> as needed.</p>
 <p>After it reopens, the bar is gone, and <strong>Calibrate...</strong>, <strong>Press to identify...</strong>, and <strong>Apply to keyboard (ON)</strong> can be pressed.</p>
-<p><img src="../img/ja/editor-main-admin.png" alt="The main window opened as administrator" /></p>
+<p><img src="../img/en/editor-main-admin.png" alt="The main window opened as administrator" /></p>
 <p><a id="editor-parts"></a></p>
 <h2 id="the-parts-of-the-window">The parts of the window</h2>
-<p><img src="../img/ja/editor-main-labeled.png" alt="The parts of the main window" /></p>
+<p><img src="../img/en/editor-main-labeled.png" alt="The parts of the main window" /></p>
 <table>
 <thead>
 <tr>
@@ -97,7 +97,7 @@
 <p><a id="status-indicators"></a></p>
 <h3 id="the-status-marks-in-the-status-bar">The status marks in the status bar</h3>
 <p>At the left of the status bar at the very bottom of the window, marks made of a colored dot and a short word are lined up. Hold the mouse over one to see a detailed explanation. When &quot;remapping happens even though it is OFF&quot; or &quot;I set it up but it has no effect&quot;, look here first.</p>
-<p><img src="../img/ja/editor-statusbar.png" alt="The status marks in the status bar" /></p>
+<p><img src="../img/en/editor-statusbar.png" alt="The status marks in the status bar" /></p>
 <table>
 <thead>
 <tr>
@@ -155,7 +155,7 @@
 <h2 id="choosing-the-keyboard-to-configure">Choosing the keyboard to configure</h2>
 <p>From the <strong>Keyboard</strong> list, choose the keyboard you want to configure. Each row is shown in this order (items that do not exist are left out).</p>
 <p><code>UniqId</code> (8 digits), the name you gave it, the name on Windows (the Device Manager name or the product name), the hardware ID</p>
-<p><img src="../img/ja/editor-keyboard-list.png" alt="The keyboard list" /></p>
+<p><img src="../img/en/editor-keyboard-list.png" alt="The keyboard list" /></p>
 <ul>
 <li><strong>Press to identify...</strong>: use this when you cannot tell which keyboard is the one you want, for example when an external keyboard is connected to a laptop. A small window opens, so press any one key on the keyboard you want. The keyboard you pressed is selected. The key you pressed is not sent to Windows. Administrator rights are required.</li>
 <li><strong>Rename...</strong>: gives the selected keyboard an easy-to-recognize name (for example, &quot;Work&quot;). If you leave it empty, the name is removed. The name is used only in the display and in exported files, and has nothing to do with how keys behave.</li>
@@ -200,7 +200,7 @@
 <li>The list shows the default key code of each key, estimated from its label and position (the columns are Label, Key code, State, and Note). Green means confirmed, yellow means estimated, and red means unassigned. For keys whose estimate is wrong, and for red keys, rewrite <strong>Key code</strong> in the list, or choose with <strong>Choose from list...</strong>. You can save and use the layout with red keys left as they are, but those keys need calibration.</li>
 <li>Give it a <strong>Name</strong> (letters, digits, and hyphens) and press <strong>Save and use</strong>. It appears in the <strong>Layout</strong> list.</li>
 </ol>
-<p><img src="../img/ja/editor-kle.png" alt="KLE import" /></p>
+<p><img src="../img/en/editor-kle.png" alt="KLE import" /></p>
 <p>You cannot use the same name as a bundled layout. If you save again with the same name, it is overwritten.</p>
 <h2 id="swapping-keys">Swapping keys</h2>
 <p>As an example, set up the following swap.</p>
@@ -231,7 +231,7 @@
 </ol>
 <p>For US, use the same steps: set <strong>Caps Lock</strong> to <code>KC_LCTRL</code> and <strong>Left Ctrl</strong> to <code>KC_CAPSLOCK</code>.</p>
 <p>The changed keys turn blue, and the new action (<code>LCtrl</code>, <code>Caps</code>) is shown in the center. For the details of the key assignment screen, see <a href="08-key-assign.html">8. Assigning Keys</a>.</p>
-<p><img src="../img/ja/editor-swapped.png" alt="The swapped keys" /></p>
+<p><img src="../img/en/editor-swapped.png" alt="The swapped keys" /></p>
 <p>If you make a mistake, right-click the key and choose <strong>Restore this layer's assignment</strong>.</p>
 <p><a id="keyboard-view"></a></p>
 <h3 id="reading-the-keyboard-diagram">Reading the keyboard diagram</h3>
@@ -291,7 +291,7 @@
 </tbody>
 </table>
 <p>The marks are lined up in the order M, D, C, R, H, T. Press <strong>Legend</strong> at the bottom of the window to see samples of the colors and marks. When you hold the mouse over a key, its contents are shown (for example, &quot;Key override 3: while holding MOD_LSFT → KC_Z&quot;).</p>
-<p><img src="../img/ja/editor-legend.png" alt="The legend popup" /></p>
+<p><img src="../img/en/editor-legend.png" alt="The legend popup" /></p>
 <p><strong>Macros...</strong>, <strong>Combos...</strong>, <strong>Tap dances...</strong>, and <strong>Key overrides...</strong> at the bottom of the window show the number of definitions (for example, <code>Macros(2)...</code>). When a feature is turned OFF in the settings dialog, it is shown like <code>(2・OFF)</code>. The definitions exist, but they do not work.</p>
 <p><a id="remap-text"></a></p>
 <h3 id="the-assignment-list-text">The assignment list (text)</h3>
@@ -339,7 +339,7 @@ override 1 &quot;Ctrl-1&quot;: Ctrl+1  -&gt; Macro 0           : MOD_LCTL + KC_1
 <h2 id="applying">Applying</h2>
 <p>Press <strong>Apply to keyboard (ON)</strong> at the bottom of the window. When the status bar says &quot;Applied (ON). …&quot;, you are done. From that moment, the swap is in effect.</p>
 <p>The settings are stored in the driver, so basic key remapping, other than what is done by the helper, stays in effect even after you restart the PC. You do not need to keep kasane running.</p>
-<p><img src="../img/ja/editor-applied.png" alt="Applied" /></p>
+<p><img src="../img/en/editor-applied.png" alt="Applied" /></p>
 <p>When &quot;Cannot apply&quot; appears, fix the reason shown and press it again. At that point, nothing about the keyboard's settings has changed.</p>
 <h2 id="checking-that-it-works">Checking that it works</h2>
 <p>Open Notepad and check.</p>

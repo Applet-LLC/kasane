@@ -4,8 +4,8 @@
 Get-Process Install-kasane -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep 1
 $null = Start-Process C:\kasane-dist\Install-kasane.exe -PassThru
-$h = Find-WinByTitle (T '*セットアップ*' '*Setup*') 20000; Start-Sleep 1
-if ($script:Lang -eq 'en') { try { Click-ByName (El $h) 'English' 3000; Start-Sleep 1 } catch { 'launcher is already in English' } }
+$h = Find-LauncherWin 20000; Start-Sleep 1
+if ($script:Lang -eq 'en') { Switch-LauncherToEnglish $h }
 Click-ByName (El $h) (T 'インストール' 'Install')
 Start-Sleep 12
 

@@ -12,5 +12,13 @@ $only = if (Test-Path "$script:ShareOut\only.txt") { @((Get-Content "$script:Sha
 Get-Process kasane -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep 1
 $exe = 'C:\Program Files\applet\kasane\keymap-gui\kasane.exe'
-& "$dir\Capture-Manual.ps1" -Lang $script:Lang -Exe $exe -OutDir $script:ImgDir -Only $only -Admin
+# Capture-Manual.ps1 は、環境変数 KASANE を一時フォルダ(C:\kasane-data)にして、終わると、そのフォルダを消す。エージェントのプロセスに KASANE が残ると、
+# あとのジョブで起動する kasane が、存在しないフォルダを設定フォルダにして、表示言語も自動(日本語)に戻ってしまう。そこで、終わったら、環境変数を戻す。
+Remove-Item 'C:\kasane-data' -Recurse -Force -ErrorAction SilentlyContinue
+$oldKasane = $env:KASANE
+# Capture-Manual.ps1 は、別の PowerShell プロセスで、最上位のスクリプトとして動かす。入れ子(& で呼ぶ)だと、スクリプトの関数が、GetNewClosure のブロックから見えなくなる。
+$cmArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "$dir\Capture-Manual.ps1", '-Lang', $script:Lang, '-Exe', $exe, '-OutDir', $script:ImgDir)
+if ($only.Count -gt 0) { $cmArgs += '-Only', ($only -join ',') }
+$cmArgs += '-Admin'
+try { powershell @cmArgs *>&1 | Out-String -Width 200 } finally { if ($null -eq $oldKasane) { Remove-Item Env:KASANE -ErrorAction SilentlyContinue } else { $env:KASANE = $oldKasane }; Remove-Item 'C:\kasane-data' -Recurse -Force -ErrorAction SilentlyContinue }
 'done'
