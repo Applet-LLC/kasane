@@ -198,6 +198,7 @@ public class KleImporterTests
     [InlineData("us104")]
     [InlineData("jp109")]
     [InlineData("10key")]
+    [InlineData("Thinkpad_JP")]
     public void BundledLayouts_AreNotRotated_AndKeepTheirSize(string name)
     {
         var l = KeyboardLayout.Load(BundledPath(name));

@@ -82,6 +82,7 @@ Check that **Layout** matches your keyboard.
 |---|---|
 | `JP109` | Japanese (JIS) |
 | `US104` | English (US) |
+| `THINKPAD_JP` | The ThinkPad Japanese keyboard (made for the T480s) |
 | `10KEY` | A numeric keypad alone (17 keys) |
 
 The first time, `JP109` or `US104` is selected to match the Windows display language. If it is wrong, change it. When you change it, a confirmation says that the assignments will be reset; press **OK**.

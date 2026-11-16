@@ -70,7 +70,8 @@ public static class KeycodeCatalog
         ["KC_UP"] = "↑", ["KC_DOWN"] = "↓", ["KC_LEFT"] = "←", ["KC_RIGHT"] = "→",
         ["KC_NUMLOCK"] = "NumLk", ["KC_KP_SLASH"] = "P/", ["KC_KP_ASTERISK"] = "P*", ["KC_KP_MINUS"] = "P-",
         ["KC_KP_PLUS"] = "P+", ["KC_KP_ENTER"] = "PEnt", ["KC_KP_DOT"] = "P.",
-        ["KC_RO"] = "ろ", ["KC_KANA"] = "かな", ["KC_JYEN"] = "¥", ["KC_HENK"] = "変換", ["KC_MHEN"] = "無変換",
+        // KC_RO は「_」。「ろ」ではなく、JIS の「ろ」キーの刻印（_ と \）に合わせる。半角の「\」は、Yu Gothic UI などで「¥」に見え、KC_JYEN と区別できない。
+        ["KC_RO"] = "_", ["KC_KANA"] = "かな", ["KC_JYEN"] = "¥", ["KC_HENK"] = "変換", ["KC_MHEN"] = "無変換",
         ["KC_LNG1"] = "IMEオン", ["KC_LNG2"] = "IMEオフ",
         ["KC_MUTE"] = "Mute", ["KC_VOLD"] = "Vol-", ["KC_VOLU"] = "Vol+", ["KC_MPLY"] = "Play",
         ["KC_MSTP"] = "Stop", ["KC_MNXT"] = "Next", ["KC_MPRV"] = "Prev", ["KC_CALC"] = "Calc",

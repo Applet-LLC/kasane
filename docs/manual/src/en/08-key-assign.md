@@ -32,7 +32,7 @@ If you click a key that has a layer action, Mod-Tap, Layer-Tap, macro, tap dance
 | Modifiers | Left and right Ctrl, Shift, Alt, Win, and the Application key |
 | Navigation | PrintScreen, Pause, Insert, Home, End, PgUp, PgDn, arrows, Delete |
 | Numpad | NumLock, numpad digits and symbols |
-| NLS | Hankaku/Zenkaku, Ro, Kana, ¥, Henkan, Muhenkan (keys on a Japanese keyboard), IME on, IME off |
+| NLS | Hankaku/Zenkaku, Ro (shown as `_`), Kana, ¥, Henkan, Muhenkan (keys on a Japanese keyboard), IME on, IME off |
 | Media / System | Volume, play, calculator, browser keys, mail, sleep, power |
 | Layer actions | `MO`, `TG`, `DF`, `OSL`, `TO`, `TT`, `LM`, `OSM` |
 | Mod-Tap (MT) | A key on a short press, a modifier on a long press |

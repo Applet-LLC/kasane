@@ -11,7 +11,7 @@ If you need to specify the Windows keyboard layout, please also consider the key
 
 - Keyboard layout setting tool "Mana": [Applet LLC page](https://appletllc.com/2026/10/07/%E3%82%AD%E3%83%BC%E3%83%9C%E3%83%BC%E3%83%89%E3%83%AC%E3%82%A4%E3%82%A2%E3%82%A6%E3%83%88%E8%A8%AD%E5%AE%9A%E3%83%84%E3%83%BC%E3%83%AB-%E3%81%BE%E3%81%AA-1-00/) (in Japanese), [GitHub](https://github.com/Applet-LLC/mana)
 
-If the physical layout of your keyboard is far from the provided JP109, US104, and 10KEY, and the positions of the physical keys differ from the scan codes obtained, see [Adding a layout from KLE](05-editor-basics.html#kle-import) and make a layout that matches your keyboard.
+If the physical layout of your keyboard is far from the provided JP109, US104, 10KEY, and THINKPAD_JP, and the positions of the physical keys differ from the scan codes obtained, see [Adding a layout from KLE](05-editor-basics.html#kle-import) and make a layout that matches your keyboard.
 
 ## Opening it
 
