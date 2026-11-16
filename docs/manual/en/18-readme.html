@@ -60,7 +60,29 @@
 <p>The installation steps are also in <a href="01-install.html">1. Installation</a> of this help, with screenshots.</p>
 <p><a id="history"></a></p>
 <h2 id="version-history">Version history</h2>
-<h3 id="section">2026-11-10 1.01</h3>
+<h3 id="section">2026-11-16 1.02</h3>
+<p>New features</p>
+<ul>
+<li>Installer: added a &quot;Browse...&quot; button to the settings folder page (when the box already holds a path, or the KASANE environment variable is already set, the dialog opens with that folder selected)</li>
+<li>Added the English version of the help (it opens when the display language is English)</li>
+<li>Added plain-text versions of the license agreement (License.ja-JP.txt, License.en-US.txt)</li>
+<li>Emacs-style setup example: added C-q (send the next key as it is)</li>
+<li>Bundled the layout of the ThinkPad Japanese keyboard (THINKPAD_JP)</li>
+</ul>
+<p>Improvements</p>
+<ul>
+<li>Tray menu: &quot;Settings&quot; is now &quot;Settings/Editor&quot;</li>
+<li>Editor: the buttons at the bottom are now in the order &quot;Assignment list...&quot; then &quot;Settings...&quot;</li>
+<li>The KC_RO key (Ro) is now shown as &quot;_&quot; instead of the kana &quot;ろ&quot; on key caps in the Japanese display</li>
+<li>The installer (Install-kasane.exe) can no longer be started twice at once</li>
+<li>The source license was inconsistent, so the source headers are now unified to Apache-2.0</li>
+<li>License Manager, the license service, the installer, and the other programs now carry version 1.02</li>
+</ul>
+<p>Bug fixes</p>
+<ul>
+<li>After a key override with Alt or Win as its condition, a lone Alt press could reach the app and make the menu bar react in Notepad and similar apps (Issue #2). The driver now inserts a Ctrl tap right after it puts the released Alt or Win back</li>
+</ul>
+<h3 id="section-1">2026-11-10 1.01</h3>
 <p>New features</p>
 <ul>
 <li>Support for Emacs-style operation: importing a settings file for it, mark mode (MARK), and KillLine (C-k)</li>
@@ -79,7 +101,7 @@
 <ul>
 <li>Fixed a bug in macros where a modifier key that was physically held was released after the macro ran</li>
 </ul>
-<h3 id="section-1">2026-11-01 1.00</h3>
+<h3 id="section-2">2026-11-01 1.00</h3>
 <p>First release.</p>
 
 <div class="pager"><a href="17-keymaptool.html">← 17. KeymapTool and Samples</a><a href="19-terms.html">19. Terms of Use →</a></div>

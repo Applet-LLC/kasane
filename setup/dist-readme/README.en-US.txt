@@ -197,11 +197,14 @@ New features
   - Added plain-text versions of the license agreement (License.ja-JP.txt,
     License.en-US.txt)
   - Emacs-style setup example: added C-q (send the next key as it is)
+  - Bundled the layout of the ThinkPad Japanese keyboard (THINKPAD_JP)
 
 Improvements
   - Tray menu: "Settings" is now "Settings/Editor"
   - Editor: the buttons at the bottom are now in the order "Assignment list..."
     then "Settings..."
+  - The KC_RO key (Ro) is now shown as "_" instead of the kana "ろ" on key
+    caps in the Japanese display
   - The installer (Install-kasane.exe) can no longer be started twice at once
   - The source license was inconsistent, so the source headers are now unified
     to Apache-2.0

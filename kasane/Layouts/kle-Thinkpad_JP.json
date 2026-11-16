@@ -1,0 +1,233 @@
+[
+  {
+    "name": "ThinkPad Japanese keyboard",
+    "notes": "for T480s"
+  },
+  [
+    {
+      "a": 0,
+      "w": 1.25,
+      "h": 0.5
+    },
+    "Esc\n\n\n\nKC_ESC",
+    {
+      "w": 0.75,
+      "h": 0.5
+    },
+    "F1\n\n\n\nKC_F1",
+    {
+      "w": 0.75,
+      "h": 0.5
+    },
+    "F2\n\n\n\nKC_F2",
+    {
+      "w": 0.75,
+      "h": 0.5
+    },
+    "F3\n\n\n\nKC_F3",
+    {
+      "w": 0.75,
+      "h": 0.5
+    },
+    "F4\n\n\n\nKC_F4",
+    {
+      "w": 0.75,
+      "h": 0.5
+    },
+    "F5\n\n\n\nKC_F5",
+    {
+      "w": 0.75,
+      "h": 0.5
+    },
+    "F6\n\n\n\nKC_F6",
+    {
+      "w": 0.75,
+      "h": 0.5
+    },
+    "F7\n\n\n\nKC_F7",
+    {
+      "w": 0.75,
+      "h": 0.5
+    },
+    "F8\n\n\n\nKC_F8",
+    {
+      "w": 0.75,
+      "h": 0.5
+    },
+    "F9\n\n\n\nKC_F9",
+    {
+      "w": 0.75,
+      "h": 0.5
+    },
+    "F10\n\n\n\nKC_F10",
+    {
+      "w": 0.75,
+      "h": 0.5
+    },
+    "F11\n\n\n\nKC_F11",
+    {
+      "w": 0.75,
+      "h": 0.5
+    },
+    "F12\n\n\n\nKC_F12",
+    {
+      "x": 0.25,
+      "h": 0.5
+    },
+    "Home\n\n\n\nKC_HOME",
+    {
+      "h": 0.5
+    },
+    "End\n\n\n\nKC_END",
+    {
+      "h": 0.5
+    },
+    "Insert\n\n\n\nKC_INSERT",
+    {
+      "w": 1.5,
+      "h": 0.5
+    },
+    "Delete\n\n\n\nKC_DELETE"
+  ],
+  [
+    {
+      "y": -0.25
+    },
+    "漢字\n\n\n\nKC_GRAVE",
+    "1\n\n\n\nKC_1",
+    "2\n\n\n\nKC_2",
+    "3\n\n\n\nKC_3",
+    "4\n\n\n\nKC_4",
+    "5\n\n\n\nKC_5",
+    "6\n\n\n\nKC_6",
+    "7\n\n\n\nKC_7",
+    "8\n\n\n\nKC_8",
+    "9\n\n\n\nKC_9",
+    "0\n\n\n\nKC_0",
+    "=\n-\n\n\nKC_MINUS",
+    "~\n^\n\n\nKC_EQUAL",
+    "|\n¥\n\n\nKC_JYEN",
+    "BS\n\n\n\nKC_BSPACE"
+  ],
+  [
+    {
+      "w": 1.5
+    },
+    "Tab\n\n\n\nKC_TAB",
+    "Q\n\n\n\nKC_Q",
+    "W\n\n\n\nKC_W",
+    "E\n\n\n\nKC_E",
+    "R\n\n\n\nKC_R",
+    "T\n\n\n\nKC_T",
+    "Y\n\n\n\nKC_Y",
+    "U\n\n\n\nKC_U",
+    "I\n\n\n\nKC_I",
+    "O\n\n\n\nKC_O",
+    "P\n\n\n\nKC_P",
+    "@\n\n\n\nKC_LBRACKET",
+    "[\n\n\n\nKC_RBRACKET",
+    {
+      "w": 1.5,
+      "h": 2,
+      "w2": 1.25,
+      "h2": 2,
+      "x2": 0.25
+    },
+    "Enter\n\n\n\nKC_ENTER"
+  ],
+  [
+    {
+      "w": 1.75
+    },
+    "Caps Lock\n\n\n\nKC_CAPSLOCK",
+    "A\n\n\n\nKC_A",
+    "S\n\n\n\nKC_S",
+    "D\n\n\n\nKC_D",
+    "F\n\n\n\nKC_F",
+    "G\n\n\n\nKC_G",
+    "H\n\n\n\nKC_H",
+    "J\n\n\n\nKC_J",
+    "K\n\n\n\nKC_K",
+    "L\n\n\n\nKC_L",
+    ";\n\n\n\nKC_SCOLON",
+    ":\n\n\n\nKC_QUOTE",
+    "]\n\n\n\nKC_BSLASH"
+  ],
+  [
+    {
+      "w": 2.25
+    },
+    "LShift\n\n\n\nKC_LSHIFT",
+    "Z\n\n\n\nKC_Z",
+    "X\n\n\n\nKC_X",
+    "C\n\n\n\nKC_C",
+    "V\n\n\n\nKC_V",
+    "B\n\n\n\nKC_B",
+    "N\n\n\n\nKC_N",
+    "M\n\n\n\nKC_M",
+    ",\n\n\n\nKC_COMMA",
+    ".\n\n\n\nKC_DOT",
+    "/\n\n\n\nKC_SLASH",
+    "_\n\\\n\n\nKC_RO",
+    {
+      "w": 1.75
+    },
+    "RShift\n\n\n\nKC_RSHIFT"
+  ],
+  [
+    "Fn",
+    {
+      "w": 1.25
+    },
+    "LCtrl\n\n\n\nKC_LCTRL",
+    "LWin\n\n\n\nKC_LGUI",
+    "LAlt\n\n\n\nKC_LALT",
+    "無変換\n\n\n\nKC_MHEN",
+    {
+      "w": 2.5
+    },
+    "space\n\n\n\nKC_SPACE",
+    "変換\n\n\n\nKC_HENK",
+    "カナ\n\n\n\nKC_KANA",
+    {
+      "w": 0.75
+    },
+    "RAlt\n\n\n\nKC_RALT",
+    {
+      "w": 0.75
+    },
+    "PrtSc\n\n\n\nKC_PSCREEN",
+    {
+      "w": 0.75
+    },
+    "RCtrl\n\n\n\nKC_RCTRL",
+    {
+      "h": 0.5
+    },
+    "PgUp\n\n\n\nKC_PGUP",
+    {
+      "h": 0.5
+    },
+    "↑\n\n\n\nKC_UP",
+    {
+      "h": 0.5
+    },
+    "PgDn\n\n\n\nKC_PGDOWN"
+  ],
+  [
+    {
+      "y": -0.5,
+      "x": 12,
+      "h": 0.5
+    },
+    "←\n\n\n\nKC_LEFT",
+    {
+      "h": 0.5
+    },
+    "↓\n\n\n\nKC_DOWN",
+    {
+      "h": 0.5
+    },
+    "→\n\n\n\nKC_RIGHT"
+  ]
+]
