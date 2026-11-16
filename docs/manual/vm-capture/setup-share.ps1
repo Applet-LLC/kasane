@@ -51,7 +51,7 @@ foreach ($d in 'out\lib', 'out\jobs', 'out\jobs2', 'out\img', 'out\keys', 'out\r
 $bytes = New-Object byte[] 18; [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
 $plain = ([Convert]::ToBase64String($bytes) -replace '[+/=]', 'x') + 'aA1!'
 $secure = ConvertTo-SecureString $plain -AsPlainText -Force
-New-LocalUser -Name $UserName -Password $secure -PasswordNeverExpires -UserMayNotChangePassword -Description 'kasane manual capture (temporary; remove with teardown-share.ps1)' | Out-Null
+New-LocalUser -Name $UserName -Password $secure -PasswordNeverExpires -UserMayNotChangePassword -Description 'kasane manual capture (temporary)' | Out-Null
 
 # --- フォルダの権限: 専用ユーザーに、変更を許す（ほかのアカウントには、広げない） ---
 $acl = Get-Acl $Root
