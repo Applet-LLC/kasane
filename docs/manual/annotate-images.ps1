@@ -3,7 +3,7 @@
   撮影した画像に、番号の丸を描き込んだ版(*-labeled.png)を作る。
 .DESCRIPTION
   05 章の「画面の各部」の図用。元の画像(img/<lang>/editor-main.png)は変えない。
-  座標は、Capture-Manual.ps1 で撮った 1902x891 の画像(表示倍率 150%)に合わせてある。大きさが違う画像では、座標を見直すこと。
+  座標は、Capture-Manual.ps1 で撮った 1902x891 の画像(表示倍率 150%)に合わせてある。画像の幅が違うとき(例: 表示倍率 100% の 1266x593)は、幅の比で座標と丸の大きさを換算する。
   使い方: pwsh docs/manual/annotate-images.ps1 [-Lang ja]
 #>
 param([string]$Lang = 'ja')
@@ -16,15 +16,16 @@ function Add-Labels([string]$name, [object[]]$labels) {
     $img = [System.Drawing.Image]::FromFile($src)
     $bmp = New-Object System.Drawing.Bitmap($img)
     $img.Dispose()
+    $k = $bmp.Width / 1902.0   # 座標は 1902 幅の画像の値。幅の比で換算する
     $g = [System.Drawing.Graphics]::FromImage($bmp)
     $g.SmoothingMode = 'AntiAlias'; $g.TextRenderingHint = 'AntiAliasGridFit'
-    $font = New-Object System.Drawing.Font('Yu Gothic UI', 34, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
+    $font = New-Object System.Drawing.Font('Yu Gothic UI', [float](34 * $k), [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
     $fmt = New-Object System.Drawing.StringFormat; $fmt.Alignment = 'Center'; $fmt.LineAlignment = 'Center'
     foreach ($l in $labels) {
-        $r = 28
-        $g.FillEllipse([System.Drawing.Brushes]::Crimson, $l.X - $r, $l.Y - $r, 2 * $r, 2 * $r)
-        $g.DrawEllipse((New-Object System.Drawing.Pen([System.Drawing.Color]::White, 2)), $l.X - $r, $l.Y - $r, 2 * $r, 2 * $r)
-        $g.DrawString([string]$l.N, $font, [System.Drawing.Brushes]::White, (New-Object System.Drawing.RectangleF(($l.X - $r), ($l.Y - $r), (2 * $r), (2 * $r))), $fmt)
+        $r = [int][math]::Round(28 * $k); $lx = $l.X * $k; $ly = $l.Y * $k
+        $g.FillEllipse([System.Drawing.Brushes]::Crimson, $lx - $r, $ly - $r, 2 * $r, 2 * $r)
+        $g.DrawEllipse((New-Object System.Drawing.Pen([System.Drawing.Color]::White, 2)), $lx - $r, $ly - $r, 2 * $r, 2 * $r)
+        $g.DrawString([string]$l.N, $font, [System.Drawing.Brushes]::White, (New-Object System.Drawing.RectangleF(($lx - $r), ($ly - $r), (2 * $r), (2 * $r))), $fmt)
     }
     $g.Dispose()
     $bmp.Save((Join-Path $dir "$name-labeled.png"), [System.Drawing.Imaging.ImageFormat]::Png)
@@ -51,7 +52,9 @@ function New-Canvas([int]$w, [int]$h) {
 function Save-Canvas($c, [string]$name) { $c.G.Dispose(); $c.Bmp.Save((Join-Path $dir "$name.png"), [System.Drawing.Imaging.ImageFormat]::Png); $c.Bmp.Dispose(); Write-Host "  作成: $name.png" }
 
 # tray-icons: トレイの帯(動作中・一時停止中)を縦に並べ、状態の名前を付ける
-$strips = @(@{ File = 'tray-strip-active'; Label = '動作中(1台)' }, @{ File = 'tray-strip-paused'; Label = '一時停止中' })
+$labelActive = if ($Lang -eq 'en') { 'Running (1)' } else { '動作中(1台)' }   # トレイの吹き出しの文言（TrayContext.cs）に合わせる
+$labelPaused = if ($Lang -eq 'en') { 'Paused' } else { '一時停止中' }
+$strips = @(@{ File = 'tray-strip-active'; Label = $labelActive }, @{ File = 'tray-strip-paused'; Label = $labelPaused })
 if ($strips | Where-Object { Test-Path (Join-Path $dir "$($_.File).png") }) {
     $font = New-Object System.Drawing.Font('Yu Gothic UI', 15, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
     $c = New-Canvas 330 ((24 + 48) * $strips.Count)
@@ -69,7 +72,7 @@ if ($strips | Where-Object { Test-Path (Join-Path $dir "$($_.File).png") }) {
 $raw = Join-Path $dir 'uninstall-off-raw.png'
 if (Test-Path $raw) {
     $img = [System.Drawing.Image]::FromFile($raw)
-    $topH = 34; $botH = 64; $c = New-Canvas $img.Width ($topH + 8 + $botH)
+    $kk = $img.Width / 1902.0; $topH = [int][math]::Round(34 * $kk); $botH = [int][math]::Round(64 * $kk); $c = New-Canvas $img.Width ($topH + 8 + $botH)
     $c.G.DrawImage($img, (New-Object System.Drawing.Rectangle(0, 0, $img.Width, $topH)), 0, 0, $img.Width, $topH, [System.Drawing.GraphicsUnit]::Pixel)
     $c.G.DrawLine((New-Object System.Drawing.Pen([System.Drawing.Color]::LightGray, 1)), 0, $topH + 4, $img.Width, $topH + 4)
     $c.G.DrawImage($img, (New-Object System.Drawing.Rectangle(0, ($topH + 8), $img.Width, $botH)), 0, $img.Height - $botH, $img.Width, $botH, [System.Drawing.GraphicsUnit]::Pixel)
@@ -89,7 +92,7 @@ if (Test-Path $act) {
 $main = Join-Path $dir 'editor-main.png'
 if (Test-Path $main) {
     $img = [System.Drawing.Image]::FromFile($main)
-    $h = 40; $c = New-Canvas $img.Width $h
+    $h = [int][math]::Round(40 * $img.Width / 1902.0); $c = New-Canvas $img.Width $h
     $c.G.DrawImage($img, (New-Object System.Drawing.Rectangle(0, 0, $img.Width, $h)), 0, $img.Height - $h, $img.Width, $h, [System.Drawing.GraphicsUnit]::Pixel)
     $img.Dispose(); Save-Canvas $c 'editor-statusbar'
 }

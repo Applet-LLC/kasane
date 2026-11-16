@@ -39,7 +39,7 @@
 <div class="pagehead">kasane 1.02 2026-11-16&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/14-import-export.html">日本語</a></div>
 <h1 id="import-and-export">14. Import and Export</h1>
 <p>With <strong>Import / Export...</strong> at the bottom of the editor window, you can write settings out to a file (<code>*.kasane.json</code>) and read them back in. Use it for backups, for moving to another keyboard or another PC, and for resetting settings.</p>
-<p><img src="../img/ja/impexp-export.png" alt="Import / Export" /></p>
+<p><img src="../img/en/impexp-export.png" alt="Import / Export" /></p>
 <p>The window has three tabs: <strong>Export</strong>, <strong>Import</strong>, and <strong>Reset</strong>.</p>
 <p><a id="export"></a></p>
 <h2 id="export">Export</h2>
@@ -87,7 +87,7 @@
 <p><a id="import"></a></p>
 <h2 id="import">Import</h2>
 <p>This reads in a file you exported.</p>
-<p><img src="../img/ja/impexp-import.png" alt="Import" /></p>
+<p><img src="../img/en/impexp-import.png" alt="Import" /></p>
 <ol>
 <li>In the <strong>Import</strong> tab, choose a file with <strong>Choose File...</strong>.</li>
 <li>Choose the <strong>Items to import</strong> (layers, macros, combos, and so on). The items and the import mode cannot be chosen until the file has been loaded, because the items you can choose depend on the contents of the file. Measured scan codes can be imported only when the layout is the same. When the file contains recovery settings, you can also choose <strong>Recovery settings</strong>. The emergency release, i8042prt, and the sharing scope are imported only when it is opened as administrator. The sharing scope is imported only for connected keyboards with the same UniqId. Layouts are not overwritten if a file with the same name exists.</li>
@@ -118,14 +118,14 @@
 <p><a id="nodoka"></a></p>
 <h2 id="importing-nodoka-settings">Importing nodoka settings</h2>
 <p>You can convert a nodoka (nodoka4) settings file (<code>.nodoka</code>) into kasane settings and import it. nodoka and kasane differ in how key remapping works and is expressed, and kasane lacks some features. The file is converted and imported, but some things cannot be read correctly and some cannot be imported, so please use it with care.</p>
-<p><img src="../img/ja/nodoka-import.png" alt="Importing nodoka settings" /></p>
+<p><img src="../img/en/nodoka-import.png" alt="Importing nodoka settings" /></p>
 <ol>
 <li>In the <strong>Import</strong> tab, press <strong>Import Nodoka Settings...</strong>.</li>
 <li>Choose from the list of nodoka settings (★ marks the one in use now), or specify a <code>.nodoka</code> file with <strong>Choose File...</strong>. The symbol that corresponds to nodoka's <code>-D</code> (such as <code>USE109</code>) is entered when you choose from the list. You may also edit it.</li>
 <li>Press <strong>Convert</strong>. The result is divided into &quot;converted&quot;, &quot;approximated&quot;, and &quot;cannot convert&quot;, each shown with <code>file name:line</code>. You can switch with <strong>Show</strong>.</li>
 <li>When you press <strong>Import with these contents</strong>, you return to the import window. As with other imports, you choose the items and the destination and import. For nodoka settings, <strong>Add</strong> is the default. If you choose Replace, items that nodoka does not have are also removed.</li>
 </ol>
-<p><img src="../img/ja/nodoka-result.png" alt="The conversion result" /></p>
+<p><img src="../img/en/nodoka-result.png" alt="The conversion result" /></p>
 <p>Files that are <code>include</code>d are also read. The character encoding is determined in this order: BOM (UTF-16, UTF-8), UTF-8, CP932.</p>
 <h3 id="how-it-is-converted">How it is converted</h3>
 <p>A nodoka setting is a table of &quot;key × modifier state × keymap&quot;, while kasane has a table of &quot;key → action, for each layer&quot;. So it is flattened as follows.</p>
@@ -220,7 +220,7 @@
 <p><a id="reset"></a></p>
 <h2 id="reset">Reset</h2>
 <p>This returns only the items you choose to their initial state. Items you did not choose remain.</p>
-<p><img src="../img/ja/impexp-clear.png" alt="Reset" /></p>
+<p><img src="../img/en/impexp-clear.png" alt="Reset" /></p>
 <table>
 <thead>
 <tr>

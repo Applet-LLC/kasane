@@ -39,7 +39,7 @@
 <div class="pagehead">kasane 1.02 2026-11-16&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/13-settings.html">日本語</a></div>
 <h1 id="settings-dialog">13. Settings Dialog</h1>
 <p>Press <strong>Settings...</strong> at the bottom of the editor window to open the settings dialog, which has tabs.</p>
-<p><img src="../img/ja/settings-general.png" alt="The settings dialog" /></p>
+<p><img src="../img/en/settings-general.png" alt="The settings dialog" /></p>
 <table>
 <thead>
 <tr>
@@ -148,7 +148,7 @@
 </table>
 <p><a id="general"></a></p>
 <h2 id="general">General</h2>
-<p><img src="../img/ja/settings-general.png" alt="General" /></p>
+<p><img src="../img/en/settings-general.png" alt="General" /></p>
 <h3 id="tray">Tray</h3>
 <ul>
 <li><strong>Remap only while the tray is running</strong>: when ON, remapping goes OFF when the tray exits, on sign-out, on shutdown, and when the screen is locked, and goes back ON when the tray starts and when the screen is unlocked (ON by default). For details, see <a href="04-tray.html">4. Tray</a>.</li>
@@ -156,7 +156,7 @@
 </ul>
 <h3 id="colors">Colors</h3>
 <p>With <strong>Color mode</strong>, you can choose <strong>Light (default)</strong> or <strong>Dark</strong>. When you save with <strong>OK</strong>, it applies to every window, both those already open and those you open from now on: the main window, settings, every editing window, key assignment, and so on. The title bar also becomes dark.</p>
-<p><img src="../img/ja/settings-dark.png" alt="Dark mode" /></p>
+<p><img src="../img/en/settings-dark.png" alt="Dark mode" /></p>
 <ul>
 <li>It also applies to the tray (the right-click menu and About) and to License Manager. The tray reads it each time you open a menu or dialog. License Manager reads it each time it starts. After you change the setting, it changes from the next time you open them. Reopen a License Manager that is already open.</li>
 <li>It does not follow the Windows mode setting. What you choose here takes priority.</li>
@@ -165,11 +165,11 @@
 <h3 id="display-language">Display language</h3>
 <p>With <strong>Language</strong>, you choose the display language of kasane and the tray from <strong>Auto (default)</strong>, <strong>Japanese</strong>, and <strong>English</strong>. Auto follows the Windows display language. The change takes effect after kasane and the tray are restarted. When you save, a confirmation recommends restarting kasane. The tray restarts automatically after a few seconds.</p>
 <p>The help also follows this language. When you choose English, the English help opens.</p>
-<p><img src="../img/ja/settings-language-restart.png" alt="The confirmation after changing the display language" /></p>
+<p><img src="../img/en/settings-language-restart.png" alt="The confirmation after changing the display language" /></p>
 <p><a id="features"></a></p>
 <h2 id="features">Features</h2>
 <p>You can turn macros, combos, tap dances, and key overrides OFF if you do not use them. The screen also shows the keyboard's current values (&quot;Macro ON / Combo ON / …&quot;).</p>
-<p><img src="../img/ja/settings-features.png" alt="Features" /></p>
+<p><img src="../img/en/settings-features.png" alt="Features" /></p>
 <ul>
 <li>Keys of a feature you turned OFF do nothing. The keys that make up a combo work as ordinary keys.</li>
 <li>Even if you turn a feature OFF, its contents (such as macro definitions) are not deleted.</li>
@@ -179,7 +179,7 @@
 <p><a id="timing"></a></p>
 <h2 id="timing">Timing</h2>
 <p>You change the detection times for hold, simultaneous press, and consecutive taps, and similar settings.</p>
-<p><img src="../img/ja/settings-timing.png" alt="Timing" /></p>
+<p><img src="../img/en/settings-timing.png" alt="Timing" /></p>
 <table>
 <thead>
 <tr>
@@ -219,9 +219,9 @@
 <h2 id="sharing-scope">Sharing scope</h2>
 <p>A keyboard is treated as a different keyboard for each place it is connected (such as the USB port). The settings you made in the editor (<code>project.json</code>) and the tray settings are not carried over when you change ports (you can move them with export and import).</p>
 <p>The sharing scope is the unit in which the driver stores settings.</p>
-<p><img src="../img/ja/settings-scope-admin.png" alt="Sharing scope (opened as administrator)" /></p>
+<p><img src="../img/en/settings-scope-admin.png" alt="Sharing scope (opened as administrator)" /></p>
 <p>When you are not an administrator, you are in read-only mode and <strong>Change</strong> cannot be pressed.</p>
-<p><img src="../img/ja/settings-scope.png" alt="Sharing scope (read-only mode)" /></p>
+<p><img src="../img/en/settings-scope.png" alt="Sharing scope (read-only mode)" /></p>
 <table>
 <thead>
 <tr>
@@ -276,7 +276,7 @@
 <p><a id="data-dir"></a></p>
 <h2 id="data-folder">Data folder</h2>
 <p>This shows the folder where the settings files (the settings for each keyboard, the tray settings, and the logs) are stored, and the value of the environment variable <code>KASANE</code>.</p>
-<p><img src="../img/ja/settings-datadir-admin.png" alt="Data folder" /></p>
+<p><img src="../img/en/settings-datadir-admin.png" alt="Data folder" /></p>
 <ul>
 <li>If an absolute path is set in <code>KASANE</code>, that folder is used. If not, <code>%LOCALAPPDATA%\applet\kasane</code> is used.</li>
 <li>You change the value in &quot;Settings folder&quot; in the installer (<a href="01-install.html">1. Installation</a>). After the change, restart, or sign out and sign in, as needed.</li>
@@ -289,9 +289,9 @@
 <h2 id="i8042prt">i8042prt</h2>
 <p>The layout of a PS/2 (ACPI) keyboard can be specified only with values in the registry <code>HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\i8042prt\Parameters</code>. For HID keyboards, if these values remain, per-keyboard specification stops working.</p>
 <p>Use this setting when the built-in keyboard of a laptop is a PS/2 (ACPI) keyboard and you also use an external keyboard. It is for when you want to use different keyboard layouts for the built-in and the external keyboards. When enabled, the specified layout is applied at PC startup, when the PS/2 (ACPI) keyboard is recognized. Try it when the layout of the PS/2 (ACPI) keyboard does not become JIS even if you set the keyboard layout to &quot;Connected keyboard&quot; in the Windows &quot;Language &amp; region&quot; options.</p>
-<p><img src="../img/ja/settings-i8042-admin.png" alt="i8042prt (opened as administrator)" /></p>
+<p><img src="../img/en/settings-i8042-admin.png" alt="i8042prt (opened as administrator)" /></p>
 <p>When you are not an administrator, the input boxes and <strong>Save</strong> cannot be pressed.</p>
-<p><img src="../img/ja/settings-i8042.png" alt="i8042prt (read-only mode)" /></p>
+<p><img src="../img/en/settings-i8042.png" alt="i8042prt (read-only mode)" /></p>
 <p>When you enable <strong>Reset the i8042prt values on connection</strong>, every time a keyboard is connected (including at startup), the values are rewritten as follows.</p>
 <ul>
 <li>For a model that has a profile, the values you set are written (blank values are deleted).</li>
@@ -302,12 +302,12 @@
 <p><a id="desktop"></a></p>
 <h2 id="desktop">Desktop</h2>
 <p>This changes how desktop icons are shown (Icons, Details, Small icons, List, Tiles). It has nothing to do with key remapping; it carries over a feature that was in the nodoka settings.</p>
-<p><img src="../img/ja/settings-desktop.png" alt="Desktop" /></p>
+<p><img src="../img/en/settings-desktop.png" alt="Desktop" /></p>
 <p>If you leave it at <strong>Don't change (default)</strong>, nothing is done. The view you choose is applied when you save with <strong>OK</strong> and when the tray starts. Depending on the OS and the state of the desktop, the view you chose may not be applied.</p>
 <p><a id="about"></a></p>
 <h2 id="about">About</h2>
 <p>The product name, the version, the build date and time, the location of the running file, and the website are shown. You can also open it from the version display in the title bar of the main window, and from <strong>About</strong> in the tray.</p>
-<p><img src="../img/ja/settings-about.png" alt="About" /></p>
+<p><img src="../img/en/settings-about.png" alt="About" /></p>
 
 <div class="pager"><a href="12-recipes.html">← 12. Setup Examples</a><a href="14-import-export.html">14. Import and Export →</a></div>
 </main>

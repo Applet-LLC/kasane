@@ -75,12 +75,12 @@
 <li>Close the key assignment window with <strong>OK</strong> too, and press <strong>Apply to keyboard (ON)</strong>.</li>
 <li>When you press that key, nothing is typed and Notepad launches.</li>
 </ol>
-<p><img src="../img/ja/helper-assign.png" alt="Assigning a helper action" /></p>
+<p><img src="../img/en/helper-assign.png" alt="Assigning a helper action" /></p>
 <p>When you press <strong>Helper...</strong> at the bottom of the editor window, the settings dialog opens with the &quot;Helper actions&quot; tab shown.</p>
 <p><a id="helper-tab"></a></p>
 <h2 id="the-helper-actions-tab">The &quot;Helper actions&quot; tab</h2>
 <p>You manage actions and triggers in lists. Choose the target from <strong>This keyboard</strong> and <strong>All keyboards (shared)</strong>.</p>
-<p><img src="../img/ja/helper-tab.png" alt="The Helper actions tab" /></p>
+<p><img src="../img/en/helper-tab.png" alt="The Helper actions tab" /></p>
 <table>
 <thead>
 <tr>
@@ -166,7 +166,7 @@ hwheel 120           Horizontal wheel
 ime off              Turn the IME off (on, off, toggle)
 ime off abort        If it fails, stop the rest of this action
 </code></pre>
-<p><img src="../img/ja/helper-sequence.png" alt="Editing the steps of an operation" /></p>
+<p><img src="../img/en/helper-sequence.png" alt="Editing the steps of an operation" /></p>
 <p>With the buttons above the box, you can insert lines (they go in after the line with the cursor).</p>
 <table>
 <thead>
@@ -269,7 +269,7 @@ vk LSHIFT+F1         Join modifiers with +
 <li>Set the type to <strong>Key, text, and mouse actions (Sequence)</strong>, and write what you want to send in the steps (for example, <code>text Hello</code>). Press <strong>OK</strong>.</li>
 <li>When you press Ctrl+F1, the sequence runs. Ctrl+F1 itself does not reach the app.</li>
 </ol>
-<p><img src="../img/ja/helper-trigger.png" alt="Editing a trigger" /></p>
+<p><img src="../img/en/helper-trigger.png" alt="Editing a trigger" /></p>
 <p>While it runs, the Ctrl you are holding is hidden from the OS. Ctrl is not applied to the output, so it does not turn into another shortcut such as Ctrl+A. When it finishes, if you are still holding Ctrl, it is put back to the held state.</p>
 <p>When you want to use Ctrl inside the sequence, write it in the steps, like <code>key LCTL(KC_C)</code>. When you want to send the held modifiers without hiding them, check <strong>Send held modifier keys while running</strong> in the trigger's editing window.</p>
 <p><a id="trigger-notes"></a></p>
@@ -322,7 +322,7 @@ vk LSHIFT+F1         Join modifiers with +
 <p><a id="app-rules"></a></p>
 <h2 id="per-app-layers">Per-app layers</h2>
 <p>Depending on the foreground app, this enables app-managed layers automatically, or turns remapping OFF for that keyboard (for games and the like). You set it in the <strong>Per-app layers</strong> tab of the settings dialog.</p>
-<p><img src="../img/ja/apprules-tab.png" alt="The Per-app layers tab" /></p>
+<p><img src="../img/en/apprules-tab.png" alt="The Per-app layers tab" /></p>
 <h3 id="example-changing-layers-only-in-a-specific-app">Example: changing layers only in a specific app</h3>
 <ol>
 <li>Open the <strong>Per-app layers</strong> tab of <strong>Settings...</strong>.</li>
@@ -331,8 +331,8 @@ vk LSHIFT+F1         Join modifiers with +
 <li>Check the layers to enable (0 to 15). If you want to stop remapping for a game or the like, check <strong>Turn remapping OFF</strong>. Press <strong>OK</strong>.</li>
 <li>Close the settings dialog with <strong>OK</strong> too, and it is saved. The layer is turned on only while that app is in front.</li>
 </ol>
-<p><img src="../img/ja/apprules-editor.png" alt="Foreground app rule" /></p>
-<p><img src="../img/ja/apprules-picker.png" alt="Choose from running apps" /></p>
+<p><img src="../img/en/apprules-editor.png" alt="Foreground app rule" /></p>
+<p><img src="../img/en/apprules-picker.png" alt="Choose from running apps" /></p>
 <p>Rules are checked from the top, and the first one that matches is used. The rules of <strong>This keyboard</strong> are checked before the rules of <strong>All keyboards (shared)</strong>. You can change the order with <strong>Up</strong> and <strong>Down</strong>. If none matches, the &quot;default&quot; rule is used.</p>
 <table>
 <thead>

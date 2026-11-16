@@ -1,0 +1,29 @@
+﻿. \\100.64.1.22\kasanevm\out\lib\vmlib.ps1
+# 閉じるときの確認（管理者のエディタ。editor-close-confirm-admin）。S のキーを D に変えて、適用せずに閉じる。
+# 閲覧専用のとき（editor-close-confirm-readonly）は、昇格していないエージェントで撮る（90-capture-manual は撮らないので、必要なら手動）。
+function Names($w) { try { $w.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition) | Where-Object { $_.Current.Name } } catch { @() } }
+Get-Process kasane -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 1
+$p = Start-Process 'C:\Program Files\applet\kasane\keymap-gui\kasane.exe' -PassThru; $kp = $p.Id
+$h = Find-WinByTitle (T 'かさね*' 'kasane 1*') 30000; $w = El $h; Start-Sleep 12
+$before = Get-AllTopWindowHandles $kp
+Invoke-Element (Find-ChildByAutomationId $w 'Key_61'); $d = Find-NewTopWindow $kp $before -timeoutMs 30000
+Select-ListItemByIndex (Find-ChildByAutomationId $d 'LstCategories') 1; Start-Sleep -Milliseconds 600
+Invoke-Element (Find-ChildByAutomationId $d 'KeycodeButton_KC_D'); Start-Sleep -Milliseconds 400
+Invoke-Element (Find-ChildByAutomationId $d 'BtnOk'); Start-Sleep -Seconds 2
+$b2 = Get-AllTopWindowHandles $kp
+"閉じる前のタイトル: $((El $h).Current.Name)"
+$w.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern).Close()
+try { $c = Find-NewTopWindow $kp $b2 -timeoutMs 15000 }
+catch {
+    "確認の画面が出ません。エディタのタイトル: $((El $h).Current.Name)"
+    "プロセスのウィンドウ:"; Get-Process -Id $kp -ErrorAction SilentlyContinue | ForEach-Object { "  $($_.MainWindowTitle)" }
+    Snap $h 'editor-close-confirm-debug'; throw
+}
+$cw = El ([System.IntPtr]$c.Current.NativeWindowHandle)
+Names $cw | ForEach-Object { '  ' + $_.Current.Name.Substring(0, [math]::Min(140, $_.Current.Name.Length)) }
+Snap $c 'editor-close-confirm-admin'
+$no = Names $cw | Where-Object { $_.Current.Name -match (T '^いいえ' '^&?No') } | Select-Object -First 1
+if ($no) { Click-Center $no; 'clicked No' }
+Start-Sleep 3
+Get-Process kasane -ErrorAction SilentlyContinue | Stop-Process -Force
+'done'

@@ -39,7 +39,7 @@
 <div class="pagehead">kasane 1.02 2026-11-16&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/08-key-assign.html">日本語</a></div>
 <h1 id="assigning-keys">8. Assigning Keys</h1>
 <p>When you click a key in the editor's keyboard diagram, the &quot;Key assignment&quot; window opens. Here you choose the action to assign to that key.</p>
-<p><img src="../img/ja/assign-main.png" alt="Key assignment" /></p>
+<p><img src="../img/en/assign-main.png" alt="Key assignment" /></p>
 <p>The window is made of these parts.</p>
 <table>
 <thead>
@@ -166,7 +166,7 @@
 <p>For a key that is not in the list, you can write <code>SC_XXXX</code> directly in the key code box. <code>XXXX</code> is a 4-digit hexadecimal scan code (the upper 2 digits are one of <code>00</code>, <code>E0</code>, and <code>E1</code>; the lower 2 digits are not <code>00</code>). For example, the browser &quot;Back&quot; key is <code>SC_E06A</code>.</p>
 <h3 id="power-keys">Power keys</h3>
 <p>When you assign the sleep, power, or wake-up key, a confirmation appears, because pressing it may put the PC to sleep or shut it down. A ⚠ is also shown on the keycap.</p>
-<p><img src="../img/ja/assign-power.png" alt="Power key confirmation" /></p>
+<p><img src="../img/en/assign-power.png" alt="Power key confirmation" /></p>
 <h2 id="keys-with-modifiers">Keys with modifiers</h2>
 <p>This is how to assign a shortcut such as Ctrl+C. Check the modifier check boxes at the bottom of the window first, then choose the key. For example, check left Ctrl and choose <code>C</code>, and you get <code>LCTL(KC_C)</code> (Ctrl+C). In the keyboard diagram, it is shown like <code>^C</code>.</p>
 <p>You can also write it directly in the key code box, like <code>LCTL(LSFT(KC_T))</code>.</p>
@@ -178,11 +178,11 @@
 <p><a id="keyboard-view-pick"></a></p>
 <h2 id="choosing-from-the-keyboard-diagram">Choosing from the keyboard diagram</h2>
 <p>If you choose <strong>Keyboard view</strong> at the end of the list on the left, you can choose from a picture of the keyboard. If you check a modifier, it takes the form of <code>LCTL(KC_C)</code>.</p>
-<p><img src="../img/ja/assign-softkeyboard.png" alt="Keyboard view" /></p>
+<p><img src="../img/en/assign-softkeyboard.png" alt="Keyboard view" /></p>
 <p><a id="layer-actions"></a></p>
 <h2 id="layer-actions">Layer actions</h2>
 <p>When you choose <strong>Layer actions</strong>, boxes for <strong>Type</strong> and <strong>Layer</strong> appear. After choosing, press <strong>Insert into key code</strong>, and it goes into the key code box in a form like <code>MO(1)</code>.</p>
-<p><img src="../img/ja/assign-layer.png" alt="Layer actions" /></p>
+<p><img src="../img/en/assign-layer.png" alt="Layer actions" /></p>
 <table>
 <thead>
 <tr>
@@ -257,7 +257,7 @@
 </tr>
 </tbody>
 </table>
-<p><img src="../img/ja/assign-modtap.png" alt="Mod-Tap" /></p>
+<p><img src="../img/en/assign-modtap.png" alt="Mod-Tap" /></p>
 <p>The <strong>Tap key</strong> box already holds the current key code of the key you clicked. For the A key, that is <code>KC_A</code>, so you only choose a modifier or a layer, and you get a key that gives &quot;A on a short press&quot;. When the current assignment is not a plain key (such as ▽ or <code>LCTL(KC_C)</code>), the key code of the key's legend is entered.</p>
 <ul>
 <li>If you press another key while holding, it is treated as a hold. That key is entered with the assignment of the layer you switched to. For example, if you press <code>J</code> while holding <code>LT(1,KC_SPC)</code>, you get the key at the <code>J</code> position on layer 1.</li>

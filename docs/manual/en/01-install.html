@@ -85,7 +85,7 @@
 <h2 id="steps">Steps</h2>
 <h3 id="run-install-kasane.exe">1. Run Install-kasane.exe</h3>
 <p>Run <code>Install-kasane.exe</code>. It is shown in Japanese if Windows is set to Japanese, and in English otherwise. You can switch with the link at the top right.</p>
-<p><img src="../img/ja/install-launcher.png" alt="The installer start screen" /></p>
+<p><img src="../img/en/install-launcher.png" alt="The installer start screen" /></p>
 <p>As the text says, you enter the license key in License Manager, which appears after installation (<a href="03-license.html">3. License Activation</a>). Press <strong>Install</strong> to start the installer. If the <code>.msi</code> is not in the same folder, a message appears in red and the button cannot be pressed.</p>
 <p>If you start <code>Install-kasane.exe</code> a second time while it is already open, the window that is already open is brought to the front. Only one installer can run at a time.</p>
 <h3 id="follow-the-setup-wizard">2. Follow the setup wizard</h3>
@@ -99,12 +99,12 @@
 <li>Ready to install, and progress</li>
 <li>Finish</li>
 </ol>
-<p><img src="../img/ja/install-wizard-welcome.png" alt="The first page of the wizard" /></p>
-<p><img src="../img/ja/install-wizard-license.png" alt="The license agreement" /></p>
-<p><img src="../img/ja/install-wizard-features.png" alt="Feature selection" /></p>
+<p><img src="../img/en/install-wizard-welcome.png" alt="The first page of the wizard" /></p>
+<p><img src="../img/en/install-wizard-license.png" alt="The license agreement" /></p>
+<p><img src="../img/en/install-wizard-features.png" alt="Feature selection" /></p>
 <h4 id="settings-folder">Settings folder</h4>
 <p>Specify where settings files (the settings for each keyboard, the tray settings, and the logs) are stored. It is set machine-wide as the environment variable <code>KASANE</code>.</p>
-<p><img src="../img/ja/install-wizard-datadir.png" alt="Settings folder" /></p>
+<p><img src="../img/en/install-wizard-datadir.png" alt="Settings folder" /></p>
 <ul>
 <li>If you leave it empty, settings are stored in each user's <code>%LOCALAPPDATA%\applet\kasane</code>.</li>
 <li>Press <strong>Browse...</strong> to open a screen for choosing a folder. If the box already contains a path (including when the environment variable <code>KASANE</code> is already set), that folder is selected when the screen opens.</li>
@@ -116,25 +116,25 @@
 <p>To change it later, run the installer again (the &quot;Data folder&quot; tab of the <a href="13-settings.html">settings dialog</a> shows the current value). After changing it, restart, or sign out and sign in again, as needed.</p>
 <h4 id="import-settings-file">Import settings file</h4>
 <p>This applies a settings file (<code>*.kasane.json</code>) exported from a previous environment to the driver during installation. It is off by default.</p>
-<p><img src="../img/ja/install-wizard-import.png" alt="Import settings file" /></p>
+<p><img src="../img/en/install-wizard-import.png" alt="Import settings file" /></p>
 <ol>
 <li>Select <strong>Import a settings file</strong>.</li>
 <li>Enter the full path of the settings file. Right-click does not work in this box, so paste with <code>Ctrl+V</code> on the keyboard.</li>
 <li>When you press <strong>Next</strong>, if the file does not exist, a confirmation screen saying &quot;Settings file not found&quot; appears. Fix the path, or clear &quot;Import a settings file&quot;.</li>
 </ol>
-<p><img src="../img/ja/install-wizard-import-filled.png" alt="Entering the settings file" /></p>
-<p><img src="../img/ja/install-wizard-import-missing.png" alt="Settings file not found" /></p>
+<p><img src="../img/en/install-wizard-import-filled.png" alt="Entering the settings file" /></p>
+<p><img src="../img/en/install-wizard-import-missing.png" alt="Settings file not found" /></p>
 <p>For a new installation, if the settings folder (the folder you specified on the previous page) contains <code>kasane-recovery.kasane.json</code>, that file is selected automatically, and the page appears with <strong>Import a settings file</strong> already selected. Clear the check box if you do not need it. This file is created in the settings folder when you choose <strong>Include recovery settings</strong> in Export (<a href="14-import-export.html">14. Import and Export</a>). In an installation that shows no screens, the same file is imported if it is found in the settings folder given with <code>KASANE_DIR</code>. To stop that, see &quot;Silent installation&quot; and pass <code>IMPORT_SETTINGS=0</code>. An overwrite installation on a PC that already has kasane (an update or a repair) does not look for the file, so it is not selected automatically. Your settings are still in place, and this avoids replacing them with an old file. If you want to import, select <strong>Import a settings file</strong> and enter the path of the file.</p>
 <p>When you import a file that contains recovery settings, the emergency-release key combination, the i8042prt settings, and the sharing scope of each keyboard are also restored to the driver. The tray settings (colors, language, how desktop icons are shown, and so on) and layouts you added yourself are restored when the tray first starts, only for the items that do not exist yet.</p>
 <p>The imported settings take effect after a restart (or when you reconnect the keyboard). For a model that already has settings, they are replaced, and the previous settings are kept for one generation. You can restore the kept settings from the &quot;Data folder&quot; tab of the settings dialog (<a href="14-import-export.html">14. Import and Export</a>). The result is recorded in <code>%ProgramData%\applet\kasane\import.log</code>.</p>
 <h3 id="run-the-installation">3. Run the installation</h3>
 <p>Press <strong>Install</strong> to start copying and registering files. If you want to check your choices so far, press <strong>Back</strong> to return to the previous pages.</p>
-<p><img src="../img/ja/install-wizard-ready.png" alt="Ready to install" /></p>
-<p><img src="../img/ja/install-wizard-progress.png" alt="Installing" /></p>
+<p><img src="../img/en/install-wizard-ready.png" alt="Ready to install" /></p>
+<p><img src="../img/en/install-wizard-progress.png" alt="Installing" /></p>
 <p>Installation finishes within a few minutes.</p>
 <h3 id="restart">4. Restart</h3>
 <p>When installation finishes, the final page asks you to restart.</p>
-<p><img src="../img/ja/install-wizard-finish.png" alt="The final page" /></p>
+<p><img src="../img/en/install-wizard-finish.png" alt="The final page" /></p>
 <p>After you restart and sign in, License Manager opens automatically, just once. The tray icon also appears in the notification area. Until you restart, the driver is still stopped, so remapping does not work.</p>
 <h3 id="activate-the-license-and-restart-again">5. Activate the license and restart again</h3>
 <p>Enter the license key in License Manager and activate it (<a href="03-license.html">3. License Activation</a>). Then restart once more, or reconnect the keyboard, and kasane is ready to use.</p>
@@ -308,7 +308,7 @@
 <li>If the network was the cause, check your connection and run <code>Install-kasane-pro.exe</code> again. Also check that communication with Gumroad (<code>https://api.gumroad.com</code>) is not blocked, for example by a company network. The list of destinations is in &quot;When you cannot connect to the license server&quot; in <a href="03-license.html">3. License Activation</a>.</li>
 </ol>
 <p>If you could not connect to the internet and nothing reached Gumroad, the usage count of the key does not increase. After you fix the connection, you can enter the same key as it is.</p>
-<p><img src="../img/ja/install-launcher-failed.png" alt="The screen when installation fails" /></p>
+<p><img src="../img/en/install-launcher-failed.png" alt="The screen when installation fails" /></p>
 
 <div class="pager"><a href="index.html">← Introduction</a><a href="02-uninstall.html">2. Uninstallation →</a></div>
 </main>
