@@ -37,7 +37,7 @@ When you include recovery settings, the default in the save window is `kasane-re
 
 Exports of **One layer** and **This keyboard** do not include recovery settings. This is so that settings from your own PC do not get mixed into a file you give to someone else.
 
-**Open the output location in Explorer** can always be used. The current output location is shown to the right of the button. After you have exported, it opens with that file selected (the folder, for JSON for KeymapTool). Before you export, it opens the settings folder.
+**Open output folder** can always be used. The current output location is shown to the right of the button. After you have exported, it opens with that file selected (the folder, for JSON for KeymapTool). Before you export, it opens the settings folder.
 
 ### JSON for KeymapTool
 
@@ -77,7 +77,7 @@ Before importing everything, the current settings are backed up automatically to
 
 ### Importing the Emacs example
 
-Press **Emacs Example...** under **Choose File...** in the **Import** tab, and the Emacs-style key operation example bundled with the installation (`samples\emacs\emacs.kasane.json`) is loaded (the same folder also has <a href="../../samples/emacs/EMACS-KEYBINDINGS.html" target="_blank" rel="noopener">EMACS-KEYBINDINGS.html</a>, which explains how to use it; click it to open it in a new window. It is written in Japanese). Choose the three items "Layers", "Macros", and "Key overrides", set the mode to **Replace**, check the contents, and press **Import**. Then press **Apply to keyboard (ON)**.
+Press **Emacs Example...** under **Choose File...** in the **Import** tab, and the Emacs-style key operation example bundled with the installation (`samples\emacs\emacs.kasane.json`) is loaded (the same folder also has <a href="../../samples/emacs/EMACS-KEYBINDINGS.en-US.html" target="_blank" rel="noopener">EMACS-KEYBINDINGS.en-US.html</a>, which explains how to use it; click it to open it in a new window). Choose the three items "Layers", "Macros", and "Key overrides", set the mode to **Replace**, check the contents, and press **Import**. Then press **Apply to keyboard (ON)**.
 
 <a id="nodoka"></a>
 ## Importing nodoka settings
@@ -89,7 +89,7 @@ You can convert a nodoka (nodoka4) settings file (`.nodoka`) into kasane setting
 1. In the **Import** tab, press **Import Nodoka Settings...**.
 2. Choose from the list of nodoka settings (★ marks the one in use now), or specify a `.nodoka` file with **Choose File...**. The symbol that corresponds to nodoka's `-D` (such as `USE109`) is entered when you choose from the list. You may also edit it.
 3. Press **Convert**. The result is divided into "converted", "approximated", and "cannot convert", each shown with `file name:line`. You can switch with **Show**.
-4. When you press **Import with these contents**, you return to the import window. As with other imports, you choose the items and the destination and import. For nodoka settings, **Add** is the default. If you choose Replace, items that nodoka does not have are also removed.
+4. When you press **Import this**, you return to the import window. As with other imports, you choose the items and the destination and import. For nodoka settings, **Add** is the default. If you choose Replace, items that nodoka does not have are also removed.
 
 ![The conversion result](../img/ja/nodoka-result.png)
 

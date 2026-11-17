@@ -26,7 +26,7 @@ These are the limitations known now. Some individual limitations are written in 
 
 - You cannot use or save separate keyboard settings for each user. The settings are common to all users. You can apply your own settings after you sign in and use them. In that case, it is a good idea to put the settings back before you sign out.
 - Even if the Windows keyboard layout setting does not match the legends on the keycaps, you can remap keys by scan code. However, even with the Windows keyboard layout set to "Connected keyboard", Windows may not recognize an ACPI (PS/2) keyboard, or a keyboard that does not support Plug and Play, automatically. Also consider the settings in the i8042prt tab of the settings dialog. You can check the current Windows settings with the keyboard layout tool "Mana" (https://github.com/Applet-LLC/mana).
-- This help has an English version, but the screenshots show the Japanese display language. Please read them together with the English text.
+- Some of the screenshots are still from the Japanese version.
 - When you are not an administrator, "Input check" in calibration and "Test simultaneous press" in emergency release check with Windows key input (a low-level keyboard hook). There are limits such as right Shift not being handled, and the release not arriving for some keys. When you start as administrator, keys are received directly from the driver, so you can check accurately.
 - A keyboard that sends right Shift as `E0 36` may not be handled by calibration (not confirmed on real hardware).
 - The feature that reads the IME state with TSF is experimental. The problem that using it makes Explorer start slowly has not been solved ([10. IME Linking and NICOLA](10-ime-nicola.html)).

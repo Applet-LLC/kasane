@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Emacs-Style Key Operation Example - kasane Help</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --fg: #1f2328;
+  --sub: #59636e;
+  --line: #d1d9e0;
+  --panel: #f6f8fa;
+  --accent: #0b5cad;
+  --note-bg: #fff8e1;
+  --note-line: #e0b400;
+  --warn-bg: #fdecea;
+  --warn-line: #d1352b;
+  --code-bg: #eff1f3;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14181d;
+    --fg: #dde2e8;
+    --sub: #9aa5b1;
+    --line: #333b44;
+    --panel: #1b2027;
+    --accent: #6cb2ff;
+    --note-bg: #2b2610;
+    --note-line: #b8941a;
+    --warn-bg: #2d1715;
+    --warn-line: #d9534f;
+    --code-bg: #232a32;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.8 "Yu Gothic UI", "Meiryo UI", "Hiragino Sans", system-ui, sans-serif;
+}
+a { color: var(--accent); }
+.layout { display: flex; max-width: 1120px; margin: 0 auto; }
+nav.toc {
+  flex: 0 0 240px;
+  padding: 24px 16px;
+  border-right: 1px solid var(--line);
+  position: sticky; top: 0; align-self: flex-start;
+  max-height: 100vh; overflow-y: auto;
+  font-size: 14px; line-height: 1.6;
+}
+nav.toc .brand { font-weight: 700; font-size: 16px; margin-bottom: 12px; display: block; color: var(--fg); text-decoration: none; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; }
+nav.toc li a { display: block; padding: 3px 8px; border-radius: 4px; color: var(--fg); text-decoration: none; }
+nav.toc li a:hover { background: var(--panel); }
+nav.toc li.current a { background: var(--panel); color: var(--accent); font-weight: 700; }
+main { flex: 1 1 auto; min-width: 0; padding: 24px 32px 64px; }
+h1 { font-size: 28px; line-height: 1.4; margin: 0 0 16px; }
+h2 { font-size: 22px; margin: 40px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+h3 { font-size: 18px; margin: 28px 0 8px; }
+img { max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 4px; }
+figure { margin: 16px 0; }
+figcaption { color: var(--sub); font-size: 14px; margin-top: 4px; }
+table { border-collapse: collapse; margin: 16px 0; display: block; overflow-x: auto; }
+th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+th { background: var(--panel); }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 3px; font: 0.92em Consolas, "Cascadia Mono", monospace; }
+pre { background: var(--code-bg); padding: 12px; border-radius: 6px; overflow-x: auto; }
+pre code { background: none; padding: 0; }
+blockquote { margin: 16px 0; padding: 8px 16px; background: var(--note-bg); border-left: 4px solid var(--note-line); }
+blockquote p { margin: 4px 0; }
+.pager { display: flex; justify-content: space-between; gap: 16px; margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); }
+.pager a { text-decoration: none; }
+.todo { background: var(--warn-bg); border-left: 4px solid var(--warn-line); padding: 4px 12px; }
+@media (max-width: 800px) {
+  .layout { display: block; }
+  nav.toc { position: static; max-height: none; border-right: 0; border-bottom: 1px solid var(--line); padding: 16px; }
+  main { padding: 16px; }
+}
+.pagehead { text-align: right; color: var(--sub); font-size: 13px; line-height: 1.5; margin: 0 0 16px; }
+.pagehead a { color: var(--sub); }
+.title-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 16px; }
+.title-row h1 { margin: 0; }
+.title-row img { width: 96px; height: 96px; border: 0; border-radius: 0; flex: 0 0 auto; }
+.banner { margin: 0 0 24px; }
+.banner img { display: block; width: 100%; }
+
+</style>
+</head>
+<body>
+<div class="layout">
+<main>
+<h1 id="emacs-style-key-operation-example">Emacs-Style Key Operation Example</h1>
+<p>The <code>samples\emacs\</code> folder in the installation folder contains a setup that makes basic Emacs cursor movement and editing, operations that start with C-x, C-q (send the next key as it is), and the Ctrl+Space mark mode available in ordinary Windows apps. The basic setup is 3 layers, 36 macros, and 35 key overrides. It does not depend on the tray. It works even when the tray is not running.</p>
+<p>The behavior was checked with the built-in keyboard by looking at the sequence of keys that reach Windows (representative movement and editing operations, the one key after C-x, the one key after C-q, and mark mode). The 32 movement and editing operations were also checked in Notepad. The actual behavior in apps was not checked for the C-x operations, C-q, and mark mode. Some apps may not behave as expected.</p>
+<h2 id="what-is-included">What is included</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>emacs.kasane.json</code></td>
+<td>The setup itself. A kasane exchange file that holds the layers, macros, and key overrides</td>
+</tr>
+<tr>
+<td><code>apply-emacs.ps1</code></td>
+<td>A script that reads the file above and writes it to the keyboard with KeymapTool</td>
+</tr>
+</tbody>
+</table>
+<h2 id="assigned-keys">Assigned keys</h2>
+<p>Either Ctrl works, and either Alt works.</p>
+<table>
+<thead>
+<tr>
+<th>Key you press</th>
+<th>Key sent</th>
+<th>Emacs operation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ctrl+F / Ctrl+B</td>
+<td>→ / ←</td>
+<td>Forward / back one character</td>
+</tr>
+<tr>
+<td>Ctrl+N / Ctrl+P</td>
+<td>↓ / ↑</td>
+<td>Next line / previous line</td>
+</tr>
+<tr>
+<td>Ctrl+A / Ctrl+E</td>
+<td>Home / End</td>
+<td>Start / end of line</td>
+</tr>
+<tr>
+<td>Ctrl+V / Alt+V</td>
+<td>PageDown / PageUp</td>
+<td>Forward / back one screen</td>
+</tr>
+<tr>
+<td>Alt+F / Alt+B</td>
+<td>Ctrl+→ / Ctrl+←</td>
+<td>Forward / back one word</td>
+</tr>
+<tr>
+<td>Alt+Shift+, / Alt+Shift+.</td>
+<td>Ctrl+Home / Ctrl+End</td>
+<td>Start / end of the document (M-&lt; and M-&gt;)</td>
+</tr>
+<tr>
+<td>Ctrl+D / Ctrl+H</td>
+<td>Delete / BackSpace</td>
+<td>Delete the next / previous character</td>
+</tr>
+<tr>
+<td>Alt+D / Alt+BackSpace</td>
+<td>Ctrl+Delete / Ctrl+BackSpace</td>
+<td>Delete the next / previous word</td>
+</tr>
+<tr>
+<td>Ctrl+K</td>
+<td>Shift+End, then Ctrl+X</td>
+<td>Cut to the end of the line</td>
+</tr>
+<tr>
+<td>Ctrl+W / Alt+W</td>
+<td>Ctrl+X / Ctrl+C</td>
+<td>Cut / copy</td>
+</tr>
+<tr>
+<td>Ctrl+Y</td>
+<td>Ctrl+V</td>
+<td>Paste</td>
+</tr>
+<tr>
+<td>Ctrl+/</td>
+<td>Ctrl+Z</td>
+<td>Undo</td>
+</tr>
+<tr>
+<td>Ctrl+S</td>
+<td>Ctrl+F</td>
+<td>Search</td>
+</tr>
+<tr>
+<td>Ctrl+G</td>
+<td>Esc</td>
+<td>Cancel</td>
+</tr>
+<tr>
+<td>Ctrl+M / Ctrl+J</td>
+<td>Enter</td>
+<td>New line</td>
+</tr>
+<tr>
+<td>Ctrl+O</td>
+<td>Enter, then ←</td>
+<td>Open an empty line below</td>
+</tr>
+<tr>
+<td>Ctrl+Shift+F / B / N / P / A / E</td>
+<td>Shift+→ / ← / ↓ / ↑ / Home / End</td>
+<td>Extend the selection while moving</td>
+</tr>
+</tbody>
+</table>
+<h3 id="extending-the-selection">Extending the selection</h3>
+<p>The Ctrl+Shift combinations extend the selection without entering mark mode. Each time you press a movement key while holding Ctrl and Shift, the selection grows by one step. You do not need to set a starting point. Where the cursor is now is the starting point.</p>
+<p>Example: select from the middle of a line to the end of the line.</p>
+<ol>
+<li>Put the cursor where you want to start selecting.</li>
+<li>Hold Ctrl and Shift and press E. The text from the cursor to the end of the line is selected.</li>
+<li>To cut the range as it is, release Shift and press W while holding Ctrl.</li>
+</ol>
+<p>Example: select down 3 lines. Hold Ctrl and Shift and press N 3 times. If you hold it down, auto-repeat keeps extending the selection.</p>
+<ul>
+<li>Starting a selection and continuing it work the same way. The selection extends only while both Ctrl and Shift are held.</li>
+<li>If you release Shift partway and press Ctrl+F or the like, the selection is cleared and only the cursor moves.</li>
+<li>To stop selecting, use movement without Shift (Ctrl+F and so on). Ctrl+G only sends Esc, so in some apps it does not clear the selection.</li>
+<li>Operations that select by word (M-S-f and so on) are not included.</li>
+</ul>
+<h2 id="operations-that-start-with-c-x">Operations that start with C-x</h2>
+<p>After you press Ctrl+X, only the one key you press next gets a different assignment. It is the same whether you keep holding Ctrl or release it first (C-x C-s and C-x s both save).</p>
+<table>
+<thead>
+<tr>
+<th>Key you press</th>
+<th>Key sent</th>
+<th>Emacs operation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C-x C-s</td>
+<td>Ctrl+S</td>
+<td>Save</td>
+</tr>
+<tr>
+<td>C-x C-f</td>
+<td>Ctrl+O</td>
+<td>Open a file</td>
+</tr>
+<tr>
+<td>C-x C-w</td>
+<td>F12</td>
+<td>Save as (F12 in Word and similar apps)</td>
+</tr>
+<tr>
+<td>C-x b</td>
+<td>Ctrl+Tab</td>
+<td>Next tab (switch buffer)</td>
+</tr>
+<tr>
+<td>C-x k</td>
+<td>Ctrl+W</td>
+<td>Close the tab (kill the buffer)</td>
+</tr>
+<tr>
+<td>C-x h</td>
+<td>Ctrl+A</td>
+<td>Select all</td>
+</tr>
+<tr>
+<td>C-x u</td>
+<td>Ctrl+Z</td>
+<td>Undo</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>If you press a key that is not in the table above after C-x, that key works normally (if you are holding Ctrl, it stays a Ctrl key). The effect of C-x ends after the next one key.</li>
+<li>If you press C-x twice in a row, the wait stays at one.</li>
+<li>Windows Ctrl+X (cut) becomes the C-x prefix. Use C-w to cut.</li>
+</ul>
+<h2 id="c-q-send-the-next-key-as-it-is">C-q (send the next key as it is)</h2>
+<p>After you press Ctrl+Q, only the one key you press next is delivered as a Ctrl key as it is, without the Emacs-style replacement. It is used the same way as nodoka's <code>key C-Q = &amp;Prefix(KeymapDefault)</code>. For example, C-q C-f sends Ctrl+F to the app as it is, instead of →.</p>
+<ul>
+<li>The targets are A to Z and Space (C-q C-Space does not enter mark mode; it sends Ctrl+Space). Other keys still get the normal replacement after C-q (for example, C-/ becomes Ctrl+Z).</li>
+<li>The effect of C-q ends after the next one key. If you press C-f again, it becomes →.</li>
+<li>The mechanism is the same as C-x: each key on layer 2 is assigned a macro that sends a modified key such as <code>LCTL(KC_F)</code>. This is because if a modified key were placed directly on a layer, its output would hit another replacement.</li>
+</ul>
+<h2 id="mark-mode-ctrlspace">Mark mode (Ctrl+Space)</h2>
+<p>Ctrl+Space enters mark mode. While you are in it, Shift is added to the movement keys (←↑→↓, Home, End, PageUp, PageDown), and the selection grows with every move. Shift is also added to assignments that send a movement key, such as Ctrl+F and Alt+F.</p>
+<table>
+<thead>
+<tr>
+<th>Key you press during mark mode</th>
+<th>Key sent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ctrl+F / Ctrl+B / Ctrl+N / Ctrl+P</td>
+<td>Shift+→ / ← / ↓ / ↑</td>
+</tr>
+<tr>
+<td>Ctrl+A / Ctrl+E</td>
+<td>Shift+Home / Shift+End</td>
+</tr>
+<tr>
+<td>Ctrl+V / Alt+V</td>
+<td>Shift+PageDown / Shift+PageUp</td>
+</tr>
+<tr>
+<td>Alt+F / Alt+B</td>
+<td>Ctrl+Shift+→ / ←</td>
+</tr>
+<tr>
+<td>The movement keys themselves, such as the arrow keys</td>
+<td>The same key with Shift</td>
+</tr>
+</tbody>
+</table>
+<p>Mark mode ends when you press a key other than a movement key or a modifier key. It ends after that key has been sent, so C-w (cut) and Alt+W (copy) work as before, and then mark mode ends.</p>
+<ul>
+<li><strong>It ends with</strong>: C-w, Alt+W, Ctrl+G (sends Esc and ends), Enter, typing characters, BackSpace, and so on. It also ends when the foreground window changes (while the tray is running).</li>
+<li><strong>Pressing Ctrl+Space again keeps mark mode on.</strong> The selection does not change (the same behavior as nodoka).</li>
+<li><strong>Changing the selection with the mouse does not end mark mode.</strong> To end it, press one key other than movement.</li>
+<li>The start of the range is where the cursor was when you started moving. Pressing Ctrl+Space does not change what you see.</li>
+</ul>
+<h2 id="how-to-write-it-to-the-keyboard">How to write it to the keyboard</h2>
+<h3 id="from-the-command-line">From the command line</h3>
+<p>In PowerShell with administrator rights, move to the <code>samples/emacs</code> folder and run it. <code>&lt;ID&gt;</code> is the 8-digit hexadecimal number shown by <code>KeymapTool --list</code>.</p>
+<p>PowerShell often does not allow running scripts by default, so run it with <code>-ExecutionPolicy RemoteSigned</code>. This setting applies only to this command.</p>
+<pre><code>KeymapTool --list
+PowerShell -ExecutionPolicy RemoteSigned .\apply-emacs.ps1 -Id &lt;ID&gt;
+</code></pre>
+<p>It takes effect right after you run it. To undo it, add <code>-Remove</code>.</p>
+<pre><code>PowerShell -ExecutionPolicy RemoteSigned .\apply-emacs.ps1 -Id &lt;ID&gt; -Remove
+</code></pre>
+<p>Files you downloaded and extracted are marked by Windows as &quot;from the internet&quot;, and RemoteSigned may stop them from running. In that case, run <code>Unblock-File .\apply-emacs.ps1</code> once and try again.</p>
+<p>If KeymapTool is in a different place, specify it with <code>-KeymapTool</code>.</p>
+<p>If you want Ctrl+K to behave the same as in Emacs (joining successive cuts, and deleting the line break at the end of a line), add <code>-KillLine</code>. The tray must be running.</p>
+<pre><code>PowerShell -ExecutionPolicy RemoteSigned .\apply-emacs.ps1 -Id &lt;ID&gt; -KillLine
+</code></pre>
+<p>For details, see &quot;Making Ctrl+K behave like Emacs&quot; below.</p>
+<p>If you see the message that the driver does not recognize the keyboard with that ID (<code>Error: 1168</code> in KeymapTool by itself), check the following.</p>
+<ul>
+<li>Whether that ID appears in the output of <code>KeymapTool --list</code>. Specify the 8 digits after <code>UniqId=</code>. It is not always the same as the ID in the editor or in the name of the settings folder.</li>
+<li>If the output is <code>DeviceCount=0</code>, the driver does not recognize the keyboard. Reconnect the keyboard or restart, and run <code>--list</code> again. Right after installation, also check that the license has been activated and that you have restarted.</li>
+<li>If you change the USB port or pair Bluetooth again, the ID changes. In that case, specify the new ID.</li>
+</ul>
+<h3 id="from-the-editor">From the editor</h3>
+<p>In the <strong>Import</strong> tab of <strong>Import / Export...</strong>, press <strong>Emacs Example...</strong> (this loads <code>samples\emacs\emacs.kasane.json</code> bundled with the installation. If you use a downloaded file, choose <code>emacs.kasane.json</code> with <strong>Choose File...</strong>). Choose the three items &quot;Layers&quot;, &quot;Macros&quot;, and &quot;Key overrides&quot;, and choose <strong>Replace</strong> as the mode. Check the keyboard's assignments, import, and press <strong>Apply to keyboard (ON)</strong>. This way the settings remain in <code>project.json</code>, so you can edit them on the screen.</p>
+<h2 id="notes">Notes</h2>
+<ul>
+<li><strong>It replaces the keyboard's layer map.</strong> This setup writes 3 layers (0 is normal, 1 is C-x, 2 is C-q) covering only the 27 keys A to Z and Space. On a keyboard that already has a layer map, it is erased. Other keys are given no assignment and pass through as they are. Take a backup first.</li>
+<li><strong>Key overrides 0 to 34 and macros 92 to 127 are used.</strong> Settings that used the same numbers are replaced. Other numbers do not change. <code>-Remove</code> erases the whole layer map and only these numbers.</li>
+<li><strong>What you wrote from the command line may disappear when you use the editor.</strong> <strong>Apply to keyboard (ON)</strong> in the editor replaces the settings with what the screen holds. If you apply from the screen after writing from the command line, do the import above first.</li>
+<li><strong>It works in all apps.</strong> App shortcuts such as Ctrl+F and Ctrl+S can no longer be used. In real Emacs, or in editors that have Emacs-style operation, it may act twice. If you want to stop it only while such an app is in front, make a <strong>Turn remapping OFF</strong> rule in the tray's per-app layers (<a href="../../manual/en/11-helper-apprules.html">11. Helper Actions and Per-App Layers</a>).</li>
+<li><strong>Ctrl+K behaves differently depending on the app.</strong> With the default setup, it only sends Shift+End and then Ctrl+X. When pressed at the end of a line, Notepad and similar apps cut nothing. In apps such as VS Code that cut the whole line when there is no selection, the whole line is removed. It does not delete the line break at the end of a line as Emacs does. With <code>-KillLine</code>, it behaves the same as Emacs in ordinary apps such as Notepad (next section).</li>
+<li>Assignments are decided by key position (scan code). Alt+Shift+, and Alt+Shift+. are the keys that type &quot;&lt;&quot; and &quot;&gt;&quot; on either layout.</li>
+</ul>
+<h2 id="making-ctrlk-behave-like-emacs">Making Ctrl+K behave like Emacs</h2>
+<p>When you add <code>-KillLine</code> to <code>apply-emacs.ps1</code>, Ctrl+K becomes the tray's helper action <code>KillLine</code> (built the same way as nodoka's <code>&amp;EmacsEditKillLine</code>). It adds the action with Id 100 to the keyboard's <code>helper.json</code>. It does not change other actions. <code>-Remove</code> also removes this action.</p>
+<p>It behaves as follows.</p>
+<ul>
+<li>It cuts to the end of the line and puts the cut text on the clipboard.</li>
+<li>If you press Ctrl+K again in succession, the cut text is joined into one. Ctrl+Y (paste) brings it all back together.</li>
+<li>When pressed at the end of a line, it joins the line break and sends Delete (the next line comes up).</li>
+<li>The joining stops when you press a key other than Ctrl+K, when the foreground window changes, when something else goes onto the clipboard, or after 60 seconds.</li>
+</ul>
+<p>Notes.</p>
+<ul>
+<li><strong>The tray must be running.</strong> While it is stopped, Ctrl+K sends nothing.</li>
+<li><strong>It does not fit as it is in VS Code and similar apps.</strong> In apps that cut the whole line when there is no selection, or that handle line breaks differently, the behavior is off. It was checked in ordinary apps such as Notepad. Support that changes the behavior per app is still to come.</li>
+<li>From the first time you use it, the tray watches actual key input (to know whether a key other than Ctrl+K was pressed). The contents of the keys are not recorded.</li>
+</ul>
+<h2 id="what-is-not-included">What is not included</h2>
+<h3 id="differences-of-mark-mode-from-emacs">Differences of mark mode from Emacs</h3>
+<p>It does not keep a mark position as Emacs does, so these points differ.</p>
+<ul>
+<li>Pressing Ctrl+Space again does not reset the mark position (the same as nodoka).</li>
+<li>There is no operation to return to the mark position (C-x C-x).</li>
+<li>It does not end with mouse operations.</li>
+</ul>
+<h3 id="other-c-x-operations">Other C-x operations</h3>
+<p>C-x C-c (exit), splitting and switching windows (C-x 0, 1, 2, 3, o), rectangles (C-x r ...), and C-x C-x are not included. You can add the key after C-x to layer 1 as <code>MACRO(n)</code> (if you put a modified key such as <code>LCTL(KC_S)</code> on layer 1, its output would hit the replacement of Ctrl+S (search)).</p>
+<h3 id="others">Others</h3>
+<p>The kill ring (the operation that goes back through the cut history with M-y after C-y), rectangle selection, the repeat count of C-u, and nodoka's <code>&amp;Emacs*</code> functions cannot be reproduced.</p>
+
+</main>
+</div>
+</body>
+</html>

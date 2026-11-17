@@ -36,7 +36,7 @@
 
 </nav>
 <main>
-<div class="pagehead">kasane 1.02 2026-11-16&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/05-editor-basics.html">日本語</a></div>
+<div class="pagehead">kasane 1.02 2026-11-17&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/05-editor-basics.html">日本語</a></div>
 <h1 id="editor-basics">5. Editor Basics</h1>
 <p>kasane (the editor) is the app where you edit what each key on your keyboard does, and apply it to the keyboard. This chapter explains the parts of the main window, and the basic flow from swapping keys to checking that they work. The key assignment screen, and editing macros and the like, are explained in later chapters.</p>
 <h2 id="starting-the-editor">Starting the editor</h2>
@@ -232,7 +232,7 @@
 <p>For US, use the same steps: set <strong>Caps Lock</strong> to <code>KC_LCTRL</code> and <strong>Left Ctrl</strong> to <code>KC_CAPSLOCK</code>.</p>
 <p>The changed keys turn blue, and the new action (<code>LCtrl</code>, <code>Caps</code>) is shown in the center. For the details of the key assignment screen, see <a href="08-key-assign.html">8. Assigning Keys</a>.</p>
 <p><img src="../img/en/editor-swapped.png" alt="The swapped keys" /></p>
-<p>If you make a mistake, right-click the key and choose <strong>Restore this layer's assignment</strong>.</p>
+<p>If you make a mistake, right-click the key and choose <strong>Reset assignment on this layer</strong>.</p>
 <p><a id="keyboard-view"></a></p>
 <h3 id="reading-the-keyboard-diagram">Reading the keyboard diagram</h3>
 <p>The small characters at the upper left of a key are the key's legend, and the large characters in the center are the action currently assigned to the key. A key you have not changed is the same as its legend.</p>
@@ -374,7 +374,7 @@ override 1 &quot;Ctrl-1&quot;: Ctrl+1  -&gt; Macro 0           : MOD_LCTL + KC_1
 </tr>
 <tr>
 <td>Stop swapping</td>
-<td>Right-click the swapped key, choose <strong>Restore this layer's assignment</strong>, and press <strong>Apply to keyboard (ON)</strong></td>
+<td>Right-click the swapped key, choose <strong>Reset assignment on this layer</strong>, and press <strong>Apply to keyboard (ON)</strong></td>
 </tr>
 <tr>
 <td>Uninstall</td>

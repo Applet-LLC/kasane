@@ -12,7 +12,7 @@ The installation steps are also in [1. Installation](01-install.html) of this he
 <a id="history"></a>
 ## Version history
 
-### 2026-11-16 1.02
+### 2026-11-17 1.02
 
 New features
 

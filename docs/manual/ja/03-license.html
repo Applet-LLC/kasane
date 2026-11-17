@@ -36,7 +36,7 @@
 
 </nav>
 <main>
-<div class="pagehead">かさね1.02 2026-11-16&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../en/03-license.html">English</a></div>
+<div class="pagehead">かさね1.02 2026-11-17&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../en/03-license.html">English</a></div>
 <h1 id="section">3. ライセンスの認証</h1>
 <p>kasane には、Gumroad のサブスクリプション版（Subscription）と、買い切り版（Pro）があります。ライセンスキーの扱いが違うので、この章に両方を書きます。</p>
 <p>どちらの版を入れているかは、Windows の「インストールされているアプリ」に出る名前（「かさね Subscription」または「かさね Pro」）で分かります。または、トレイのアイコンを右クリックしたメニューに <strong>ライセンス</strong> が無ければ、Pro 版です。</p>
@@ -137,9 +137,31 @@
 <p>試用ライセンスのキーを入れると、試用版として 6 日間使えます。画面には「試用版(残り 5 日)」と、試用の期限が出て、「6日間の試用版が有効になりました。」と表示されます。試用の期限が過ぎると、リマップは使えなくなります。</p>
 <p>試用版は、Gumroad の無料のトライアル商品に照合して成立します。</p>
 <p><img src="../img/ja/license-trial.png" alt="試用版の表示" /></p>
-<h3 id="section-4">ライセンスが無効になったとき</h3>
-<p>サブスクリプションが無効になると、レイヤーのリマップの機能が使えなくなります。キーボードの基本的な入力は、そのまま使えます。</p>
-<h3 id="section-5">エラーが出たとき</h3>
+<h3 id="subscription-1">Subscription 版で、ライセンスが切れたとき</h3>
+<p>ライセンス認証または評価ライセンスがない状態では、キーのリマップ機能は動作しません。キーボードは Windows の標準の動作のままで、設定の編集・保存・エクスポート、ヘルプの閲覧はできます。</p>
+<p>ここでいう「ライセンスが切れた」には、サブスクリプションが無効になった場合、評価ライセンスの期限が過ぎた場合、まだ一度もアクティベートしていない場合が含まれます。</p>
+<p><strong>正常に動くもの</strong></p>
+<ul>
+<li>キーボードの基本的な入力: キーは、そのまま Windows に届きます</li>
+<li>エディタでの、設定の編集・保存・エクスポート（「ドライバが認識しているキーボードがありません」と表示されますが、オフライン用の項目で作業できます）</li>
+<li>ヘルプの閲覧、表示言語などの設定</li>
+<li>トレイのメニュー（ヘルプ、バージョン情報、終了など）</li>
+<li>License Manager: ライセンスキーの入力と、ライセンスの再確認</li>
+<li>キャリブレーションの「入力確認」: Windows のキー入力（低レベルキーフック）で確認する方式になるため、管理者でないときと同じ制限があります（<a href="06-calibration.html">6. キャリブレーション</a>）</li>
+<li>i8042prt の設定: 読み書きにはライセンスの確認が不要です。ただし、デバイスドライバが機能しないので、正しく動作しません</li>
+<li>インストールとアンインストール</li>
+</ul>
+<p><strong>動かないもの</strong></p>
+<ul>
+<li>レイヤーのリマップ（レイヤー、Mod-Tap、Layer-Tap、マクロ、コンボ、タップダンス、キー置換、NICOLA、マークモード）</li>
+<li>「キーボードに適用(ON)」と <strong>OFF</strong>: ドライバがキーボードを認識しないため、失敗します</li>
+<li>キーボードの特定</li>
+<li>キャリブレーションの「個別キー」と「全体」</li>
+<li>トレイの、レイヤーのメニューと表示、アプリ別レイヤー、IME 連動、一時停止</li>
+<li>ヘルパー動作（HLP とトリガーを含みます）</li>
+</ul>
+<p>ライセンスが有効に戻ると、設定はドライバに残っているので、再起動するか、キーボードをつなぎ直すと、リマップが再び動きます。</p>
+<h3 id="section-4">エラーが出たとき</h3>
 <p>画面の赤字のメッセージで、原因が分かります。</p>
 <table>
 <thead>
@@ -168,7 +190,7 @@
 </tbody>
 </table>
 <p><img src="../img/ja/license-error.png" alt="エラーの表示" /></p>
-<h3 id="section-6">ライセンスサーバーに接続できないとき</h3>
+<h3 id="section-5">ライセンスサーバーに接続できないとき</h3>
 <p>社内のネットワークやセキュリティソフトで、次の宛先への通信（HTTPS、443 番）が止められていないかを確認してください。</p>
 <table>
 <thead>
@@ -195,11 +217,11 @@
 <p>ログは <code>%ProgramData%\kbdlayer-license</code> の <code>debug.log</code> と <code>gui-debug.log</code> にあります。</p>
 <h2 id="pro">Pro 版</h2>
 <p>Pro 版のライセンスキーは、Gumroad の購入メールか、Gumroad のライブラリで確認できます。インストールの途中で入力すると、インストーラーが Gumroad に問い合わせ、有効なキーだけ先へ進みます。キーが無効だったときは、何もインストールされません。</p>
-<h3 id="section-7">キーを入力する</h3>
+<h3 id="section-6">キーを入力する</h3>
 <p><code>Install-kasane-pro.exe</code> を実行すると、最初の画面にキーの入力欄があります。キーを貼り付けて <strong>インストール</strong> を押します。この欄は右クリックでも貼り付けられます。</p>
 <p><code>.msi</code> を直接実行したときは、設定ファイルの取り込みの次に、キーの入力画面が出ます。この画面は右クリックが使えないので、キーボードで <code>Ctrl+V</code> を押して貼り付けてください。</p>
 <p>サイレントインストールでは、<code>LICENSEKEY</code> で渡します（<a href="01-install.html">1. インストール</a>の「サイレントインストール」）。</p>
-<h3 id="section-8">確認できなかったとき</h3>
+<h3 id="section-7">確認できなかったとき</h3>
 <p><code>Install-kasane-pro.exe</code> から始めたときは、理由が画面に出ます。確認に失敗すると、インストールは取りやめになり、パソコンは変更されません。</p>
 <table>
 <thead>
@@ -224,7 +246,7 @@
 </tbody>
 </table>
 <p>詳しい経過は、<code>C:\Windows\Temp\kasane-pro-activator.log</code> に残ります。</p>
-<h3 id="section-9">再インストールするとき</h3>
+<h3 id="section-8">再インストールするとき</h3>
 <p>Pro 版を入れ直すときは、キーをもう一度入力します。確認のたびに、そのキーの使用回数が 1 つ増えます。新しい版への上書きインストールでは、キーは要りません。</p>
 
 <div class="pager"><a href="02-uninstall.html">← 2. アンインストール</a><a href="04-tray.html">4. トレイ →</a></div>

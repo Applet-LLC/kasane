@@ -123,7 +123,7 @@ The changed keys turn blue, and the new action (`LCtrl`, `Caps`) is shown in the
 
 ![The swapped keys](../img/ja/editor-swapped.png)
 
-If you make a mistake, right-click the key and choose **Restore this layer's assignment**.
+If you make a mistake, right-click the key and choose **Reset assignment on this layer**.
 
 <a id="keyboard-view"></a>
 ### Reading the keyboard diagram
@@ -216,7 +216,7 @@ In both cases, right Ctrl and the other keys work as before.
 |---|---|
 | Stop the swap for a while (the settings stay) | Press **OFF**. To resume, press **Apply to keyboard (ON)** |
 | Change the settings | Click the key and change it, then press **Apply to keyboard (ON)** again |
-| Stop swapping | Right-click the swapped key, choose **Restore this layer's assignment**, and press **Apply to keyboard (ON)** |
+| Stop swapping | Right-click the swapped key, choose **Reset assignment on this layer**, and press **Apply to keyboard (ON)** |
 | Uninstall | See [2. Uninstallation](02-uninstall.html) |
 
 ## Opening help

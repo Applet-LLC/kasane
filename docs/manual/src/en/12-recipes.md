@@ -19,7 +19,7 @@ These are common setups, with steps. How to use the key assignment window and ea
 ## Steps for assigning a key
 
 1. In the editor, choose the keyboard and the layout to configure ([5. Editor Basics](05-editor-basics.html)).
-2. Click a key in the keyboard diagram to open the "Key assignment" window.
+2. Click a key in the keyboard diagram to open the "Assign key" window.
 3. Choose from the list on the left to assign, or type the key code written in the example, as it is, into the **Key code** box at the bottom of the window, and press **OK**.
 4. When you are done, press **Apply to keyboard (ON)** (you must have started as administrator).
 
@@ -48,7 +48,7 @@ This uses Mod-Tap.
 |---|---|
 | Caps Lock | `MT(MOD_LCTL,KC_ESC)` |
 
-In the "Key assignment" window, choose **Mod-Tap (MT)** in the list on the left, specify left Ctrl as the modifier and `KC_ESC` as the tap key, and press **Insert into key code**.
+In the "Assign key" window, choose **Mod-Tap (MT)** in the list on the left, specify left Ctrl as the modifier and `KC_ESC` as the tap key, and press **Insert into key code**.
 
 - If you press and release it briefly, it is Esc.
 - If you hold it and press another key, Ctrl is held. For example, if you hold Caps Lock and press `C`, it is Ctrl+C.
@@ -69,7 +69,7 @@ A short press is Space. If you hold it and press another key, Shift is held.
 Using Layer-Tap, you switch to another layout (layer 1) only while Space is held.
 
 1. Make layer 1 with **+ Add**.
-2. Assign `LT(1,KC_SPC)` to Space on layer 0. You can also specify 1 as the layer and `KC_SPC` as the tap key with **Layer-Tap (LT)** in the "Key assignment" window.
+2. Assign `LT(1,KC_SPC)` to Space on layer 0. You can also specify 1 as the layer and `KC_SPC` as the tap key with **Layer-Tap (LT)** in the "Assign key" window.
 3. Choose layer 1 and assign these keys.
 
 | Key | Key code to assign |
@@ -225,7 +225,7 @@ With a keyboard that is only a numpad, you switch layer 0 → 1 → 2 → 0 with
 | 1 | `TO(2)` |
 | 2 | `TO(0)` |
 
-In the "Key assignment" window, choose `TO` for **Type** under **Layer actions**, specify the number for **Layer**, and press **Insert into key code**.
+In the "Assign key" window, choose `TO` for **Type** under **Layer actions**, specify the number for **Layer**, and press **Insert into key code**.
 
 ### Layer 1 assignments
 

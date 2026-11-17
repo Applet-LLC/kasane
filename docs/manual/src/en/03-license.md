@@ -64,9 +64,33 @@ The trial is established by matching against Gumroad's free trial product.
 
 ![The trial display](../img/ja/license-trial.png)
 
-### When the license becomes invalid
+### When the Subscription edition's license has expired
 
-When the subscription becomes invalid, the layer remapping features can no longer be used. Basic keyboard input keeps working as usual.
+Without license activation or a trial license, the key remapping features do not work. The keyboard stays in its standard Windows behavior, and you can still edit, save, and export settings and read the help.
+
+"Expired" here includes a subscription that has become invalid, a trial license whose period has ended, and a copy that has never been activated.
+
+**What works normally**
+
+- Basic keyboard input: keys reach Windows as they are
+- Editing, saving, and exporting settings in the editor (it shows "The driver does not recognize any keyboards", but you can work with the offline entry)
+- Reading the help, and settings such as the display language
+- The tray menu (Help, About, Exit, and so on)
+- License Manager: entering a license key and re-checking the license
+- "Input check" in calibration: it checks with Windows key input (a low-level keyboard hook), so the same limits as when you are not an administrator apply ([6. Calibration](06-calibration.html))
+- i8042prt settings: reading and writing do not need a license check. However, the device driver does not work, so they do not operate correctly
+- Installation and uninstallation
+
+**What does not work**
+
+- Layer remapping (layers, Mod-Tap, Layer-Tap, macros, combos, tap dances, key overrides, NICOLA, mark mode)
+- **Apply to keyboard (ON)** and **OFF**: they fail because the driver does not recognize the keyboard
+- Identifying a keyboard
+- "Single key" and "All keys" in calibration
+- In the tray: the layer menu and display, per-app layers, IME link, and Pause
+- Helper actions (including HLP and triggers)
+
+When the license is valid again, your settings are still in the driver, so restart or reconnect the keyboard and remapping works again.
 
 ### When an error appears
 

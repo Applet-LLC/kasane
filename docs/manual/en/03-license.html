@@ -36,7 +36,7 @@
 
 </nav>
 <main>
-<div class="pagehead">kasane 1.02 2026-11-16&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/03-license.html">日本語</a></div>
+<div class="pagehead">kasane 1.02 2026-11-17&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a> <a href="../ja/03-license.html">日本語</a></div>
 <h1 id="license-activation">3. License Activation</h1>
 <p>kasane comes as a Gumroad subscription edition (Subscription) and a one-time purchase edition (Pro). They handle the license key differently, so this chapter covers both.</p>
 <p>You can tell which edition is installed from the name shown in Windows &quot;Installed apps&quot; (&quot;kasane Subscription&quot; or &quot;kasane Pro&quot;). Or, if the menu you get by right-clicking the tray icon has no <strong>License</strong> item, it is the Pro edition.</p>
@@ -137,8 +137,30 @@
 <p>When you enter a trial license key, you can use kasane as a trial for 6 days. The screen shows &quot;Trial (valid for 5 more day(s))&quot; and the trial expiry date, and displays &quot;Your 6-day trial has been activated.&quot; When the trial ends, remapping can no longer be used.</p>
 <p>The trial is established by matching against Gumroad's free trial product.</p>
 <p><img src="../img/en/license-trial.png" alt="The trial display" /></p>
-<h3 id="when-the-license-becomes-invalid">When the license becomes invalid</h3>
-<p>When the subscription becomes invalid, the layer remapping features can no longer be used. Basic keyboard input keeps working as usual.</p>
+<h3 id="when-the-subscription-editions-license-has-expired">When the Subscription edition's license has expired</h3>
+<p>Without license activation or a trial license, the key remapping features do not work. The keyboard stays in its standard Windows behavior, and you can still edit, save, and export settings and read the help.</p>
+<p>&quot;Expired&quot; here includes a subscription that has become invalid, a trial license whose period has ended, and a copy that has never been activated.</p>
+<p><strong>What works normally</strong></p>
+<ul>
+<li>Basic keyboard input: keys reach Windows as they are</li>
+<li>Editing, saving, and exporting settings in the editor (it shows &quot;The driver does not recognize any keyboards&quot;, but you can work with the offline entry)</li>
+<li>Reading the help, and settings such as the display language</li>
+<li>The tray menu (Help, About, Exit, and so on)</li>
+<li>License Manager: entering a license key and re-checking the license</li>
+<li>&quot;Input check&quot; in calibration: it checks with Windows key input (a low-level keyboard hook), so the same limits as when you are not an administrator apply (<a href="06-calibration.html">6. Calibration</a>)</li>
+<li>i8042prt settings: reading and writing do not need a license check. However, the device driver does not work, so they do not operate correctly</li>
+<li>Installation and uninstallation</li>
+</ul>
+<p><strong>What does not work</strong></p>
+<ul>
+<li>Layer remapping (layers, Mod-Tap, Layer-Tap, macros, combos, tap dances, key overrides, NICOLA, mark mode)</li>
+<li><strong>Apply to keyboard (ON)</strong> and <strong>OFF</strong>: they fail because the driver does not recognize the keyboard</li>
+<li>Identifying a keyboard</li>
+<li>&quot;Single key&quot; and &quot;All keys&quot; in calibration</li>
+<li>In the tray: the layer menu and display, per-app layers, IME link, and Pause</li>
+<li>Helper actions (including HLP and triggers)</li>
+</ul>
+<p>When the license is valid again, your settings are still in the driver, so restart or reconnect the keyboard and remapping works again.</p>
 <h3 id="when-an-error-appears">When an error appears</h3>
 <p>The red message on the screen tells you the cause.</p>
 <table>

@@ -221,7 +221,7 @@ Notes on using it.
 - From the first time you use it, the tray watches real key input. This is to know whether a key other than Ctrl+K was pressed, and the contents of keys are not recorded.
 - We have confirmed it in common apps such as Notepad. In apps such as VS Code, which cut the whole line when nothing is selected, the behavior does not match. Support for changing the behavior per app is still to come.
 
-How to put this action into the Emacs-style setup examples is in "Making Ctrl+K behave like Emacs" in `samples\emacs\EMACS-KEYBINDINGS.md` (in the installation folder).
+How to put this action into the Emacs-style setup examples is in "Making Ctrl+K behave like Emacs" in `samples\emacs\EMACS-KEYBINDINGS.en-US.md` (in the installation folder).
 
 <a id="app-rules"></a>
 ## Per-app layers

@@ -59,9 +59,9 @@ $htmlLang = $Lang
 $productName = if ($isEnglish) { 'kasane Help' } else { 'かさね ヘルプ' }
 # 各ページの右上に出す、バージョンと著作権の表示。
 $pageHeadBase = if ($isEnglish) {
-    'kasane 1.02 2026-11-16&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a>'
+    'kasane 1.02 2026-11-17&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a>'
 } else {
-    'かさね1.02 2026-11-16&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a>'
+    'かさね1.02 2026-11-17&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copyright 2026 Applet LLC <a href="https://appletllc.com/">https://appletllc.com/</a> <a href="mailto:appletllc@gmail.com">appletllc@gmail.com</a>'
 }
 
 function Escape-Html([string]$s) { [System.Net.WebUtility]::HtmlEncode($s) }
@@ -164,18 +164,19 @@ function Resolve-LinkTarget([string]$target) {
 
 # Emacs 風の設定例の説明（samples/emacs/EMACS-KEYBINDINGS.md）の HTML 版を作る。ヘルプの 14 章が、別のウィンドウで開く。
 # md を表示できないブラウザーでも読めるように、インストール先の samples\emacs\ に HTML も入れる（setup\Prepare-Staging.ps1）。
-# 単独で開けるように、ヘルプの style.css を埋め込む。日本語だけなので、ja のときだけ作る。
-if ($Lang -eq 'ja') {
-    $guideMd = Join-Path $repoRoot 'samples/emacs/EMACS-KEYBINDINGS.md'
-    $guideHtml = Join-Path $repoRoot 'samples/emacs/EMACS-KEYBINDINGS.html'
+# 単独で開けるように、ヘルプの style.css を埋め込む。ja は EMACS-KEYBINDINGS.md/.html、en は EMACS-KEYBINDINGS.en-US.md/.html（2026-11-17）。
+if ($Lang -eq 'ja' -or $Lang -eq 'en') {
+    $guideSuffix = if ($Lang -eq 'en') { '.en-US' } else { '' }
+    $guideMd = Join-Path $repoRoot "samples/emacs/EMACS-KEYBINDINGS$guideSuffix.md"
+    $guideHtml = Join-Path $repoRoot "samples/emacs/EMACS-KEYBINDINGS$guideSuffix.html"
     $guideBody = (ConvertFrom-Markdown -Path $guideMd).Html
     # md の中の、リポジトリ上の相対リンク（docs/manual/src/ja/NN-xxx.md）は、インストール先のヘルプ（manual\ja\NN-xxx.html）へ付け替える。
-    $guideBody = [regex]::Replace($guideBody, 'href="\.\./\.\./docs/manual/src/ja/([^"#]+)\.md((?:#[^"]*)?)"', 'href="../../manual/ja/$1.html$2"')
+    $guideBody = [regex]::Replace($guideBody, "href=`"\.\./\.\./docs/manual/src/$Lang/([^`"#]+)\.md((?:#[^`"]*)?)`"", "href=`"../../manual/$Lang/`$1.html`$2`"")
     $guideCss = Get-Content -LiteralPath (Join-Path $root 'assets/style.css') -Raw -Encoding UTF8
-    $guideTitle = 'Emacs 風のキー操作の設定例'
+    $guideTitle = if ($Lang -eq 'en') { 'Emacs-Style Key Operation Example' } else { 'Emacs 風のキー操作の設定例' }
     $guidePage = @"
 <!doctype html>
-<html lang="ja">
+<html lang="$Lang">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -197,7 +198,7 @@ $guideBody
     foreach ($m in [regex]::Matches($guideBody, '(?:href|src)="([^"#:]+)(?:#[^"]*)?"')) {
         $target = $m.Groups[1].Value
         # インストール先では ..\..\manual\ja\ がヘルプ。リポジトリでは docs/manual/ja/ にある。
-        $checkPath = if ($target -match '^\.\./\.\./manual/ja/(.+)$') { Join-Path $root "ja/$($Matches[1])" } else { Resolve-LinkTarget $target }
+        $checkPath = if ($target -match '^\.\./\.\./manual/(?:ja|en)/(.+)$') { Join-Path $root "$Lang/$($Matches[1])" } else { Resolve-LinkTarget $target }
         if (-not (Test-Path $checkPath)) { $problems.Add("EMACS-KEYBINDINGS: リンク先がありません: $target") }
     }
 }

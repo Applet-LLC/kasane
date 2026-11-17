@@ -1,4 +1,4 @@
-kasane Pro - Installation Guide 1.02 2026-11-16 Applet LLC
+kasane Pro - Installation Guide 1.02 2026-11-17 Applet LLC
 ==============================================================
 
 This package installs a key remapping tool named kasane. The installer
@@ -62,23 +62,21 @@ Tray icon
 ---------
 After you sign in, the kasane icon appears in the notification area of the
 taskbar (inside the "^" flyout when hidden).
-- Left click: opens the kasane settings dialog.
-- Right click: a menu with 設定 (Settings), 一時停止 (Pause), レイヤー (Layer),
-  バージョン情報 (About), and 終了 (Exit).
+- Left click: opens the kasane editor.
+- Right click: a menu with "Settings/Editor", "Pause", "Layers", "Help",
+  "About", and "Exit".
   "Pause" temporarily stops the remapping on all keyboards. Press it again to
   resume.
 - If you use NICOLA (thumb-shift input), NICOLA is switched on automatically
   when the IME is enabled. You can turn this on and off at the bottom of
-  kasane's 設定 (Settings) > IME 連動 (IME link).
+  kasane's "Settings..." > "IME link" tab.
 - Helper actions: a key can launch a program, type text, operate the mouse,
-  switch layers, and more. Create them from "ヘルパー動作" (Helper actions) in
-  kasane's key-assignment screen (the tray must be running). Actions triggered
-  by keys such as F13-F24 are under 設定 (Settings) > ヘルパー動作 (Helper
-  actions).
+  switch layers, and more. Create them from "Helper actions" in kasane's
+  "Assign key" window (the tray must be running). Actions triggered by keys
+  such as F13-F24 are under "Settings..." > "Helper actions" tab.
 - Per-app layers: switch layers, or stop the remapping, depending on the
-  foreground app. This is under 設定 (Settings) > アプリ別レイヤー (Per-app
-  layers).
-- Import / export: in kasane, "インポート／エクスポート..." (Import / Export...)
+  foreground app. This is under "Settings..." > "Per-app layers" tab.
+- Import / export: in kasane, "Import / Export..."
   saves your settings to a file (*.kasane.json) and loads them back. You can
   move settings to another keyboard or another PC. A nodoka settings file can
   also be converted and imported.
@@ -89,10 +87,10 @@ does not take effect. Basic keyboard input keeps working as it is.
 
 Help
 ----
-The kasane help opens from the "ヘルプ" (Help) button (F1 key) in the editor and
-from the tray menu. It is in the manual folder of the installation folder.
-The help is not yet available in English. Please use your browser's translation
-feature. The screenshots in the help will remain in Japanese.
+The kasane help opens from the "Help" button (F1 key) in the editor and
+from "Help" in the tray menu. It is in the manual folder of the installation folder.
+The help is available in English and Japanese, and opens in the display
+language you chose (Settings... > General > Display language).
 
 
 Files in this package
@@ -129,7 +127,7 @@ and the third-party folder are also placed directly in the installation folder
 Uninstallation
 --------------
 1. First open kasane and press "OFF". The keyboard remapping is disabled.
-2. Remove "kasane Pro" from "Apps & features" in Windows Settings
+2. Remove "kasane Pro" from "Installed apps" in Windows Settings
    (administrator rights are required).
 3. Restart your PC. The driver is in use by your keyboard, so its removal
    completes at the restart. Until then the driver may keep running (if you
@@ -180,7 +178,7 @@ third-party folder.
 
 Release History
 ---------------
-2026-11-16 1.02
+2026-11-17 1.02
 New features
   - Installer: added a "Browse..." button to the settings folder page (when the
     box already holds a path, or the KASANE environment variable is already

@@ -1,6 +1,6 @@
 # 8. Assigning Keys
 
-When you click a key in the editor's keyboard diagram, the "Key assignment" window opens. Here you choose the action to assign to that key.
+When you click a key in the editor's keyboard diagram, the "Assign key" window opens. Here you choose the action to assign to that key.
 
 ![Key assignment](../img/ja/assign-main.png)
 
