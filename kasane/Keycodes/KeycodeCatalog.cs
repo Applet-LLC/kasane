@@ -84,7 +84,7 @@ public static class KeycodeCatalog
     // 英語表示のときの、日本語キーボード固有のキーの短い名前（キートップ用）。
     private static readonly Dictionary<string, string> EnglishShortNames = new(StringComparer.Ordinal)
     {
-        ["KC_ZKHK"] = "Han/Zen", ["KC_RO"] = "Ro", ["KC_KANA"] = "Kana", ["KC_HENK"] = "Henkan", ["KC_MHEN"] = "Muhen",
+        ["KC_ZKHK"] = "Han/Zen", ["KC_KANA"] = "Kana", ["KC_HENK"] = "Henkan", ["KC_MHEN"] = "Muhen",
         ["KC_LNG1"] = "IME On", ["KC_LNG2"] = "IME Off",
     };
 

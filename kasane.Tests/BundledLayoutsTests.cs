@@ -65,4 +65,16 @@ public class ShortNameTests
         Assert.Equal("_", Kasane.Keycodes.KeycodeCatalog.ShortName("KC_RO"));
         Assert.NotEqual(Kasane.Keycodes.KeycodeCatalog.ShortName("KC_JYEN"), Kasane.Keycodes.KeycodeCatalog.ShortName("KC_RO"));
     }
+
+    [Fact]
+    public void RoKey_IsShownAsUnderscore_InEnglishToo()
+    {
+        // 英語の表示でも「Ro」にせず、配列定義のキートップ（_）と同じにする。
+        try
+        {
+            Kasane.Model.Loc.Initialize(Kasane.Model.UiLanguage.English);
+            Assert.Equal("_", Kasane.Keycodes.KeycodeCatalog.ShortName("KC_RO"));
+        }
+        finally { Kasane.Model.Loc.Initialize(Kasane.Model.UiLanguage.Japanese); }
+    }
 }
