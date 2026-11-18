@@ -187,7 +187,7 @@
 </tbody>
 </table>
 <p>短い日付や長い時刻などの 4 種類は、Windows の地域設定に従います。利用者が地域設定で変えた形式も、そのまま使います。</p>
-<p>たとえば <code>{now:yyyy-MM-dd (ddd) h:mm}{ampm}</code> は、<code>2026-11-18 (水) 9:00am</code> のように入力されます。曜日の表記は、Windows の表示言語で決まります。</p>
+<p>たとえば <code>{now:yyyy-MM-dd (ddd) h:mm}{ampm}</code> は、<code>2026-11-18 (水) 9:00am</code> のように入力されます。曜日の表記は、Windows の「地域」の形式の言語で決まります（kasane の表示言語には従いません）。</p>
 <p>書式が 1 文字だけのときは、<code>{now:%h}</code> のように <code>%</code> を付けます。上の形に当てはまらない <code>{</code> と <code>}</code> は、そのまま入力します。<code>{date}</code> という文字そのものを入力したいときは、<code>{{date}</code> と書きます。書式が正しくない記法は、置き換えずに書いたまま入力します。</p>
 <p>編集画面の <strong>日付・時刻を挿入</strong> ボタンからも、記法を選んで入れられます。</p>
 <p><a id="helper-sequence"></a></p>

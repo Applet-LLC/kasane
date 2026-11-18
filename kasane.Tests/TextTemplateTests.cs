@@ -144,6 +144,7 @@ public class TextTemplateTests
         Assert.NotNull(c);
         Assert.False(string.IsNullOrEmpty(Morning.ToString("d", c)));
         Assert.Equal(c.Name, TextTemplate.CurrentUserCulture().Name);
+        Assert.NotEqual("", c.Name); // 地域の名前が取れている(空は Invariant)
     }
 
     [Fact]

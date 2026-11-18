@@ -16,21 +16,35 @@ namespace Kasane.Model;
 /// </summary>
 public static class TextTemplate
 {
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern int GetUserDefaultLocaleName(System.Text.StringBuilder name, int size);
+
     /// <summary>
-    /// 今の利用者の地域設定。常駐するプロセス(トレイ、編集画面)は、起動時の設定を覚えたままになるので、
-    /// 展開のたびにキャッシュを捨てて、Windows で変えた形式を拾い直す。
+    /// Windows の「地域」の形式(利用者が変えた短い日付などを含む)を、今の設定で返す。
+    /// 画面の言語(Loc が設定する ja-JP / en-US)には従わない。英語表示でも、日本語の地域なら日本語の形式で出す。
+    /// 常駐するプロセス(トレイ、編集画面)は、起動時の設定を覚えたままになる。そこで、呼ぶたびにキャッシュを捨て、
+    /// 地域の名前を引き直して、新しい CultureInfo を作る(Loc が作った CultureInfo は、ClearCachedData では読み直されない)。
     /// </summary>
     public static CultureInfo CurrentUserCulture()
     {
-        CultureInfo.CurrentCulture.ClearCachedData();
-        return CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture.ClearCachedData();
+            var sb = new System.Text.StringBuilder(85); // LOCALE_NAME_MAX_LENGTH
+            string name = GetUserDefaultLocaleName(sb, sb.Capacity) > 0 ? sb.ToString() : CultureInfo.CurrentCulture.Name;
+            return new CultureInfo(name); // useUserOverride は既定の true
+        }
+        catch (Exception ex) when (ex is CultureNotFoundException or ArgumentException or DllNotFoundException or EntryPointNotFoundException)
+        {
+            return CultureInfo.CurrentCulture;
+        }
     }
 
     /// <summary>置き換えがありうる文字列か。速い判定用(無ければ展開しない)。</summary>
     public static bool MayHavePlaceholder(string? text) => !string.IsNullOrEmpty(text) && text.Contains('{');
 
     /// <param name="now">展開に使う時刻。呼び出し側が1回の入力ごとに1回だけ取る。</param>
-    /// <param name="culture">標準書式と曜日の言語。通常は CultureInfo.CurrentCulture(ユーザーが地域設定で変えた書式を含む)。</param>
+    /// <param name="culture">標準書式と曜日の言語。通常は <see cref="CurrentUserCulture"/>(ユーザーが地域設定で変えた書式を含む)。</param>
     /// <param name="errors">書式が不正な置き換えの説明を足す。null なら黙って原文のまま残す。</param>
     public static string Expand(string? template, DateTime now, CultureInfo culture, List<string>? errors = null)
     {

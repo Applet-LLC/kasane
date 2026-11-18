@@ -78,7 +78,7 @@ In the string of Type text, you can write the placeholders below. They become th
 
 The four standard forms follow the Windows Region settings, including formats you have changed there.
 
-For example, `{now:yyyy-MM-dd (ddd) h:mm}{ampm}` types something like `2026-11-18 (Wed) 9:00am`. The weekday follows the Windows display language.
+For example, `{now:yyyy-MM-dd (ddd) h:mm}{ampm}` types something like `2026-11-18 (Wed) 9:00am`. The weekday follows the language of the Windows Region format, not the display language of kasane.
 
 If a format is a single character, add `%`, as in `{now:%h}`. Any `{` or `}` that does not match one of the forms above is typed as it is. To type the text `{date}` itself, write `{{date}`. A placeholder with an invalid format is not replaced and is typed as written.
 
