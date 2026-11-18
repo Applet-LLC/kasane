@@ -796,7 +796,8 @@ public sealed class ActionExecutor
     {
         if (steps == null || steps.Count == 0) return;
         var compiled = SequenceCompiler.Compile(steps, singleStep: isText);
-        foreach (var e in compiled.Errors) _env.Log((isText ? "Text: " : "Sequence: ") + e);        bool restore = false;
+        foreach (var e in compiled.Errors) _env.Log((isText ? "Text: " : "Sequence: ") + e);
+        bool restore = false;
         try
         {
             if (wrap != null)
