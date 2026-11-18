@@ -196,12 +196,13 @@ public static class SequenceCompiler
 
     /// <param name="now">Text の {date} などの展開に使う時刻。null なら今(1回の展開で1回だけ取る)。</param>
     /// <param name="culture">日付・時刻の書式の言語。null なら現在のユーザーの地域設定。</param>
-    public static CompileResult Compile(IEnumerable<HelperStep>? steps, DateTime? now = null, System.Globalization.CultureInfo? culture = null)
+    /// <param name="singleStep">Text 動作の1つの文字列を、手順として数えない(エラーの文に「手順1」を付けない)。</param>
+    public static CompileResult Compile(IEnumerable<HelperStep>? steps, DateTime? now = null, System.Globalization.CultureInfo? culture = null, bool singleStep = false)
     {
         var ops = new List<InputOp>();
         var errors = new List<string>();
         DateTime stamp = now ?? DateTime.Now;
-        var cultureInfo = culture ?? System.Globalization.CultureInfo.CurrentCulture;
+        var cultureInfo = culture ?? TextTemplate.CurrentUserCulture();
         long totalDelay = 0;
         int index = 0;
 
@@ -209,7 +210,7 @@ public static class SequenceCompiler
         {
             index++;
             if (ops.Count > MaxOps) { errors.Add(Loc.T($"手順が多すぎます({MaxOps} 件まで)", $"Too many steps (up to {MaxOps})")); break; }
-            string at = Loc.T($"手順{index}: ", $"Step {index}: ");
+            string at = singleStep ? "" : Loc.T($"手順{index}: ", $"Step {index}: ");
 
             if (!string.IsNullOrEmpty(step.Key))
             {
@@ -668,8 +669,8 @@ public sealed class ActionExecutor
                 if (r.IsBreak) return;
                 var steps = TextSteps(body);
                 var wrap = ImeWrapOf(body);
-                if (r.SuppressKeys != 0) RunSuppressed(r, steps, wrap);
-                else RunSteps(steps, wrap);
+                if (r.SuppressKeys != 0) RunSuppressed(r, steps, wrap, isText: true);
+                else RunSteps(steps, wrap, isText: true);
                 break;
             }
 
@@ -759,14 +760,14 @@ public sealed class ActionExecutor
     /// 手順の間だけ、トリガーの修飾キー（物理的に押している分）を OS から隠す。終わったら、まだ押している分だけ戻す。
     /// 手順の中で例外や打ち切りがあっても、必ず戻す。
     /// </summary>
-    private void RunSuppressed(ActionRequest r, List<HelperStep>? steps, ImeWrap? wrap = null)
+    private void RunSuppressed(ActionRequest r, List<HelperStep>? steps, ImeWrap? wrap = null, bool isText = false)
     {
         byte keys = r.SuppressKeys;
         try
         {
             NeutralizeIfNeeded(keys);
             SendMods(keys, up: true);
-            RunSteps(steps, wrap);
+            RunSteps(steps, wrap, isText);
         }
         finally
         {
@@ -791,11 +792,11 @@ public sealed class ActionExecutor
         _env.Send(new InputOp(InputKind.Key, NeutralizerScanCode, Up: true));
     }
 
-    private void RunSteps(List<HelperStep>? steps, ImeWrap? wrap = null)
+    private void RunSteps(List<HelperStep>? steps, ImeWrap? wrap = null, bool isText = false)
     {
         if (steps == null || steps.Count == 0) return;
-        var compiled = SequenceCompiler.Compile(steps);
-        foreach (var e in compiled.Errors) _env.Log("Sequence: " + e);        bool restore = false;
+        var compiled = SequenceCompiler.Compile(steps, singleStep: isText);
+        foreach (var e in compiled.Errors) _env.Log((isText ? "Text: " : "Sequence: ") + e);        bool restore = false;
         try
         {
             if (wrap != null)

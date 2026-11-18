@@ -16,6 +16,16 @@ namespace Kasane.Model;
 /// </summary>
 public static class TextTemplate
 {
+    /// <summary>
+    /// 今の利用者の地域設定。常駐するプロセス(トレイ、編集画面)は、起動時の設定を覚えたままになるので、
+    /// 展開のたびにキャッシュを捨てて、Windows で変えた形式を拾い直す。
+    /// </summary>
+    public static CultureInfo CurrentUserCulture()
+    {
+        CultureInfo.CurrentCulture.ClearCachedData();
+        return CultureInfo.CurrentCulture;
+    }
+
     /// <summary>置き換えがありうる文字列か。速い判定用(無ければ展開しない)。</summary>
     public static bool MayHavePlaceholder(string? text) => !string.IsNullOrEmpty(text) && text.Contains('{');
 
@@ -68,7 +78,7 @@ public static class TextTemplate
     public static List<string> Validate(string? template)
     {
         var errors = new List<string>();
-        Expand(template, DateTime.Now, CultureInfo.CurrentCulture, errors);
+        Expand(template, DateTime.Now, CultureInfo.InvariantCulture, errors); // エラーを見るだけなので、言語は問わない
         return errors;
     }
 

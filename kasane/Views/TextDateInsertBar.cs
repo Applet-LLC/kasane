@@ -52,10 +52,11 @@ public static class TextDateInsertBar
     {
         menu.Items.Clear();
         var now = DateTime.Now;
+        var culture = TextTemplate.CurrentUserCulture();
         foreach (var (label, template, id) in Items)
         {
             if (template.Length == 0) { menu.Items.Add(new Separator()); continue; }
-            string sample = TextTemplate.Expand(template, now, CultureInfo.CurrentCulture);
+            string sample = TextTemplate.Expand(template, now, culture);
             var item = new MenuItem
             {
                 Name = box.Name + "DateTime_" + id,

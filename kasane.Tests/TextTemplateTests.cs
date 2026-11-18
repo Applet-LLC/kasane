@@ -127,6 +127,26 @@ public class TextTemplateTests
     }
 
     [Fact]
+    public void Compile_SingleStep_ErrorHasNoStepPrefix()
+    {
+        var seq = SequenceCompiler.Compile(new[] { new HelperStep { Text = "{now:}" } }, Morning, Ja);
+        var text = SequenceCompiler.Compile(new[] { new HelperStep { Text = "{now:}" } }, Morning, Ja, singleStep: true);
+        Assert.Single(seq.Errors);
+        Assert.Single(text.Errors);
+        Assert.NotEqual(seq.Errors[0], text.Errors[0]);
+        Assert.EndsWith(text.Errors[0], seq.Errors[0]); // 「手順1: 」が付くかどうかだけの違い
+    }
+
+    [Fact]
+    public void CurrentUserCulture_IsUsable_AfterClearingCache()
+    {
+        var c = TextTemplate.CurrentUserCulture();
+        Assert.NotNull(c);
+        Assert.False(string.IsNullOrEmpty(Morning.ToString("d", c)));
+        Assert.Equal(c.Name, TextTemplate.CurrentUserCulture().Name);
+    }
+
+    [Fact]
     public void Compile_PlainText_IsUnchanged()
     {
         var r = SequenceCompiler.Compile(new[] { new HelperStep { Text = "a{}b" } }, Morning, Ja);
