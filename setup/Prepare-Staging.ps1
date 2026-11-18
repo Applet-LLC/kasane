@@ -502,7 +502,7 @@ Get-ChildItem -LiteralPath (Join-Path $repoRoot "driver/KeymapTool/samples") -Fi
 # Emacs 風のキー操作の設定例（エディタのインポート画面から読める。samples\emacs\ に入る）。
 $emacsStaging = Join-Path $samplesStaging "emacs"
 New-Item -ItemType Directory -Path $emacsStaging -Force | Out-Null
-# EMACS-KEYBINDINGS.html は、EMACS-KEYBINDINGS.md から docs\manualuild-manual.ps1 で作る（ヘルプの 14 章が、別のウィンドウで開く）。
+# EMACS-KEYBINDINGS.html は、EMACS-KEYBINDINGS.md から docs\manual\build-manual.ps1 で作る（ヘルプの 14 章が、別のウィンドウで開く）。
 foreach ($f in 'emacs.kasane.json', 'apply-emacs.ps1', 'EMACS-KEYBINDINGS.md', 'EMACS-KEYBINDINGS.html', 'EMACS-KEYBINDINGS.en-US.md', 'EMACS-KEYBINDINGS.en-US.html') {
     Copy-Item -LiteralPath (Join-Path $repoRoot "samples/emacs/$f") -Destination $emacsStaging -Force
 }
