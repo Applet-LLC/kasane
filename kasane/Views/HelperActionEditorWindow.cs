@@ -212,7 +212,7 @@ public sealed class HelperActionEditorWindow : Window
 
         Load(id, name, key, mods, body);
         _type.SelectionChanged += (_, _) => { ShowPanels(); Revalidate(); };
-        foreach (var t in new[] { _id, _name, _key, _path, _args, _workDir, _steps, _releaseSteps }) t.TextChanged += (_, _) => Revalidate();
+        foreach (var t in new[] { _id, _name, _key, _path, _args, _workDir, _steps, _releaseSteps, _text }) t.TextChanged += (_, _) => Revalidate();
         foreach (var c in new[] { _ctrl, _shift, _alt, _win }) c.Click += (_, _) => Revalidate();
         _layerOp.SelectionChanged += (_, _) => Revalidate();
         _imeOff.Click += (_, _) => { _imeOptions.IsEnabled = _imeOff.IsChecked == true; Revalidate(); };
