@@ -133,7 +133,7 @@
 </tr>
 <tr>
 <td>文字列を入力する</td>
-<td>設定した文字列を、そのまま入力する。いま入力できる場所の、現在の位置に追記される。改行は Enter、タブは Tab として送る。日本語や記号も、そのまま送る。バックスラッシュなどに特別な意味はない。最大 900 文字。入力の間だけ IME を OFF にすることもできる</td>
+<td>設定した文字列を、そのまま入力する。いま入力できる場所の、現在の位置に追記される。改行は Enter、タブは Tab として送る。日本語や記号も、そのまま送る。バックスラッシュなどに特別な意味はない。<code>{date}</code> などは、キーを押した時点の日付・時刻になる（<a href="#helper-datetime">日付・時刻を入力する</a>）。最大 900 文字。入力の間だけ IME を OFF にすることもできる</td>
 </tr>
 <tr>
 <td>アプリ管理レイヤーの操作</td>
@@ -149,6 +149,47 @@
 </tr>
 </tbody>
 </table>
+<p><a id="helper-datetime"></a></p>
+<h3 id="section-5">日付・時刻を入力する</h3>
+<p>「文字列を入力する」の文字列には、次の記法を書けます。キーを押した時点の日付・時刻に置き換わります。「キー・文字列・マウスの操作」の <code>text</code> の手順にも書けます。</p>
+<table>
+<thead>
+<tr>
+<th>記法</th>
+<th>入力されるもの</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>{date}</code> <code>{date:short}</code></td>
+<td>短い日付。Windows の「地域」の設定（短い形式）と同じ</td>
+</tr>
+<tr>
+<td><code>{date:long}</code></td>
+<td>長い日付</td>
+</tr>
+<tr>
+<td><code>{time}</code> <code>{time:short}</code></td>
+<td>短い時刻</td>
+</tr>
+<tr>
+<td><code>{time:long}</code></td>
+<td>長い時刻</td>
+</tr>
+<tr>
+<td><code>{now:書式}</code></td>
+<td>自分で決めた書式。.NET の書式文字列（<code>yyyy</code> 年、<code>MM</code> 月、<code>dd</code> 日、<code>ddd</code> 曜日、<code>H</code> と <code>h</code> は 24 時間と 12 時間の時、<code>mm</code> 分、<code>ss</code> 秒）</td>
+</tr>
+<tr>
+<td><code>{ampm}</code> <code>{AMPM}</code></td>
+<td><code>am</code> <code>pm</code>、<code>AM</code> <code>PM</code>。言語の設定によらず英字で入力する</td>
+</tr>
+</tbody>
+</table>
+<p>短い日付や長い時刻などの 4 種類は、Windows の地域設定に従います。利用者が地域設定で変えた形式も、そのまま使います。</p>
+<p>たとえば <code>{now:yyyy-MM-dd (ddd) h:mm}{ampm}</code> は、<code>2026-11-18 (水) 9:00am</code> のように入力されます。曜日の表記は、Windows の表示言語で決まります。</p>
+<p>書式が 1 文字だけのときは、<code>{now:%h}</code> のように <code>%</code> を付けます。上の形に当てはまらない <code>{</code> と <code>}</code> は、そのまま入力します。<code>{date}</code> という文字そのものを入力したいときは、<code>{{date}</code> と書きます。書式が正しくない記法は、置き換えずに書いたまま入力します。</p>
+<p>編集画面の <strong>日付・時刻を挿入</strong> ボタンからも、記法を選んで入れられます。</p>
 <p><a id="helper-sequence"></a></p>
 <h3 id="sequence">手順（Sequence）の書き方</h3>
 <p>手順は、1 行に 1 つずつ書きます。<code>#</code> で始まる行は無視されます。<code>text</code> の中の <code>\\</code> はバックスラッシュです（日本語のフォントでは ¥ の形で表示され、¥ キーで入力できます）。<code>ime</code> は、今の状態を見て、違うときだけ変えます。</p>
@@ -252,7 +293,7 @@ vk KANJI             半角/全角（切り替えのキー）
 vk LSHIFT+F1         修飾キーは + でつなぐ
 </code></pre>
 <p><code>vk</code> は、<code>ime</code> と違って IME の今の状態を読みません。キーを送るだけです。名前は <code>VK_</code> を付けても付けなくてもかまいません。文字キー（<code>A</code>〜<code>Z</code>）、テンキー（<code>NUMPAD4</code>、<code>ADD</code> など）、<code>F1</code>〜<code>F24</code>、矢印や編集のキー（<code>LEFT</code>、<code>HOME</code>、<code>DELETE</code> など）、音量・メディアのキー（<code>VOLUME_UP</code> など）も名前で書けます。数字キー（<code>0</code>〜<code>9</code>）は <code>vk VK_4</code> のように <code>VK_</code> を付けて書きます（<code>VK_</code> を付けない <code>4</code> は数値として読みます）。そのほかのキーも数値（<code>vk 0x70</code>）で書けます。押す、離すを分けるときは、<code>vkdown</code>、<code>vkup</code> を使います。</p>
-<h4 id="section-5">制限事項</h4>
+<h4 id="section-6">制限事項</h4>
 <p>IME の ON/OFF は、効かないことがあります。IME とアプリの組み合わせによります。</p>
 <ul>
 <li><strong>アプリによっては、IME を切り替えられません。</strong> IME のウィンドウを持たないアプリや、応答しないアプリには、IMM32 の操作が届きません。切り替えに失敗すると、ログ（<code>tray.log</code>）に理由が残ります。IMM32 でだめなときは IME キーでもう一度試しますが、それでも変わらなければ、上の <code>vk</code> を試してください。</li>
@@ -273,14 +314,14 @@ vk LSHIFT+F1         修飾キーは + でつなぐ
 <p>実行の間は、押している Ctrl が OS から隠されます。出力に Ctrl が掛からず、Ctrl+A のような別のショートカットになりません。実行が終わったとき、Ctrl をまだ押していれば、押した状態に戻されます。</p>
 <p>手順の中で Ctrl を使いたいときは、手順に <code>key LCTL(KC_C)</code> のように書きます。押している修飾キーを隠さずに送りたいときは、トリガーの編集画面の <strong>実行中も、押している修飾キーを送る</strong> にチェックを付けます。</p>
 <p><a id="trigger-notes"></a></p>
-<h3 id="section-6">トリガーとキーの割り当て</h3>
+<h3 id="section-7">トリガーとキーの割り当て</h3>
 <p>トリガーは、キーの割り当てではなく、トレイが、キーボードフックで見ているキーです。トリガーに <code>KC_F13</code> を結び付けたら、F13 を出すキーを、キーボードに用意します。F13 の物理キーがなければ、別のキーに <code>KC_F13</code> を割り当てます（キーの割り当て画面の <strong>基本</strong> などで選べます）。</p>
 <p>エディタのキーボード図では、次の印で見分けられます。</p>
 <ul>
 <li><strong>H</strong>: キーの割り当てが <code>HLP(Id)</code> のキー。動作の名前と内容が、マウスを載せると出ます。</li>
 <li><strong>T</strong>: そのキーが出すキーに、トリガーがあるキー。トリガーの名前と内容が出ます。</li>
 </ul>
-<h3 id="section-7">トリガーの注意</h3>
+<h3 id="section-8">トリガーの注意</h3>
 <ul>
 <li>トリガーが 1 つでもあると、トレイがキーボードフックを使います。一致したキーは、アプリに届かなくなります。F13〜F24 など、普段使わないキーが向いています。</li>
 <li>修飾キーは、押している分と過不足なく一致したときだけ一致します。左右は区別しません。</li>
@@ -288,7 +329,7 @@ vk LSHIFT+F1         修飾キーは + でつなぐ
 <li>Win を含むトリガーで F16 を選ぶと、環境によっては、スライドしてシャットダウンの画面が出ることがあります。Win を使うときは、F13〜F15 や F17〜F24 など、別のキーを選んでください。</li>
 <li>トリガーの修飾キーに Alt または Win を含む手順は、実行の前と後に、F24 を 1 回ずつ押して離す入力をアプリに送ります。F24 にショートカットを割り当てているアプリやツールがあると、それが動いてしまいます。Ctrl と Shift だけのトリガーでは、F24 は使いません。使いたくないときは、トリガーに Alt と Win を含めないか、<strong>実行中も、押している修飾キーを送る</strong> にチェックを付けます。</li>
 </ul>
-<h2 id="section-8">一時停止と再開をキーで行う</h2>
+<h2 id="section-9">一時停止と再開をキーで行う</h2>
 <p>トレイのメニューの <strong>一時停止</strong> と同じ動作を、キー 1 つで行えます。</p>
 <ol>
 <li><strong>設定...</strong> の <strong>ヘルパー動作</strong> タブで、種類を「一時停止・再開」にして動作を作ります。</li>
@@ -320,10 +361,10 @@ vk LSHIFT+F1         修飾キーは + でつなぐ
 </ul>
 <p>Emacs 風の設定例に、この動作を入れる方法は、<code>samples\emacs\EMACS-KEYBINDINGS.md</code>（インストール先）の「Ctrl+K を Emacs と同じ動きにする」にあります。</p>
 <p><a id="app-rules"></a></p>
-<h2 id="section-9">アプリ別レイヤー</h2>
+<h2 id="section-10">アプリ別レイヤー</h2>
 <p>前面のアプリに応じて、アプリ管理レイヤーを自動で有効にします。または、そのキーボードのリマップを OFFにします（ゲームなど）。設定ダイアログの <strong>アプリ別レイヤー</strong> タブで設定します。</p>
 <p><img src="../img/ja/apprules-tab.png" alt="アプリ別レイヤーのタブ" /></p>
-<h3 id="section-10">例: 特定のアプリでだけレイヤーを変える</h3>
+<h3 id="section-11">例: 特定のアプリでだけレイヤーを変える</h3>
 <ol>
 <li><strong>設定...</strong> の <strong>アプリ別レイヤー</strong> タブを開きます。</li>
 <li>対象（このキーボード、または全キーボード共通）を選び、<strong>追加...</strong> を押します。</li>
@@ -362,7 +403,7 @@ vk LSHIFT+F1         修飾キーは + でつなぐ
 </table>
 <p><strong>既定の規則</strong> にチェックを付けた規則は、どの規則にも一致しなかったときに使われます。指定した条件は、すべて一致したときに一致します。空の項目は見ません。条件を 1 つも指定していない規則は、使われません。有効にしたレイヤーは、IME 連動など、ほかのレイヤーとは別に重なります。</p>
 <p>トレイが落ちても、リマップを OFF にしたキーボードは、次の起動で ON に戻ります。一時停止中は、この OFF の切り替えは行われません。</p>
-<h2 id="section-11">動く条件と制約</h2>
+<h2 id="section-12">動く条件と制約</h2>
 <ul>
 <li>管理者として動くウィンドウが前面のとき: ログオン時に自動起動する <code>kasane-tray.exe</code> は、UI アクセスの権限で動くので、キー入力も、送る入力も届きます。次の場合は届きません。
 <ul>
@@ -376,7 +417,7 @@ vk LSHIFT+F1         修飾キーは + でつなぐ
 <li>マウスの相対移動（<code>move</code>）は、Windows のポインター加速を受けます。位置を決めたいときは <code>moveto</code> を使います。</li>
 <li>5 秒より前の <code>HLP(Id)</code> の押下は捨てられます。トレイが止まっていた間のキーが、あとでまとめて動かないようにするためです。</li>
 </ul>
-<h2 id="section-12">動かないとき</h2>
+<h2 id="section-13">動かないとき</h2>
 <ol>
 <li>トレイが動いているかを、通知領域のアイコンで確かめます。</li>
 <li><code>HLP(Id)</code> の <code>Id</code> に対応する動作があるかを確かめます。キーの割り当て画面が、注意を出します。</li>

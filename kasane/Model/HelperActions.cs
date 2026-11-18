@@ -194,10 +194,14 @@ public static class SequenceCompiler
     private const ushort EnterScan = 0x001C;
     private const ushort TabScan = 0x000F;
 
-    public static CompileResult Compile(IEnumerable<HelperStep>? steps)
+    /// <param name="now">Text の {date} などの展開に使う時刻。null なら今(1回の展開で1回だけ取る)。</param>
+    /// <param name="culture">日付・時刻の書式の言語。null なら現在のユーザーの地域設定。</param>
+    public static CompileResult Compile(IEnumerable<HelperStep>? steps, DateTime? now = null, System.Globalization.CultureInfo? culture = null)
     {
         var ops = new List<InputOp>();
         var errors = new List<string>();
+        DateTime stamp = now ?? DateTime.Now;
+        var cultureInfo = culture ?? System.Globalization.CultureInfo.CurrentCulture;
         long totalDelay = 0;
         int index = 0;
 
@@ -237,7 +241,12 @@ public static class SequenceCompiler
                 if (VkTable.TryResolve(step.VkUp, out var mods, out ushort vk)) ReleaseVk(ops, mods, vk);
                 else errors.Add(at + Loc.T($"VkUp '{step.VkUp}' を解決できません", $"Cannot resolve VkUp '{step.VkUp}'"));
             }
-            if (!string.IsNullOrEmpty(step.Text)) AddText(ops, step.Text);
+            if (!string.IsNullOrEmpty(step.Text))
+            {
+                var templateErrors = new List<string>();
+                AddText(ops, TextTemplate.Expand(step.Text, stamp, cultureInfo, templateErrors));
+                foreach (var e in templateErrors) errors.Add(at + e);
+            }
             if (step.DelayMs is int delay)
             {
                 int d = Math.Clamp(delay, 0, MaxDelayMs);
@@ -786,8 +795,7 @@ public sealed class ActionExecutor
     {
         if (steps == null || steps.Count == 0) return;
         var compiled = SequenceCompiler.Compile(steps);
-        foreach (var e in compiled.Errors) _env.Log("Sequence: " + e);
-        bool restore = false;
+        foreach (var e in compiled.Errors) _env.Log("Sequence: " + e);        bool restore = false;
         try
         {
             if (wrap != null)

@@ -133,7 +133,7 @@
 </tr>
 <tr>
 <td>Type text (Text)</td>
-<td>Types the string you set as it is. It is appended at the current position of wherever you can type now. A line break is sent as Enter and a tab as Tab. Japanese and symbols are sent as they are. Backslashes and the like have no special meaning. Up to 900 characters. You can also turn the IME off only while typing</td>
+<td>Types the string you set as it is. It is appended at the current position of wherever you can type now. A line break is sent as Enter and a tab as Tab. Japanese and symbols are sent as they are. Backslashes and the like have no special meaning. <code>{date}</code> and similar become the date or time when you press the key (<a href="#helper-datetime">Typing the date or time</a>). Up to 900 characters. You can also turn the IME off only while typing</td>
 </tr>
 <tr>
 <td>Control app-managed layers (AppLayer)</td>
@@ -149,6 +149,47 @@
 </tr>
 </tbody>
 </table>
+<p><a id="helper-datetime"></a></p>
+<h3 id="typing-the-date-or-time">Typing the date or time</h3>
+<p>In the string of Type text, you can write the placeholders below. They become the date or time at the moment you press the key. You can also write them in a <code>text</code> step of the sequence action.</p>
+<table>
+<thead>
+<tr>
+<th>Placeholder</th>
+<th>What is typed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>{date}</code> <code>{date:short}</code></td>
+<td>The short date, the same as the Short format in the Windows Region settings</td>
+</tr>
+<tr>
+<td><code>{date:long}</code></td>
+<td>The long date</td>
+</tr>
+<tr>
+<td><code>{time}</code> <code>{time:short}</code></td>
+<td>The short time</td>
+</tr>
+<tr>
+<td><code>{time:long}</code></td>
+<td>The long time</td>
+</tr>
+<tr>
+<td><code>{now:format}</code></td>
+<td>A format you choose. A .NET format string (<code>yyyy</code> year, <code>MM</code> month, <code>dd</code> day, <code>ddd</code> weekday, <code>H</code> and <code>h</code> hour on a 24-hour and 12-hour clock, <code>mm</code> minute, <code>ss</code> second)</td>
+</tr>
+<tr>
+<td><code>{ampm}</code> <code>{AMPM}</code></td>
+<td><code>am</code> <code>pm</code>, or <code>AM</code> <code>PM</code>. Always typed in English letters, whatever the language setting</td>
+</tr>
+</tbody>
+</table>
+<p>The four standard forms follow the Windows Region settings, including formats you have changed there.</p>
+<p>For example, <code>{now:yyyy-MM-dd (ddd) h:mm}{ampm}</code> types something like <code>2026-11-18 (Wed) 9:00am</code>. The weekday follows the Windows display language.</p>
+<p>If a format is a single character, add <code>%</code>, as in <code>{now:%h}</code>. Any <code>{</code> or <code>}</code> that does not match one of the forms above is typed as it is. To type the text <code>{date}</code> itself, write <code>{{date}</code>. A placeholder with an invalid format is not replaced and is typed as written.</p>
+<p>The <strong>Insert date/time</strong> button in the edit window also inserts a placeholder from a list.</p>
 <p><a id="helper-sequence"></a></p>
 <h3 id="how-to-write-a-sequence">How to write a sequence</h3>
 <p>Write one step per line. Lines that start with <code>#</code> are ignored. In <code>text</code>, <code>\\</code> is a backslash (in Japanese fonts it is shown as ¥ and can be typed with the ¥ key). <code>ime</code> looks at the current state and changes it only when it differs.</p>

@@ -184,6 +184,7 @@ public sealed class HelperSettingsModel
                 if (string.IsNullOrEmpty(body.Text)) errors.Add(Loc.T($"{owner}: 入力する文字列が空です", $"{owner}: Text is empty"));
                 else if (body.Text.Length > HelperActionBody.MaxTextLength)
                     errors.Add(Loc.T($"{owner}: 入力する文字列が長すぎます({HelperActionBody.MaxTextLength} 文字まで)", $"{owner}: Text is too long (up to {HelperActionBody.MaxTextLength} characters)"));
+                foreach (var e in TextTemplate.Validate(body.Text)) errors.Add($"{owner}: {e}");
                 if (body.ImeOffDuring)
                 {
                     if (!ImeNames.TryParseMethod(body.ImeMethod, out _))
