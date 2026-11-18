@@ -168,7 +168,7 @@
 <p>スリープ、電源、ウェイクアップのキーは、割り当てるときに確認が出ます。押すとパソコンがスリープやシャットダウンすることがあるためです。キートップにも ⚠ が付きます。</p>
 <p><img src="../img/ja/assign-power.png" alt="電源キーの確認" /></p>
 <h2 id="section-3">修飾キーを付けたキー</h2>
-<p>Ctrl+C のようなショートカットを割り当てるときの方法です。画面の下の修飾キーのチェックボックスにチェックを付けてから、キーを選びます。たとえば、左 Ctrl にチェックを付けて <code>C</code> を選ぶと、<code>LCTL(KC_C)</code>（Ctrl+C）になります。キーボード図の上では <code>^C</code> のように表示されます。</p>
+<p>Ctrl+C のようなショートカットを割り当てるときの方法です。画面の下の修飾キーのチェックボックスにチェックを付けてから、キーを選びます。たとえば、左 Ctrl にチェックを付けて <code>C</code> を選ぶと、<code>LCTL(KC_C)</code>（Ctrl+C）になります。キーボード図の上では <code>^C</code> のように表示されます（記号の意味は、<a href="#keycap-text">キートップの表示</a>を見てください）。</p>
 <p>キーコード欄に、<code>LCTL(LSFT(KC_T))</code> のように直接書いてもかまいません。</p>
 <p>押したまま次のキーを押しても、足した修飾キーは次のキーには掛かりません。たとえば、「!」を打つキーの直後の「a」は、「a」のままです。</p>
 <p><a id="capture"></a></p>
@@ -311,7 +311,166 @@
 <li>作ったコンボやキー置換は、それぞれの画面で <strong>OK</strong> か <strong>適用</strong> を押すまで、設定に入りません。キャンセルすれば、何も変わりません。</li>
 </ul>
 <p>キーボード図のキーを右クリックしても、同じことができます。メニューには、このキーに関わるものがあれば「コンボ3 を開く...」のような項目が、無ければ <strong>このキーでコンボを作る...</strong> などが出ます。<strong>このキーでタップダンスを作る...</strong> は、タップダンスの画面と一緒に、このキーの割り当て画面も開きます。</p>
-<h2 id="section-10">キーワード一覧</h2>
+<p><a id="keycap-text"></a></p>
+<h2 id="section-10">キートップの表示</h2>
+<p>キーボード図の中央に出る文字は、キーコードから、次の順で決めています。</p>
+<ol>
+<li>キーコードに決まった表示があれば、それを出します（下の一覧）。<code>KC_A</code> は <code>A</code>、<code>KC_F1</code> は <code>F1</code>、<code>KC_ENTER</code> は <code>Enter</code> です。</li>
+<li>別名（<code>KC_ENT</code>、<code>KC_GRV</code> など）は、同じキーの正式な名前の表示になります。</li>
+<li>修飾キーを付けたキーは、修飾キーの記号に、キーの表示を続けます。記号は、Ctrl が <code>^</code>、Shift が <code>⇧</code>、Alt が <code>⌥</code>、Win が <code>⊞</code> です。右側の修飾キーは、記号の前に <code>R</code> が付きます（右 Shift は <code>R⇧</code>）。たとえば、<code>LCTL(KC_C)</code> は <code>^C</code>、<code>LSFT(KC_1)</code> は <code>⇧1</code>、<code>LCTL(LSFT(KC_T))</code> は <code>^⇧T</code> です。</li>
+<li><code>LM</code> は、レイヤー番号に修飾キーの記号を続けます（<code>LM(1,MOD_LCTL)</code> は <code>LM1^</code>）。<code>OSM</code> は、<code>OS</code> に記号を続けます（<code>OSM(MOD_LSFT)</code> は <code>OS⇧</code>）。</li>
+<li><code>MO(1)</code>、<code>LT(1,KC_A)</code> のように、上のどれにも当てはまらないものは、書いたとおりに出ます。</li>
+</ol>
+<p><strong>同じスキャンコードのキーは、同じ表示になることがあります。</strong> 修飾キーを付けたキーでは、キーの表示を、スキャンコードから引き直して決めます。そのため、半角/全角（<code>KC_ZKHK</code>）は、<code>`</code>（<code>KC_GRAVE</code>）と同じスキャンコードなので、<code>LALT(KC_ZKHK)</code>（Alt+半/全）は、<code>⌥半/全</code> ではなく <code>⌥`</code> と出ます。出力されるキーは同じなので、動作には影響しません。修飾キーを付けない <code>KC_ZKHK</code> は、<code>半/全</code> と出ます。</p>
+<p>表示は、表示言語に合わせて変わるものがあります。</p>
+<table>
+<thead>
+<tr>
+<th>キーコード</th>
+<th>日本語の表示</th>
+<th>英語の表示</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>KC_A</code>〜<code>KC_Z</code></td>
+<td>A〜Z</td>
+<td>A〜Z</td>
+</tr>
+<tr>
+<td><code>KC_1</code>〜<code>KC_0</code></td>
+<td>1〜0</td>
+<td>1〜0</td>
+</tr>
+<tr>
+<td><code>KC_F1</code>〜<code>KC_F24</code></td>
+<td>F1〜F24</td>
+<td>F1〜F24</td>
+</tr>
+<tr>
+<td><code>KC_TRNS</code>、<code>KC_NO</code></td>
+<td>▽、✕</td>
+<td>▽、✕</td>
+</tr>
+<tr>
+<td><code>KC_ESC</code>、<code>KC_TAB</code>、<code>KC_ENTER</code>、<code>KC_BSPACE</code>、<code>KC_SPACE</code>、<code>KC_CAPSLOCK</code></td>
+<td>Esc、Tab、Enter、BS、Space、Caps</td>
+<td>同じ</td>
+</tr>
+<tr>
+<td><code>KC_GRAVE</code>、<code>KC_MINUS</code>、<code>KC_EQUAL</code>、<code>KC_LBRACKET</code>、<code>KC_RBRACKET</code>、<code>KC_BSLASH</code></td>
+<td><code>`</code>、<code>-</code>、<code>=</code>、<code>[</code>、<code>]</code>、<code>\</code></td>
+<td>同じ</td>
+</tr>
+<tr>
+<td><code>KC_SCOLON</code>、<code>KC_QUOTE</code>、<code>KC_COMMA</code>、<code>KC_DOT</code>、<code>KC_SLASH</code>、<code>KC_NONUS_BSLASH</code></td>
+<td><code>;</code>、<code>'</code>、<code>,</code>、<code>.</code>、<code>/</code>、<code>ISO\</code></td>
+<td>同じ</td>
+</tr>
+<tr>
+<td><code>KC_LCTRL</code>、<code>KC_LSHIFT</code>、<code>KC_LALT</code>、<code>KC_LGUI</code></td>
+<td>LCtrl、LShift、LAlt、LWin</td>
+<td>同じ</td>
+</tr>
+<tr>
+<td><code>KC_RCTRL</code>、<code>KC_RSHIFT</code>、<code>KC_RALT</code>、<code>KC_RGUI</code>、<code>KC_APP</code></td>
+<td>RCtrl、RShift、RAlt、RWin、Menu</td>
+<td>同じ</td>
+</tr>
+<tr>
+<td><code>KC_PSCREEN</code>、<code>KC_SCROLLLOCK</code>、<code>KC_PAUSE</code></td>
+<td>PrtSc、ScrLk、Pause</td>
+<td>同じ</td>
+</tr>
+<tr>
+<td><code>KC_INSERT</code>、<code>KC_DELETE</code>、<code>KC_HOME</code>、<code>KC_END</code>、<code>KC_PGUP</code>、<code>KC_PGDOWN</code></td>
+<td>Ins、Del、Home、End、PgUp、PgDn</td>
+<td>同じ</td>
+</tr>
+<tr>
+<td><code>KC_UP</code>、<code>KC_DOWN</code>、<code>KC_LEFT</code>、<code>KC_RIGHT</code></td>
+<td>↑、↓、←、→</td>
+<td>同じ</td>
+</tr>
+<tr>
+<td><code>KC_NUMLOCK</code></td>
+<td>NumLk</td>
+<td>NumLk</td>
+</tr>
+<tr>
+<td><code>KC_KP_0</code>〜<code>KC_KP_9</code></td>
+<td>P0〜P9</td>
+<td>P0〜P9</td>
+</tr>
+<tr>
+<td><code>KC_KP_SLASH</code>、<code>KC_KP_ASTERISK</code>、<code>KC_KP_MINUS</code>、<code>KC_KP_PLUS</code>、<code>KC_KP_ENTER</code>、<code>KC_KP_DOT</code></td>
+<td>P/、P*、P-、P+、PEnt、P.</td>
+<td>同じ</td>
+</tr>
+<tr>
+<td><code>KC_ZKHK</code></td>
+<td>半/全</td>
+<td>Han/Zen</td>
+</tr>
+<tr>
+<td><code>KC_RO</code></td>
+<td><code>_</code></td>
+<td><code>_</code></td>
+</tr>
+<tr>
+<td><code>KC_KANA</code></td>
+<td>かな</td>
+<td>Kana</td>
+</tr>
+<tr>
+<td><code>KC_JYEN</code></td>
+<td>¥</td>
+<td>¥</td>
+</tr>
+<tr>
+<td><code>KC_HENK</code></td>
+<td>変換</td>
+<td>Henkan</td>
+</tr>
+<tr>
+<td><code>KC_MHEN</code></td>
+<td>無変換</td>
+<td>Muhen</td>
+</tr>
+<tr>
+<td><code>KC_LNG1</code>、<code>KC_LNG2</code></td>
+<td>IMEオン、IMEオフ</td>
+<td>IME On、IME Off</td>
+</tr>
+<tr>
+<td><code>KC_MUTE</code>、<code>KC_VOLD</code>、<code>KC_VOLU</code></td>
+<td>Mute、Vol-、Vol+</td>
+<td>同じ</td>
+</tr>
+<tr>
+<td><code>KC_MPLY</code>、<code>KC_MSTP</code>、<code>KC_MNXT</code>、<code>KC_MPRV</code>、<code>KC_CALC</code></td>
+<td>Play、Stop、Next、Prev、Calc</td>
+<td>同じ</td>
+</tr>
+<tr>
+<td><code>KC_WSCH</code>、<code>KC_WHOM</code>、<code>KC_WBAK</code>、<code>KC_WFWD</code>、<code>KC_WSTP</code>、<code>KC_WREF</code>、<code>KC_WFAV</code></td>
+<td>Search、WebHome、Back、Fwd、WebStop、Reload、Fav</td>
+<td>同じ</td>
+</tr>
+<tr>
+<td><code>KC_MAIL</code>、<code>KC_MSEL</code>、<code>KC_MYCM</code></td>
+<td>Mail、Media、PC</td>
+<td>同じ</td>
+</tr>
+<tr>
+<td><code>KC_SLEP</code>、<code>KC_WAKE</code>、<code>KC_PWR</code></td>
+<td>⚠Slp、⚠Wake、⚠Pwr</td>
+<td>同じ</td>
+</tr>
+</tbody>
+</table>
+<p><code>KC_RO</code> は、日本語キーボードの「ろ」キーの刻印（<code>_</code> と <code>\</code>）に合わせて、<code>_</code> と出ます。半角の <code>\</code> は、フォントによって <code>¥</code> に見え、<code>KC_JYEN</code> と区別できないためです。</p>
+<h2 id="section-11">キーワード一覧</h2>
 <p>割り当ての欄や、マクロ、コンボなどに書く短い名前の一覧です。多くは QMK Firmware と同じ名前です。<code>n</code> はレイヤー番号、<code>kc</code> はキーコードです。</p>
 <table>
 <thead>

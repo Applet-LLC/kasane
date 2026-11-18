@@ -168,7 +168,7 @@
 <p>When you assign the sleep, power, or wake-up key, a confirmation appears, because pressing it may put the PC to sleep or shut it down. A ⚠ is also shown on the keycap.</p>
 <p><img src="../img/en/assign-power.png" alt="Power key confirmation" /></p>
 <h2 id="keys-with-modifiers">Keys with modifiers</h2>
-<p>This is how to assign a shortcut such as Ctrl+C. Check the modifier check boxes at the bottom of the window first, then choose the key. For example, check left Ctrl and choose <code>C</code>, and you get <code>LCTL(KC_C)</code> (Ctrl+C). In the keyboard diagram, it is shown like <code>^C</code>.</p>
+<p>This is how to assign a shortcut such as Ctrl+C. Check the modifier check boxes at the bottom of the window first, then choose the key. For example, check left Ctrl and choose <code>C</code>, and you get <code>LCTL(KC_C)</code> (Ctrl+C). In the keyboard diagram, it is shown like <code>^C</code> (for what the symbols mean, see <a href="#keycap-text">Key cap display</a>).</p>
 <p>You can also write it directly in the key code box, like <code>LCTL(LSFT(KC_T))</code>.</p>
 <p>Even if you hold the key and press the next key, the added modifier is not applied to the next key. For example, the &quot;a&quot; right after the key that types &quot;!&quot; stays &quot;a&quot;.</p>
 <p><a id="capture"></a></p>
@@ -311,6 +311,165 @@
 <li>A combo or key override you made does not go into the settings until you press <strong>OK</strong> or <strong>Apply</strong> in its own window. If you cancel, nothing changes.</li>
 </ul>
 <p>You can do the same by right-clicking a key in the keyboard diagram. The menu shows items like &quot;Open combo 3...&quot; if there is something involving this key, and <strong>Create a combo with this key...</strong> and the like if there is not. <strong>Create a tap dance with this key...</strong> opens this key's assignment window together with the tap dance window.</p>
+<p><a id="keycap-text"></a></p>
+<h2 id="key-cap-display">Key cap display</h2>
+<p>The character in the center of a key in the keyboard diagram is decided from the key code in this order.</p>
+<ol>
+<li>If the key code has a fixed display, it is used (the list below). <code>KC_A</code> is <code>A</code>, <code>KC_F1</code> is <code>F1</code>, and <code>KC_ENTER</code> is <code>Enter</code>.</li>
+<li>An alias (<code>KC_ENT</code>, <code>KC_GRV</code>, and so on) is shown the same as the official name of the same key.</li>
+<li>A key with modifiers shows the modifier symbols followed by the key's display. The symbols are <code>^</code> for Ctrl, <code>⇧</code> for Shift, <code>⌥</code> for Alt, and <code>⊞</code> for Win. A right-side modifier gets an <code>R</code> before its symbol (right Shift is <code>R⇧</code>). For example, <code>LCTL(KC_C)</code> is <code>^C</code>, <code>LSFT(KC_1)</code> is <code>⇧1</code>, and <code>LCTL(LSFT(KC_T))</code> is <code>^⇧T</code>.</li>
+<li><code>LM</code> shows the layer number followed by the modifier symbols (<code>LM(1,MOD_LCTL)</code> is <code>LM1^</code>). <code>OSM</code> shows <code>OS</code> followed by the symbols (<code>OSM(MOD_LSFT)</code> is <code>OS⇧</code>).</li>
+<li>Anything that matches none of the above, such as <code>MO(1)</code> or <code>LT(1,KC_A)</code>, is shown as written.</li>
+</ol>
+<p><strong>Keys that share a scan code can be shown the same.</strong> For a key with modifiers, the key's display is looked up again from its scan code. Hankaku/Zenkaku (<code>KC_ZKHK</code>) has the same scan code as <code>`</code> (<code>KC_GRAVE</code>), so <code>LALT(KC_ZKHK)</code> (Alt+Han/Zen) is shown as <code>⌥`</code> and not <code>⌥Han/Zen</code>. The key that is sent is the same, so the behavior is not affected. <code>KC_ZKHK</code> without modifiers is shown as <code>Han/Zen</code>.</p>
+<p>Some displays change with the display language.</p>
+<table>
+<thead>
+<tr>
+<th>Key code</th>
+<th>Japanese display</th>
+<th>English display</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>KC_A</code> to <code>KC_Z</code></td>
+<td>A to Z</td>
+<td>A to Z</td>
+</tr>
+<tr>
+<td><code>KC_1</code> to <code>KC_0</code></td>
+<td>1 to 0</td>
+<td>1 to 0</td>
+</tr>
+<tr>
+<td><code>KC_F1</code> to <code>KC_F24</code></td>
+<td>F1 to F24</td>
+<td>F1 to F24</td>
+</tr>
+<tr>
+<td><code>KC_TRNS</code>, <code>KC_NO</code></td>
+<td>▽, ✕</td>
+<td>▽, ✕</td>
+</tr>
+<tr>
+<td><code>KC_ESC</code>, <code>KC_TAB</code>, <code>KC_ENTER</code>, <code>KC_BSPACE</code>, <code>KC_SPACE</code>, <code>KC_CAPSLOCK</code></td>
+<td>Esc, Tab, Enter, BS, Space, Caps</td>
+<td>Same</td>
+</tr>
+<tr>
+<td><code>KC_GRAVE</code>, <code>KC_MINUS</code>, <code>KC_EQUAL</code>, <code>KC_LBRACKET</code>, <code>KC_RBRACKET</code>, <code>KC_BSLASH</code></td>
+<td><code>`</code>, <code>-</code>, <code>=</code>, <code>[</code>, <code>]</code>, <code>\</code></td>
+<td>Same</td>
+</tr>
+<tr>
+<td><code>KC_SCOLON</code>, <code>KC_QUOTE</code>, <code>KC_COMMA</code>, <code>KC_DOT</code>, <code>KC_SLASH</code>, <code>KC_NONUS_BSLASH</code></td>
+<td><code>;</code>, <code>'</code>, <code>,</code>, <code>.</code>, <code>/</code>, <code>ISO\</code></td>
+<td>Same</td>
+</tr>
+<tr>
+<td><code>KC_LCTRL</code>, <code>KC_LSHIFT</code>, <code>KC_LALT</code>, <code>KC_LGUI</code></td>
+<td>LCtrl, LShift, LAlt, LWin</td>
+<td>Same</td>
+</tr>
+<tr>
+<td><code>KC_RCTRL</code>, <code>KC_RSHIFT</code>, <code>KC_RALT</code>, <code>KC_RGUI</code>, <code>KC_APP</code></td>
+<td>RCtrl, RShift, RAlt, RWin, Menu</td>
+<td>Same</td>
+</tr>
+<tr>
+<td><code>KC_PSCREEN</code>, <code>KC_SCROLLLOCK</code>, <code>KC_PAUSE</code></td>
+<td>PrtSc, ScrLk, Pause</td>
+<td>Same</td>
+</tr>
+<tr>
+<td><code>KC_INSERT</code>, <code>KC_DELETE</code>, <code>KC_HOME</code>, <code>KC_END</code>, <code>KC_PGUP</code>, <code>KC_PGDOWN</code></td>
+<td>Ins, Del, Home, End, PgUp, PgDn</td>
+<td>Same</td>
+</tr>
+<tr>
+<td><code>KC_UP</code>, <code>KC_DOWN</code>, <code>KC_LEFT</code>, <code>KC_RIGHT</code></td>
+<td>↑, ↓, ←, →</td>
+<td>Same</td>
+</tr>
+<tr>
+<td><code>KC_NUMLOCK</code></td>
+<td>NumLk</td>
+<td>NumLk</td>
+</tr>
+<tr>
+<td><code>KC_KP_0</code> to <code>KC_KP_9</code></td>
+<td>P0 to P9</td>
+<td>P0 to P9</td>
+</tr>
+<tr>
+<td><code>KC_KP_SLASH</code>, <code>KC_KP_ASTERISK</code>, <code>KC_KP_MINUS</code>, <code>KC_KP_PLUS</code>, <code>KC_KP_ENTER</code>, <code>KC_KP_DOT</code></td>
+<td>P/, P*, P-, P+, PEnt, P.</td>
+<td>Same</td>
+</tr>
+<tr>
+<td><code>KC_ZKHK</code></td>
+<td>半/全</td>
+<td>Han/Zen</td>
+</tr>
+<tr>
+<td><code>KC_RO</code></td>
+<td><code>_</code></td>
+<td><code>_</code></td>
+</tr>
+<tr>
+<td><code>KC_KANA</code></td>
+<td>かな</td>
+<td>Kana</td>
+</tr>
+<tr>
+<td><code>KC_JYEN</code></td>
+<td>¥</td>
+<td>¥</td>
+</tr>
+<tr>
+<td><code>KC_HENK</code></td>
+<td>変換</td>
+<td>Henkan</td>
+</tr>
+<tr>
+<td><code>KC_MHEN</code></td>
+<td>無変換</td>
+<td>Muhen</td>
+</tr>
+<tr>
+<td><code>KC_LNG1</code>, <code>KC_LNG2</code></td>
+<td>IMEオン, IMEオフ</td>
+<td>IME On, IME Off</td>
+</tr>
+<tr>
+<td><code>KC_MUTE</code>, <code>KC_VOLD</code>, <code>KC_VOLU</code></td>
+<td>Mute, Vol-, Vol+</td>
+<td>Same</td>
+</tr>
+<tr>
+<td><code>KC_MPLY</code>, <code>KC_MSTP</code>, <code>KC_MNXT</code>, <code>KC_MPRV</code>, <code>KC_CALC</code></td>
+<td>Play, Stop, Next, Prev, Calc</td>
+<td>Same</td>
+</tr>
+<tr>
+<td><code>KC_WSCH</code>, <code>KC_WHOM</code>, <code>KC_WBAK</code>, <code>KC_WFWD</code>, <code>KC_WSTP</code>, <code>KC_WREF</code>, <code>KC_WFAV</code></td>
+<td>Search, WebHome, Back, Fwd, WebStop, Reload, Fav</td>
+<td>Same</td>
+</tr>
+<tr>
+<td><code>KC_MAIL</code>, <code>KC_MSEL</code>, <code>KC_MYCM</code></td>
+<td>Mail, Media, PC</td>
+<td>Same</td>
+</tr>
+<tr>
+<td><code>KC_SLEP</code>, <code>KC_WAKE</code>, <code>KC_PWR</code></td>
+<td>⚠Slp, ⚠Wake, ⚠Pwr</td>
+<td>Same</td>
+</tr>
+</tbody>
+</table>
+<p><code>KC_RO</code> is shown as <code>_</code>, to match the legend on the Ro key of a Japanese keyboard (<code>_</code> and <code>\</code>). A half-width <code>\</code> looks like <code>¥</code> in some fonts and cannot be told apart from <code>KC_JYEN</code>.</p>
 <h2 id="keyword-list">Keyword list</h2>
 <p>This is a list of the short names you write in assignment boxes, macros, combos, and so on. Most are the same names as in QMK Firmware. <code>n</code> is a layer number and <code>kc</code> is a key code.</p>
 <table>

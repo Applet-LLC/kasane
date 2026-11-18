@@ -144,6 +144,8 @@ The small characters at the upper left of a key are the key's legend, and the la
 | H at the lower right | A helper action (the assignment is `HLP(Id)`). Hold the mouse over it to see the action's name and contents |
 | T at the lower right | A helper trigger key. Shown when the key that this key sends has a trigger (the **Helper actions** tab of Settings). Hold the mouse over it to see the trigger's contents |
 
+How the central character is decided, the symbols for keys with modifiers (such as `^C` and `⇧1`), and a list of the display for each key code are in [8. Assigning Keys](08-key-assign.html#keycap-text).
+
 The marks are lined up in the order M, D, C, R, H, T. Press **Legend** at the bottom of the window to see samples of the colors and marks. When you hold the mouse over a key, its contents are shown (for example, "Key override 3: while holding MOD_LSFT → KC_Z").
 
 ![The legend popup](../img/ja/editor-legend.png)

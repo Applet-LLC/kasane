@@ -57,7 +57,7 @@ NLS の **IMEオン** と **IMEオフ**（`KC_LNG1`、`KC_LNG2`）は、押す�
 
 ## 修飾キーを付けたキー
 
-Ctrl+C のようなショートカットを割り当てるときの方法です。画面の下の修飾キーのチェックボックスにチェックを付けてから、キーを選びます。たとえば、左 Ctrl にチェックを付けて `C` を選ぶと、`LCTL(KC_C)`（Ctrl+C）になります。キーボード図の上では `^C` のように表示されます。
+Ctrl+C のようなショートカットを割り当てるときの方法です。画面の下の修飾キーのチェックボックスにチェックを付けてから、キーを選びます。たとえば、左 Ctrl にチェックを付けて `C` を選ぶと、`LCTL(KC_C)`（Ctrl+C）になります。キーボード図の上では `^C` のように表示されます（記号の意味は、[キートップの表示](#keycap-text)を見てください）。
 
 キーコード欄に、`LCTL(LSFT(KC_T))` のように直接書いてもかまいません。
 
@@ -149,6 +149,52 @@ Ctrl+C のようなショートカットを割り当てるときの方法です�
 
 キーボード図のキーを右クリックしても、同じことができます。メニューには、このキーに関わるものがあれば「コンボ3 を開く...」のような項目が、無ければ **このキーでコンボを作る...** などが出ます。**このキーでタップダンスを作る...** は、タップダンスの画面と一緒に、このキーの割り当て画面も開きます。
 
+<a id="keycap-text"></a>
+## キートップの表示
+
+キーボード図の中央に出る文字は、キーコードから、次の順で決めています。
+
+1. キーコードに決まった表示があれば、それを出します（下の一覧）。`KC_A` は `A`、`KC_F1` は `F1`、`KC_ENTER` は `Enter` です。
+2. 別名（`KC_ENT`、`KC_GRV` など）は、同じキーの正式な名前の表示になります。
+3. 修飾キーを付けたキーは、修飾キーの記号に、キーの表示を続けます。記号は、Ctrl が `^`、Shift が `⇧`、Alt が `⌥`、Win が `⊞` です。右側の修飾キーは、記号の前に `R` が付きます（右 Shift は `R⇧`）。たとえば、`LCTL(KC_C)` は `^C`、`LSFT(KC_1)` は `⇧1`、`LCTL(LSFT(KC_T))` は `^⇧T` です。
+4. `LM` は、レイヤー番号に修飾キーの記号を続けます（`LM(1,MOD_LCTL)` は `LM1^`）。`OSM` は、`OS` に記号を続けます（`OSM(MOD_LSFT)` は `OS⇧`）。
+5. `MO(1)`、`LT(1,KC_A)` のように、上のどれにも当てはまらないものは、書いたとおりに出ます。
+
+**同じスキャンコードのキーは、同じ表示になることがあります。** 修飾キーを付けたキーでは、キーの表示を、スキャンコードから引き直して決めます。そのため、半角/全角（`KC_ZKHK`）は、`` ` ``（`KC_GRAVE`）と同じスキャンコードなので、`LALT(KC_ZKHK)`（Alt+半/全）は、`⌥半/全` ではなく `` ⌥` `` と出ます。出力されるキーは同じなので、動作には影響しません。修飾キーを付けない `KC_ZKHK` は、`半/全` と出ます。
+
+表示は、表示言語に合わせて変わるものがあります。
+
+| キーコード | 日本語の表示 | 英語の表示 |
+|---|---|---|
+| `KC_A`〜`KC_Z` | A〜Z | A〜Z |
+| `KC_1`〜`KC_0` | 1〜0 | 1〜0 |
+| `KC_F1`〜`KC_F24` | F1〜F24 | F1〜F24 |
+| `KC_TRNS`、`KC_NO` | ▽、✕ | ▽、✕ |
+| `KC_ESC`、`KC_TAB`、`KC_ENTER`、`KC_BSPACE`、`KC_SPACE`、`KC_CAPSLOCK` | Esc、Tab、Enter、BS、Space、Caps | 同じ |
+| `KC_GRAVE`、`KC_MINUS`、`KC_EQUAL`、`KC_LBRACKET`、`KC_RBRACKET`、`KC_BSLASH` | `` ` ``、`-`、`=`、`[`、`]`、`\` | 同じ |
+| `KC_SCOLON`、`KC_QUOTE`、`KC_COMMA`、`KC_DOT`、`KC_SLASH`、`KC_NONUS_BSLASH` | `;`、`'`、`,`、`.`、`/`、`ISO\` | 同じ |
+| `KC_LCTRL`、`KC_LSHIFT`、`KC_LALT`、`KC_LGUI` | LCtrl、LShift、LAlt、LWin | 同じ |
+| `KC_RCTRL`、`KC_RSHIFT`、`KC_RALT`、`KC_RGUI`、`KC_APP` | RCtrl、RShift、RAlt、RWin、Menu | 同じ |
+| `KC_PSCREEN`、`KC_SCROLLLOCK`、`KC_PAUSE` | PrtSc、ScrLk、Pause | 同じ |
+| `KC_INSERT`、`KC_DELETE`、`KC_HOME`、`KC_END`、`KC_PGUP`、`KC_PGDOWN` | Ins、Del、Home、End、PgUp、PgDn | 同じ |
+| `KC_UP`、`KC_DOWN`、`KC_LEFT`、`KC_RIGHT` | ↑、↓、←、→ | 同じ |
+| `KC_NUMLOCK` | NumLk | NumLk |
+| `KC_KP_0`〜`KC_KP_9` | P0〜P9 | P0〜P9 |
+| `KC_KP_SLASH`、`KC_KP_ASTERISK`、`KC_KP_MINUS`、`KC_KP_PLUS`、`KC_KP_ENTER`、`KC_KP_DOT` | P/、P*、P-、P+、PEnt、P. | 同じ |
+| `KC_ZKHK` | 半/全 | Han/Zen |
+| `KC_RO` | `_` | `_` |
+| `KC_KANA` | かな | Kana |
+| `KC_JYEN` | ¥ | ¥ |
+| `KC_HENK` | 変換 | Henkan |
+| `KC_MHEN` | 無変換 | Muhen |
+| `KC_LNG1`、`KC_LNG2` | IMEオン、IMEオフ | IME On、IME Off |
+| `KC_MUTE`、`KC_VOLD`、`KC_VOLU` | Mute、Vol-、Vol+ | 同じ |
+| `KC_MPLY`、`KC_MSTP`、`KC_MNXT`、`KC_MPRV`、`KC_CALC` | Play、Stop、Next、Prev、Calc | 同じ |
+| `KC_WSCH`、`KC_WHOM`、`KC_WBAK`、`KC_WFWD`、`KC_WSTP`、`KC_WREF`、`KC_WFAV` | Search、WebHome、Back、Fwd、WebStop、Reload、Fav | 同じ |
+| `KC_MAIL`、`KC_MSEL`、`KC_MYCM` | Mail、Media、PC | 同じ |
+| `KC_SLEP`、`KC_WAKE`、`KC_PWR` | ⚠Slp、⚠Wake、⚠Pwr | 同じ |
+
+`KC_RO` は、日本語キーボードの「ろ」キーの刻印（`_` と `\`）に合わせて、`_` と出ます。半角の `\` は、フォントによって `¥` に見え、`KC_JYEN` と区別できないためです。
 ## キーワード一覧
 
 割り当ての欄や、マクロ、コンボなどに書く短い名前の一覧です。多くは QMK Firmware と同じ名前です。`n` はレイヤー番号、`kc` はキーコードです。

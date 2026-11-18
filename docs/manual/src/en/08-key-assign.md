@@ -57,7 +57,7 @@ When you assign the sleep, power, or wake-up key, a confirmation appears, becaus
 
 ## Keys with modifiers
 
-This is how to assign a shortcut such as Ctrl+C. Check the modifier check boxes at the bottom of the window first, then choose the key. For example, check left Ctrl and choose `C`, and you get `LCTL(KC_C)` (Ctrl+C). In the keyboard diagram, it is shown like `^C`.
+This is how to assign a shortcut such as Ctrl+C. Check the modifier check boxes at the bottom of the window first, then choose the key. For example, check left Ctrl and choose `C`, and you get `LCTL(KC_C)` (Ctrl+C). In the keyboard diagram, it is shown like `^C` (for what the symbols mean, see [Key cap display](#keycap-text)).
 
 You can also write it directly in the key code box, like `LCTL(LSFT(KC_T))`.
 
@@ -149,6 +149,52 @@ With **Combo** and **Key override** at the end of the list on the left, you open
 
 You can do the same by right-clicking a key in the keyboard diagram. The menu shows items like "Open combo 3..." if there is something involving this key, and **Create a combo with this key...** and the like if there is not. **Create a tap dance with this key...** opens this key's assignment window together with the tap dance window.
 
+<a id="keycap-text"></a>
+## Key cap display
+
+The character in the center of a key in the keyboard diagram is decided from the key code in this order.
+
+1. If the key code has a fixed display, it is used (the list below). `KC_A` is `A`, `KC_F1` is `F1`, and `KC_ENTER` is `Enter`.
+2. An alias (`KC_ENT`, `KC_GRV`, and so on) is shown the same as the official name of the same key.
+3. A key with modifiers shows the modifier symbols followed by the key's display. The symbols are `^` for Ctrl, `⇧` for Shift, `⌥` for Alt, and `⊞` for Win. A right-side modifier gets an `R` before its symbol (right Shift is `R⇧`). For example, `LCTL(KC_C)` is `^C`, `LSFT(KC_1)` is `⇧1`, and `LCTL(LSFT(KC_T))` is `^⇧T`.
+4. `LM` shows the layer number followed by the modifier symbols (`LM(1,MOD_LCTL)` is `LM1^`). `OSM` shows `OS` followed by the symbols (`OSM(MOD_LSFT)` is `OS⇧`).
+5. Anything that matches none of the above, such as `MO(1)` or `LT(1,KC_A)`, is shown as written.
+
+**Keys that share a scan code can be shown the same.** For a key with modifiers, the key's display is looked up again from its scan code. Hankaku/Zenkaku (`KC_ZKHK`) has the same scan code as `` ` `` (`KC_GRAVE`), so `LALT(KC_ZKHK)` (Alt+Han/Zen) is shown as `` ⌥` `` and not `⌥Han/Zen`. The key that is sent is the same, so the behavior is not affected. `KC_ZKHK` without modifiers is shown as `Han/Zen`.
+
+Some displays change with the display language.
+
+| Key code | Japanese display | English display |
+|---|---|---|
+| `KC_A` to `KC_Z` | A to Z | A to Z |
+| `KC_1` to `KC_0` | 1 to 0 | 1 to 0 |
+| `KC_F1` to `KC_F24` | F1 to F24 | F1 to F24 |
+| `KC_TRNS`, `KC_NO` | ▽, ✕ | ▽, ✕ |
+| `KC_ESC`, `KC_TAB`, `KC_ENTER`, `KC_BSPACE`, `KC_SPACE`, `KC_CAPSLOCK` | Esc, Tab, Enter, BS, Space, Caps | Same |
+| `KC_GRAVE`, `KC_MINUS`, `KC_EQUAL`, `KC_LBRACKET`, `KC_RBRACKET`, `KC_BSLASH` | `` ` ``, `-`, `=`, `[`, `]`, `\` | Same |
+| `KC_SCOLON`, `KC_QUOTE`, `KC_COMMA`, `KC_DOT`, `KC_SLASH`, `KC_NONUS_BSLASH` | `;`, `'`, `,`, `.`, `/`, `ISO\` | Same |
+| `KC_LCTRL`, `KC_LSHIFT`, `KC_LALT`, `KC_LGUI` | LCtrl, LShift, LAlt, LWin | Same |
+| `KC_RCTRL`, `KC_RSHIFT`, `KC_RALT`, `KC_RGUI`, `KC_APP` | RCtrl, RShift, RAlt, RWin, Menu | Same |
+| `KC_PSCREEN`, `KC_SCROLLLOCK`, `KC_PAUSE` | PrtSc, ScrLk, Pause | Same |
+| `KC_INSERT`, `KC_DELETE`, `KC_HOME`, `KC_END`, `KC_PGUP`, `KC_PGDOWN` | Ins, Del, Home, End, PgUp, PgDn | Same |
+| `KC_UP`, `KC_DOWN`, `KC_LEFT`, `KC_RIGHT` | ↑, ↓, ←, → | Same |
+| `KC_NUMLOCK` | NumLk | NumLk |
+| `KC_KP_0` to `KC_KP_9` | P0 to P9 | P0 to P9 |
+| `KC_KP_SLASH`, `KC_KP_ASTERISK`, `KC_KP_MINUS`, `KC_KP_PLUS`, `KC_KP_ENTER`, `KC_KP_DOT` | P/, P*, P-, P+, PEnt, P. | Same |
+| `KC_ZKHK` | 半/全 | Han/Zen |
+| `KC_RO` | `_` | `_` |
+| `KC_KANA` | かな | Kana |
+| `KC_JYEN` | ¥ | ¥ |
+| `KC_HENK` | 変換 | Henkan |
+| `KC_MHEN` | 無変換 | Muhen |
+| `KC_LNG1`, `KC_LNG2` | IMEオン, IMEオフ | IME On, IME Off |
+| `KC_MUTE`, `KC_VOLD`, `KC_VOLU` | Mute, Vol-, Vol+ | Same |
+| `KC_MPLY`, `KC_MSTP`, `KC_MNXT`, `KC_MPRV`, `KC_CALC` | Play, Stop, Next, Prev, Calc | Same |
+| `KC_WSCH`, `KC_WHOM`, `KC_WBAK`, `KC_WFWD`, `KC_WSTP`, `KC_WREF`, `KC_WFAV` | Search, WebHome, Back, Fwd, WebStop, Reload, Fav | Same |
+| `KC_MAIL`, `KC_MSEL`, `KC_MYCM` | Mail, Media, PC | Same |
+| `KC_SLEP`, `KC_WAKE`, `KC_PWR` | ⚠Slp, ⚠Wake, ⚠Pwr | Same |
+
+`KC_RO` is shown as `_`, to match the legend on the Ro key of a Japanese keyboard (`_` and `\`). A half-width `\` looks like `¥` in some fonts and cannot be told apart from `KC_JYEN`.
 ## Keyword list
 
 This is a list of the short names you write in assignment boxes, macros, combos, and so on. Most are the same names as in QMK Firmware. `n` is a layer number and `kc` is a key code.
