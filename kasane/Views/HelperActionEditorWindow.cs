@@ -151,8 +151,9 @@ public sealed class HelperActionEditorWindow : Window
         _sequencePanel.Children.Add(_releaseSteps);
 
         // Text
-        _text.ToolTip = Loc.T($"書いたとおりに送ります。改行は Enter、タブは Tab として送ります。{HelperActionBody.MaxTextLength} 文字まで",
-                              $"Sent exactly as written. A line break is sent as Enter and a tab as Tab. Up to {HelperActionBody.MaxTextLength} characters");
+        _text.ToolTip = Loc.T($"書いたとおりに送ります。改行は Enter、タブは Tab として送ります。{{date}} や {{now:書式}} は、キーを押した時点の日付・時刻になります。{HelperActionBody.MaxTextLength} 文字まで",
+                              $"Sent exactly as written. A line break is sent as Enter and a tab as Tab. {{date}} and {{now:format}} become the date or time when the key is pressed. Up to {HelperActionBody.MaxTextLength} characters");
+        _textPanel.Children.Add(TextDateInsertBar.Create(_text));
         _textPanel.Children.Add(_text);
         _textPanel.Children.Add(_imeOff);
         foreach (var label in ImeMethodLabels) _imeMethod.Items.Add(label);

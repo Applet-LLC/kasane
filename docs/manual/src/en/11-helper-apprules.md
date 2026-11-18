@@ -57,10 +57,32 @@ When you **Delete** an action, the key assignments and key overrides that use th
 | Launch a program (Launch) | Launches a program. For something on PATH such as `notepad.exe`, the name alone is fine. Environment variables such as `%USERPROFILE%` can be used. It does not elevate to administrator |
 | Open a URL, file, or folder (Open) | Opens a URL, file, or folder with the associated app |
 | Key, text, and mouse actions (Sequence) | Runs steps for keys, strings, waits, the mouse, the wheel, and IME on/off, in order |
-| Type text (Text) | Types the string you set as it is. It is appended at the current position of wherever you can type now. A line break is sent as Enter and a tab as Tab. Japanese and symbols are sent as they are. Backslashes and the like have no special meaning. Up to 900 characters. You can also turn the IME off only while typing |
+| Type text (Text) | Types the string you set as it is. It is appended at the current position of wherever you can type now. A line break is sent as Enter and a tab as Tab. Japanese and symbols are sent as they are. Backslashes and the like have no special meaning. `{date}` and similar become the date or time when you press the key ([Typing the date or time](#helper-datetime)). Up to 900 characters. You can also turn the IME off only while typing |
 | Control app-managed layers (AppLayer) | The target is the keyboard on which the key was pressed. It works by OR together with IME linking and the foreground-app rules. It enables, disables, toggles, or enables app-managed layers only while the key is held |
 | Pause / resume (PauseToggle) | Toggles pause and resume of the tray |
 | Cut to end of line (KillLine) | Emacs C-k. Cuts to the end of the line, and chains what you press in succession onto the clipboard |
+
+<a id="helper-datetime"></a>
+### Typing the date or time
+
+In the string of Type text, you can write the placeholders below. They become the date or time at the moment you press the key. You can also write them in a `text` step of the sequence action.
+
+| Placeholder | What is typed |
+|---|---|
+| `{date}` `{date:short}` | The short date, the same as the Short format in the Windows Region settings |
+| `{date:long}` | The long date |
+| `{time}` `{time:short}` | The short time |
+| `{time:long}` | The long time |
+| `{now:format}` | A format you choose. A .NET format string (`yyyy` year, `MM` month, `dd` day, `ddd` weekday, `H` and `h` hour on a 24-hour and 12-hour clock, `mm` minute, `ss` second) |
+| `{ampm}` `{AMPM}` | `am` `pm`, or `AM` `PM`. Always typed in English letters, whatever the language setting |
+
+The four standard forms follow the Windows Region settings, including formats you have changed there.
+
+For example, `{now:yyyy-MM-dd (ddd) h:mm}{ampm}` types something like `2026-11-18 (Wed) 9:00am`. The weekday follows the language of the Windows Region format, not the display language of kasane.
+
+If a format is a single character, add `%`, as in `{now:%h}`. Any `{` or `}` that does not match one of the forms above is typed as it is. To type the text `{date}` itself, write `{{date}`. A placeholder with an invalid format is not replaced and is typed as written.
+
+The **Insert date/time** button in the edit window also inserts a placeholder from a list.
 
 <a id="helper-sequence"></a>
 ### How to write a sequence
