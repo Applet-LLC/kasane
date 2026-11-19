@@ -209,7 +209,7 @@ public static class PortableExporter
         Id = t.Id, SingleTap = t.SingleTap, SingleHold = t.SingleHold, DoubleTap = t.DoubleTap, TripleTap = t.TripleTap, Disabled = t.Disabled,
     };
 
-    public static bool HasContent(HelperConfig h) => h.Actions.Count + h.Triggers.Count + h.AppLayerRules.Count > 0;
+    public static bool HasContent(HelperConfig h) => h.Actions.Count + h.Triggers.Count + h.AppLayerRules.Count > 0 || !(h.TextTyping?.IsEmpty ?? true);
 
     public static HelperConfig CloneHelper(HelperConfig h) => HelperConfig.FromJson(h.ToJson()) ?? new HelperConfig();
 }

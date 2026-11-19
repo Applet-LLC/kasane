@@ -504,6 +504,11 @@ public static class HelperMerge
             result.AppLayerRules.Add(PortableExporter.CloneHelper(new HelperConfig { AppLayerRules = { rule } }).AppLayerRules[0]);
             addedRules++;
         }
+        if (incoming.TextTyping is { IsEmpty: false } && (result.TextTyping?.IsEmpty ?? true))
+        {
+            result.TextTyping = PortableExporter.CloneHelper(new HelperConfig { TextTyping = incoming.TextTyping }).TextTyping;
+            r.Info(Loc.T("文字入力の速さの設定を読み込みました", "Imported the typing speed settings"));
+        }
         r.Info(Loc.T($"ヘルパー設定を足しました(動作{addedActions}、トリガー{addedTriggers}、アプリ別レイヤーの規則{addedRules})", $"Added helper settings ({addedActions} action(s), {addedTriggers} trigger(s), {addedRules} per-app layer rule(s))"));
         return result;
     }

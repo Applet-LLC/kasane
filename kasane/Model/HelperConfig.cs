@@ -38,6 +38,13 @@ public sealed class HelperConfig
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? NicolaImeLink { get; set; }
 
+    /// <summary>
+    /// 文字の入力（Text と、Sequence の Text 手順）の速さ（2026-11-20）。無ければ null。キーボードごとの値が、共通の値より先。
+    /// レイヤー番号ごとの上書きも持てる（<see cref="Model.TextTyping.Resolve"/>）。
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public TextTypingConfig? TextTyping { get; set; }
+
     /// <summary>HLP(id) のキー（ドライバのヘルパーイベント）で動かす動作（P3）。</summary>
     public List<HelperAction> Actions { get; set; } = new();
 
@@ -332,6 +339,12 @@ public sealed class HelperActionBody
     public string? ImeMethod { get; set; }
     /// <summary><see cref="ImeOffDuring"/> の IME の切り替えに失敗したときの扱い。"Continue"（既定。記録して入力を続ける）か "Abort"（入力しない）。</summary>
     public string? ImeOnFail { get; set; }
+    /// <summary>
+    /// false のとき、<see cref="ImeOffDuring"/> で OFF にした IME を、入力のあとも元に戻さない（2026-11-20。省略・true は戻す）。
+    /// 続けて IME を入れ切りしないので、IME を戻すのが早すぎて文字が IME に取られる、ということが起きない。<see cref="ImeOffDuring"/> が false なら無視。
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? ImeRestore { get; set; }
 }
 
 /// <summary>
@@ -438,6 +451,19 @@ public sealed class HelperConfigSet
         if (PerDevice.TryGetValue(uniqId, out var device) && device.ImeLayers != null) return device.ImeLayers;
         return Global?.ImeLayers;
     }
+
+    /// <summary>
+    /// そのキーボードで、いま有効なレイヤー（<paramref name="activeLayerMask"/>。読めなければ null）のときの、文字の入力の速さ。
+    /// </summary>
+    public TextTypingProfile TextTypingFor(uint uniqId, uint? activeLayerMask)
+    {
+        PerDevice.TryGetValue(uniqId, out var device);
+        return Model.TextTyping.Resolve(Global?.TextTyping, device?.TextTyping, activeLayerMask);
+    }
+
+    /// <summary>文字の入力の速さに、レイヤーごとの上書きが 1 つでもあるか（無ければ、トレイはレイヤーの状態を読まない）。</summary>
+    public bool HasAnyTextTypingLayers =>
+        (Global?.TextTyping?.Layers?.Count ?? 0) > 0 || PerDevice.Values.Any(c => (c.TextTyping?.Layers?.Count ?? 0) > 0);
 
     /// <summary>そのキーボードで NICOLA の IME 連動を使うか。キーボードごとの設定があればそれを、無ければ共通の設定（<paramref name="global"/>＝tray.json の ImeLink）に従う。</summary>
     public bool NicolaLinkFor(uint uniqId, bool global) =>

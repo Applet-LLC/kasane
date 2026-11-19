@@ -296,6 +296,12 @@ public class HelperActionsTests
         public int PauseToggles;
         public bool SleepResult = true;
         public byte Physical;
+        public TextTypingProfile Typing = TextTypingProfile.Default with { Jitter = false };
+        public List<(ImeTarget Target, ImeMethod Method)> Imes = new();
+        public List<ActionRequest> TypingRequests = new();
+
+        public TextTypingProfile TypingFor(ActionRequest r) { TypingRequests.Add(r); return Typing; }
+        public bool SetIme(ImeTarget target, ImeMethod method) { Imes.Add((target, method)); return true; }
 
         public void Send(InputOp op) => Sent.Add(op);
         public bool Sleep(int milliseconds) { Sleeps.Add(milliseconds); return SleepResult; }
@@ -310,55 +316,104 @@ public class HelperActionsTests
     private static ActionRequest Release(HelperActionBody b) => new(b, Kb1, (ushort)(Kb1 >> 16), true, false);
 
     [Fact]
-    public void Text_PacesEachChar_AndWaitsBeforeImeRestore()
+    public void Text_PacesEachChar_WithoutJitter()
     {
-        int pace = TextPacing.CharPaceMs, per = TextPacing.DrainPerCharMs;
-        try
-        {
-            TextPacing.CharPaceMs = 5; TextPacing.DrainPerCharMs = 10;
-            var env = new FakeEnv();
-            new ActionExecutor(env).Execute(Press(new HelperActionBody { Type = HelperActionBody.TextInput, Text = "a-b" }));
-            Assert.Equal(new[] { 5, 5, 5 }, env.Sleeps); // 3 文字。IME を戻さない設定では、戻す前の待ちは無い
-        }
-        finally { TextPacing.CharPaceMs = pace; TextPacing.DrainPerCharMs = per; }
+        var env = new FakeEnv { Typing = new TextTypingProfile(false, 5, 30, 20) };
+        new ActionExecutor(env).Execute(Press(new HelperActionBody { Type = HelperActionBody.TextInput, Text = "a-b" }));
+        Assert.Equal(new[] { 30, 30, 30 }, env.Sleeps); // 3 文字。IME を戻さないので、戻す前の待ちは無い
+        Assert.Single(env.TypingRequests);
     }
 
     [Fact]
-    public void Sequence_WaitsForTextToDrain_BeforeImeOp_MinusExplicitDelay()
+    public void Text_Jitter_AddsZeroToRangeToEachInterval()
     {
-        int pace = TextPacing.CharPaceMs, per = TextPacing.DrainPerCharMs, max = TextPacing.DrainMaxMs;
-        try
-        {
-            TextPacing.CharPaceMs = 0; TextPacing.DrainPerCharMs = 10; TextPacing.DrainMaxMs = 5000;
-            var env = new FakeEnv();
-            var body = new HelperActionBody
-            {
-                Type = HelperActionBody.Sequence,
-                Steps = new() { new HelperStep { Text = "abc" }, new HelperStep { DelayMs = 0 }, new HelperStep { Ime = "on" } },
-            };
-            new ActionExecutor(env).Execute(Press(body));
-            Assert.Equal(new[] { 30 }, env.Sleeps); // 待ち 0 は何もしない。3 文字分(30 ms)を、IME を切り替える前に待つ
-
-            env.Sleeps.Clear();
-            body.Steps[1].DelayMs = 20;
-            new ActionExecutor(env).Execute(Press(body));
-            Assert.Equal(new[] { 20, 10 }, env.Sleeps); // 明示の待ち 20 ms の分は、引く
-        }
-        finally { TextPacing.CharPaceMs = pace; TextPacing.DrainPerCharMs = per; TextPacing.DrainMaxMs = max; }
+        var env = new FakeEnv { Typing = new TextTypingProfile(true, 5, 30, 20) };
+        var maxes = new List<int>();
+        var values = new Queue<int>(new[] { 0, 5, 3 });
+        new ActionExecutor(env, max => { maxes.Add(max); return values.Dequeue(); })
+            .Execute(Press(new HelperActionBody { Type = HelperActionBody.TextInput, Text = "abc" }));
+        Assert.Equal(new[] { 30, 35, 33 }, env.Sleeps);
+        Assert.All(maxes, m => Assert.Equal(6, m)); // 0〜5 ms(上限を含む)
     }
 
     [Fact]
-    public void TextPacing_DrainMs_ScalesWithCharsAndIsCapped()
+    public void Text_ZeroInterval_NoJitter_DoesNotSleep()
     {
-        int per = TextPacing.DrainPerCharMs, max = TextPacing.DrainMaxMs;
-        try
+        var env = new FakeEnv { Typing = new TextTypingProfile(false, 5, 0, 20) };
+        new ActionExecutor(env).Execute(Press(new HelperActionBody { Type = HelperActionBody.TextInput, Text = "ab" }));
+        Assert.Empty(env.Sleeps);
+    }
+
+    [Fact]
+    public void Text_ImeOffDuring_WaitsOnceBeforeRestore()
+    {
+        var env = new FakeEnv { Typing = new TextTypingProfile(false, 5, 10, 25) };
+        new ActionExecutor(env).Execute(Press(new HelperActionBody { Type = HelperActionBody.TextInput, Text = "abc", ImeOffDuring = true }));
+        Assert.Equal(new[] { 10, 10, 10, 25 }, env.Sleeps); // 文字数によらず、戻す前に 1 回
+        Assert.Equal(new[] { ImeTarget.OffRemember, ImeTarget.Restore }, env.Imes.Select(i => i.Target));
+    }
+
+    [Fact]
+    public void Text_ImeRestoreFalse_LeavesImeOff_AndDoesNotWait()
+    {
+        var env = new FakeEnv { Typing = new TextTypingProfile(false, 5, 10, 25) };
+        new ActionExecutor(env).Execute(Press(new HelperActionBody { Type = HelperActionBody.TextInput, Text = "ab", ImeOffDuring = true, ImeRestore = false }));
+        Assert.Equal(new[] { 10, 10 }, env.Sleeps);
+        Assert.Equal(new[] { ImeTarget.OffRemember }, env.Imes.Select(i => i.Target));
+    }
+
+    [Fact]
+    public void Text_ImeRestoreFalse_WithoutImeOffDuring_IsIgnored()
+    {
+        var env = new FakeEnv { Typing = new TextTypingProfile(false, 5, 0, 25) };
+        new ActionExecutor(env).Execute(Press(new HelperActionBody { Type = HelperActionBody.TextInput, Text = "ab", ImeRestore = false }));
+        Assert.Empty(env.Imes);
+        Assert.Empty(env.Sleeps);
+    }
+
+    [Fact]
+    public void Sequence_WaitsBeforeImeOp_MinusExplicitDelay_AndNoJitterOnDelay()
+    {
+        var env = new FakeEnv { Typing = new TextTypingProfile(true, 5, 0, 30) };
+        var body = new HelperActionBody
         {
-            TextPacing.DrainPerCharMs = 12; TextPacing.DrainMaxMs = 3000;
-            Assert.Equal(0, TextPacing.DrainMs(0));
-            Assert.Equal(264, TextPacing.DrainMs(22));
-            Assert.Equal(3000, TextPacing.DrainMs(1000));
-        }
-        finally { TextPacing.DrainPerCharMs = per; TextPacing.DrainMaxMs = max; }
+            Type = HelperActionBody.Sequence,
+            Steps = new() { new HelperStep { Text = "abc" }, new HelperStep { DelayMs = 0 }, new HelperStep { Ime = "on" } },
+        };
+        new ActionExecutor(env, _ => 0).Execute(Press(body));
+        Assert.Equal(new[] { 30 }, env.Sleeps); // 間隔 0・揺らぎ 0。待ち 0 は何もしない。IME の前に 1 回だけ 30 ms
+
+        env.Sleeps.Clear();
+        body.Steps[1].DelayMs = 20;
+        new ActionExecutor(env, _ => 0).Execute(Press(body));
+        Assert.Equal(new[] { 20, 10 }, env.Sleeps); // 明示の待ち(揺らぎなし)の分は、引く
+    }
+
+    [Fact]
+    public void Sequence_NoTextBeforeIme_DoesNotWait_AndDoesNotResolveTyping()
+    {
+        var env = new FakeEnv { Typing = new TextTypingProfile(false, 5, 30, 30) };
+        var body = new HelperActionBody { Type = HelperActionBody.Sequence, Steps = new() { new HelperStep { Key = "KC_A" }, new HelperStep { Ime = "off" } } };
+        new ActionExecutor(env).Execute(Press(body));
+        Assert.Empty(env.Sleeps);
+        Assert.Empty(env.TypingRequests);
+    }
+
+    [Fact]
+    public void ActionEnvironment_DefaultTypingFor_IsBuiltInDefault()
+    {
+        IActionEnvironment env = new HelperImeDefaultEnv();
+        Assert.Equal(TextTypingProfile.Default, env.TypingFor(Press(new HelperActionBody { Type = HelperActionBody.TextInput, Text = "a" })));
+    }
+
+    private sealed class HelperImeDefaultEnv : IActionEnvironment
+    {
+        public void Send(InputOp op) { }
+        public bool Sleep(int milliseconds) => true;
+        public void Shell(string path, string? args, string? workDir) { }
+        public void TogglePause() { }
+        public void Layer(LayerRequest request) { }
+        public void Log(string message) { }
     }
 
     [Fact]

@@ -115,7 +115,7 @@ public sealed class HelperSettingsModel
     }
 
     public static bool IsEmpty(HelperConfig c) =>
-        c.AppLayerRules.Count == 0 && c.Actions.Count == 0 && c.Triggers.Count == 0 && c.ImeLayers == null && c.NicolaImeLink == null;
+        c.AppLayerRules.Count == 0 && c.Actions.Count == 0 && c.Triggers.Count == 0 && c.ImeLayers == null && c.NicolaImeLink == null && (c.TextTyping?.IsEmpty ?? true);
 
     private static HelperConfig Clone(HelperConfig? c) =>
         c == null ? new HelperConfig() : HelperConfig.FromJson(c.ToJson()) ?? new HelperConfig();
@@ -154,6 +154,8 @@ public sealed class HelperSettingsModel
             if (!string.Equals(ime.Mode, ImeLayerLink.ModeOn, StringComparison.OrdinalIgnoreCase) && !ime.KanaOnly)
                 errors.Add(Loc.T($"{label}の IME 連動: Mode '{ime.Mode}' は On / Kana のどちらかです", $"IME link ({label}): Mode '{ime.Mode}' must be On or Kana"));
         }
+
+        TextTyping.Validate(c.TextTyping, label, errors);
 
         int n = 0;
         foreach (var r in c.AppLayerRules)
