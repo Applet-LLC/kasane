@@ -324,6 +324,30 @@ public class HelperActionsTests
     }
 
     [Fact]
+    public void Sequence_WaitsForTextToDrain_BeforeImeOp_MinusExplicitDelay()
+    {
+        int pace = TextPacing.CharPaceMs, per = TextPacing.DrainPerCharMs, max = TextPacing.DrainMaxMs;
+        try
+        {
+            TextPacing.CharPaceMs = 0; TextPacing.DrainPerCharMs = 10; TextPacing.DrainMaxMs = 5000;
+            var env = new FakeEnv();
+            var body = new HelperActionBody
+            {
+                Type = HelperActionBody.Sequence,
+                Steps = new() { new HelperStep { Text = "abc" }, new HelperStep { DelayMs = 0 }, new HelperStep { Ime = "on" } },
+            };
+            new ActionExecutor(env).Execute(Press(body));
+            Assert.Equal(new[] { 30 }, env.Sleeps); // 待ち 0 は何もしない。3 文字分(30 ms)を、IME を切り替える前に待つ
+
+            env.Sleeps.Clear();
+            body.Steps[1].DelayMs = 20;
+            new ActionExecutor(env).Execute(Press(body));
+            Assert.Equal(new[] { 20, 10 }, env.Sleeps); // 明示の待ち 20 ms の分は、引く
+        }
+        finally { TextPacing.CharPaceMs = pace; TextPacing.DrainPerCharMs = per; TextPacing.DrainMaxMs = max; }
+    }
+
+    [Fact]
     public void TextPacing_DrainMs_ScalesWithCharsAndIsCapped()
     {
         int per = TextPacing.DrainPerCharMs, max = TextPacing.DrainMaxMs;
