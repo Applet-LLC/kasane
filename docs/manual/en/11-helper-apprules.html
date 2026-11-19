@@ -133,7 +133,7 @@
 </tr>
 <tr>
 <td>Type text (Text)</td>
-<td>Types the string you set as it is. It is appended at the current position of wherever you can type now. A line break is sent as Enter and a tab as Tab. Japanese and symbols are sent as they are. Backslashes and the like have no special meaning. <code>{date}</code> and similar become the date or time when you press the key (<a href="#helper-datetime">Typing the date or time</a>). Up to 900 characters. You can also turn the IME off only while typing</td>
+<td>Types the string you set as it is. It is appended at the current position of wherever you can type now. A line break is sent as Enter and a tab as Tab. Japanese and symbols are sent as they are. Backslashes and the like have no special meaning. <code>{date}</code> and similar become the date or time when you press the key (<a href="#helper-datetime">Typing the date or time</a>). Up to 900 characters. It types one character at a time with a gap, so long strings take time (<a href="#helper-text-speed">How fast text is typed</a>). You can also turn the IME off only while typing</td>
 </tr>
 <tr>
 <td>Control app-managed layers (AppLayer)</td>
@@ -190,6 +190,11 @@
 <p>For example, <code>{now:yyyy-MM-dd (ddd) h:mm}{ampm}</code> types something like <code>2026-11-18 (Wed) 9:00am</code>. The weekday follows the language of the Windows Region format, not the display language of kasane.</p>
 <p>If a format is a single character, add <code>%</code>, as in <code>{now:%h}</code>. Any <code>{</code> or <code>}</code> that does not match one of the forms above is typed as it is. To type the text <code>{date}</code> itself, write <code>{{date}</code>. A placeholder with an invalid format is not replaced and is typed as written.</p>
 <p>The <strong>Insert date/time</strong> button in the edit window also inserts a placeholder from a list.</p>
+<p><a id="helper-text-speed"></a></p>
+<h3 id="how-fast-text-is-typed">How fast text is typed</h3>
+<p>The Type text action and the <code>Text</code> step of a sequence type one character at a time, with a 30 ms gap between characters. Without the gap, some apps, such as the new Notepad, dropped characters or turned them into other characters. Typing therefore takes time. In Notepad, 22 characters took about 1 second, 68 characters about 3 seconds, and 137 characters about 6 seconds. The longer the fixed text, the longer you wait for it to finish. The <code>key</code> and <code>vk</code> steps of a sequence do not get this gap.</p>
+<p>Even with the gap, Notepad occasionally drops a character (about 1 in 10 runs with 22 characters).</p>
+<p>When the IME is switched, kasane waits until the app has processed the typed characters. With &quot;Turn the IME off while typing&quot;, it waits after typing and before restoring the IME. For an <code>ime</code> step in a sequence, it waits before that step. The wait is 20 ms per character (at most 5 seconds), minus any wait (<code>delay</code>) you wrote in the sequence. Without the wait, the IME takes characters still queued in the app, and problems such as <code>-</code> turning into <code>ー</code> occur.</p>
 <p><a id="helper-sequence"></a></p>
 <h3 id="how-to-write-a-sequence">How to write a sequence</h3>
 <p>Write one step per line. Lines that start with <code>#</code> are ignored. In <code>text</code>, <code>\\</code> is a backslash (in Japanese fonts it is shown as ¥ and can be typed with the ¥ key). <code>ime</code> looks at the current state and changes it only when it differs.</p>
