@@ -310,6 +310,34 @@ public class HelperActionsTests
     private static ActionRequest Release(HelperActionBody b) => new(b, Kb1, (ushort)(Kb1 >> 16), true, false);
 
     [Fact]
+    public void Text_PacesEachChar_AndWaitsBeforeImeRestore()
+    {
+        int pace = TextPacing.CharPaceMs, per = TextPacing.DrainPerCharMs;
+        try
+        {
+            TextPacing.CharPaceMs = 5; TextPacing.DrainPerCharMs = 10;
+            var env = new FakeEnv();
+            new ActionExecutor(env).Execute(Press(new HelperActionBody { Type = HelperActionBody.TextInput, Text = "a-b" }));
+            Assert.Equal(new[] { 5, 5, 5 }, env.Sleeps); // 3 文字。IME を戻さない設定では、戻す前の待ちは無い
+        }
+        finally { TextPacing.CharPaceMs = pace; TextPacing.DrainPerCharMs = per; }
+    }
+
+    [Fact]
+    public void TextPacing_DrainMs_ScalesWithCharsAndIsCapped()
+    {
+        int per = TextPacing.DrainPerCharMs, max = TextPacing.DrainMaxMs;
+        try
+        {
+            TextPacing.DrainPerCharMs = 12; TextPacing.DrainMaxMs = 3000;
+            Assert.Equal(0, TextPacing.DrainMs(0));
+            Assert.Equal(264, TextPacing.DrainMs(22));
+            Assert.Equal(3000, TextPacing.DrainMs(1000));
+        }
+        finally { TextPacing.DrainPerCharMs = per; TextPacing.DrainMaxMs = max; }
+    }
+
+    [Fact]
     public void Launch_RunsOnPress_ExpandsEnvironment_IgnoresReleaseAndRepeat()
     {
         var env = new FakeEnv();

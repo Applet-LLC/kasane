@@ -855,7 +855,7 @@ public sealed class ActionExecutor
 /// </summary>
 public static class TextPacing
 {
-    public static int CharPaceMs { get; set; } = Read("KASANE_TEXT_PACE_MS", 0);
+    public static int CharPaceMs { get; set; } = Read("KASANE_TEXT_PACE_MS", 5);
     public static int DrainPerCharMs { get; set; } = Read("KASANE_TEXT_DRAIN_MS_PER_CHAR", 12);
     public static int DrainMaxMs { get; set; } = Read("KASANE_TEXT_DRAIN_MAX_MS", 3000);
 
