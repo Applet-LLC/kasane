@@ -57,6 +57,7 @@ public sealed class SettingsDialog : Window
     private CheckBox _showLayerOnIcon = null!;
     private ComboBox _imeSourceBox = null!; // IME の状態の取得方法（tray.json の ImeSource）
     private ComboBox _imeSwitchBox = null!; // ヘルパー動作の IME の切り替え方（tray.json の ImeSwitch）
+    private ComboBox _imeKeyPathBox = null!; // IME のキーの送り方（tray.json の ImeKeyPath）
     private ComboBox _languageBox = null!;  // 表示言語（tray.json の UiLanguage）。変更は再起動後に効く。
     /// <summary>表示言語を変えて保存した。呼び出し側が、再起動を案内する。</summary>
     public bool LanguageChanged { get; private set; }
@@ -67,6 +68,7 @@ public sealed class SettingsDialog : Window
     private readonly HelperSettingsModel _helper;
 
     private readonly HelperActionsTab _helperTab;
+    private readonly TextTypingTab _typingTab;
 
     /// <summary>OK で、キーマップ（HLP(n) の割り当て）を書き換えたか（ヘルパー動作の削除で「割り当ても外す」を選んだとき）。</summary>
     public bool KeymapChanged { get; private set; }
@@ -98,6 +100,8 @@ public sealed class SettingsDialog : Window
         _helperTab = new HelperActionsTab(_helper, this, project, layout);
         AddTab("TabHelper", Loc.T("ヘルパー動作", "Helper actions"), _helperTab.Root);
         AddTab("TabAppRules", Loc.T("アプリ別レイヤー", "Per-app layers"), new AppRulesTab(_helper, this).Root);
+        _typingTab = new TextTypingTab(_helper, this, project);
+        AddTab("TabTextTyping", Loc.T("文字入力の速さ", "Typing speed"), _typingTab.Root);
         AddTab("TabEmergency", Loc.T("緊急解除", "Emergency release"), BuildEmergencyTab());
         AddTab("TabScope", Loc.T("共有範囲", "Sharing scope"), BuildScopeTab());
         AddTab("TabDataDir", Loc.T("保存先", "Data folder"), BuildDataDirTab());
@@ -304,6 +308,7 @@ public sealed class SettingsDialog : Window
         "TabImeLayer" => HelpTopics.ImeLayer,
         "TabHelper" => HelpTopics.HelperTab,
         "TabAppRules" => HelpTopics.AppRules,
+        "TabTextTyping" => HelpTopics.TextTyping,
         "TabEmergency" => HelpTopics.Emergency,
         "TabScope" => HelpTopics.SettingsScope,
         "TabDataDir" => HelpTopics.SettingsDataDir,
@@ -447,6 +452,7 @@ public sealed class SettingsDialog : Window
         root.Children.Add(new TextBlock { Text = Loc.T("IME の状態の読み取りと切り替え", "Reading and switching the IME state"), FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 6) });
         root.Children.Add(BuildImeSourceRow());
         root.Children.Add(BuildImeSwitchRow());
+        root.Children.Add(BuildImeKeyPathRow());
         root.Children.Add(new Separator { Margin = new Thickness(0, 14, 0, 10) });
         root.Children.Add(new TextBlock { Text = Loc.T("NICOLA(親指シフト)", "NICOLA (thumb shift)"), FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 6) });
         root.Children.Add(BuildNicolaTab());
@@ -484,6 +490,21 @@ public sealed class SettingsDialog : Window
         _imeSwitchBox = new ComboBox { Name = "ImeSwitchBox", Width = 360, ItemsSource = ImeSwitchItems(), SelectedIndex = (int)_trayConfig.ImeSwitchValue };
         Row(panel, Loc.T("IME の切り替え方", "How to switch the IME"), _imeSwitchBox,
             Loc.T("ヘルパー動作で IME を ON/OFF にする方法", "How helper actions turn the IME on or off"), labelWidth: 170);
+        return panel;
+    }
+
+    // IME を切り替えるキーの送り方（ImeKeyPath の順。Auto / Driver / SendInput）。
+    private static List<ComboBoxItem> ImeKeyPathItems() => Items(
+        (Loc.T("自動(既定)", "Automatic (default)"), Loc.T("トレイが管理者として動いているときはドライバ経由、そうでなければ SendInput で送ります", "Through the driver when the tray runs as administrator, otherwise with SendInput")),
+        (Loc.T("ドライバ経由", "Through the driver"), Loc.T("管理者として動くウィンドウにも届きます。送れないとき(トレイが管理者でないときなど)は、キーを送りません", "Also reaches windows running as administrator. If it can't be sent (for example, the tray is not administrator), no key is sent")),
+        ("SendInput", Loc.T("文字の入力と同じ経路です。IME のキーと文字の順序が入れ替わりません。管理者として動くウィンドウには届かないことがあります", "The same path as typed text, so IME keys and characters stay in order. May not reach windows running as administrator")));
+
+    private UIElement BuildImeKeyPathRow()
+    {
+        var panel = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
+        _imeKeyPathBox = new ComboBox { Name = "ImeKeyPathBox", Width = 360, ItemsSource = ImeKeyPathItems(), SelectedIndex = (int)_trayConfig.ImeKeyPathValue };
+        Row(panel, Loc.T("IME のキーの送り方", "How to send IME keys"), _imeKeyPathBox,
+            Loc.T("ヘルパー動作が IME を切り替えるキー(Alt+半角/全角、IME オン/オフ、変換/無変換)を、どの経路で送るか", "Which path helper actions use to send the keys that switch the IME (Alt+Hankaku/Zenkaku, IME on/off, Henkan/Muhenkan)"), labelWidth: 170);
         return panel;
     }
 
@@ -1159,6 +1180,8 @@ public sealed class SettingsDialog : Window
     // ヘルパー設定の検証エラーのうち、アプリ別レイヤーの規則のもの（HelperSettingsModel が「…の規則 n」と書く）。
     private static bool IsAppRuleError(string error) => error.Contains("の規則") || error.Contains(" rule ");
 
+    private static bool IsTypingError(string error) => error.Contains("文字入力の速さ") || error.Contains("Typing speed");
+
     private bool Commit()
     {
         void Fail(string tab, string message)
@@ -1202,11 +1225,16 @@ public sealed class SettingsDialog : Window
             }
         }
 
+        if (_typingTab.InputError is { } typingInput)
+        {
+            Fail("TabTextTyping", typingInput);
+            return false;
+        }
         var helperErrors = _helper.Validate();
         if (helperErrors.Count > 0)
         {
-            Fail(helperErrors.Any(IsAppRuleError) && !helperErrors.Any(e => !IsAppRuleError(e)) ? "TabAppRules" : "TabHelper",
-                 string.Join("\n", helperErrors));
+            string tab = helperErrors.All(IsAppRuleError) ? "TabAppRules" : helperErrors.All(IsTypingError) ? "TabTextTyping" : "TabHelper";
+            Fail(tab, string.Join("\n", helperErrors));
             return false;
         }
 
@@ -1250,11 +1278,13 @@ public sealed class SettingsDialog : Window
         string imeSource = ((ImeSourceMode)Math.Max(0, _imeSourceBox.SelectedIndex)).ToString();
         var imeSwitch = (ImeSwitch)Math.Max(0, _imeSwitchBox.SelectedIndex);
         bool imeSwitchChanged = imeSwitch != _trayConfig.ImeSwitchValue;
+        var imeKeyPath = (ImeKeyPath)Math.Max(0, _imeKeyPathBox.SelectedIndex);
+        bool imeKeyPathChanged = imeKeyPath != _trayConfig.ImeKeyPathValue;
         string colorMode = ((ColorMode)Math.Max(0, _colorModeBox.SelectedIndex)).ToString();
         bool colorChanged = colorMode != _trayConfig.ColorModeName;
         string language = ((UiLanguage)Math.Max(0, _languageBox.SelectedIndex)).ToString();
         bool languageChanged = language != _trayConfig.UiLanguageName;
-        if (languageChanged || colorChanged || imeSwitchChanged || imeSource != _trayConfig.ImeSource || imeLink != _trayConfig.ImeLink || showLayer != _trayConfig.ShowLayerOnIcon || remapOnlyWhileTray != _trayConfig.RemapOnlyWhileTrayRuns
+        if (languageChanged || colorChanged || imeSwitchChanged || imeKeyPathChanged || imeSource != _trayConfig.ImeSource || imeLink != _trayConfig.ImeLink || showLayer != _trayConfig.ShowLayerOnIcon || remapOnlyWhileTray != _trayConfig.RemapOnlyWhileTrayRuns
             || desktopView != _trayConfig.DesktopViewMode)
         {
             try
@@ -1262,6 +1292,7 @@ public sealed class SettingsDialog : Window
                 _trayConfig.DesktopViewMode = desktopView;
                 _trayConfig.ImeSource = imeSource;
                 if (imeSwitchChanged) _trayConfig.ImeSwitchName = imeSwitch == ImeSwitch.Auto ? null : imeSwitch.ToString(); // 既定は書かない
+                if (imeKeyPathChanged) _trayConfig.ImeKeyPathName = imeKeyPath == ImeKeyPath.Auto ? null : imeKeyPath.ToString();
                 _trayConfig.ColorModeName = colorMode;
                 _trayConfig.UiLanguageName = language;
                 _trayConfig.ImeLink = imeLink;

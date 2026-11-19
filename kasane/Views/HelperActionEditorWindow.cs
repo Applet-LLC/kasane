@@ -67,9 +67,11 @@ public sealed class HelperActionEditorWindow : Window
     private readonly TextBox _releaseSteps = MultiLine("ActionReleaseSteps");
     private readonly TextBox _text = MultiLine("ActionText");
     private readonly StackPanel _textPanel = new();
-    private readonly CheckBox _imeOff = new() { Name = "ActionImeOffDuring", Content = Loc.T("入力の間だけ IME を OFF にする", "Turn the IME off while typing"), ToolTip = Loc.T("終わったら元に戻します。すでに OFF なら何も変えません", "Restored afterwards; nothing changes if it is already off"), Margin = new Thickness(0, 8, 0, 0) };
+    private readonly CheckBox _imeOff = new() { Name = "ActionImeOffDuring", Content = Loc.T("入力の間だけ IME を OFF にする", "Turn the IME off while typing"), ToolTip = Loc.T("終わったら元に戻します(戻さないようにもできます)。すでに OFF なら何も変えません", "Restored afterwards (you can also leave it off); nothing changes if it is already off"), Margin = new Thickness(0, 8, 0, 0) };
     private readonly ComboBox _imeMethod = new() { Name = "ActionImeMethod", Width = 300 };
     private readonly CheckBox _imeAbort = new() { Name = "ActionImeAbort", Content = Loc.T("OFF にできなければ入力しない", "Don't type if it can't be turned off"), Margin = new Thickness(0, 4, 0, 0) };
+    private readonly CheckBox _imeKeepOff = new() { Name = "ActionImeKeepOff", Content = Loc.T("入力のあとも OFF のままにする", "Leave the IME off after typing"), Margin = new Thickness(0, 4, 0, 0),
+                                                    ToolTip = Loc.T("IME を元に戻しません。続けて IME を切り替えないので、入力した文字が IME に取られません", "The IME is not restored. Because the IME is not switched again right away, typed characters are not taken by the IME") };
     private readonly StackPanel _imeOptions = new();
     // 方式の欄。以前の設定で方式を固定しているときだけ出す（2026-11-05。ふだんは自動だけで、選ばせない）。
     private readonly StackPanel _imeMethodRow = new() { Visibility = Visibility.Collapsed };
@@ -164,6 +166,7 @@ public sealed class HelperActionEditorWindow : Window
             "An earlier setting fixes the method. A fixed method is not replaced by another one if it fails. If you choose \"Automatic\" and save, this field no longer appears.")));
         _imeOptions.Children.Add(_imeMethodRow);
         _imeOptions.Children.Add(_imeAbort);
+        _imeOptions.Children.Add(_imeKeepOff);
         _textPanel.Children.Add(_imeOptions);
 
         // AppLayer
@@ -218,6 +221,7 @@ public sealed class HelperActionEditorWindow : Window
         _imeOff.Click += (_, _) => { _imeOptions.IsEnabled = _imeOff.IsChecked == true; Revalidate(); };
         _imeMethod.SelectionChanged += (_, _) => Revalidate();
         _imeAbort.Click += (_, _) => Revalidate();
+        _imeKeepOff.Click += (_, _) => Revalidate();
         _loading = false;
         ShowPanels();
         Revalidate();
@@ -262,6 +266,7 @@ public sealed class HelperActionEditorWindow : Window
         _imeMethod.SelectedIndex = method < 0 ? 0 : method;
         _imeMethodRow.Visibility = method > 0 ? Visibility.Visible : Visibility.Collapsed;
         _imeAbort.IsChecked = string.Equals(body.ImeOnFail, "abort", StringComparison.OrdinalIgnoreCase);
+        _imeKeepOff.IsChecked = body.ImeRestore == false;
         _imeOptions.IsEnabled = body.ImeOffDuring;
     }
 
@@ -339,6 +344,7 @@ public sealed class HelperActionEditorWindow : Window
                     string method = ImeMethods[Math.Max(0, _imeMethod.SelectedIndex)];
                     body.ImeMethod = method == "Auto" ? null : method;
                     body.ImeOnFail = _imeAbort.IsChecked == true ? "Abort" : null;
+                    body.ImeRestore = _imeKeepOff.IsChecked == true ? false : null;
                 }
                 break;
             case HelperActionBody.AppLayer:
