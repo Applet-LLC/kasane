@@ -25,8 +25,8 @@ kasane の設定が、どこに・何として保存されているか、バッ�
 | ファイル | 中身 | バックアップ | 別のPCへの持ち出し |
 |---|---|---|---|
 | `<設定フォルダ>\<UniqId>\project.json` | キーボード1台分の設定の元データ: レイヤー（スロット順のキーコード）、マクロ、コンボ、タップダンス、キー置換、タイミング（TapTerm など）、機能のON/OFF、NICOLA、レイアウト名（`LayoutName`）、実測したスキャンコード（`MeasuredScanCodes`）、`HardwareId`、利用者がつけたキーボード名（`KeyboardName`。画面の表示だけに使う）、レイヤー・マクロ・コンボ・タップダンス・キー置換の名前（`LayerNames`、各項目の `Name`。画面の表示だけに使う） | 要る | 直接コピーしない（UniqId が別の機器では別のフォルダになる）。エクスポート／インポートを使う（第5節） |
-| `<設定フォルダ>\<UniqId>\helper.json` | そのキーボードのヘルパー動作、トリガー（F13〜F24 など）、アプリ別レイヤーの規則 | 要る | 同上 |
-| `<設定フォルダ>\tray.json` | トレイの設定: IME 連動のON/OFF、アイコンへのレイヤー番号表示、「トレイが動いている間だけリマップを有効にする」（`RemapOnlyWhileTrayRuns`。既定ON）、全キーボード共通のヘルパー設定（共通のトリガー・動作・アプリ別レイヤー） | 要る | コピーしてよい（キーボードに依存しない）。エクスポートの「全体」にも入る |
+| `<設定フォルダ>\<UniqId>\helper.json` | そのキーボードのヘルパー動作、トリガー（F13〜F24 など）、アプリ別レイヤーの規則、文字入力の速さ（`TextTyping`。レイヤーごとの上書きを含む） | 要る | 同上 |
+| `<設定フォルダ>\tray.json` | トレイの設定: IME 連動のON/OFF、アイコンへのレイヤー番号表示、「トレイが動いている間だけリマップを有効にする」（`RemapOnlyWhileTrayRuns`。既定ON）、全キーボード共通のヘルパー設定（共通のトリガー・動作・アプリ別レイヤー・文字入力の速さ）、ヘルパー動作の IME の切り替え方（`ImeSwitch`）と IME のキーの送り方（`ImeKeyPath`） | 要る | コピーしてよい（キーボードに依存しない）。エクスポートの「全体」にも入る |
 | `<設定フォルダ>\tray-state.json` | トレイの「一時停止」で止めたキーボードの UniqId の記録 | 不要 | 持ち出さない（別のPCでは意味が無い） |
 | `<設定フォルダ>\tray-mapoff.json` | アプリ別の規則でリマップを OFF にしたキーボードの UniqId の記録 | 不要 | 持ち出さない |
 | `<設定フォルダ>\tray-autooff.json` | 「トレイが動いている間だけリマップを有効にする」で、トレイが OFF にしたキーボードの UniqId の記録（次の起動で ON に戻すため） | 不要 | 持ち出さない（持ち出すと、別のPCで意味の無いキーボードを ON にしようとする。害は小さいが不要） |
@@ -87,7 +87,7 @@ kasane の設定が、どこに・何として保存されているか、バッ�
 - 実測値（`MeasuredScanCodes`）は、バックアップのとき（同じ機器へ戻すとき）だけ含める。
 
 - 復旧用の設定（`Recovery`。全体一括のとき、利用者が「復旧用の設定を含める」を選んだときだけ。同じ PC への復元向け。レイヤーだけ・このキーボードだけの書き出しには入れない）:
-  - `TraySettings`: トレイの設定のうち、`ImeLink` と共通のヘルパー設定以外（`ImeSource`・`ImeSwitch`・`ColorMode`・`UiLanguage`・`ShowLayerOnIcon`・`RemapOnlyWhileTrayRuns`・`DesktopViewMode`）。
+  - `TraySettings`: トレイの設定のうち、`ImeLink` と共通のヘルパー設定以外（`ImeSource`・`ImeSwitch`・`ImeKeyPath`・`ColorMode`・`UiLanguage`・`ShowLayerOnIcon`・`RemapOnlyWhileTrayRuns`・`DesktopViewMode`）。
   - `EmergencyRelease`: 緊急解除の組み合わせ（スキャンコード。ドライバ全体）。
   - `I8042`: i8042prt の設定（`Enabled` とプロファイル）。
   - `DeviceScopes`: キーボードごとの共有範囲（0 = 同じ型番で共有、1 = この1台だけ、2 = すべてのキーボードで共有）。

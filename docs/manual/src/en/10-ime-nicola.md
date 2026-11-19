@@ -56,6 +56,8 @@ You choose how helper actions turn the IME on or off with **How to switch the IM
 | Toggle with Alt+Hankaku/Zenkaku | Sends a key that toggles each time. It is not sent to apps whose current state cannot be read |
 | IMM32 | Sends no keys |
 
+**How to send IME keys** below it chooses whether the keys that switch the IME are sent through the driver or with SendInput (the default is Automatic: through the driver only when the tray runs as administrator).
+
 The detailed behavior is in [Helper Actions and Per-App Layers](11-helper-apprules.html#helper-ime).
 
 ## NICOLA (thumb-shift)
