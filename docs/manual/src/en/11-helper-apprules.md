@@ -57,7 +57,7 @@ When you **Delete** an action, the key assignments and key overrides that use th
 | Launch a program (Launch) | Launches a program. For something on PATH such as `notepad.exe`, the name alone is fine. Environment variables such as `%USERPROFILE%` can be used. It does not elevate to administrator |
 | Open a URL, file, or folder (Open) | Opens a URL, file, or folder with the associated app |
 | Key, text, and mouse actions (Sequence) | Runs steps for keys, strings, waits, the mouse, the wheel, and IME on/off, in order |
-| Type text (Text) | Types the string you set as it is. It is appended at the current position of wherever you can type now. A line break is sent as Enter and a tab as Tab. Japanese and symbols are sent as they are. Backslashes and the like have no special meaning. `{date}` and similar become the date or time when you press the key ([Typing the date or time](#helper-datetime)). Up to 900 characters. You can also turn the IME off only while typing |
+| Type text (Text) | Types the string you set as it is. It is appended at the current position of wherever you can type now. A line break is sent as Enter and a tab as Tab. Japanese and symbols are sent as they are. Backslashes and the like have no special meaning. `{date}` and similar become the date or time when you press the key ([Typing the date or time](#helper-datetime)). Up to 900 characters. It types one character at a time with a gap, so long strings take time ([How fast text is typed](#helper-text-speed)). You can also turn the IME off only while typing |
 | Control app-managed layers (AppLayer) | The target is the keyboard on which the key was pressed. It works by OR together with IME linking and the foreground-app rules. It enables, disables, toggles, or enables app-managed layers only while the key is held |
 | Pause / resume (PauseToggle) | Toggles pause and resume of the tray |
 | Cut to end of line (KillLine) | Emacs C-k. Cuts to the end of the line, and chains what you press in succession onto the clipboard |
@@ -83,6 +83,15 @@ For example, `{now:yyyy-MM-dd (ddd) h:mm}{ampm}` types something like `2026-11-1
 If a format is a single character, add `%`, as in `{now:%h}`. Any `{` or `}` that does not match one of the forms above is typed as it is. To type the text `{date}` itself, write `{{date}`. A placeholder with an invalid format is not replaced and is typed as written.
 
 The **Insert date/time** button in the edit window also inserts a placeholder from a list.
+
+<a id="helper-text-speed"></a>
+### How fast text is typed
+
+The Type text action and the `Text` step of a sequence type one character at a time, with a 30 ms gap between characters. Without the gap, some apps, such as the new Notepad, dropped characters or turned them into other characters. Typing therefore takes time. In Notepad, 22 characters took about 1 second, 68 characters about 3 seconds, and 137 characters about 6 seconds. The longer the fixed text, the longer you wait for it to finish. The `key` and `vk` steps of a sequence do not get this gap.
+
+Even with the gap, Notepad occasionally drops a character (about 1 in 10 runs with 22 characters).
+
+When the IME is switched, kasane waits until the app has processed the typed characters. With "Turn the IME off while typing", it waits after typing and before restoring the IME. For an `ime` step in a sequence, it waits before that step. The wait is 20 ms per character (at most 5 seconds), minus any wait (`delay`) you wrote in the sequence. Without the wait, the IME takes characters still queued in the app, and problems such as `-` turning into `ー` occur.
 
 <a id="helper-sequence"></a>
 ### How to write a sequence

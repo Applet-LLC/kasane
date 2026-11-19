@@ -796,7 +796,9 @@ public sealed class ActionExecutor
     {
         if (steps == null || steps.Count == 0) return;
         var compiled = SequenceCompiler.Compile(steps, singleStep: isText);
-        foreach (var e in compiled.Errors) _env.Log((isText ? "Text: " : "Sequence: ") + e);        bool restore = false;
+        foreach (var e in compiled.Errors) _env.Log((isText ? "Text: " : "Sequence: ") + e);
+        bool restore = false;
+        int pendingDrainMs = 0; // 送った文字を、アプリが処理し終えるまでに、まだ要る見込みの時間
         try
         {
             if (wrap != null)
@@ -814,21 +816,56 @@ public sealed class ActionExecutor
                 if (op.Kind == InputKind.Delay)
                 {
                     if (!_env.Sleep(op.Value)) return;
+                    pendingDrainMs = Math.Max(0, pendingDrainMs - op.Value);
                 }
                 else if (op.Kind == InputKind.Ime)
                 {
+                    // IME を切り替える前に、送った文字が処理し終わるのを待つ(早いと、列に残った文字が IME に取られる)
+                    if (pendingDrainMs > 0) { if (!_env.Sleep(pendingDrainMs)) return; pendingDrainMs = 0; }
                     if (!_env.SetIme((ImeTarget)op.Value, (ImeMethod)op.Value2) && op.Flag)
                     {
                         _env.Log(Loc.T("Sequence: IME を切り替えられなかったため、残りをやめました", "Sequence: Could not switch the IME, so the rest was cancelled"));
                         return;
                     }
                 }
-                else _env.Send(op);
+                else
+                {
+                    _env.Send(op);
+                    if (op.Kind == InputKind.Unicode && op.Up)
+                    {
+                        pendingDrainMs = TextPacing.AddDrain(pendingDrainMs);
+                        if (TextPacing.CharPaceMs > 0 && !_env.Sleep(TextPacing.CharPaceMs)) return;
+                    }
+                }
             }
         }
         finally
         {
-            if (restore) _env.SetIme(ImeTarget.Restore, wrap!.Method);
+            if (restore)
+            {
+                // SendInput は送るだけで、アプリが処理し終わるのを待たない。すぐ IME を戻すと、列に残った文字が IME に取られる。
+                if (pendingDrainMs > 0) _env.Sleep(pendingDrainMs);
+                _env.SetIme(ImeTarget.Restore, wrap!.Method);
+            }
         }
     }
+}
+
+/// <summary>
+/// 文字の入力(Text)の速さと、IME を戻す前の待ちの調整。試験用に、環境変数(uiAccess のトレイには、Start-Process では渡らない。HKCU:\Environment に書く) KASANE_TEXT_PACE_MS(1 文字ごとの間隔)、
+/// KASANE_TEXT_DRAIN_MS_PER_CHAR(IME を戻す前に、1 文字あたり待つ ms)、KASANE_TEXT_DRAIN_MAX_MS(待ちの上限)で上書きできる。
+/// </summary>
+public static class TextPacing
+{
+    public static int CharPaceMs { get; set; } = Read("KASANE_TEXT_PACE_MS", 30);
+    public static int DrainPerCharMs { get; set; } = Read("KASANE_TEXT_DRAIN_MS_PER_CHAR", 20);
+    public static int DrainMaxMs { get; set; } = Read("KASANE_TEXT_DRAIN_MAX_MS", 5000);
+
+    public static int DrainMs(int chars) => chars <= 0 ? 0 : Math.Min(DrainMaxMs, chars * DrainPerCharMs);
+
+    /// <summary>1 文字送ったあとの、処理待ちの見込み(ms)を足す。上限は <see cref="DrainMaxMs"/>。</summary>
+    public static int AddDrain(int pendingMs) => Math.Min(DrainMaxMs, pendingMs + DrainPerCharMs);
+
+    private static int Read(string name, int fallback) =>
+        int.TryParse(Environment.GetEnvironmentVariable(name), out int v) && v >= 0 && v <= 10000 ? v : fallback;
 }

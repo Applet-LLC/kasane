@@ -310,6 +310,58 @@ public class HelperActionsTests
     private static ActionRequest Release(HelperActionBody b) => new(b, Kb1, (ushort)(Kb1 >> 16), true, false);
 
     [Fact]
+    public void Text_PacesEachChar_AndWaitsBeforeImeRestore()
+    {
+        int pace = TextPacing.CharPaceMs, per = TextPacing.DrainPerCharMs;
+        try
+        {
+            TextPacing.CharPaceMs = 5; TextPacing.DrainPerCharMs = 10;
+            var env = new FakeEnv();
+            new ActionExecutor(env).Execute(Press(new HelperActionBody { Type = HelperActionBody.TextInput, Text = "a-b" }));
+            Assert.Equal(new[] { 5, 5, 5 }, env.Sleeps); // 3 文字。IME を戻さない設定では、戻す前の待ちは無い
+        }
+        finally { TextPacing.CharPaceMs = pace; TextPacing.DrainPerCharMs = per; }
+    }
+
+    [Fact]
+    public void Sequence_WaitsForTextToDrain_BeforeImeOp_MinusExplicitDelay()
+    {
+        int pace = TextPacing.CharPaceMs, per = TextPacing.DrainPerCharMs, max = TextPacing.DrainMaxMs;
+        try
+        {
+            TextPacing.CharPaceMs = 0; TextPacing.DrainPerCharMs = 10; TextPacing.DrainMaxMs = 5000;
+            var env = new FakeEnv();
+            var body = new HelperActionBody
+            {
+                Type = HelperActionBody.Sequence,
+                Steps = new() { new HelperStep { Text = "abc" }, new HelperStep { DelayMs = 0 }, new HelperStep { Ime = "on" } },
+            };
+            new ActionExecutor(env).Execute(Press(body));
+            Assert.Equal(new[] { 30 }, env.Sleeps); // 待ち 0 は何もしない。3 文字分(30 ms)を、IME を切り替える前に待つ
+
+            env.Sleeps.Clear();
+            body.Steps[1].DelayMs = 20;
+            new ActionExecutor(env).Execute(Press(body));
+            Assert.Equal(new[] { 20, 10 }, env.Sleeps); // 明示の待ち 20 ms の分は、引く
+        }
+        finally { TextPacing.CharPaceMs = pace; TextPacing.DrainPerCharMs = per; TextPacing.DrainMaxMs = max; }
+    }
+
+    [Fact]
+    public void TextPacing_DrainMs_ScalesWithCharsAndIsCapped()
+    {
+        int per = TextPacing.DrainPerCharMs, max = TextPacing.DrainMaxMs;
+        try
+        {
+            TextPacing.DrainPerCharMs = 12; TextPacing.DrainMaxMs = 3000;
+            Assert.Equal(0, TextPacing.DrainMs(0));
+            Assert.Equal(264, TextPacing.DrainMs(22));
+            Assert.Equal(3000, TextPacing.DrainMs(1000));
+        }
+        finally { TextPacing.DrainPerCharMs = per; TextPacing.DrainMaxMs = max; }
+    }
+
+    [Fact]
     public void Launch_RunsOnPress_ExpandsEnvironment_IgnoresReleaseAndRepeat()
     {
         var env = new FakeEnv();
