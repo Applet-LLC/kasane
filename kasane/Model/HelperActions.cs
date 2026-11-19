@@ -37,16 +37,35 @@ public enum ImeSwitch
 }
 
 /// <summary>
-/// トレイが読んだ <see cref="ImeSwitch"/> と、値が変わった回数（<paramref name="Generation"/>）。回数は、設定を選び直したことに
-/// 気づくために使う（変換 / 無変換の割り当ての判定を、試し直す）。
+/// IME を切り替えるキー（Alt+半角/全角、IME オン / オフ キー、変換 / 無変換）を、どの経路で送るか（tray.json の ImeKeyPath。設定の「IME のキーの送り方」。2026-11-20）。
+/// 文字（Text）は常に SendInput で送るので、<see cref="SendInput"/> にそろえると、IME のキーと文字が同じ入力の列に並び、順序が守られる。
+/// 名前は保存に使うので変えないこと。
 /// </summary>
-public readonly record struct ImeSwitchSetting(ImeSwitch Value, int Generation);
+public enum ImeKeyPath
+{
+    /// <summary>既定。管理者として動くトレイで、ドライバが使えればドライバ経由。そうでなければ SendInput。</summary>
+    Auto,
+    /// <summary>ドライバ経由だけ。送れなければ、そのキーは送らない（SendInput へは戻さない）。</summary>
+    Driver,
+    /// <summary>SendInput だけ（ドライバは使わない）。</summary>
+    SendInput,
+}
+
+/// <summary>
+/// トレイが読んだ <see cref="ImeSwitch"/> と、値が変わった回数（<paramref name="Generation"/>）。回数は、設定を選び直したことに
+/// 気づくために使う（変換 / 無変換の割り当ての判定を、試し直す）。<paramref name="KeyPath"/> は、IME のキーの送り方。
+/// </summary>
+public readonly record struct ImeSwitchSetting(ImeSwitch Value, int Generation, ImeKeyPath KeyPath = ImeKeyPath.Auto);
 
 public static class ImeSwitches
 {
     /// <summary>名前から。無い・知らない名前は既定（Auto）。大文字小文字は区別しない。</summary>
     public static ImeSwitch Parse(string? text) =>
         Enum.TryParse<ImeSwitch>(text?.Trim(), ignoreCase: true, out var m) && Enum.IsDefined(m) ? m : ImeSwitch.Auto;
+
+    /// <summary>名前から。無い・知らない名前は既定（Auto）。大文字小文字は区別しない。</summary>
+    public static ImeKeyPath ParseKeyPath(string? text) =>
+        Enum.TryParse<ImeKeyPath>(text?.Trim(), ignoreCase: true, out var m) && Enum.IsDefined(m) ? m : ImeKeyPath.Auto;
 }
 
 /// <summary>IME を変える実際の経路。</summary>
@@ -77,10 +96,16 @@ public enum ImeRoute
 ///    - ImeKeys / Henkan: そのキー、変わらなければ IMM32（どちらも ON/OFF を直接指定するので、続けても二重に切り替わらない）。
 ///    - Toggle: Alt+半角/全角、変わらなければ IMM32。切り替えのキーなので、状態を読めないときは IMM32 だけ。
 ///    - Imm: IMM32 だけ。
+///  - IME のキーの送り方（<see cref="ImeKeyPath"/>）が Auto 以外のとき、Auto の計画だけが変わる。
+///    SendInput: 管理者のトレイでも、通常権限と同じ（IMM32 → IME キー）。Driver: ドライバ経由の Alt+半角/全角 → IMM32（SendInput の IME キーは使わない）。
+///    ImeKeys / Henkan / Toggle / altkanji の、キーをどちらで送るかは、実行する側（トレイの ImeController）が同じ設定で決める。
 /// </summary>
 public static class ImeRoutePlanner
 {
-    public static IReadOnlyList<ImeRoute> Plan(ImeMethod method, ImeSwitch setting, bool trayElevated, bool driverKeyUsable, bool stateKnown) => method switch
+    public static IReadOnlyList<ImeRoute> Plan(ImeMethod method, ImeSwitch setting, bool trayElevated, bool driverKeyUsable, bool stateKnown) =>
+        Plan(method, setting, ImeKeyPath.Auto, trayElevated, driverKeyUsable, stateKnown);
+
+    public static IReadOnlyList<ImeRoute> Plan(ImeMethod method, ImeSwitch setting, ImeKeyPath keyPath, bool trayElevated, bool driverKeyUsable, bool stateKnown) => method switch
     {
         ImeMethod.Imm => new[] { ImeRoute.Imm },
         ImeMethod.Key => new[] { ImeRoute.VkKey },
@@ -92,9 +117,16 @@ public static class ImeRoutePlanner
             ImeSwitch.Henkan => new[] { ImeRoute.HenkanKey, ImeRoute.Imm },
             ImeSwitch.Toggle => stateKnown ? new[] { ImeRoute.AltKanji, ImeRoute.Imm } : new[] { ImeRoute.Imm },
             ImeSwitch.Imm => new[] { ImeRoute.Imm },
-            _ => trayElevated && driverKeyUsable && stateKnown
-                ? new[] { ImeRoute.DriverAltKanji, ImeRoute.Imm, ImeRoute.VkKey }
-                : new[] { ImeRoute.Imm, ImeRoute.VkKey },
+            _ => keyPath switch
+            {
+                ImeKeyPath.SendInput => new[] { ImeRoute.Imm, ImeRoute.VkKey },
+                ImeKeyPath.Driver => trayElevated && driverKeyUsable && stateKnown
+                    ? new[] { ImeRoute.DriverAltKanji, ImeRoute.Imm }
+                    : new[] { ImeRoute.Imm },
+                _ => trayElevated && driverKeyUsable && stateKnown
+                    ? new[] { ImeRoute.DriverAltKanji, ImeRoute.Imm, ImeRoute.VkKey }
+                    : new[] { ImeRoute.Imm, ImeRoute.VkKey },
+            },
         },
     };
 }

@@ -42,6 +42,17 @@ public sealed class TrayConfig
     public ImeSwitch ImeSwitchValue => ImeSwitches.Parse(ImeSwitchName);
 
     /// <summary>
+    /// IME を切り替えるキーの送り方（<see cref="Model.ImeKeyPath"/> の名前。Auto / Driver / SendInput。2026-11-20）。
+    /// null（既定）は Auto（管理者として動くトレイはドライバ経由、そうでなければ SendInput）。設定の「IME連動」タブで選ぶ。
+    /// </summary>
+    [JsonPropertyName("ImeKeyPath")]
+    public string? ImeKeyPathName { get; set; }
+
+    /// <summary><see cref="ImeKeyPathName"/> を解釈したもの（保存はしない）。</summary>
+    [JsonIgnore]
+    public ImeKeyPath ImeKeyPathValue => ImeSwitches.ParseKeyPath(ImeKeyPathName);
+
+    /// <summary>
     /// 色のモード（<see cref="Model.ColorMode"/> の名前。Light / Dark。2026-10-21）。既定は Light。kasane の全画面・トレイのメニューとバージョン情報・ライセンス管理に効く。
     /// 無い・読めない値は既定。設定の「全般」タブで選ぶ。
     /// </summary>

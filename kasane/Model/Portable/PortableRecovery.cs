@@ -47,6 +47,7 @@ public static class RecoveryExporter
         {
             ImeSource = tray.ImeSource,
             ImeSwitch = tray.ImeSwitchValue.ToString(),
+            ImeKeyPath = tray.ImeKeyPathValue.ToString(),
             ColorMode = tray.ColorModeName,
             UiLanguage = tray.UiLanguageName,
             ShowLayerOnIcon = tray.ShowLayerOnIcon,
@@ -164,6 +165,8 @@ public static class RecoveryImporter
                 if (t.ImeSource != null && Enum.TryParse<ImeSourceMode>(t.ImeSource, out _)) tray.ImeSource = t.ImeSource;
                 if (t.ImeSwitch != null && Enum.TryParse<ImeSwitch>(t.ImeSwitch, ignoreCase: true, out var imeSwitch) && Enum.IsDefined(imeSwitch))
                     tray.ImeSwitchName = imeSwitch == ImeSwitch.Auto ? null : imeSwitch.ToString(); // 既定は書かない
+                if (t.ImeKeyPath != null && Enum.TryParse<ImeKeyPath>(t.ImeKeyPath, ignoreCase: true, out var keyPath) && Enum.IsDefined(keyPath))
+                    tray.ImeKeyPathName = keyPath == ImeKeyPath.Auto ? null : keyPath.ToString(); // 既定は書かない
                 if (t.ColorMode != null && Enum.TryParse<ColorMode>(t.ColorMode, out _)) tray.ColorModeName = t.ColorMode;
                 if (t.UiLanguage != null && Enum.TryParse<UiLanguage>(t.UiLanguage, out _)) tray.UiLanguageName = t.UiLanguage;
                 if (t.ShowLayerOnIcon is bool show) tray.ShowLayerOnIcon = show;

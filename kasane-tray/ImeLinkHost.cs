@@ -64,7 +64,8 @@ public sealed class ImeLinkHost : IDisposable
     private readonly ImeSourceSelector _imeSource;
     // ほかのスレッド（ヘルパー動作）用に作った取得元。設定の取得方法とフックを、ここから同じように入れる。_extraSources を lock して触る。
     private readonly List<(TsfSiriusImeSource Tsf, ImeSourceSelector Selector)> _extraSources = new();
-    // ヘルパー動作の IME の切り替え方。下位 4 ビットが ImeSwitch、上位が値の変わった回数（1 つの int にして、読む側で値と回数が食い違わないように）。
+    // ヘルパー動作の IME の切り替え方。下位 4 ビットが ImeSwitch、次の 2 ビットが ImeKeyPath、上位が値の変わった回数
+    // （1 つの int にして、読む側で値と回数が食い違わないように）。
     // 書くのは UI スレッドだけ。
     private int _imeSwitchState;
     private SiriusHook? _siriusHook;
@@ -89,7 +90,7 @@ public sealed class ImeLinkHost : IDisposable
         var imm = new Win32ImeSource();
         _tsfSource = new TsfSiriusImeSource(imm);
         _imeSource = new ImeSourceSelector(imm, _tsfSource, TrayLog.Write, imm.ForegroundLabel);
-        SetImeSwitch(config.ImeSwitchValue);
+        SetImeSwitch(config.ImeSwitchValue, config.ImeKeyPathValue);
         ApplyImeSource(config);
 
         _service = new ImeLinkService(
@@ -177,7 +178,7 @@ public sealed class ImeLinkHost : IDisposable
         _nicolaLink = config.ImeLink;
         bool reloaded = Store.Reload(config);
         _enabled = Store.Current.AnyNicolaLink(_nicolaLink) || Store.Current.HasAnyImeLayerLink;
-        SetImeSwitch(config.ImeSwitchValue);
+        SetImeSwitch(config.ImeSwitchValue, config.ImeKeyPathValue);
         ApplyImeSource(config);
         if (!reloaded) return false;
         _service.Poke();
@@ -190,16 +191,17 @@ public sealed class ImeLinkHost : IDisposable
         get
         {
             int state = Volatile.Read(ref _imeSwitchState);
-            return new((Kasane.Model.ImeSwitch)(state & 0xF), state >> 4);
+            return new((Kasane.Model.ImeSwitch)(state & 0xF), state >> 6, (Kasane.Model.ImeKeyPath)((state >> 4) & 0x3));
         }
     }
 
     // tray.json を読み直したとき（UI スレッド）。値が前と違えば、変わった回数を 1 つ増やす。
-    private void SetImeSwitch(Kasane.Model.ImeSwitch value)
+    private void SetImeSwitch(Kasane.Model.ImeSwitch value, Kasane.Model.ImeKeyPath keyPath)
     {
         int state = Volatile.Read(ref _imeSwitchState);
-        if ((state & 0xF) == (int)value) return;
-        Volatile.Write(ref _imeSwitchState, ((state >> 4) + 1) << 4 | (int)value);
+        int packed = ((int)keyPath & 0x3) << 4 | ((int)value & 0xF);
+        if ((state & 0x3F) == packed) return;
+        Volatile.Write(ref _imeSwitchState, ((state >> 6) + 1) << 6 | packed);
     }
 
     /// <summary>
