@@ -24,7 +24,7 @@ public sealed class HelperHost : IDisposable
     public HelperHost(ImeLinkHost ime, Action togglePause)
     {
         _ime = ime;
-        _runner = new ActionRunner(Allow, ime.RequestLayer, togglePause, ime.CreateImeSource, () => ime.ImeSwitch);
+        _runner = new ActionRunner(Allow, ime.RequestLayer, togglePause, ime.CreateImeSource, () => ime.ImeSwitch, () => ime.Store.Current);
         _events = new HelperEventService(OnHelperEvent, () => _ime.SessionActive && _ime.Store.Current.HasAnyActions);
         _hook = new KeyHookService(() => _table, Allow, _runner.Enqueue);
         _runner.PhysicalKeys = () => _hook.PhysicalKeys;

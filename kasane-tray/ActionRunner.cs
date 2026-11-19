@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Kasane.Interop;
 using Kasane.Keycodes;
 using Kasane.Model;
 
@@ -38,11 +39,12 @@ public sealed class ActionRunner : IDisposable
 
     /// <param name="createImeSource">IME の状態の取得元を作る（設定の取得方法に従うもの。引数は、このスレッド用の IMM32 の取得元）。</param>
     /// <param name="imeSwitch">ヘルパー動作の IME の切り替え方（設定。どのスレッドから呼んでもよい）。</param>
+    /// <param name="config">いまのヘルパー設定（文字の入力の速さを決めるのに使う。どのスレッドから呼んでもよい）。</param>
     public ActionRunner(Func<HelperActionBody, bool> allow, Action<LayerRequest> layer, Action togglePause,
-        Func<Win32ImeSource, IImeSource> createImeSource, Func<ImeSwitchSetting> imeSwitch)
+        Func<Win32ImeSource, IImeSource> createImeSource, Func<ImeSwitchSetting> imeSwitch, Func<HelperConfigSet> config)
     {
         _allow = allow;
-        _env = new Win32ActionEnvironment(_cts.Token, layer, togglePause, () => PhysicalKeys?.Invoke() ?? 0, createImeSource, imeSwitch, scan => SelfSentKey?.Invoke(scan));
+        _env = new Win32ActionEnvironment(_cts.Token, layer, togglePause, () => PhysicalKeys?.Invoke() ?? 0, createImeSource, imeSwitch, scan => SelfSentKey?.Invoke(scan), config);
         _thread = new Thread(Loop) { IsBackground = true, Name = "kasane-actions" };
         _thread.Start();
     }
@@ -112,10 +114,12 @@ internal sealed class Win32ActionEnvironment : IActionEnvironment
 
     private readonly ImeController _ime;
     private readonly DriverKeyInjector _driverKey = new();
+    private readonly TextTypingResolver _typing;
 
     public Win32ActionEnvironment(CancellationToken token, Action<LayerRequest> layer, Action togglePause, Func<byte> physicalKeys,
-        Func<Win32ImeSource, IImeSource> createImeSource, Func<ImeSwitchSetting> imeSwitch, Action<ushort> selfSentKey)
+        Func<Win32ImeSource, IImeSource> createImeSource, Func<ImeSwitchSetting> imeSwitch, Action<ushort> selfSentKey, Func<HelperConfigSet> config)
     {
+        _typing = new TextTypingResolver(config, ListLayerKeyboards, EffectiveLayers, TrayLog.Write);
         // IMM32 の取得元は、このスレッド専用（Win32ImeSource は、プロセス名の覚えをスレッド間で共有できない）。
         var imm = new Win32ImeSource();
         bool elevated = Environment.IsPrivilegedProcess;
@@ -127,6 +131,23 @@ internal sealed class Win32ActionEnvironment : IActionEnvironment
         _token = token;
         _layer = layer;
         _togglePause = togglePause;
+    }
+
+    public TextTypingProfile TypingFor(ActionRequest request) => _typing.Resolve(request);
+
+    private static KbdLayerClient OpenDriver() =>
+        KbdLayerClient.TryOpen(out var error) ?? throw new InvalidOperationException(error ?? Loc.T("ドライバに接続できません", "Can't connect to the driver"));
+
+    private static IReadOnlyList<uint> ListLayerKeyboards()
+    {
+        using var client = OpenDriver();
+        return client.ListDevices().Where(d => d.UniqId != 0 && d.HasLayerMap).Select(d => d.UniqId).ToList();
+    }
+
+    private static uint EffectiveLayers(uint uniqId)
+    {
+        using var client = OpenDriver();
+        return client.GetLayerState(uniqId).EffectiveLayerMask;
     }
 
     // キーフックの値に、KillLine 用の見張りの値を足す（見張りは、初めて使うまで張らない）。
