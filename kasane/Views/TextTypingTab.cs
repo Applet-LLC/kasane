@@ -93,11 +93,11 @@ internal sealed class TextTypingTab : HelperTabBase
         f.JitterMsHint = new TextBlock(); f.CharMsHint = new TextBlock(); f.ImeWaitMsHint = new TextBlock();
         AddRow(parent, Loc.T("揺らぎ", "Jitter"), f.Jitter, null,
             Loc.T("1 文字ごとの間隔に、0 から範囲までの乱数を足します。", "Adds a random 0 to range ms to each interval. ") + blankTip);
-        AddRow(parent, Loc.T("揺らぎの範囲", "Jitter range"), WithHint(f.JitterMs, f.JitterMsHint), $"ms ({TextTyping.MinJitterMs}〜{TextTyping.MaxJitterMs})",
+        AddRow(parent, Loc.T("揺らぎの範囲", "Jitter range"), WithHint(f.JitterMs, f.JitterMsHint), Loc.T($"ms ({TextTyping.MinJitterMs}〜{TextTyping.MaxJitterMs})", $"ms ({TextTyping.MinJitterMs}–{TextTyping.MaxJitterMs})"),
             Loc.T("揺らぎで足す時間の上限です。", "The most the jitter adds. ") + blankTip);
-        AddRow(parent, Loc.T("1 文字ごとの間隔", "Interval between characters"), WithHint(f.CharMs, f.CharMsHint), $"ms (0〜{TextTyping.MaxCharMs})",
+        AddRow(parent, Loc.T("1 文字ごとの間隔", "Interval between characters"), WithHint(f.CharMs, f.CharMsHint), Loc.T($"ms (0〜{TextTyping.MaxCharMs})", $"ms (0–{TextTyping.MaxCharMs})"),
             Loc.T("短くすると速く入力できますが、アプリによっては文字が落ちます。", "Shorter is faster, but some apps drop characters. ") + blankTip);
-        AddRow(parent, Loc.T("IME を切り替える前の待ち", "Wait before switching the IME"), WithHint(f.ImeWaitMs, f.ImeWaitMsHint), $"ms (0〜{TextTyping.MaxImeWaitMs})",
+        AddRow(parent, Loc.T("IME を切り替える前の待ち", "Wait before switching the IME"), WithHint(f.ImeWaitMs, f.ImeWaitMsHint), Loc.T($"ms (0〜{TextTyping.MaxImeWaitMs})", $"ms (0–{TextTyping.MaxImeWaitMs})"),
             Loc.T("文字を入力したあと、IME を切り替える(元に戻す)前に待つ時間です。短いと、文字が IME に取られることがあります。IME を切り替えた直後の待ちは、ここでは決めません(IME の状態が変わったことを確かめてから、入力を始めます)。", "Time to wait after typing before the IME is switched (restored). Too short, and the IME may take characters. The wait right after switching the IME is not set here (typing starts once the IME state is confirmed to have changed). ") + blankTip);
 
         f.Jitter.SelectionChanged += (_, _) => Apply(f);
