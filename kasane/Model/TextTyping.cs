@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace Kasane.Model;
 
 /// <summary>
-/// 文字の入力（Text と、Sequence の Text 手順）の速さの値（2026-11-20）。どれも省略でき、省略した値は、ひとつ外側の設定に従う
+/// 文字の入力（Text と、Sequence の Text 手順）の速さの値（2026-11-20）。どれも省略でき、省略した値は、別の設定の値を使う
 /// （<see cref="TextTyping.Resolve"/>）。
 /// </summary>
 public class TextTypingValues

@@ -9,7 +9,8 @@ namespace Kasane.Views;
 /// 設定画面の「文字入力の速さ」タブ（2026-11-20）。ヘルパー動作の Text と、Sequence の Text 手順の、1 文字ごとの間隔・揺らぎ・
 /// IME 操作前のウェイト（<see cref="HelperConfig.TextTyping"/>）。対象は「このキーボード」か「全キーボード共通」。
 /// 上段がその範囲の既定、下段がレイヤー番号ごとの上書き（一覧に「追加」で足していく）。
-/// 数の欄の空欄と、揺らぎの選択を触っていない状態は、ひとつ外側の値を使う（<see cref="TextTyping.Resolve"/>）。
+/// 数の欄の空欄と、揺らぎの選択を触っていない状態は、書かなかったことになり、別の設定の値を使う（このキーボードなら共通の設定、共通なら kasane の既定、
+/// レイヤーの上書きならこの範囲の既定。<see cref="TextTyping.Resolve"/>）。
 /// 編集は <see cref="HelperSettingsModel"/> のコピーに対して行い、書くのは設定画面の OK のとき。
 /// </summary>
 internal sealed class TextTypingTab : HelperTabBase
@@ -20,7 +21,7 @@ internal sealed class TextTypingTab : HelperTabBase
         public TextBox JitterMs = null!, CharMs = null!, ImeWaitMs = null!;
         // 空欄のときに、欄の中に薄く出す値（空欄で使われる値）。
         public TextBlock JitterMsHint = null!, CharMsHint = null!, ImeWaitMsHint = null!;
-        /// <summary>この欄の組を、書かなかったときに使われる値（ひとつ外側の設定）。揺らぎの選択を「触っていない」かの判定にも使う。</summary>
+        /// <summary>この欄の組を、書かなかったときに使われる値（このキーボードなら共通の設定、共通なら kasane の既定、レイヤーの上書きならこの範囲の既定）。揺らぎの選択を「触っていない」かの判定にも使う。</summary>
         public TextTypingProfile Inherited = TextTypingProfile.Default;
         public IEnumerable<Control> All => new Control[] { Jitter, JitterMs, CharMs, ImeWaitMs };
     }
@@ -128,7 +129,7 @@ internal sealed class TextTypingTab : HelperTabBase
         f.JitterMsHint = new TextBlock(); f.CharMsHint = new TextBlock(); f.ImeWaitMsHint = new TextBlock();
         var d = TextTypingProfile.Default;
         AddRow(parent, Loc.T("揺らぎ", "Jitter"), f.Jitter, null,
-            Loc.T("1 文字ごとの間隔に、0 から揺らぎの範囲までの乱数を「追加」します。「無し」なら、間隔は一定です。触っていないときは、ひとつ外側の設定の選択が表示されます。", "\"Add\" adds a random 0 to jitter-range ms to each interval. \"None\" keeps the interval constant. While untouched, the choice of the next outer setting is shown. ") + blankTip);
+            Loc.T("1 文字ごとの間隔に、0 から揺らぎの範囲までの乱数を「追加」します。「無し」なら、間隔は一定です。触っていないときは、空欄のときに使われる値の選択が表示されます(このキーボードの設定では共通の設定、共通の設定では kasane の既定、レイヤーの上書きではこの範囲の既定)。", "\"Add\" adds a random 0 to jitter-range ms to each interval. \"None\" keeps the interval constant. While untouched, the choice that would be used if left blank is shown (for this keyboard: the shared setting; for the shared setting: the kasane default; for a layer override: the defaults for this scope). ") + blankTip);
         AddRow(parent, Loc.T("揺らぎの範囲", "Jitter range"), WithHint(f.JitterMs, f.JitterMsHint), Unit(TextTyping.MinJitterMs, TextTyping.MaxJitterMs, d.JitterMs),
             Loc.T("揺らぎで足す時間の上限です。", "The most the jitter adds. ") + blankTip);
         AddRow(parent, Loc.T("1 文字ごとの間隔", "Interval between characters"), WithHint(f.CharMs, f.CharMsHint), Unit(0, TextTyping.MaxCharMs, d.CharMs),
@@ -216,8 +217,8 @@ internal sealed class TextTypingTab : HelperTabBase
         foreach (var box in new[] { f.JitterMs, f.CharMs, f.ImeWaitMs }) box.ClearValue(Control.BorderBrushProperty);
     }
 
-    // 画面の内容を、編集中の設定に写す。何も指定していない値は null（外側に従う）。
-    // 揺らぎは、ひとつ外側の設定と同じ選択なら、書かない（触っていないのと同じ）。
+    // 画面の内容を、編集中の設定に写す。何も指定していない値は null（書かない。使われる値は、Fields.Inherited）。
+    // 揺らぎは、書かなかったときに使われる値（Fields.Inherited）と同じ選択なら、書かない（触っていないのと同じ）。
     private void Apply(Fields f)
     {
         if (_loading || !Editable) return;
@@ -248,7 +249,7 @@ internal sealed class TextTypingTab : HelperTabBase
         _loading = false;
     }
 
-    // 空欄のときに使われる値を、欄の中に薄く出す。上段は、ひとつ外側の設定（このキーボードなら共通、共通なら kasane の既定）、
+    // 空欄のときに使われる値を、欄の中に薄く出す。上段は、このキーボードなら共通の設定、共通なら kasane の既定、
     // 下段は、そのレイヤーに書かなかったときの値（この範囲の既定。共通のレイヤーの上書きがあれば、それも）。
     // 揺らぎの選択は、書いていなければ、その値（追加 / 無し）を表示する。
     private void ShowHints(int? entry)
