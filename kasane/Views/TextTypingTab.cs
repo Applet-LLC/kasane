@@ -210,7 +210,8 @@ internal sealed class TextTypingTab : HelperTabBase
         string text = box.Text.Trim();
         if (text.Length == 0) { MarkValid(box); return null; }
         if (int.TryParse(text, out int v)) { MarkValid(box); return v; }
-        _invalid[box] = Loc.T($"文字入力の速さ: 「{text}」は数ではありません(ms を整数で入力します)", $"Typing speed: \"{text}\" is not a number (enter whole milliseconds)");
+        string label = Scope == HelperScope.Device ? Loc.T("このキーボード", "this keyboard") : Loc.T("共通", "shared");
+        _invalid[box] = Loc.T($"{label}の文字入力の速さ: 「{text}」は数ではありません(ms を整数で入力します)", $"Typing speed ({label}): \"{text}\" is not a number (enter whole milliseconds)");
         box.BorderBrush = Brushes.Red;
         return null;
     }
