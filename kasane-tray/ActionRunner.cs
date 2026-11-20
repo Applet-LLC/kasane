@@ -89,12 +89,13 @@ public sealed class ActionRunner : IDisposable
         _cts.Cancel();
         _queue.CompleteAdding();
         _thread.Join(2000);
+        _env.Dispose();
         _cts.Dispose();
     }
 }
 
 /// <summary>実際の入力（SendInput）・起動（ShellExecute）を行う <see cref="IActionEnvironment"/>。</summary>
-internal sealed class Win32ActionEnvironment : IActionEnvironment
+internal sealed class Win32ActionEnvironment : IActionEnvironment, IDisposable
 {
     // SendInput で入れたキーであることの印（ほかのツールが見分けられるように）。"KSNE"。
     private static readonly IntPtr Marker = new(0x4B534E45);
@@ -115,11 +116,15 @@ internal sealed class Win32ActionEnvironment : IActionEnvironment
     private readonly ImeController _ime;
     private readonly DriverKeyInjector _driverKey = new();
     private readonly TextTypingResolver _typing;
+    private readonly PreciseSleeper _sleeper;
 
     public Win32ActionEnvironment(CancellationToken token, Action<LayerRequest> layer, Action togglePause, Func<byte> physicalKeys,
         Func<Win32ImeSource, IImeSource> createImeSource, Func<ImeSwitchSetting> imeSwitch, Action<ushort> selfSentKey, Func<HelperConfigSet> config)
     {
         _typing = new TextTypingResolver(config, ListLayerKeyboards, EffectiveLayers, TrayLog.Write);
+        _sleeper = new PreciseSleeper(token.WaitHandle);
+        if (!_sleeper.IsHighResolution)
+            TrayLog.Write(Loc.T("ヘルパー動作: 高分解能のタイマーを作れないため、待ちは約 15.6 ms の刻みに丸められます(文字入力の揺らぎは細かく出ません)", "Helper actions: could not create a high-resolution timer, so waits are rounded to about 15.6 ms steps (typing jitter will not be fine-grained)"));
         // IMM32 の取得元は、このスレッド専用（Win32ImeSource は、プロセス名の覚えをスレッド間で共有できない）。
         var imm = new Win32ImeSource();
         bool elevated = Environment.IsPrivilegedProcess;
@@ -306,7 +311,10 @@ internal sealed class Win32ActionEnvironment : IActionEnvironment
         };
     }
 
-    public bool Sleep(int milliseconds) => !_token.WaitHandle.WaitOne(milliseconds);
+    // 1 ms 前後の精度で待つ（WaitOne は約 15.6 ms に丸められ、文字入力の間隔の揺らぎが出ない。PreciseSleeper）。
+    public bool Sleep(int milliseconds) => _sleeper.Sleep(milliseconds);
+
+    public void Dispose() => _sleeper.Dispose();
 
     public void Shell(string path, string? args, string? workDir)
     {

@@ -17,6 +17,8 @@ internal sealed class TextTypingTab : HelperTabBase
     {
         public ComboBox Jitter = null!;
         public TextBox JitterMs = null!, CharMs = null!, ImeWaitMs = null!;
+        // 空欄のときに、欄の中に薄く出す値（空欄で使われる値）。
+        public TextBlock JitterMsHint = null!, CharMsHint = null!, ImeWaitMsHint = null!;
         public IEnumerable<Control> All => new Control[] { Jitter, JitterMs, CharMs, ImeWaitMs };
     }
 
@@ -81,21 +83,22 @@ internal sealed class TextTypingTab : HelperTabBase
         {
             Jitter = new ComboBox
             {
-                Name = prefix + "Jitter", Width = 120,
+                Name = prefix + "Jitter", Width = 170,
                 ItemsSource = new[] { Loc.T("指定しない", "Not set"), Loc.T("入れる", "On"), Loc.T("入れない", "Off") },
             },
             JitterMs = NumberBox(prefix + "JitterMs"),
             CharMs = NumberBox(prefix + "CharMs"),
             ImeWaitMs = NumberBox(prefix + "ImeWaitMs"),
         };
+        f.JitterMsHint = new TextBlock(); f.CharMsHint = new TextBlock(); f.ImeWaitMsHint = new TextBlock();
         AddRow(parent, Loc.T("揺らぎ", "Jitter"), f.Jitter, null,
             Loc.T("1 文字ごとの間隔に、0 から範囲までの乱数を足します。", "Adds a random 0 to range ms to each interval. ") + blankTip);
-        AddRow(parent, Loc.T("揺らぎの範囲", "Jitter range"), f.JitterMs, $"ms ({TextTyping.MinJitterMs}〜{TextTyping.MaxJitterMs})",
+        AddRow(parent, Loc.T("揺らぎの範囲", "Jitter range"), WithHint(f.JitterMs, f.JitterMsHint), $"ms ({TextTyping.MinJitterMs}〜{TextTyping.MaxJitterMs})",
             Loc.T("揺らぎで足す時間の上限です。", "The most the jitter adds. ") + blankTip);
-        AddRow(parent, Loc.T("1 文字ごとの間隔", "Interval between characters"), f.CharMs, $"ms (0〜{TextTyping.MaxCharMs})",
+        AddRow(parent, Loc.T("1 文字ごとの間隔", "Interval between characters"), WithHint(f.CharMs, f.CharMsHint), $"ms (0〜{TextTyping.MaxCharMs})",
             Loc.T("短くすると速く入力できますが、アプリによっては文字が落ちます。", "Shorter is faster, but some apps drop characters. ") + blankTip);
-        AddRow(parent, Loc.T("IME を切り替える前の待ち", "Wait before switching the IME"), f.ImeWaitMs, $"ms (0〜{TextTyping.MaxImeWaitMs})",
-            Loc.T("文字を入力したあと、IME を切り替える(元に戻す)前に待つ時間です。短いと、文字が IME に取られることがあります。", "Time to wait after typing before the IME is switched (restored). Too short, and the IME may take characters. ") + blankTip);
+        AddRow(parent, Loc.T("IME を切り替える前の待ち", "Wait before switching the IME"), WithHint(f.ImeWaitMs, f.ImeWaitMsHint), $"ms (0〜{TextTyping.MaxImeWaitMs})",
+            Loc.T("文字を入力したあと、IME を切り替える(元に戻す)前に待つ時間です。短いと、文字が IME に取られることがあります。IME を切り替えた直後の待ちは、ここでは決めません(IME の状態が変わったことを確かめてから、入力を始めます)。", "Time to wait after typing before the IME is switched (restored). Too short, and the IME may take characters. The wait right after switching the IME is not set here (typing starts once the IME state is confirmed to have changed). ") + blankTip);
 
         f.Jitter.SelectionChanged += (_, _) => Apply(f);
         foreach (var box in new[] { f.JitterMs, f.CharMs, f.ImeWaitMs }) box.TextChanged += (_, _) => Apply(f);
@@ -104,11 +107,26 @@ internal sealed class TextTypingTab : HelperTabBase
 
     private static TextBox NumberBox(string name) => new() { Name = name, Width = 80 };
 
-    private static void AddRow(Panel parent, string label, Control input, string? unit, string tip)
+    // 空欄のときだけ、欄の中に薄く値を出す（クリックは、下の欄に通す）。
+    private static UIElement WithHint(TextBox box, TextBlock hint)
+    {
+        hint.IsHitTestVisible = false;
+        hint.Foreground = AppTheme.Palette.SubText;
+        hint.Margin = new Thickness(5, 0, 0, 0);
+        hint.VerticalAlignment = VerticalAlignment.Center;
+        var grid = new Grid { Width = 80 };
+        grid.Children.Add(box);
+        grid.Children.Add(hint);
+        box.TextChanged += (_, _) => hint.Visibility = box.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        hint.Visibility = box.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        return grid;
+    }
+
+    private static void AddRow(Panel parent, string label, UIElement input, string? unit, string tip)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
         row.Children.Add(new TextBlock { Text = label, Width = 190, VerticalAlignment = VerticalAlignment.Center, ToolTip = tip });
-        input.ToolTip = tip;
+        if (input is FrameworkElement fe) fe.ToolTip = tip;
         row.Children.Add(input);
         if (unit != null) row.Children.Add(new TextBlock { Text = unit, Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = AppTheme.Palette.SubText });
         parent.Children.Add(row);
@@ -136,6 +154,7 @@ internal sealed class TextTypingTab : HelperTabBase
         RebuildLayerItems(SelectedLayer);
         Show(_base, tt);
         Show(_layer, tt?.LayerOrNull(SelectedLayer));
+        ShowHints();
         bool editable = Editable;
         foreach (var c in _base.All.Concat(_layer.All)) c.IsEnabled = editable;
         _layerBox.IsEnabled = true;
@@ -178,6 +197,7 @@ internal sealed class TextTypingTab : HelperTabBase
         // 一覧の印と、上書きのあるレイヤーの表示だけを直す（入力中の欄は作り直さない）。
         _loading = true;
         RebuildLayerItems(SelectedLayer);
+        ShowHints();
         _loading = false;
         var current = Config.TextTyping;
         _clearLayer.IsEnabled = Editable && current?.LayerOrNull(SelectedLayer) != null;
@@ -185,6 +205,48 @@ internal sealed class TextTypingTab : HelperTabBase
         _layerSummary.Text = layers.Count == 0
             ? Loc.T("上書きのあるレイヤーはありません。", "No layer has an override.")
             : Loc.T("上書きのあるレイヤー: ", "Layers with an override: ") + string.Join(", ", layers);
+    }
+
+    // 空欄のときに使われる値を、欄の中に薄く出す。上段は、ひとつ外側の設定（このキーボードなら共通、共通なら kasane の既定）、
+    // 下段は、そのレイヤーに書かなかったときの値（この範囲の既定。共通のレイヤーの上書きがあれば、それも）。
+    private void ShowHints()
+    {
+        var global = Model.Global.TextTyping;
+        var device = Model.HasDevice ? Model.Device.TextTyping : null;
+        var baseInherited = Scope == HelperScope.Device
+            ? TextTyping.Resolve(global, null, null)
+            : TextTypingProfile.Default;
+        ApplyHints(_base, baseInherited);
+
+        int layer = SelectedLayer;
+        var g = Scope == HelperScope.Global ? WithoutLayer(global, layer) : global;
+        var d = Scope == HelperScope.Device ? WithoutLayer(device, layer) : device;
+        ApplyHints(_layer, TextTyping.Resolve(g, d, 1u << layer));
+    }
+
+    private static void ApplyHints(Fields f, TextTypingProfile p)
+    {
+        f.JitterMsHint.Text = p.JitterMs.ToString();
+        f.CharMsHint.Text = p.CharMs.ToString();
+        f.ImeWaitMsHint.Text = p.ImeWaitMs.ToString();
+        // 「指定しない」の表示に、そのとき使われる値を添える（選択は変えない）。
+        string onOff = p.Jitter ? Loc.T("入れる", "On") : Loc.T("入れない", "Off");
+        if (f.Jitter.ItemsSource is string[] items)
+        {
+            int selected = f.Jitter.SelectedIndex;
+            f.Jitter.ItemsSource = new[] { Loc.T($"指定しない({onOff})", $"Not set ({onOff})"), items[1], items[2] };
+            f.Jitter.SelectedIndex = selected;
+        }
+    }
+
+    private static TextTypingConfig? WithoutLayer(TextTypingConfig? c, int layer)
+    {
+        if (c == null) return null;
+        return new TextTypingConfig
+        {
+            Jitter = c.Jitter, JitterMs = c.JitterMs, CharMs = c.CharMs, ImeWaitMs = c.ImeWaitMs,
+            Layers = c.Layers?.Where(l => l.Layer != layer).ToList(),
+        };
     }
 
     private static TextTypingLayer AddLayer(TextTypingConfig tt, int layer)
