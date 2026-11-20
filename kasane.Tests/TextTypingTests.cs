@@ -8,10 +8,23 @@ public class TextTypingTests
 {
     private static readonly TextTypingProfile Def = TextTypingProfile.Default;
 
+    // 設定画面の単位の表示（範囲と既定）と合わせる。
+    [Fact]
+    public void Ranges_AndDefaults_AreWhatTheSettingsScreenShows()
+    {
+        Assert.Equal((1, 10), (TextTyping.MinJitterMs, TextTyping.MaxJitterMs));
+        Assert.Equal(300, TextTyping.MaxCharMs);
+        Assert.Equal(3000, TextTyping.MaxImeWaitMs);
+        Assert.Equal(10, Def.JitterMs);
+        Assert.Equal(30, Def.CharMs);
+        Assert.Equal(20, Def.ImeWaitMs);
+        Assert.True(Def.Jitter);
+    }
+
     [Fact]
     public void BuiltInDefault()
     {
-        Assert.Equal(new TextTypingProfile(true, 5, 30, 20), Def);
+        Assert.Equal(new TextTypingProfile(true, 10, 30, 20), Def);
         Assert.Equal(Def, TextTyping.Resolve(null, null, null));
         Assert.Equal(Def, TextTyping.Resolve(new TextTypingConfig(), new TextTypingConfig(), 0xFFFF));
     }
@@ -86,7 +99,7 @@ public class TextTypingTests
     {
         var c = new TextTypingConfig
         {
-            JitterMs = 0, CharMs = 201, ImeWaitMs = -1,
+            JitterMs = 0, CharMs = 301, ImeWaitMs = -1,
             Layers = new() { new TextTypingLayer { Layer = 2 }, new TextTypingLayer { Layer = 2 }, new TextTypingLayer { Layer = 16 } },
         };
         var errors = new List<string>();
@@ -99,7 +112,7 @@ public class TextTypingTests
     public void Validate_AcceptsGoodValues()
     {
         var errors = new List<string>();
-        TextTyping.Validate(new TextTypingConfig { Jitter = true, JitterMs = 1, CharMs = 0, ImeWaitMs = 2000, Layers = new() { new TextTypingLayer { Layer = 15, JitterMs = 10, CharMs = 200 } } }, "共通", errors);
+        TextTyping.Validate(new TextTypingConfig { Jitter = true, JitterMs = 1, CharMs = 0, ImeWaitMs = 3000, Layers = new() { new TextTypingLayer { Layer = 15, JitterMs = 10, CharMs = 300 } } }, "共通", errors);
         Assert.Empty(errors);
     }
 

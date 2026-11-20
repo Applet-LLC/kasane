@@ -208,17 +208,17 @@ IME の ON/OFF は、効かないことがあります（2026-10-31 の実機試
 
 ```json
 "TextTyping": {
-  "Jitter": true, "JitterMs": 5, "CharMs": 30, "ImeWaitMs": 20,
+  "Jitter": true, "JitterMs": 10, "CharMs": 30, "ImeWaitMs": 20,
   "Layers": [ { "Layer": 8, "CharMs": 30 }, { "Layer": 2, "Jitter": false } ]
 }
 ```
 
 | 項目 | 既定 | 内容 |
 |---|---|---|
-| `Jitter` | `true` | 1 文字ごとの間隔に、0〜`JitterMs` ms の乱数を足す（間隔は `CharMs` より短くならない。手順に書いた `DelayMs` には足さない） |
-| `JitterMs` | 5 | 揺らぎの範囲（1〜10 ms） |
-| `CharMs` | 30 | 1 文字ごとの間隔（0〜200 ms） |
-| `ImeWaitMs` | 20 | 文字を送ったあと、IME を切り替える前に 1 回だけ待つ（0〜2000 ms）。`ImeOffDuring` の復元の前と、`Steps` の `ime` の前。直前の `DelayMs` の分は引く。文字を送っていなければ待たない |
+| `Jitter` | `true` | 1 文字ごとの間隔に、0〜`JitterMs` ms の乱数を足す（間隔は `CharMs` より短くならない。手順に書いた `DelayMs` には足さない）。設定画面では「追加」（`true`）と「無し」（`false`） |
+| `JitterMs` | 10 | 揺らぎの範囲（1〜10 ms） |
+| `CharMs` | 30 | 1 文字ごとの間隔（0〜300 ms） |
+| `ImeWaitMs` | 20 | 文字を送ったあと、IME を操作する（切り替える・元に戻す）前に 1 回だけ待つ（0〜3000 ms。設定画面では「IME 操作前のウェイト」）。`ImeOffDuring` の復元の前と、`Steps` の `ime` の前。直前の `DelayMs` の分は引く。文字を送っていなければ待たない |
 | `Layers` | なし | レイヤー番号（0〜15）ごとの上書き。そのレイヤーが有効なときに使う。同じ番号を 2 つ書くとエラー |
 
 - 書いていない項目は、ひとつ外側の値を使います。値ごとに、有効なレイヤーを番号の大きい順に見て（キーボードごと → 共通）、次にキーボードごとの既定、共通の既定、kasane の既定の順です（`TextTyping.Resolve`）。レイヤーに書いていない項目は、下のレイヤーへ透過します（キーマップと同じ）。

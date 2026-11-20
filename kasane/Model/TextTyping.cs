@@ -20,7 +20,7 @@ public class TextTypingValues
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? CharMs { get; set; }
 
-    /// <summary>文字を送ったあと、IME を切り替える前に待つ時間（ms。1 回だけ）。</summary>
+    /// <summary>文字を送ったあと、IME を操作する（切り替える・元に戻す）前に待つ時間（ms。1 回だけ。設定画面では「IME 操作前のウェイト」）。</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? ImeWaitMs { get; set; }
 
@@ -52,8 +52,8 @@ public sealed class TextTypingConfig : TextTypingValues
 /// <summary>1 回の動作で使う、決まった値。</summary>
 public readonly record struct TextTypingProfile(bool Jitter, int JitterMs, int CharMs, int ImeWaitMs)
 {
-    /// <summary>内蔵の既定（揺らぎ オン・5 ms、間隔 30 ms、IME 前の待ち 20 ms）。</summary>
-    public static readonly TextTypingProfile Default = new(true, 5, 30, 20);
+    /// <summary>内蔵の既定（揺らぎ 追加・範囲 10 ms、間隔 30 ms、IME 操作前のウェイト 20 ms）。</summary>
+    public static readonly TextTypingProfile Default = new(true, 10, 30, 20);
 
     /// <summary>1 文字ごとに待つ時間。<paramref name="next"/> は 0 以上 maxExclusive 未満の乱数を返す関数。</summary>
     public int CharDelay(Func<int, int> next) => CharMs + (Jitter && JitterMs > 0 ? next(JitterMs + 1) : 0);
@@ -62,8 +62,8 @@ public readonly record struct TextTypingProfile(bool Jitter, int JitterMs, int C
 public static class TextTyping
 {
     public const int MinJitterMs = 1, MaxJitterMs = 10;
-    public const int MaxCharMs = 200;
-    public const int MaxImeWaitMs = 2000;
+    public const int MaxCharMs = 300;
+    public const int MaxImeWaitMs = 3000;
     public const int MaxLayers = 16;
 
     /// <summary>
@@ -119,6 +119,6 @@ public static class TextTyping
         if (v.CharMs is int c && (c < 0 || c > MaxCharMs))
             errors.Add(Loc.T($"{owner}: 1 文字ごとの間隔は 0〜{MaxCharMs} ms です", $"{owner}: the interval between characters must be 0 to {MaxCharMs} ms"));
         if (v.ImeWaitMs is int w && (w < 0 || w > MaxImeWaitMs))
-            errors.Add(Loc.T($"{owner}: IME を切り替える前の待ちは 0〜{MaxImeWaitMs} ms です", $"{owner}: the wait before switching the IME must be 0 to {MaxImeWaitMs} ms"));
+            errors.Add(Loc.T($"{owner}: IME 操作前のウェイトは 0〜{MaxImeWaitMs} ms です", $"{owner}: the wait before IME operations must be 0 to {MaxImeWaitMs} ms"));
     }
 }

@@ -12,7 +12,7 @@ Press **Settings...** at the bottom of the editor window to open the settings di
 | IME link | Switching layers to match the IME, NICOLA | [10. IME Linking and NICOLA](10-ime-nicola.html) |
 | Helper actions | Launching programs and the like with a key | [11. Helper Actions and Per-App Layers](11-helper-apprules.html) |
 | Per-app layers | Switching layers to match the foreground app | [11. Helper Actions and Per-App Layers](11-helper-apprules.html) |
-| Typing speed | The gap, jitter, and wait before switching the IME when helper actions type text | [11. Helper Actions and Per-App Layers](11-helper-apprules.html#helper-text-speed) |
+| Typing speed | The gap, jitter, and wait before IME operations when helper actions type text | [11. Helper Actions and Per-App Layers](11-helper-apprules.html#helper-text-speed) |
 | Emergency release | The emergency-release key combination | [7. Emergency Release](07-emergency.html) |
 | Sharing scope | The unit in which the driver stores settings | This chapter |
 | Data folder | The settings folder, restoring pre-import settings | This chapter |
