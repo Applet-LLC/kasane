@@ -226,9 +226,90 @@
 </tbody>
 </table>
 <p>With the default gap, typing takes time. In Notepad, 22 characters took about 1 second, 68 characters about 3 seconds, and 137 characters about 6 seconds (measured without jitter). Jitter makes each gap longer by half the range on average. Even with the gap, Notepad occasionally drops a character (about 1 in 10 runs with 22 characters). Edge and Word process input quickly, so a shorter gap often works there.</p>
-<p><strong>Wait before IME operations</strong> is the time to wait until the app has processed the typed characters. The wait right after switching the IME cannot be set. kasane confirms that the IME state has changed (up to 200 ms) and then starts typing. The first character after the switch is sent right after that confirmation, and the <strong>Interval between characters</strong> starts from the second character. With &quot;Turn the IME off while typing&quot;, the wait comes after typing and before the IME is restored. For an <code>ime</code> step in a sequence, it comes before that step. Any wait (<code>delay</code>) you wrote in the sequence is subtracted. If the wait is too short, the IME takes characters still queued in the app, and problems such as <code>-</code> turning into <code>ー</code> occur. If that happens, make the wait longer, or choose <strong>Leave the IME off after typing</strong> for Type text (the IME is not restored, so this wait is not needed).</p>
-<p><strong>Target</strong> at the top of the tab chooses between settings for this keyboard only and settings shared by all keyboards. A number box left blank uses the value of another setting. When <strong>Target</strong> is <strong>This keyboard</strong>, it is the value in the settings shared by all keyboards. If the shared settings have none either, it is the kasane default. When <strong>Target</strong> is <strong>All keyboards (shared)</strong>, it is the kasane default. In <strong>Per-layer overrides</strong>, it is the value from before you added that layer (<strong>Defaults for this scope</strong> at the top, with the override for that layer in the shared settings taking priority if there is one). The value used for a blank box is shown faintly inside it, and the range and the kasane default appear to its right (for example, <code>ms (0–300: default 30)</code>).</p>
-<p>While you have not touched <strong>Jitter</strong>, <strong>Add</strong> or <strong>None</strong> shows the choice that is used when it is left blank. Choosing that same option puts it back to untouched.</p>
+<h4 id="wait-before-ime-operations">Wait before IME operations</h4>
+<p><strong>Wait before IME operations</strong> is the time to wait until the app has finished processing the typed characters. If the IME is operated right after the characters are sent, the IME takes characters still queued in the app, and problems such as <code>-</code> turning into <code>ー</code> occur.</p>
+<p>When kasane waits, and for how long:</p>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Whether it waits, and for how long</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>With &quot;Turn the IME off while typing&quot;, when typing ends and the IME is restored</td>
+<td>Waits once for the wait time before restoring</td>
+</tr>
+<tr>
+<td>When &quot;Leave the IME off after typing&quot; is chosen</td>
+<td>Does not wait, because the IME is not restored</td>
+</tr>
+<tr>
+<td>In a sequence, when an <code>ime</code> step comes after characters were sent</td>
+<td>Waits once for the wait time before that <code>ime</code> step. If there is a <code>delay</code> in between, that time is subtracted (if the <code>delay</code> is longer, it does not wait)</td>
+</tr>
+<tr>
+<td>In a sequence, when no characters were sent</td>
+<td>Does not wait</td>
+</tr>
+</tbody>
+</table>
+<p>The wait <strong>right after</strong> switching the IME cannot be set. After switching, kasane confirms that the IME state has changed (up to 200 ms) and then starts typing. The first character is sent right after that confirmation. The <strong>Interval between characters</strong> starts from the second character.</p>
+<p>If characters get garbled, try one of these:</p>
+<ul>
+<li>Make the wait longer.</li>
+<li>Choose <strong>Leave the IME off after typing</strong> for Type text. The IME is not restored, so the wait is no longer needed.</li>
+</ul>
+<h4 id="the-value-used-for-a-blank-box">The value used for a blank box</h4>
+<p><strong>Target</strong> at the top of the tab chooses between settings for this keyboard only and settings shared by all keyboards. A number box left blank uses the value of another setting. Which value is used depends on where the box is. Look at the table from left to right, and the first one with a value written is used.</p>
+<table>
+<thead>
+<tr>
+<th>Where the box is</th>
+<th>Value used when blank (left to right)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Defaults for this scope</strong> at the top (<strong>Target</strong> is <strong>This keyboard</strong>)</td>
+<td>The top value in the settings shared by all keyboards → the kasane default</td>
+</tr>
+<tr>
+<td><strong>Defaults for this scope</strong> at the top (<strong>Target</strong> is <strong>All keyboards (shared)</strong>)</td>
+<td>The kasane default</td>
+</tr>
+<tr>
+<td><strong>Per-layer overrides</strong> (<strong>Target</strong> is <strong>This keyboard</strong>)</td>
+<td>The override for the same layer number in the shared settings → the top value for this keyboard → the top value in the shared settings → the kasane default</td>
+</tr>
+<tr>
+<td><strong>Per-layer overrides</strong> (<strong>Target</strong> is <strong>All keyboards (shared)</strong>)</td>
+<td>The top value in the shared settings → the kasane default</td>
+</tr>
+</tbody>
+</table>
+<p>The value used for a blank box is shown faintly inside it. To its right, the range and the kasane default appear (for example, <code>ms (0–300: default 30)</code>).</p>
+<h4 id="the-jitter-choice-add-and-none">The Jitter choice (Add and None)</h4>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Choice shown</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Not touched</td>
+<td>The choice used when blank (decided in the same order as the table above)</td>
+</tr>
+<tr>
+<td>Touched</td>
+<td>The one you chose</td>
+</tr>
+</tbody>
+</table>
+<p>Even after you touch it, choosing the same option as the one used when blank puts it back to untouched.</p>
 <h4 id="changing-it-per-app">Changing it per app</h4>
 <p><strong>Per-layer overrides</strong> at the bottom of the tab changes the values for a layer number. They are used while that layer is on. Choose a layer in <strong>Layer</strong> and press <strong>Add</strong> to put it in the list. Select a layer in the list to write its values in the boxes below. You can add as many as you like without pressing <strong>OK</strong> and reopening the dialog. Select a layer in the list and press <strong>Clear this layer's override</strong> to remove it. A layer with no values written is not saved with <strong>OK</strong>. To change them per app, assign a layer to the app with <a href="#app-rules">per-app layers</a>, and write the override for that layer. For example, if you assign layer 8 to Notepad, set layer 8's gap to 30 ms, and set the overall default to 5 ms, only Notepad types slowly. It works the same for layers turned on by the IME link or by hand.</p>
 <ul>

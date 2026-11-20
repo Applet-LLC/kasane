@@ -100,11 +100,47 @@ You can change the gap and related values on the **Typing speed** tab of the set
 
 With the default gap, typing takes time. In Notepad, 22 characters took about 1 second, 68 characters about 3 seconds, and 137 characters about 6 seconds (measured without jitter). Jitter makes each gap longer by half the range on average. Even with the gap, Notepad occasionally drops a character (about 1 in 10 runs with 22 characters). Edge and Word process input quickly, so a shorter gap often works there.
 
-**Wait before IME operations** is the time to wait until the app has processed the typed characters. The wait right after switching the IME cannot be set. kasane confirms that the IME state has changed (up to 200 ms) and then starts typing. The first character after the switch is sent right after that confirmation, and the **Interval between characters** starts from the second character. With "Turn the IME off while typing", the wait comes after typing and before the IME is restored. For an `ime` step in a sequence, it comes before that step. Any wait (`delay`) you wrote in the sequence is subtracted. If the wait is too short, the IME takes characters still queued in the app, and problems such as `-` turning into `ー` occur. If that happens, make the wait longer, or choose **Leave the IME off after typing** for Type text (the IME is not restored, so this wait is not needed).
+#### Wait before IME operations
 
-**Target** at the top of the tab chooses between settings for this keyboard only and settings shared by all keyboards. A number box left blank uses the value of another setting. When **Target** is **This keyboard**, it is the value in the settings shared by all keyboards. If the shared settings have none either, it is the kasane default. When **Target** is **All keyboards (shared)**, it is the kasane default. In **Per-layer overrides**, it is the value from before you added that layer (**Defaults for this scope** at the top, with the override for that layer in the shared settings taking priority if there is one). The value used for a blank box is shown faintly inside it, and the range and the kasane default appear to its right (for example, `ms (0–300: default 30)`).
+**Wait before IME operations** is the time to wait until the app has finished processing the typed characters. If the IME is operated right after the characters are sent, the IME takes characters still queued in the app, and problems such as `-` turning into `ー` occur.
 
-While you have not touched **Jitter**, **Add** or **None** shows the choice that is used when it is left blank. Choosing that same option puts it back to untouched.
+When kasane waits, and for how long:
+
+| Situation | Whether it waits, and for how long |
+|---|---|
+| With "Turn the IME off while typing", when typing ends and the IME is restored | Waits once for the wait time before restoring |
+| When "Leave the IME off after typing" is chosen | Does not wait, because the IME is not restored |
+| In a sequence, when an `ime` step comes after characters were sent | Waits once for the wait time before that `ime` step. If there is a `delay` in between, that time is subtracted (if the `delay` is longer, it does not wait) |
+| In a sequence, when no characters were sent | Does not wait |
+
+The wait **right after** switching the IME cannot be set. After switching, kasane confirms that the IME state has changed (up to 200 ms) and then starts typing. The first character is sent right after that confirmation. The **Interval between characters** starts from the second character.
+
+If characters get garbled, try one of these:
+
+- Make the wait longer.
+- Choose **Leave the IME off after typing** for Type text. The IME is not restored, so the wait is no longer needed.
+
+#### The value used for a blank box
+
+**Target** at the top of the tab chooses between settings for this keyboard only and settings shared by all keyboards. A number box left blank uses the value of another setting. Which value is used depends on where the box is. Look at the table from left to right, and the first one with a value written is used.
+
+| Where the box is | Value used when blank (left to right) |
+|---|---|
+| **Defaults for this scope** at the top (**Target** is **This keyboard**) | The top value in the settings shared by all keyboards → the kasane default |
+| **Defaults for this scope** at the top (**Target** is **All keyboards (shared)**) | The kasane default |
+| **Per-layer overrides** (**Target** is **This keyboard**) | The override for the same layer number in the shared settings → the top value for this keyboard → the top value in the shared settings → the kasane default |
+| **Per-layer overrides** (**Target** is **All keyboards (shared)**) | The top value in the shared settings → the kasane default |
+
+The value used for a blank box is shown faintly inside it. To its right, the range and the kasane default appear (for example, `ms (0–300: default 30)`).
+
+#### The Jitter choice (Add and None)
+
+| State | Choice shown |
+|---|---|
+| Not touched | The choice used when blank (decided in the same order as the table above) |
+| Touched | The one you chose |
+
+Even after you touch it, choosing the same option as the one used when blank puts it back to untouched.
 
 #### Changing it per app
 
