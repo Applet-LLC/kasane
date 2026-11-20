@@ -192,9 +192,131 @@
 <p>The <strong>Insert date/time</strong> button in the edit window also inserts a placeholder from a list.</p>
 <p><a id="helper-text-speed"></a></p>
 <h3 id="how-fast-text-is-typed">How fast text is typed</h3>
-<p>The Type text action and the <code>Text</code> step of a sequence type one character at a time, with a 30 ms gap between characters. Without the gap, some apps, such as the new Notepad, dropped characters or turned them into other characters. Typing therefore takes time. In Notepad, 22 characters took about 1 second, 68 characters about 3 seconds, and 137 characters about 6 seconds. The longer the fixed text, the longer you wait for it to finish. The <code>key</code> and <code>vk</code> steps of a sequence do not get this gap.</p>
-<p>Even with the gap, Notepad occasionally drops a character (about 1 in 10 runs with 22 characters).</p>
-<p>When the IME is switched, kasane waits until the app has processed the typed characters. With &quot;Turn the IME off while typing&quot;, it waits after typing and before restoring the IME. For an <code>ime</code> step in a sequence, it waits before that step. The wait is 20 ms per character (at most 5 seconds), minus any wait (<code>delay</code>) you wrote in the sequence. Without the wait, the IME takes characters still queued in the app, and problems such as <code>-</code> turning into <code>ー</code> occur.</p>
+<p>The Type text action and the <code>Text</code> step of a sequence type one character at a time, with a gap between characters. Without the gap, some apps, such as the new Notepad, dropped characters or turned them into other characters. The <code>key</code> and <code>vk</code> steps of a sequence do not get this gap.</p>
+<p>You can change the gap and related values on the <strong>Typing speed</strong> tab of the settings dialog.</p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Jitter</td>
+<td>Add</td>
+<td><strong>Add</strong> adds a random 0 to <strong>Jitter range</strong> ms to each gap. <strong>None</strong> keeps the gap constant. The gap never becomes shorter than the value you set</td>
+</tr>
+<tr>
+<td>Jitter range</td>
+<td>10 ms</td>
+<td>The most the jitter adds (1 to 10 ms)</td>
+</tr>
+<tr>
+<td>Interval between characters</td>
+<td>30 ms</td>
+<td>0 to 300 ms. Shorter is faster, but some apps drop characters</td>
+</tr>
+<tr>
+<td>Wait before IME operations</td>
+<td>20 ms</td>
+<td>0 to 3000 ms. After typing, waits once before an IME operation (switching or restoring the IME)</td>
+</tr>
+</tbody>
+</table>
+<p>With the default gap, typing takes time. In Notepad, 22 characters took about 1 second, 68 characters about 3 seconds, and 137 characters about 6 seconds (measured without jitter). Jitter makes each gap longer by half the range on average. Even with the gap, Notepad occasionally drops a character (about 1 in 10 runs with 22 characters). Edge and Word process input quickly, so a shorter gap often works there.</p>
+<h4 id="wait-before-ime-operations">Wait before IME operations</h4>
+<p><strong>Wait before IME operations</strong> is the time to wait until the app has finished processing the typed characters. If the IME is operated right after the characters are sent, the IME takes characters still queued in the app, and problems such as <code>-</code> turning into <code>ー</code> occur.</p>
+<p>When kasane waits, and for how long:</p>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Whether it waits, and for how long</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>With &quot;Turn the IME off while typing&quot;, when typing ends and the IME is restored</td>
+<td>Waits once for the wait time before restoring</td>
+</tr>
+<tr>
+<td>When &quot;Leave the IME off after typing&quot; is chosen</td>
+<td>Does not wait, because the IME is not restored</td>
+</tr>
+<tr>
+<td>In a sequence, when an <code>ime</code> step comes after characters were sent</td>
+<td>Waits once for the wait time before that <code>ime</code> step. If there is a <code>delay</code> in between, that time is subtracted (if the <code>delay</code> is longer, it does not wait)</td>
+</tr>
+<tr>
+<td>In a sequence, when no characters were sent</td>
+<td>Does not wait</td>
+</tr>
+</tbody>
+</table>
+<p>The wait <strong>right after</strong> switching the IME cannot be set. After switching, kasane confirms that the IME state has changed (up to 200 ms) and then starts typing. The first character is sent right after that confirmation. The <strong>Interval between characters</strong> starts from the second character.</p>
+<p>If characters get garbled, try one of these:</p>
+<ul>
+<li>Make the wait longer.</li>
+<li>Choose <strong>Leave the IME off after typing</strong> for Type text. The IME is not restored, so the wait is no longer needed.</li>
+</ul>
+<h4 id="the-value-used-for-a-blank-box">The value used for a blank box</h4>
+<p><strong>Target</strong> at the top of the tab chooses between settings for this keyboard only and settings shared by all keyboards. A number box left blank uses the value of another setting. Which value is used depends on where the box is. Look at the table from left to right, and the first one with a value written is used.</p>
+<table>
+<thead>
+<tr>
+<th>Where the box is</th>
+<th>Value used when blank (left to right)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Defaults for this scope</strong> at the top (<strong>Target</strong> is <strong>This keyboard</strong>)</td>
+<td>The top value in the settings shared by all keyboards → the kasane default</td>
+</tr>
+<tr>
+<td><strong>Defaults for this scope</strong> at the top (<strong>Target</strong> is <strong>All keyboards (shared)</strong>)</td>
+<td>The kasane default</td>
+</tr>
+<tr>
+<td><strong>Per-layer overrides</strong> (<strong>Target</strong> is <strong>This keyboard</strong>)</td>
+<td>The override for the same layer number in the shared settings → the top value for this keyboard → the top value in the shared settings → the kasane default</td>
+</tr>
+<tr>
+<td><strong>Per-layer overrides</strong> (<strong>Target</strong> is <strong>All keyboards (shared)</strong>)</td>
+<td>The top value in the shared settings → the kasane default</td>
+</tr>
+</tbody>
+</table>
+<p>The value used for a blank box is shown faintly inside it. To its right, the range and the kasane default appear (for example, <code>ms (0–300: default 30)</code>).</p>
+<h4 id="the-jitter-choice-add-and-none">The Jitter choice (Add and None)</h4>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Choice shown</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Not touched</td>
+<td>The choice used when blank (decided in the same order as the table above)</td>
+</tr>
+<tr>
+<td>Touched</td>
+<td>The one you chose</td>
+</tr>
+</tbody>
+</table>
+<p>Even after you touch it, choosing the same option as the one used when blank puts it back to untouched.</p>
+<h4 id="changing-it-per-app">Changing it per app</h4>
+<p><strong>Per-layer overrides</strong> at the bottom of the tab changes the values for a layer number. They are used while that layer is on. Choose a layer in <strong>Layer</strong> and press <strong>Add</strong> to put it in the list. Select a layer in the list to write its values in the boxes below. You can add as many as you like without pressing <strong>OK</strong> and reopening the dialog. Select a layer in the list and press <strong>Clear this layer's override</strong> to remove it. A layer with no values written is not saved with <strong>OK</strong>. To change them per app, assign a layer to the app with <a href="#app-rules">per-app layers</a>, and write the override for that layer. For example, if you assign layer 8 to Notepad, set layer 8's gap to 30 ms, and set the overall default to 5 ms, only Notepad types slowly. It works the same for layers turned on by the IME link or by hand.</p>
+<ul>
+<li>If several layers are on, the higher layer's values are used. An item not written for that layer comes from the next lower layer (the same as transparency in the keymap).</li>
+<li>Layer numbers are per keyboard. An override written in the shared settings applies to the same layer number on every keyboard.</li>
+<li>The active layers are read from the driver when the key is pressed. If kasane can't connect to the driver, it types without per-layer overrides (one line is written to the log).</li>
+</ul>
 <p><a id="helper-sequence"></a></p>
 <h3 id="how-to-write-a-sequence">How to write a sequence</h3>
 <p>Write one step per line. Lines that start with <code>#</code> are ignored. In <code>text</code>, <code>\\</code> is a backslash (in Japanese fonts it is shown as ¥ and can be typed with the ¥ key). <code>ime</code> looks at the current state and changes it only when it differs.</p>
@@ -283,10 +405,33 @@ ime off abort        If it fails, stop the rest of this action
 <blockquote>
 <p>If you choose Henkan / Muhenkan without assigning them in Microsoft IME, Henkan works as reconversion. Text you already typed becomes a target of conversion, and the text may change to the converting state. If the IME does not go OFF with Muhenkan, kasane assumes there is no assignment and stops sending Henkan / Muhenkan (one line is left in the log). After you assign them, change <strong>How to switch the IME</strong> to something else and press OK, then set it to <strong>Henkan / Muhenkan</strong> again and press OK, or restart the tray. However, the first time <code>ime on</code> runs, it still cannot tell.</p>
 </blockquote>
-<p>When the tray runs as administrator, it sends keys through the driver. They also reach windows running as administrator. The normal tray sends them with Windows SendInput.</p>
+<p><strong>How to send IME keys</strong> on the same tab chooses the path for the keys that switch the IME (Alt+Hankaku/Zenkaku, IME on / IME off, Henkan / Muhenkan).</p>
+<table>
+<thead>
+<tr>
+<th>Choice</th>
+<th>How keys are sent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Automatic (default)</td>
+<td>When the tray runs as administrator, through the driver. They also reach windows running as administrator. The normal tray sends them with Windows SendInput</td>
+</tr>
+<tr>
+<td>Through the driver</td>
+<td>Always through the driver. If they can't be sent (for example, the tray is not running as administrator), no key is sent. If <strong>How to switch the IME</strong> is Automatic, IMM32 changes it instead</td>
+</tr>
+<tr>
+<td>SendInput</td>
+<td>Always with SendInput. The driver is not used</td>
+</tr>
+</tbody>
+</table>
+<p>Strings (Text) are always sent with SendInput. IME keys sent through the driver and characters sent with SendInput reach the app by different paths, so their order is not guaranteed. In tests with the tray running as administrator (Notepad, Edge, and Word, 10 runs each), no problems from changed order were found even with the wait set to 0 ms. If characters get garbled, try putting IME keys on the same path as characters: set <strong>How to switch the IME</strong> to <strong>IME on / IME off keys</strong> (or <strong>Henkan / Muhenkan</strong>) and <strong>How to send IME keys</strong> to <strong>SendInput</strong>. IMM32 changes the IME at once without sending a key, so this combination uses it only when the key did not change the IME. Keys sent with SendInput from the normal tray may not reach windows running as administrator. From a tray running as administrator, they reached an administrator window (tested in one setup only). If you switch the IME in administrator windows, keep Automatic.</p>
 <p>How the current state is read follows <strong>How to get the IME state</strong> in the same tab (<a href="10-ime-nicola.html">IME Linking and NICOLA</a>).</p>
 <p>When switching fails, the reason is left in the log (<code>tray.log</code>) and the sequence continues. If you add <code>abort</code>, as in <code>ime off abort</code>, the rest of that action is stopped. When it switches too, one line is left in the log saying which method was used.</p>
-<p>With Type text, you can do the same by checking <strong>Turn the IME off while typing</strong> (it is restored when finished). You can also choose whether to skip typing if that fails. Text sends characters as Unicode, so it is not usually affected by the IME state. Use it when an app garbles the text.</p>
+<p>With Type text, you can do the same by checking <strong>Turn the IME off while typing</strong> (it is restored when finished). If you choose <strong>Leave the IME off after typing</strong>, it is not restored. Because the IME is not switched again right away, typed characters are not taken by the IME. You can also choose whether to skip typing if that fails. Text sends characters as Unicode, so it is not usually affected by the IME state. Use it when an app garbles the text.</p>
 <h4 id="when-the-ime-does-not-switch">When the IME does not switch</h4>
 <p>In some apps, <code>ime</code> cannot switch the IME. In that case, change <strong>How to switch the IME</strong> to something else, or try <code>vk IME_ON</code> / <code>vk IME_OFF</code> instead of <code>ime</code>. You can insert them from <strong>Insert virtual key ▾</strong> (the next section).</p>
 <p>Lines written in earlier versions with the method specified (<code>ime off imm</code>, <code>ime on key</code>, <code>ime off altkanji</code>, <code>ime on tsf</code>) keep working as they are. They use only the method written, and do not switch to another method even if it fails. When you write new ones, write just <code>ime off</code> without the method.</p>

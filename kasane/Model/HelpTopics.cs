@@ -42,6 +42,7 @@ public static class HelpTopics
     public const string HelperSequence = "helper-sequence";
     public const string HelperIme = "helper-ime";
     public const string HelperTrigger = "helper-trigger";
+    public const string TextTyping = "text-typing";
     public const string AppRules = "app-rules";
     public const string SettingsGeneral = "settings-general";
     public const string SettingsFeatures = "settings-features";
@@ -86,6 +87,7 @@ public static class HelpTopics
         [NicolaTable] = new("10-ime-nicola.html", "nicola-table"),
         [NicolaImeLink] = new("10-ime-nicola.html", "nicola-ime-link"),
         [HelperTab] = new("11-helper-apprules.html", "helper-tab"),
+        [TextTyping] = new("11-helper-apprules.html", "helper-text-speed"),
         [HelperAction] = new("11-helper-apprules.html", "helper-kinds"),
         [HelperSequence] = new("11-helper-apprules.html", "helper-sequence"),
         [HelperIme] = new("11-helper-apprules.html", "helper-ime"),

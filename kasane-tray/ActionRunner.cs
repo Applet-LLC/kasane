@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Kasane.Interop;
 using Kasane.Keycodes;
 using Kasane.Model;
 
@@ -38,11 +39,12 @@ public sealed class ActionRunner : IDisposable
 
     /// <param name="createImeSource">IME の状態の取得元を作る（設定の取得方法に従うもの。引数は、このスレッド用の IMM32 の取得元）。</param>
     /// <param name="imeSwitch">ヘルパー動作の IME の切り替え方（設定。どのスレッドから呼んでもよい）。</param>
+    /// <param name="config">いまのヘルパー設定（文字の入力の速さを決めるのに使う。どのスレッドから呼んでもよい）。</param>
     public ActionRunner(Func<HelperActionBody, bool> allow, Action<LayerRequest> layer, Action togglePause,
-        Func<Win32ImeSource, IImeSource> createImeSource, Func<ImeSwitchSetting> imeSwitch)
+        Func<Win32ImeSource, IImeSource> createImeSource, Func<ImeSwitchSetting> imeSwitch, Func<HelperConfigSet> config)
     {
         _allow = allow;
-        _env = new Win32ActionEnvironment(_cts.Token, layer, togglePause, () => PhysicalKeys?.Invoke() ?? 0, createImeSource, imeSwitch, scan => SelfSentKey?.Invoke(scan));
+        _env = new Win32ActionEnvironment(_cts.Token, layer, togglePause, () => PhysicalKeys?.Invoke() ?? 0, createImeSource, imeSwitch, scan => SelfSentKey?.Invoke(scan), config);
         _thread = new Thread(Loop) { IsBackground = true, Name = "kasane-actions" };
         _thread.Start();
     }
@@ -87,12 +89,13 @@ public sealed class ActionRunner : IDisposable
         _cts.Cancel();
         _queue.CompleteAdding();
         _thread.Join(2000);
+        _env.Dispose();
         _cts.Dispose();
     }
 }
 
 /// <summary>実際の入力（SendInput）・起動（ShellExecute）を行う <see cref="IActionEnvironment"/>。</summary>
-internal sealed class Win32ActionEnvironment : IActionEnvironment
+internal sealed class Win32ActionEnvironment : IActionEnvironment, IDisposable
 {
     // SendInput で入れたキーであることの印（ほかのツールが見分けられるように）。"KSNE"。
     private static readonly IntPtr Marker = new(0x4B534E45);
@@ -112,10 +115,16 @@ internal sealed class Win32ActionEnvironment : IActionEnvironment
 
     private readonly ImeController _ime;
     private readonly DriverKeyInjector _driverKey = new();
+    private readonly TextTypingResolver _typing;
+    private readonly PreciseSleeper _sleeper;
 
     public Win32ActionEnvironment(CancellationToken token, Action<LayerRequest> layer, Action togglePause, Func<byte> physicalKeys,
-        Func<Win32ImeSource, IImeSource> createImeSource, Func<ImeSwitchSetting> imeSwitch, Action<ushort> selfSentKey)
+        Func<Win32ImeSource, IImeSource> createImeSource, Func<ImeSwitchSetting> imeSwitch, Action<ushort> selfSentKey, Func<HelperConfigSet> config)
     {
+        _typing = new TextTypingResolver(config, ListLayerKeyboards, EffectiveLayers, TrayLog.Write);
+        _sleeper = new PreciseSleeper(token.WaitHandle);
+        if (!_sleeper.IsHighResolution)
+            TrayLog.Write(Loc.T("ヘルパー動作: 高分解能のタイマーを作れないため、待ちは約 15.6 ms の刻みに丸められます(文字入力の揺らぎは細かく出ません)", "Helper actions: could not create a high-resolution timer, so waits are rounded to about 15.6 ms steps (typing jitter will not be fine-grained)"));
         // IMM32 の取得元は、このスレッド専用（Win32ImeSource は、プロセス名の覚えをスレッド間で共有できない）。
         var imm = new Win32ImeSource();
         bool elevated = Environment.IsPrivilegedProcess;
@@ -127,6 +136,23 @@ internal sealed class Win32ActionEnvironment : IActionEnvironment
         _token = token;
         _layer = layer;
         _togglePause = togglePause;
+    }
+
+    public TextTypingProfile TypingFor(ActionRequest request) => _typing.Resolve(request);
+
+    private static KbdLayerClient OpenDriver() =>
+        KbdLayerClient.TryOpen(out var error) ?? throw new InvalidOperationException(error ?? Loc.T("ドライバに接続できません", "Can't connect to the driver"));
+
+    private static IReadOnlyList<uint> ListLayerKeyboards()
+    {
+        using var client = OpenDriver();
+        return client.ListDevices().Where(d => d.UniqId != 0 && d.HasLayerMap).Select(d => d.UniqId).ToList();
+    }
+
+    private static uint EffectiveLayers(uint uniqId)
+    {
+        using var client = OpenDriver();
+        return client.GetLayerState(uniqId).EffectiveLayerMask;
     }
 
     // キーフックの値に、KillLine 用の見張りの値を足す（見張りは、初めて使うまで張らない）。
@@ -285,7 +311,10 @@ internal sealed class Win32ActionEnvironment : IActionEnvironment
         };
     }
 
-    public bool Sleep(int milliseconds) => !_token.WaitHandle.WaitOne(milliseconds);
+    // 1 ms 前後の精度で待つ（WaitOne は約 15.6 ms に丸められ、文字入力の間隔の揺らぎが出ない。PreciseSleeper）。
+    public bool Sleep(int milliseconds) => _sleeper.Sleep(milliseconds);
+
+    public void Dispose() => _sleeper.Dispose();
 
     public void Shell(string path, string? args, string? workDir)
     {

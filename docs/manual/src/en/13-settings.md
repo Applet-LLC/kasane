@@ -12,6 +12,7 @@ Press **Settings...** at the bottom of the editor window to open the settings di
 | IME link | Switching layers to match the IME, NICOLA | [10. IME Linking and NICOLA](10-ime-nicola.html) |
 | Helper actions | Launching programs and the like with a key | [11. Helper Actions and Per-App Layers](11-helper-apprules.html) |
 | Per-app layers | Switching layers to match the foreground app | [11. Helper Actions and Per-App Layers](11-helper-apprules.html) |
+| Typing speed | The gap, jitter, and wait before IME operations when helper actions type text | [11. Helper Actions and Per-App Layers](11-helper-apprules.html#helper-text-speed) |
 | Emergency release | The emergency-release key combination | [7. Emergency Release](07-emergency.html) |
 | Sharing scope | The unit in which the driver stores settings | This chapter |
 | Data folder | The settings folder, restoring pre-import settings | This chapter |
@@ -25,7 +26,7 @@ Close the dialog with **OK** and **Cancel** at the bottom. The moment when a set
 |---|---|
 | General, Desktop | Saved with **OK**. The tray reads it again within a few seconds |
 | Features, Timing, the NICOLA layout in IME link | When you press **Apply to keyboard (ON)** in the editor after **OK** |
-| Helper actions, Per-app layers | Saved with **OK**. The tray reads it again within a few seconds |
+| Helper actions, Per-app layers, Typing speed | Saved with **OK**. The tray reads it again within a few seconds |
 | Emergency release | When you move to another tab, or press **OK** (only when started as administrator) |
 | Sharing scope | When you press the button in the tab (unrelated to **OK** and **Cancel**) |
 | i8042prt | When you press **Save** in the tab (unrelated to **OK** and **Cancel**) |

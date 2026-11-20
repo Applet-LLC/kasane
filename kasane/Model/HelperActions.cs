@@ -37,16 +37,35 @@ public enum ImeSwitch
 }
 
 /// <summary>
-/// トレイが読んだ <see cref="ImeSwitch"/> と、値が変わった回数（<paramref name="Generation"/>）。回数は、設定を選び直したことに
-/// 気づくために使う（変換 / 無変換の割り当ての判定を、試し直す）。
+/// IME を切り替えるキー（Alt+半角/全角、IME オン / オフ キー、変換 / 無変換）を、どの経路で送るか（tray.json の ImeKeyPath。設定の「IME のキーの送り方」。2026-11-20）。
+/// 文字（Text）は常に SendInput で送るので、<see cref="SendInput"/> にそろえると、IME のキーと文字が同じ入力の列に並び、順序が守られる。
+/// 名前は保存に使うので変えないこと。
 /// </summary>
-public readonly record struct ImeSwitchSetting(ImeSwitch Value, int Generation);
+public enum ImeKeyPath
+{
+    /// <summary>既定。管理者として動くトレイで、ドライバが使えればドライバ経由。そうでなければ SendInput。</summary>
+    Auto,
+    /// <summary>ドライバ経由だけ。送れなければ、そのキーは送らない（SendInput へは戻さない）。</summary>
+    Driver,
+    /// <summary>SendInput だけ（ドライバは使わない）。</summary>
+    SendInput,
+}
+
+/// <summary>
+/// トレイが読んだ <see cref="ImeSwitch"/> と、値が変わった回数（<paramref name="Generation"/>）。回数は、設定を選び直したことに
+/// 気づくために使う（変換 / 無変換の割り当ての判定を、試し直す）。<paramref name="KeyPath"/> は、IME のキーの送り方。
+/// </summary>
+public readonly record struct ImeSwitchSetting(ImeSwitch Value, int Generation, ImeKeyPath KeyPath = ImeKeyPath.Auto);
 
 public static class ImeSwitches
 {
     /// <summary>名前から。無い・知らない名前は既定（Auto）。大文字小文字は区別しない。</summary>
     public static ImeSwitch Parse(string? text) =>
         Enum.TryParse<ImeSwitch>(text?.Trim(), ignoreCase: true, out var m) && Enum.IsDefined(m) ? m : ImeSwitch.Auto;
+
+    /// <summary>名前から。無い・知らない名前は既定（Auto）。大文字小文字は区別しない。</summary>
+    public static ImeKeyPath ParseKeyPath(string? text) =>
+        Enum.TryParse<ImeKeyPath>(text?.Trim(), ignoreCase: true, out var m) && Enum.IsDefined(m) ? m : ImeKeyPath.Auto;
 }
 
 /// <summary>IME を変える実際の経路。</summary>
@@ -77,10 +96,16 @@ public enum ImeRoute
 ///    - ImeKeys / Henkan: そのキー、変わらなければ IMM32（どちらも ON/OFF を直接指定するので、続けても二重に切り替わらない）。
 ///    - Toggle: Alt+半角/全角、変わらなければ IMM32。切り替えのキーなので、状態を読めないときは IMM32 だけ。
 ///    - Imm: IMM32 だけ。
+///  - IME のキーの送り方（<see cref="ImeKeyPath"/>）が Auto 以外のとき、Auto の計画だけが変わる。
+///    SendInput: 管理者のトレイでも、通常権限と同じ（IMM32 → IME キー）。Driver: ドライバ経由の Alt+半角/全角 → IMM32（SendInput の IME キーは使わない）。
+///    ImeKeys / Henkan / Toggle / altkanji の、キーをどちらで送るかは、実行する側（トレイの ImeController）が同じ設定で決める。
 /// </summary>
 public static class ImeRoutePlanner
 {
-    public static IReadOnlyList<ImeRoute> Plan(ImeMethod method, ImeSwitch setting, bool trayElevated, bool driverKeyUsable, bool stateKnown) => method switch
+    public static IReadOnlyList<ImeRoute> Plan(ImeMethod method, ImeSwitch setting, bool trayElevated, bool driverKeyUsable, bool stateKnown) =>
+        Plan(method, setting, ImeKeyPath.Auto, trayElevated, driverKeyUsable, stateKnown);
+
+    public static IReadOnlyList<ImeRoute> Plan(ImeMethod method, ImeSwitch setting, ImeKeyPath keyPath, bool trayElevated, bool driverKeyUsable, bool stateKnown) => method switch
     {
         ImeMethod.Imm => new[] { ImeRoute.Imm },
         ImeMethod.Key => new[] { ImeRoute.VkKey },
@@ -92,9 +117,16 @@ public static class ImeRoutePlanner
             ImeSwitch.Henkan => new[] { ImeRoute.HenkanKey, ImeRoute.Imm },
             ImeSwitch.Toggle => stateKnown ? new[] { ImeRoute.AltKanji, ImeRoute.Imm } : new[] { ImeRoute.Imm },
             ImeSwitch.Imm => new[] { ImeRoute.Imm },
-            _ => trayElevated && driverKeyUsable && stateKnown
-                ? new[] { ImeRoute.DriverAltKanji, ImeRoute.Imm, ImeRoute.VkKey }
-                : new[] { ImeRoute.Imm, ImeRoute.VkKey },
+            _ => keyPath switch
+            {
+                ImeKeyPath.SendInput => new[] { ImeRoute.Imm, ImeRoute.VkKey },
+                ImeKeyPath.Driver => trayElevated && driverKeyUsable && stateKnown
+                    ? new[] { ImeRoute.DriverAltKanji, ImeRoute.Imm }
+                    : new[] { ImeRoute.Imm },
+                _ => trayElevated && driverKeyUsable && stateKnown
+                    ? new[] { ImeRoute.DriverAltKanji, ImeRoute.Imm, ImeRoute.VkKey }
+                    : new[] { ImeRoute.Imm, ImeRoute.VkKey },
+            },
         },
     };
 }
@@ -530,6 +562,11 @@ public interface IActionEnvironment
     bool SetIme(ImeTarget target, ImeMethod method) => true;
     /// <summary>いま物理的に押されている修飾キー（<see cref="KeycodeTable.ModifierScanCodes"/> の並びのビット）。隠した修飾キーを戻すかの判断に使う。</summary>
     byte PhysicalKeys() => 0;
+    /// <summary>
+    /// この動作で使う、文字の入力の速さ（設定と、そのキーボードでいま有効なレイヤーから決める。<see cref="TextTyping.Resolve"/>）。
+    /// 既定の実装は、内蔵の既定。
+    /// </summary>
+    TextTypingProfile TypingFor(ActionRequest request) => TextTypingProfile.Default;
 
     // ---- KillLine（Emacs の C-k）用。既定の実装は、クリップボードが空で何も起きない環境（テストで必要なものだけ上書きする）。
     /// <summary>OS から見て、いま押されている修飾キー（<see cref="KeycodeTable.ModifierScanCodes"/> の並びのビット）。</summary>
@@ -630,8 +667,14 @@ public sealed class ActionExecutor
 {
     private readonly IActionEnvironment _env;
     private readonly KillLineState _killLine = new();
+    private readonly Func<int, int> _random;
 
-    public ActionExecutor(IActionEnvironment env) => _env = env;
+    /// <param name="random">揺らぎの乱数（0 以上、引数未満）。テストで固定する。省略は <see cref="Random.Shared"/>。</param>
+    public ActionExecutor(IActionEnvironment env, Func<int, int>? random = null)
+    {
+        _env = env;
+        _random = random ?? (max => Random.Shared.Next(max));
+    }
 
     /// <summary>
     /// キーを離したときに、実行することがあるか（無ければ、解放を実行の列に積まない）。
@@ -660,17 +703,22 @@ public sealed class ActionExecutor
                 break;
 
             case HelperActionBody.Sequence:
-                if (!r.IsBreak && r.SuppressKeys != 0) RunSuppressed(r, body.Steps);
-                else RunSteps(r.IsBreak ? body.ReleaseSteps : body.Steps);
+            {
+                var steps = r.IsBreak ? body.ReleaseSteps : body.Steps;
+                var typing = HasText(steps) ? _env.TypingFor(r) : TextTypingProfile.Default;
+                if (!r.IsBreak && r.SuppressKeys != 0) RunSuppressed(r, steps, typing);
+                else RunSteps(steps, typing);
                 break;
+            }
 
             case HelperActionBody.TextInput:
             {
                 if (r.IsBreak) return;
                 var steps = TextSteps(body);
                 var wrap = ImeWrapOf(body);
-                if (r.SuppressKeys != 0) RunSuppressed(r, steps, wrap, isText: true);
-                else RunSteps(steps, wrap, isText: true);
+                var typing = steps == null ? TextTypingProfile.Default : _env.TypingFor(r);
+                if (r.SuppressKeys != 0) RunSuppressed(r, steps, typing, wrap, isText: true);
+                else RunSteps(steps, typing, wrap, isText: true);
                 break;
             }
 
@@ -717,7 +765,7 @@ public sealed class ActionExecutor
         {
             NeutralizeIfNeeded(held);
             SendMods(held, up: true);
-            _killLine.Run(_env, key => RunSteps(new List<HelperStep> { new() { Key = key } }));
+            _killLine.Run(_env, key => RunSteps(new List<HelperStep> { new() { Key = key } }, TextTypingProfile.Default));
         }
         finally
         {
@@ -731,8 +779,13 @@ public sealed class ActionExecutor
     private static List<HelperStep>? TextSteps(HelperActionBody body) =>
         string.IsNullOrEmpty(body.Text) ? null : new List<HelperStep> { new() { Text = body.Text } };
 
-    /// <summary>Text の「入力の間だけ IME を OFF」の指定（<see cref="HelperActionBody.ImeOffDuring"/>）。</summary>
-    private sealed record ImeWrap(ImeMethod Method, bool Abort);
+    private static bool HasText(List<HelperStep>? steps) => steps?.Any(s => !string.IsNullOrEmpty(s.Text)) ?? false;
+
+    /// <summary>
+    /// Text の「入力の間だけ IME を OFF」の指定（<see cref="HelperActionBody.ImeOffDuring"/>）。<paramref name="Restore"/> が false なら、
+    /// 入力のあとも OFF のままにする（<see cref="HelperActionBody.ImeRestore"/>）。
+    /// </summary>
+    private sealed record ImeWrap(ImeMethod Method, bool Abort, bool Restore);
 
     private ImeWrap? ImeWrapOf(HelperActionBody body)
     {
@@ -747,7 +800,7 @@ public sealed class ActionExecutor
             _env.Log(Loc.T($"Text: ImeOnFail '{body.ImeOnFail}' を解決できないため、Continue にします", $"Text: Cannot resolve ImeOnFail '{body.ImeOnFail}', using Continue"));
             abort = false;
         }
-        return new ImeWrap(method, abort);
+        return new ImeWrap(method, abort, body.ImeRestore != false);
     }
 
     private static string? Expand(string? s) => string.IsNullOrEmpty(s) ? null : Environment.ExpandEnvironmentVariables(s);
@@ -760,14 +813,14 @@ public sealed class ActionExecutor
     /// 手順の間だけ、トリガーの修飾キー（物理的に押している分）を OS から隠す。終わったら、まだ押している分だけ戻す。
     /// 手順の中で例外や打ち切りがあっても、必ず戻す。
     /// </summary>
-    private void RunSuppressed(ActionRequest r, List<HelperStep>? steps, ImeWrap? wrap = null, bool isText = false)
+    private void RunSuppressed(ActionRequest r, List<HelperStep>? steps, TextTypingProfile typing, ImeWrap? wrap = null, bool isText = false)
     {
         byte keys = r.SuppressKeys;
         try
         {
             NeutralizeIfNeeded(keys);
             SendMods(keys, up: true);
-            RunSteps(steps, wrap, isText);
+            RunSteps(steps, typing, wrap, isText);
         }
         finally
         {
@@ -792,19 +845,25 @@ public sealed class ActionExecutor
         _env.Send(new InputOp(InputKind.Key, NeutralizerScanCode, Up: true));
     }
 
-    private void RunSteps(List<HelperStep>? steps, ImeWrap? wrap = null, bool isText = false)
+    /// <summary>
+    /// 手順を実行する。文字（Unicode）は 1 文字ごとに <see cref="TextTypingProfile.CharDelay"/> だけ待つ（間隔なしで送ると、メモ帳などが取りこぼす）。
+    /// 文字を送ったあと IME を切り替えるとき（ime の手順の前と、ImeOffDuring で戻す前）は、<see cref="TextTypingProfile.ImeWaitMs"/> を 1 回待つ。
+    /// SendInput は送るだけで、アプリが処理し終わるのを待たないので、すぐ切り替えると、列に残った文字が IME に取られる。
+    /// 手順に書いた待ち（delay）の分は、この待ちから引く。
+    /// </summary>
+    private void RunSteps(List<HelperStep>? steps, TextTypingProfile typing, ImeWrap? wrap = null, bool isText = false)
     {
         if (steps == null || steps.Count == 0) return;
         var compiled = SequenceCompiler.Compile(steps, singleStep: isText);
         foreach (var e in compiled.Errors) _env.Log((isText ? "Text: " : "Sequence: ") + e);
         bool restore = false;
-        int pendingDrainMs = 0; // 送った文字を、アプリが処理し終えるまでに、まだ要る見込みの時間
+        int pendingWaitMs = 0; // 文字を送ったあと、IME を切り替える前に、まだ待つ時間
         try
         {
             if (wrap != null)
             {
                 bool ok = _env.SetIme(ImeTarget.OffRemember, wrap.Method);
-                restore = true; // 戻せるものが無ければ、環境側が何もしない
+                restore = wrap.Restore; // 戻せるものが無ければ、環境側が何もしない
                 if (!ok && wrap.Abort)
                 {
                     _env.Log(Loc.T("Text: IME を OFF にできなかったため、入力をやめました", "Text: Could not turn the IME off, so the input was cancelled"));
@@ -816,12 +875,11 @@ public sealed class ActionExecutor
                 if (op.Kind == InputKind.Delay)
                 {
                     if (!_env.Sleep(op.Value)) return;
-                    pendingDrainMs = Math.Max(0, pendingDrainMs - op.Value);
+                    pendingWaitMs = Math.Max(0, pendingWaitMs - op.Value);
                 }
                 else if (op.Kind == InputKind.Ime)
                 {
-                    // IME を切り替える前に、送った文字が処理し終わるのを待つ(早いと、列に残った文字が IME に取られる)
-                    if (pendingDrainMs > 0) { if (!_env.Sleep(pendingDrainMs)) return; pendingDrainMs = 0; }
+                    if (pendingWaitMs > 0) { if (!_env.Sleep(pendingWaitMs)) return; pendingWaitMs = 0; }
                     if (!_env.SetIme((ImeTarget)op.Value, (ImeMethod)op.Value2) && op.Flag)
                     {
                         _env.Log(Loc.T("Sequence: IME を切り替えられなかったため、残りをやめました", "Sequence: Could not switch the IME, so the rest was cancelled"));
@@ -833,8 +891,9 @@ public sealed class ActionExecutor
                     _env.Send(op);
                     if (op.Kind == InputKind.Unicode && op.Up)
                     {
-                        pendingDrainMs = TextPacing.AddDrain(pendingDrainMs);
-                        if (TextPacing.CharPaceMs > 0 && !_env.Sleep(TextPacing.CharPaceMs)) return;
+                        pendingWaitMs = typing.ImeWaitMs;
+                        int delay = typing.CharDelay(_random);
+                        if (delay > 0 && !_env.Sleep(delay)) return;
                     }
                 }
             }
@@ -843,29 +902,9 @@ public sealed class ActionExecutor
         {
             if (restore)
             {
-                // SendInput は送るだけで、アプリが処理し終わるのを待たない。すぐ IME を戻すと、列に残った文字が IME に取られる。
-                if (pendingDrainMs > 0) _env.Sleep(pendingDrainMs);
+                if (pendingWaitMs > 0) _env.Sleep(pendingWaitMs);
                 _env.SetIme(ImeTarget.Restore, wrap!.Method);
             }
         }
     }
-}
-
-/// <summary>
-/// 文字の入力(Text)の速さと、IME を戻す前の待ちの調整。試験用に、環境変数(uiAccess のトレイには、Start-Process では渡らない。HKCU:\Environment に書く) KASANE_TEXT_PACE_MS(1 文字ごとの間隔)、
-/// KASANE_TEXT_DRAIN_MS_PER_CHAR(IME を戻す前に、1 文字あたり待つ ms)、KASANE_TEXT_DRAIN_MAX_MS(待ちの上限)で上書きできる。
-/// </summary>
-public static class TextPacing
-{
-    public static int CharPaceMs { get; set; } = Read("KASANE_TEXT_PACE_MS", 30);
-    public static int DrainPerCharMs { get; set; } = Read("KASANE_TEXT_DRAIN_MS_PER_CHAR", 20);
-    public static int DrainMaxMs { get; set; } = Read("KASANE_TEXT_DRAIN_MAX_MS", 5000);
-
-    public static int DrainMs(int chars) => chars <= 0 ? 0 : Math.Min(DrainMaxMs, chars * DrainPerCharMs);
-
-    /// <summary>1 文字送ったあとの、処理待ちの見込み(ms)を足す。上限は <see cref="DrainMaxMs"/>。</summary>
-    public static int AddDrain(int pendingMs) => Math.Min(DrainMaxMs, pendingMs + DrainPerCharMs);
-
-    private static int Read(string name, int fallback) =>
-        int.TryParse(Environment.GetEnvironmentVariable(name), out int v) && v >= 0 && v <= 10000 ? v : fallback;
 }

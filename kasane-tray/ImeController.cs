@@ -48,6 +48,8 @@ internal sealed class ImeController
     private int _lastGeneration;
     // 直前の Run が、経路を試さずに飛ばした。
     private bool _skipped;
+    // IME のキーの送り方（設定。SetCore のたびに読む）。
+    private ImeKeyPath _keyPath;
 
     // OffRemember で覚えた、元の状態と、そのときの前面のウィンドウ（別のウィンドウに戻すと、無関係なアプリの IME を変えてしまう）。
     private bool? _saved;
@@ -116,7 +118,8 @@ internal sealed class ImeController
         // 設定が変わった（トレイが tray.json を読み直して、別の値を見た）ら、変換 / 無変換の割り当ての判定を試し直す。
         // 値ではなく変わった回数で比べる（「自動」にして IME を操作しないまま「変換 / 無変換」に戻しても、気づけるように）。
         if (setting.Generation != _lastGeneration) { _lastGeneration = setting.Generation; _henkanUnassigned = false; }
-        var routes = ImeRoutePlanner.Plan(method, setting.Value, _trayElevated, driverUsable, current != null);
+        _keyPath = setting.KeyPath;
+        var routes = ImeRoutePlanner.Plan(method, setting.Value, setting.KeyPath, _trayElevated, driverUsable, current != null);
         bool previousSkipped = false;
         for (int i = 0; i < routes.Count; i++)
         {
@@ -200,10 +203,17 @@ internal sealed class ImeController
             return false;
         }
         if (current == open) return true;
-        if (!SendThroughDriver(ScanKanji, ModLeftAlt))
+        // 設定が SendInput なら、ドライバは使わない。Driver なら、ドライバで送れなくても SendInput へは戻さない。
+        if (_keyPath == ImeKeyPath.SendInput || !SendThroughDriver(ScanKanji, ModLeftAlt))
         {
             // ドライバ経由で送れなかった（1.00 のドライバ・昇格していない・ライセンスが無効など。理由は DriverKey: の行）。
-            if (!sendInputFallback) return false;
+            if (!sendInputFallback && _keyPath != ImeKeyPath.SendInput) return false;
+            if (_keyPath == ImeKeyPath.Driver)
+            {
+                TrayLog.Write(Loc.T("IME: ドライバ経由で送れなかったため、Alt+半角/全角は送りません(設定の「IME のキーの送り方」が「ドライバ経由」)",
+                                    "IME: Could not send through the driver, so Alt+Hankaku/Zenkaku is not sent (\"How to send IME keys\" is set to \"Through the driver\")"));
+                return false;
+            }
             via = Loc.T("SendInput の Alt+半角/全角", "Alt+Hankaku/Zenkaku via SendInput");
             _sendVk(VkMenu, ScanAlt, false);
             Tap(VkKanji, ScanKanji);
@@ -223,9 +233,16 @@ internal sealed class ImeController
         if (henkan && _henkanUnassigned) { _skipped = true; return false; } // 割り当てが無いとみなしている（次の IMM32 で変える）
         if (ReadOpen() == open) return true;
         ushort scan = henkan ? (open ? ScanHenkan : ScanMuhenkan) : (open ? ScanImeOn : ScanImeOff);
-        if (_trayElevated && _driverUsable() && SendThroughDriver(scan, 0))
+        bool useDriver = _keyPath != ImeKeyPath.SendInput && _trayElevated && _driverUsable();
+        if (useDriver && SendThroughDriver(scan, 0))
         {
             via = Loc.T("ドライバ経由の" + name, name + " through the driver");
+        }
+        else if (_keyPath == ImeKeyPath.Driver)
+        {
+            TrayLog.Write(Loc.T($"IME: ドライバ経由で送れなかったため、{name}は送りません(設定の「IME のキーの送り方」が「ドライバ経由」)",
+                                $"IME: Could not send through the driver, so {name} is not sent (\"How to send IME keys\" is set to \"Through the driver\")"));
+            return false;
         }
         else if (henkan) Tap(open ? VkConvert : VkNonConvert, scan);
         else Tap(open ? VkImeOn : VkImeOff, 0); // スキャンコードを持たない VK として送る（SendInput では、この形で効くことを確かめている）
