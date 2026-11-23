@@ -99,6 +99,7 @@ When you choose **Layer actions**, boxes for **Type** and **Layer** appear. Afte
 - The number of taps needed to lock `TT(n)` is 5 by default. You can change it in the "Timing" tab of the settings dialog ([13. Settings Dialog](13-settings.html)).
 - With `OSM`, if you press and release the key briefly, the modifier is applied to just the next key you press. For example, `a` after a Shift `OSM` gives "A". If you tap again while waiting, it is cancelled. If you use it while holding it down, it is an ordinary modifier.
 - If you hold `LM(1,MOD_LCTL)` and press `C`, which is still ▽ on layer 1, you get Ctrl+C.
+- A key produces the assignment of the layer that is active when you press it. If you press the layer key first, or at the same time, you get that layer's assignment. If you press another key first, pressing the layer key afterward does not change what the first key already produced. For example, if you build a kana layout with layers and press a letter key first, you get the character from the layer without the layer applied (the single-stroke kana). To have a key pressed first still count as a simultaneous stroke, use one of these: NICOLA ([10. IME Linking and NICOLA](10-ime-nicola.html)) for strokes with a thumb key, or a combo ([9. Macros, Combos, Tap Dances and Key Overrides](09-advanced.html#combo)) for strokes between two letter keys.
 
 ### Adding a layer
 

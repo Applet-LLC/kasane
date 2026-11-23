@@ -112,6 +112,8 @@ With **Tap dances...**, you assign a different action to each of **Single tap**,
 
 - For the single, double, and triple taps, besides an ordinary key, you can specify a key with modifiers such as `LCTL(KC_C)`, or `MACRO(n)`.
 - For the hold, you can specify a modifier such as `MT(MOD_LCTL,KC_NO)`, a layer such as `LT(1,KC_NO)`, and also a key with modifiers (while held), `LM(1,MOD_LCTL)`, and `MACRO(n)` (once when the hold is recognized). The tap-side key of `MT` and `LT` is not used.
+- `MO(n)` cannot be used for the hold (applying gives an error). To enable layer n only while the key is held, use `LT(n,KC_NO)`. The layer turns on when the hold is recognized and turns off when you release the key.
+- The hold is recognized when you press another key while holding the tap dance key, or when TapDanceTerm has passed. A key you pressed before that does not get the layer.
 - A box left empty (or `KC_NO`) means "no action". Nothing happens for that number of taps or that hold. If you empty all four boxes, that number becomes unused.
 - The tap interval and the time for detecting a hold (TapDanceTerm) can be changed in the "Timing" tab of the settings dialog.
 - In the tap dance window too, double-clicking a row of the list (or the button **Insert TAPDANCE(n) into the key assignment field**) puts `TAPDANCE(n)` into the key code box of the key assignment window. `TAPDANCE(n)` is an action you assign to a key, so the only place to put it is the key code box of the key assignment window.
