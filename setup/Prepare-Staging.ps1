@@ -503,7 +503,7 @@ Get-ChildItem -LiteralPath (Join-Path $repoRoot "driver/KeymapTool/samples") -Fi
 $emacsStaging = Join-Path $samplesStaging "emacs"
 New-Item -ItemType Directory -Path $emacsStaging -Force | Out-Null
 # EMACS-KEYBINDINGS.html は、EMACS-KEYBINDINGS.md から docs\manual\build-manual.ps1 で作る（ヘルプの 14 章が、別のウィンドウで開く）。
-foreach ($f in 'emacs.kasane.json', 'apply-emacs.ps1', 'EMACS-KEYBINDINGS.md', 'EMACS-KEYBINDINGS.html', 'EMACS-KEYBINDINGS.en-US.md', 'EMACS-KEYBINDINGS.en-US.html') {
+foreach ($f in 'emacs.kasane.json', 'emacs-excel.kasane.json', 'apply-emacs.ps1', 'EMACS-KEYBINDINGS.md', 'EMACS-KEYBINDINGS.html', 'EMACS-KEYBINDINGS.en-US.md', 'EMACS-KEYBINDINGS.en-US.html') {
     Copy-Item -LiteralPath (Join-Path $repoRoot "samples/emacs/$f") -Destination $emacsStaging -Force
 }
 Write-Host "[samples] staged: $((Get-ChildItem $samplesStaging -Recurse -File).Count) files"
