@@ -109,6 +109,10 @@ blockquote p { margin: 4px 0; }
 <td>The setup itself. A kasane exchange file that holds the layers, macros, and key overrides</td>
 </tr>
 <tr>
+<td><code>emacs-excel.kasane.json</code></td>
+<td>The setup above plus sheet switching in Excel (Ctrl+L / Ctrl+;). It also holds a per-app layer rule (see &quot;Switching sheets in Excel&quot; below)</td>
+</tr>
+<tr>
 <td><code>apply-emacs.ps1</code></td>
 <td>A script that reads the file above and writes it to the keyboard with KeymapTool</td>
 </tr>
@@ -353,7 +357,7 @@ PowerShell -ExecutionPolicy RemoteSigned .\apply-emacs.ps1 -Id &lt;ID&gt;
 <h2 id="notes">Notes</h2>
 <ul>
 <li><strong>It replaces the keyboard's layer map.</strong> This setup writes 3 layers (0 is normal, 1 is C-x, 2 is C-q) covering only the 27 keys A to Z and Space. On a keyboard that already has a layer map, it is erased. Other keys are given no assignment and pass through as they are. Take a backup first.</li>
-<li><strong>Key overrides 0 to 34 and macros 92 to 127 are used.</strong> Settings that used the same numbers are replaced. Other numbers do not change. <code>-Remove</code> erases the whole layer map and only these numbers.</li>
+<li><strong>Key overrides 0 to 34 (0 to 36 with <code>-Excel</code>) and macros 92 to 127 are used.</strong> Settings that used the same numbers are replaced. Other numbers do not change. <code>-Remove</code> erases the whole layer map and only these numbers.</li>
 <li><strong>What you wrote from the command line may disappear when you use the editor.</strong> <strong>Apply to keyboard (ON)</strong> in the editor replaces the settings with what the screen holds. If you apply from the screen after writing from the command line, do the import above first.</li>
 <li><strong>It works in all apps.</strong> App shortcuts such as Ctrl+F and Ctrl+S can no longer be used. In real Emacs, or in editors that have Emacs-style operation, it may act twice. If you want to stop it only while such an app is in front, make a <strong>Turn remapping OFF</strong> rule in the tray's per-app layers (<a href="../../manual/en/11-helper-apprules.html">11. Helper Actions and Per-App Layers</a>).</li>
 <li><strong>Ctrl+K behaves differently depending on the app.</strong> With the default setup, it only sends Shift+End and then Ctrl+X. When pressed at the end of a line, Notepad and similar apps cut nothing. In apps such as VS Code that cut the whole line when there is no selection, the whole line is removed. It does not delete the line break at the end of a line as Emacs does. With <code>-KillLine</code>, it behaves the same as Emacs in ordinary apps such as Notepad (next section).</li>
@@ -373,6 +377,59 @@ PowerShell -ExecutionPolicy RemoteSigned .\apply-emacs.ps1 -Id &lt;ID&gt;
 <li><strong>The tray must be running.</strong> While it is stopped, Ctrl+K sends nothing.</li>
 <li><strong>It does not fit as it is in VS Code and similar apps.</strong> In apps that cut the whole line when there is no selection, or that handle line breaks differently, the behavior is off. It was checked in ordinary apps such as Notepad. Support that changes the behavior per app is still to come.</li>
 <li>From the first time you use it, the tray watches actual key input (to know whether a key other than Ctrl+K was pressed). The contents of the keys are not recorded.</li>
+</ul>
+<h2 id="switching-sheets-in-excel">Switching sheets in Excel</h2>
+<p><code>emacs-excel.kasane.json</code> keeps the Emacs-style setup as it is and, only while Excel is in front, adds the two keys below. In other apps it is the same as <code>emacs.kasane.json</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Key you press</th>
+<th>Key sent</th>
+<th>Excel operation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ctrl+L</td>
+<td>Ctrl+PageUp</td>
+<td>Previous sheet</td>
+</tr>
+<tr>
+<td>Ctrl+;</td>
+<td>Ctrl+PageDown</td>
+<td>Next sheet</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The tray must be running.</strong> While it is stopped, Ctrl+L / Ctrl+; reach Excel as they are (the other Emacs-style operations work without the tray).</p>
+<h3 id="how-to-write-it-to-the-keyboard-1">How to write it to the keyboard</h3>
+<p>From the command line, add <code>-Excel</code>. It can be used together with <code>-KillLine</code>.</p>
+<pre><code>PowerShell -ExecutionPolicy RemoteSigned .\apply-emacs.ps1 -Id &lt;ID&gt; -Excel
+</code></pre>
+<p>This adds the per-app layer rule &quot;Emacs: Excel のシート切り替え&quot; (turn on layer 3 while <code>EXCEL.EXE</code> is in front) at the top of the keyboard's <code>helper.json</code>. Other rules do not change. Running it again still leaves one rule. <code>-Remove</code> also removes this rule.</p>
+<p>From the editor, import in two steps.</p>
+<ol>
+<li>In the <strong>Import</strong> tab, choose <code>emacs-excel.kasane.json</code> with <strong>Choose File...</strong>, and import the three items &quot;Layers&quot;, &quot;Macros&quot;, and &quot;Key overrides&quot; with <strong>Replace</strong>. Press <strong>Apply to keyboard (ON)</strong>.</li>
+<li>Choose the same file again, and import only &quot;Helper settings&quot; with <strong>Add</strong>. With <strong>Replace</strong>, the current <code>helper.json</code> (other per-app layer rules and the <code>-KillLine</code> action) is erased.</li>
+</ol>
+<p>You can also make the rule yourself in the tray's <strong>per-app layers</strong> (executable <code>EXCEL.EXE</code>, turn on layer 3 only).</p>
+<h3 id="how-it-works">How it works</h3>
+<p>Key overrides 35 and 36 have a layer condition: they work only while layer 3 is on (<code>layers=3</code>). Layer 3 has no assignments. The per-app layer rule turns it on only while Excel is in front.</p>
+<ul>
+<li>Override 35 changes Ctrl+L to Ctrl+PageUp.</li>
+<li>Override 36 changes Ctrl+; to Ctrl+PageDown.</li>
+<li>Outside Excel, layer 3 is not on, so these two do nothing. Ctrl+L and Ctrl+; reach the app as they are.</li>
+<li>The Ctrl key itself is not remapped. Key overrides such as Ctrl+F, C-x, C-q, and mark mode work in Excel the same way as in other apps.</li>
+</ul>
+<h3 id="notes-1">Notes</h3>
+<ul>
+<li>Excel's own Ctrl+L (create table) and Ctrl+; (insert today's date) can no longer be used. They become sheet switching. Ctrl+Shift+L (filter) also becomes Ctrl+Shift+PageUp (extend the sheet selection).</li>
+<li>In mark mode, Ctrl+L / Ctrl+; get Shift and become Ctrl+Shift+PageUp / PageDown (extend the sheet selection).</li>
+<li>Layer 3 and key overrides 35 and 36 are used. If the same keyboard uses them for something else, they conflict.</li>
+<li>A driver that supports layer conditions on key overrides is required. An older driver cannot accept a conditioned key override (it returns an error).</li>
+<li>If you import the file with an older editor that does not support conditions, the condition is ignored and Ctrl+L / Ctrl+; are replaced in every app.</li>
+<li>Assignments are decided by key position (scan code). &quot;;&quot; is the key to the right of L on both US and JIS layouts.</li>
+<li>The behavior has not been checked on real hardware yet.</li>
 </ul>
 <h2 id="what-is-not-included">What is not included</h2>
 <h3 id="differences-of-mark-mode-from-emacs">Differences of mark mode from Emacs</h3>
