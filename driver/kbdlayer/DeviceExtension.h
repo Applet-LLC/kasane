@@ -146,7 +146,9 @@ typedef struct _DEVICE_EXTENSION {
     // 表（SET_KEY_OVERRIDE）。OutputLockとEngineLockの両方を保持して書き、どちらか一方の保持中に読む。
     KBDLAYER_KEY_OVERRIDE_ENTRY KeyOverrides[KBDLAYER_MAX_KEY_OVERRIDE_COUNT];
     BOOLEAN KeyOverrideUsed[KBDLAYER_MAX_KEY_OVERRIDE_COUNT];
-    ULONG KeyOverrideCount;             // KeyOverrideUsedがTRUEの数
+    // 件ごとのレイヤー条件（2026-11-25。0 = 全レイヤー。0以外のときは、Flagsに FLAG_LAYERS が立っている）。
+    USHORT KeyOverrideLayers[KBDLAYER_MAX_KEY_OVERRIDE_COUNT];
+    ULONG KeyOverrideCount;            // KeyOverrideUsedがTRUEの数
     // 置き換え中に、OS上で一時的に離している修飾キー（KBDLAYER_MOD_*）。普通の出力として押されて
     // いても（RealModsDown）、OSへは送らない（ForwardToClass・ReleaseLeakedModifiers参照）。
     // SuppressOwnerScanCodeは、その置き換え先のキー（Enc16。このキー自身のmakeでは戻さない）。

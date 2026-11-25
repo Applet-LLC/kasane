@@ -601,7 +601,8 @@ NTSTATUS
 SetKeyOverrideForDevice(
     _In_ PDEVICE_EXTENSION devExt,
     _In_ ULONG Id,
-    _In_opt_ PKBDLAYER_KEY_OVERRIDE_ENTRY Entry
+    _In_opt_ PKBDLAYER_KEY_OVERRIDE_ENTRY Entry,
+    _In_ USHORT Layers // レイヤー条件。0 = 全レイヤー（Entry->Flagsの FLAG_LAYERS と一緒に指定する）
     );
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
@@ -610,6 +611,7 @@ GetKeyOverrideForDevice(
     _In_ PDEVICE_EXTENSION devExt,
     _In_ ULONG Id,
     _Out_ PKBDLAYER_KEY_OVERRIDE_ENTRY OutEntry,
+    _Out_ PUSHORT OutLayers,
     _Out_ PBOOLEAN OutUsed
     );
 

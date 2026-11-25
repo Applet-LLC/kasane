@@ -813,9 +813,29 @@ HandleSetKeyOverride(
 
     // Entry.Replacement.Type==NONEはクリアの合図（SET_COMBOと同じ規約）。
     if (input->Entry.Replacement.Type == KBDLAYER_ACTION_NONE) {
-        status = SetKeyOverrideForDevice(devExt, input->Id, NULL);
+        status = SetKeyOverrideForDevice(devExt, input->Id, NULL, 0);
     } else {
-        status = SetKeyOverrideForDevice(devExt, input->Id, &input->Entry);
+        USHORT layers = 0;
+
+        status = STATUS_SUCCESS;
+        if ((input->Entry.Flags & KBDLAYER_KEY_OVERRIDE_FLAG_LAYERS) != 0) {
+            // レイヤー条件つき（2026-11-25）。_EX版の長さが要る。Layersは0以外で、レイヤー数の範囲内、Reservedは0。
+            // （FLAG_LAYERSなしのとき、末尾に余分なバイトがあっても見ない。）
+            if (inputLen < sizeof(KBDLAYER_SET_KEY_OVERRIDE_INPUT_EX)) {
+                status = STATUS_INVALID_PARAMETER;
+            } else {
+                PKBDLAYER_SET_KEY_OVERRIDE_INPUT_EX inputEx = (PKBDLAYER_SET_KEY_OVERRIDE_INPUT_EX)SystemBuffer;
+                if (inputEx->Layers == 0 || inputEx->Reserved != 0 ||
+                    ((ULONG)inputEx->Layers & ~KBDLAYER_KEY_OVERRIDE_LAYERS_VALID) != 0) {
+                    status = STATUS_INVALID_PARAMETER;
+                } else {
+                    layers = inputEx->Layers;
+                }
+            }
+        }
+        if (NT_SUCCESS(status)) {
+            status = SetKeyOverrideForDevice(devExt, input->Id, &input->Entry, layers);
+        }
     }
     IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
     return status;
@@ -836,6 +856,7 @@ HandleGetKeyOverride(
     PDEVICE_EXTENSION devExt;
     PKBDLAYER_GET_KEY_OVERRIDE_OUTPUT out;
     KBDLAYER_KEY_OVERRIDE_ENTRY entry;
+    USHORT layers = 0;
     BOOLEAN used = FALSE;
     NTSTATUS status;
 
@@ -854,7 +875,7 @@ HandleGetKeyOverride(
     }
 
     RtlZeroMemory(&entry, sizeof(entry));
-    status = GetKeyOverrideForDevice(devExt, input->Id, &entry, &used);
+    status = GetKeyOverrideForDevice(devExt, input->Id, &entry, &layers, &used);
     IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
     if (!NT_SUCCESS(status)) {
         return status;
@@ -866,6 +887,13 @@ HandleGetKeyOverride(
     out->Entry = entry;
 
     *BytesReturned = sizeof(KBDLAYER_GET_KEY_OVERRIDE_OUTPUT);
+    if (outputLen >= sizeof(KBDLAYER_GET_KEY_OVERRIDE_OUTPUT_EX)) {
+        // 出力バッファが_EX版の長さ以上なら、レイヤー条件も返す（足りなければ従来の長さ。呼び出し側は0とみなす）。
+        PKBDLAYER_GET_KEY_OVERRIDE_OUTPUT_EX outEx = (PKBDLAYER_GET_KEY_OVERRIDE_OUTPUT_EX)SystemBuffer;
+        outEx->Layers = used ? layers : 0;
+        outEx->Reserved = 0;
+        *BytesReturned = sizeof(KBDLAYER_GET_KEY_OVERRIDE_OUTPUT_EX);
+    }
     return STATUS_SUCCESS;
 }
 

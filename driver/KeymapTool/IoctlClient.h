@@ -81,8 +81,8 @@ public:
     bool GetCombo(ULONG uniqId, ULONG comboId, KBDLAYER_COMBO_ENTRY* outEntry, bool* outUsed);
 
     // Key Override（2026-10-01）。entry=nullptrはそのidをクリアする。
-    bool SetKeyOverride(ULONG uniqId, ULONG id, const KBDLAYER_KEY_OVERRIDE_ENTRY* entry);
-    bool GetKeyOverride(ULONG uniqId, ULONG id, KBDLAYER_KEY_OVERRIDE_ENTRY* outEntry, bool* outUsed);
+    bool SetKeyOverride(ULONG uniqId, ULONG id, const KBDLAYER_KEY_OVERRIDE_ENTRY* entry, USHORT layers = 0);
+    bool GetKeyOverride(ULONG uniqId, ULONG id, KBDLAYER_KEY_OVERRIDE_ENTRY* outEntry, USHORT* outLayers, bool* outUsed);
 
     // Phase 5: タップダンス（v1: タップ回数3回まで）。entry=nullptrはそのtapDanceIdをクリアする。
     bool SetTapDance(ULONG uniqId, ULONG tapDanceId, const KBDLAYER_TAPDANCE_ENTRY* entry);

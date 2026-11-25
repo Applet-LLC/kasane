@@ -361,20 +361,27 @@ bool IoctlClient::GetCombo(ULONG uniqId, ULONG comboId, KBDLAYER_COMBO_ENTRY* ou
     return true;
 }
 
-bool IoctlClient::SetKeyOverride(ULONG uniqId, ULONG id, const KBDLAYER_KEY_OVERRIDE_ENTRY* entry) {
+bool IoctlClient::SetKeyOverride(ULONG uniqId, ULONG id, const KBDLAYER_KEY_OVERRIDE_ENTRY* entry, USHORT layers) {
     if (!RequireWriteAccess("IOCTL_KBDLAYER_SET_KEY_OVERRIDE")) return false;
-    KBDLAYER_SET_KEY_OVERRIDE_INPUT input = {};
-    input.Target.UniqId = uniqId;
-    input.Id = id;
+    // レイヤー条件つき（layers != 0）のときだけ、_EX版（末尾にLayers）を送る。条件なしは従来の長さで送るので、
+    // 古いドライバでも今までどおり動く。条件つきを古いドライバへ送ると、ドライバがFlagsのビットを拒否して失敗する。
+    KBDLAYER_SET_KEY_OVERRIDE_INPUT_EX input = {};
+    input.Base.Target.UniqId = uniqId;
+    input.Base.Id = id;
     if (entry != nullptr) {
-        input.Entry = *entry;
+        input.Base.Entry = *entry;
+        if (layers != 0) {
+            input.Base.Entry.Flags |= KBDLAYER_KEY_OVERRIDE_FLAG_LAYERS;
+            input.Layers = layers;
+        }
     } else {
-        input.Entry.Replacement.Type = KBDLAYER_ACTION_NONE; // クリアの合図（ControlDevice.c参照）
+        input.Base.Entry.Replacement.Type = KBDLAYER_ACTION_NONE; // クリアの合図（ControlDevice.c参照）
     }
+    const bool useEx = (entry != nullptr && layers != 0);
 
     DWORD bytesReturned = 0;
     BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_SET_KEY_OVERRIDE,
-                              &input, sizeof(input),
+                              &input, useEx ? sizeof(input) : sizeof(input.Base),
                               NULL, 0,
                               &bytesReturned, NULL);
     if (!ok) {
@@ -384,12 +391,13 @@ bool IoctlClient::SetKeyOverride(ULONG uniqId, ULONG id, const KBDLAYER_KEY_OVER
     return true;
 }
 
-bool IoctlClient::GetKeyOverride(ULONG uniqId, ULONG id, KBDLAYER_KEY_OVERRIDE_ENTRY* outEntry, bool* outUsed) {
+bool IoctlClient::GetKeyOverride(ULONG uniqId, ULONG id, KBDLAYER_KEY_OVERRIDE_ENTRY* outEntry, USHORT* outLayers, bool* outUsed) {
     KBDLAYER_GET_KEY_OVERRIDE_INPUT input = {};
     input.Target.UniqId = uniqId;
     input.Id = id;
 
-    KBDLAYER_GET_KEY_OVERRIDE_OUTPUT output = {};
+    // _EX版の出力バッファで呼ぶ。古いドライバは従来の長さしか要らず、Layersは書かれない（0のまま）。
+    KBDLAYER_GET_KEY_OVERRIDE_OUTPUT_EX output = {};
     DWORD bytesReturned = 0;
     BOOL ok = DeviceIoControl(handle_, IOCTL_KBDLAYER_GET_KEY_OVERRIDE,
                               &input, sizeof(input),
@@ -400,8 +408,9 @@ bool IoctlClient::GetKeyOverride(ULONG uniqId, ULONG id, KBDLAYER_KEY_OVERRIDE_E
         return false;
     }
 
-    *outEntry = output.Entry;
-    *outUsed = output.Used != 0;
+    *outEntry = output.Base.Entry;
+    *outUsed = output.Base.Used != 0;
+    *outLayers = (bytesReturned >= sizeof(KBDLAYER_GET_KEY_OVERRIDE_OUTPUT_EX)) ? output.Layers : (USHORT)0;
     return true;
 }
 

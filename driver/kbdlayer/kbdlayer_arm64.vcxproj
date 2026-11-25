@@ -175,6 +175,7 @@ Platform.
     <ClInclude Include="License.h" />
     <ClInclude Include="DeviceExtension.h" />
     <ClInclude Include="LayerEngine.h" />
+    <ClInclude Include="KeyOverrideSelect.h" />
     <ClInclude Include="ControlDevice.h" />
     <ClInclude Include="NicolaCore.h" />
   </ItemGroup>

@@ -618,24 +618,54 @@ int CmdSetFeatures(IoctlClient* client, ULONG uniqId, const char* macro, const c
     return 0;
 }
 
-// --set-key-override <UniqIdHex> <Id> [<TriggerMods> <TriggerKey> <Replacement> [repeat]]
+// --set-key-override <UniqIdHex> <Id> [<TriggerMods> <TriggerKey> <Replacement> [repeat] [layers=<n>[,<n>...]]]
 // 引数無しならそのIdをクリアする。TriggerModsはMOD_*を|でつないだもの、TriggerKeyは単純キー(KC_xxx)、
 // Replacementは単純キー、修飾付きキー（LCTL(KC_Z)等）、またはMACRO(n)。repeatは、ReplacementがMACRO(n)のとき、
-// オートリピートでマクロを繰り返す（既定は繰り返さない）。
+// オートリピートでマクロを繰り返す（既定は繰り返さない）。layers=3,5は、レイヤー3か5が立っている間だけ効く
+// （レイヤーの番号は0〜15。無指定は全レイヤー）。repeatとlayers=は順不同。
 int CmdSetKeyOverride(IoctlClient* client, ULONG uniqId, ULONG id, int argc, char** argv) {
     if (argc == 0) {
         if (!client->SetKeyOverride(uniqId, id, nullptr)) return 1;
         printf("SET_KEY_OVERRIDE ok. UniqId=%08X Id=%lu cleared.\n", uniqId, id);
         return 0;
     }
-    if (argc != 3 && argc != 4) {
-        fprintf(stderr, "--set-key-override: expected <TriggerMods> <TriggerKey> <Replacement> [repeat], or none to clear\n");
+    if (argc < 3 || argc > 5) {
+        fprintf(stderr, "--set-key-override: expected <TriggerMods> <TriggerKey> <Replacement> [repeat] [layers=<n>[,<n>...]], or none to clear\n");
         return 1;
     }
-    const bool repeat = (argc == 4);
-    if (repeat && _stricmp(argv[3], "repeat") != 0) {
-        fprintf(stderr, "--set-key-override: the 4th argument must be \"repeat\" (got \"%s\")\n", argv[3]);
-        return 1;
+    // 4番目以降は、repeat と layers=... を順不同で（それぞれ1回まで）。
+    bool repeat = false;
+    USHORT layerMask = 0;
+    bool layersGiven = false;
+    for (int a = 3; a < argc; a++) {
+        if (_stricmp(argv[a], "repeat") == 0) {
+            if (repeat) {
+                fprintf(stderr, "--set-key-override: \"repeat\" was given twice\n");
+                return 1;
+            }
+            repeat = true;
+        } else if (_strnicmp(argv[a], "layers=", 7) == 0) {
+            if (layersGiven) {
+                fprintf(stderr, "--set-key-override: \"layers=\" was given twice\n");
+                return 1;
+            }
+            layersGiven = true;
+            const char* p = argv[a] + 7;
+            while (true) {
+                char* end = nullptr;
+                unsigned long n = strtoul(p, &end, 10);
+                if (end == p || n >= KBDLAYER_MAX_LAYERS || (*end != ',' && *end != '\0')) {
+                    fprintf(stderr, "--set-key-override: \"%s\" must be layers=<n>[,<n>...] with n = 0-%d\n", argv[a], KBDLAYER_MAX_LAYERS - 1);
+                    return 1;
+                }
+                layerMask = (USHORT)(layerMask | (1U << n));
+                if (*end == '\0') break;
+                p = end + 1;
+            }
+        } else {
+            fprintf(stderr, "--set-key-override: unexpected argument \"%s\" (expected \"repeat\" or \"layers=<n>[,<n>...]\")\n", argv[a]);
+            return 1;
+        }
     }
 
     UCHAR mods = 0;
@@ -674,23 +704,28 @@ int CmdSetKeyOverride(IoctlClient* client, ULONG uniqId, ULONG id, int argc, cha
     KBDLAYER_KEY_OVERRIDE_ENTRY entry = {};
     entry.TriggerMods = mods;
     entry.TriggerScanCode = trigger.Param2;
-    entry.Flags = repeat ? KBDLAYER_KEY_OVERRIDE_FLAG_REPEAT : 0;
+    entry.Flags = repeat ? KBDLAYER_KEY_OVERRIDE_FLAG_REPEAT : 0; // FLAG_LAYERSは、SetKeyOverrideがlayersから立てる
     entry.Replacement = { replacement.ActionType, replacement.Param1, replacement.Param2 };
-    if (!client->SetKeyOverride(uniqId, id, &entry)) return 1;
-    printf("SET_KEY_OVERRIDE ok. UniqId=%08X Id=%lu: %s + %s -> %s%s\n", uniqId, id, argv[0], argv[1], argv[2], repeat ? " (repeat)" : "");
+    if (!client->SetKeyOverride(uniqId, id, &entry, layerMask)) return 1;
+    printf("SET_KEY_OVERRIDE ok. UniqId=%08X Id=%lu: %s + %s -> %s%s", uniqId, id, argv[0], argv[1], argv[2], repeat ? " (repeat)" : "");
+    if (layerMask != 0) {
+        printf(" (layers 0x%04X)", layerMask);
+    }
+    printf("\n");
     return 0;
 }
 
 int CmdGetKeyOverride(IoctlClient* client, ULONG uniqId, ULONG id) {
     KBDLAYER_KEY_OVERRIDE_ENTRY entry = {};
+    USHORT layers = 0;
     bool used = false;
-    if (!client->GetKeyOverride(uniqId, id, &entry, &used)) return 1;
+    if (!client->GetKeyOverride(uniqId, id, &entry, &layers, &used)) return 1;
     if (!used) {
         printf("UniqId=%08X Id=%lu: (not set)\n", uniqId, id);
     } else {
-        printf("UniqId=%08X Id=%lu: TriggerMods=0x%02X Flags=0x%02X TriggerScanCode=0x%04X Replacement Type=%u Param1=0x%02X Param2=0x%04X\n",
+        printf("UniqId=%08X Id=%lu: TriggerMods=0x%02X Flags=0x%02X TriggerScanCode=0x%04X Replacement Type=%u Param1=0x%02X Param2=0x%04X Layers=0x%04X\n",
                uniqId, id, entry.TriggerMods, entry.Flags, entry.TriggerScanCode,
-               entry.Replacement.Type, entry.Replacement.Param1, entry.Replacement.Param2);
+               entry.Replacement.Type, entry.Replacement.Param1, entry.Replacement.Param2, layers);
     }
     return 0;
 }
@@ -1262,7 +1297,7 @@ void PrintUsage() {
         "      keyboards with different layouts under global can give unintended mappings.\n"
         "  KeymapTool.exe --get-features <UniqIdHex>\n"
         "      Show which optional features are enabled on this keyboard.\n"
-        "  KeymapTool.exe --set-key-override <UniqIdHex> <Id> [<TriggerMods> <TriggerKey> <Replacement> [repeat]]\n"
+        "  KeymapTool.exe --set-key-override <UniqIdHex> <Id> [<TriggerMods> <TriggerKey> <Replacement> [repeat] [layers=<n>[,<n>...]]]\n"
         "      Define key override <Id> (0-127; older drivers accept 0-31): while all modifier kinds in <TriggerMods>\n"
         "      (e.g. MOD_LSFT, MOD_LCTL|MOD_LSFT; left/right are not distinguished) are held,\n"
         "      the key that outputs <TriggerKey> (KC_xxx, after layers) sends <Replacement>\n"
@@ -1275,7 +1310,10 @@ void PrintUsage() {
         "      MARK(on|off|toggle) turns Emacs mark mode on or off: while it is on, the arrow keys,\n"
         "      Home, End, PageUp and PageDown get Shift (extend the selection), and any other\n"
         "      key (except modifiers) ends it. Example: MOD_LCTL KC_SPACE MARK(on).\n"
-        "      Omit the last three arguments to clear it.\n"
+        "      layers=3,5 makes it work only while layer 3 or 5 is active (n = 0-15; omitted = all\n"
+        "      layers). When several overrides match, a layer-conditioned one wins over an unconditioned\n"
+        "      one, and the one for the higher layer wins. Needs a driver that supports layer conditions.\n"
+        "      Example: MOD_LCTL KC_L LCTL(KC_PGUP) layers=3. Omit the last three arguments to clear it.\n"
         "  KeymapTool.exe --get-key-override <UniqIdHex> <Id>\n"
         "      Show the current definition of a key override.\n"
         "  KeymapTool.exe --set-features <UniqIdHex> <macro:0|1> <combo:0|1> <tapdance:0|1> [keyoverride:0|1]\n"

@@ -7,6 +7,7 @@
 #include "DeviceExtension.h"
 #include "LayerEngine.h"
 #include "License.h"
+#include "KeyOverrideSelect.h"
 #include "..\\common\\regutil.h"
 #include "token.h" // KBDLAYER_TRACE
 
@@ -45,6 +46,10 @@
 #define KBDLAYER_FEATURES_VALUE_NAME L"EnabledFeatures"
 #define KBDLAYER_FEATURES_EX_VALUE_NAME L"EnabledFeaturesEx" // 2026-10-01: 全ビット（Key Overrideを含む）
 #define KBDLAYER_KEYOVERRIDES_VALUE_NAME L"KeyOverrides"
+// 件ごとのレイヤー条件（2026-11-25）。KBDLAYER_MAX_KEY_OVERRIDE_COUNT個のUSHORT。"KeyOverrides"値とは別の値にして、
+// そちらの形式（384/1536バイト）は変えない。値が無い・長さが合わないときは、条件付きの件を読み込まない。
+#define KBDLAYER_KEYOVERRIDE_LAYERS_VALUE_NAME L"KeyOverrideLayers"
+#define KBDLAYER_KEYOVERRIDE_LAYERS_BLOB_BYTES (KBDLAYER_MAX_KEY_OVERRIDE_COUNT * sizeof(USHORT))
 #define KBDLAYER_REGTEMP_POOL_TAG 'tLdK'
 
 // 緊急時の解除手段（release-roadmap-priority.md 項番3）。ドライバ全体で1つの設定
@@ -2092,8 +2097,9 @@ ModifierKindsOf(
     return result;
 }
 
-// Key Overrideの表から、出力キーOutScanCodeと今の修飾キーの状態に当てはまるものを探す（最初に
-// 当たったもの）。当たったら、押下記録にするアクション（INTERNAL_KEY_OVERRIDE、Param1=置き換え先の
+// Key Overrideの表から、出力キーOutScanCodeと今の修飾キーの状態・実効レイヤーに当てはまるものを探す
+// （候補が複数あれば、レイヤー条件つきを優先し、条件つき同士は条件の最上位のレイヤーが高いものを優先する。
+// 同順位ならIdの小さいもの。KeyOverrideSelect.h）。当たったら、押下記録にするアクション（INTERNAL_KEY_OVERRIDE、Param1=置き換え先の
 // 修飾子マスク、Param2=置き換え先のキー）と、OS上で一時的に離す修飾キーを返す。
 // 条件: TriggerModsの種類（Ctrl・Shift・Alt・Win。左右は区別しない）が全部、押されている
 // （普通の出力・足した修飾キー）。別の置き換えが一時的に離している修飾キー（SuppressedMods）も、
@@ -2113,6 +2119,12 @@ MatchKeyOverrideLocked(
 {
     static const UCHAR kinds[] = { 0x11, 0x22, 0x44, 0x88 };
     UCHAR down;
+    ULONG effectiveMask;
+    LONG bestRank = KBDLAYER_KEY_OVERRIDE_RANK_NONE;
+    ULONG best = KBDLAYER_MAX_KEY_OVERRIDE_COUNT; // 範囲外 = まだ見つかっていない
+    const KBDLAYER_KEY_OVERRIDE_ENTRY* entry;
+    UCHAR triggerKinds;
+    UCHAR replacementMods;
 
     RtlZeroMemory(OutAction, sizeof(*OutAction));
     *OutSuppress = 0;
@@ -2121,13 +2133,15 @@ MatchKeyOverrideLocked(
         return FALSE;
     }
     down = (UCHAR)(devExt->RealModsDown | AddedModsUnion(devExt));
+    effectiveMask = EffectiveLayerMaskLocked(devExt);
 
+    // 条件（出力キー・修飾キー・レイヤー）に当たる候補の中から、最良の1件を選ぶ（優先順位は
+    // KeyOverrideSelect.h）。同順位なら、先に見つかった（Idの小さい）ものを残す。
     for (ULONG i = 0; i < KBDLAYER_MAX_KEY_OVERRIDE_COUNT; i++) {
-        const KBDLAYER_KEY_OVERRIDE_ENTRY* entry = &devExt->KeyOverrides[i];
-        UCHAR triggerKinds;
         BOOLEAN satisfied = TRUE;
-        UCHAR replacementMods;
+        LONG rank;
 
+        entry = &devExt->KeyOverrides[i];
         if (!devExt->KeyOverrideUsed[i] || entry->TriggerScanCode != OutScanCode) {
             continue;
         }
@@ -2141,38 +2155,51 @@ MatchKeyOverrideLocked(
         if (!satisfied) {
             continue;
         }
-
-        if (entry->Replacement.Type == KBDLAYER_ACTION_MACRO) {
-            // 置き換え先がマクロ。マクロの機能がOFFなら発動しない（次の候補を見る。無ければキーはそのまま通る）。
-            // 戻り値の形（呼び出し側のRunKeyOverrideMacroだけが見る）: Type=MACRO、Param1=マクロID、
-            // Param2=1ならオートリピートで繰り返す（押下の記録には入れない）。条件の修飾キーは全部隠す。
-            if (!(devExt->EnabledFeatures & KBDLAYER_FEATURE_MACRO)) {
-                continue;
-            }
-            OutAction->Type = KBDLAYER_ACTION_MACRO;
-            OutAction->Param1 = entry->Replacement.Param1;
-            OutAction->Param2 = (entry->Flags & KBDLAYER_KEY_OVERRIDE_FLAG_REPEAT) ? 1 : 0;
-            *OutSuppress = (UCHAR)(down & triggerKinds);
-            return TRUE;
+        // 置き換え先がマクロで、マクロの機能がOFFなら、発動しない（候補から外す。次の候補を見る。
+        // 無ければキーはそのまま通る）。
+        if (entry->Replacement.Type == KBDLAYER_ACTION_MACRO &&
+            !(devExt->EnabledFeatures & KBDLAYER_FEATURE_MACRO)) {
+            continue;
         }
-
-        if (IsStateReplacementType(entry->Replacement.Type)) {
-            // 状態だけを動かす置き換え先（レイヤー操作・ヘルパーイベント。2026-11-03）。キーは出力せず、
-            // 条件の修飾キーもOS上で離さない（何も出力しないので、離す必要がない）。戻り値の形（呼び出し側の
-            // ResolveModdedKeyだけが見る）: 置き換え先の動作をそのまま返す。
-            *OutAction = entry->Replacement;
-            *OutSuppress = 0;
-            return TRUE;
+        rank = KeyOverrideCandidateRank(devExt->KeyOverrideLayers[i], effectiveMask);
+        if (KeyOverrideRankBeats(rank, bestRank)) {
+            bestRank = rank;
+            best = i;
         }
+    }
+    if (best >= KBDLAYER_MAX_KEY_OVERRIDE_COUNT) {
+        return FALSE;
+    }
 
-        replacementMods = (entry->Replacement.Type == KBDLAYER_ACTION_MODDED_KEY) ? entry->Replacement.Param1 : 0;
-        OutAction->Type = KBDLAYER_ACTION_INTERNAL_KEY_OVERRIDE;
-        OutAction->Param1 = replacementMods;
-        OutAction->Param2 = entry->Replacement.Param2;
-        *OutSuppress = (UCHAR)(down & triggerKinds & ~replacementMods);
+    entry = &devExt->KeyOverrides[best];
+    triggerKinds = ModifierKindsOf(entry->TriggerMods);
+
+    if (entry->Replacement.Type == KBDLAYER_ACTION_MACRO) {
+        // 置き換え先がマクロ。戻り値の形（呼び出し側のRunKeyOverrideMacroだけが見る）: Type=MACRO、
+        // Param1=マクロID、Param2=1ならオートリピートで繰り返す（押下の記録には入れない）。
+        // 条件の修飾キーは全部隠す。
+        OutAction->Type = KBDLAYER_ACTION_MACRO;
+        OutAction->Param1 = entry->Replacement.Param1;
+        OutAction->Param2 = (entry->Flags & KBDLAYER_KEY_OVERRIDE_FLAG_REPEAT) ? 1 : 0;
+        *OutSuppress = (UCHAR)(down & triggerKinds);
         return TRUE;
     }
-    return FALSE;
+
+    if (IsStateReplacementType(entry->Replacement.Type)) {
+        // 状態だけを動かす置き換え先（レイヤー操作・ヘルパーイベント。2026-11-03）。キーは出力せず、
+        // 条件の修飾キーもOS上で離さない（何も出力しないので、離す必要がない）。戻り値の形（呼び出し側の
+        // ResolveModdedKeyだけが見る）: 置き換え先の動作をそのまま返す。
+        *OutAction = entry->Replacement;
+        *OutSuppress = 0;
+        return TRUE;
+    }
+
+    replacementMods = (entry->Replacement.Type == KBDLAYER_ACTION_MODDED_KEY) ? entry->Replacement.Param1 : 0;
+    OutAction->Type = KBDLAYER_ACTION_INTERNAL_KEY_OVERRIDE;
+    OutAction->Param1 = replacementMods;
+    OutAction->Param2 = entry->Replacement.Param2;
+    *OutSuppress = (UCHAR)(down & triggerKinds & ~replacementMods);
+    return TRUE;
 }
 
 // Alt・Winを「戻す」makeを送った直後に、何も押さずに離されると、メニューやスタートが開く。
@@ -3784,6 +3811,14 @@ CopyPersistedSettings(
             CheckPersistResult(devExt, KBDLAYER_KEYOVERRIDES_VALUE_NAME,
                 RegWriteBinary(KBDLAYER_SERVICE_NAME, dstPath, KBDLAYER_KEYOVERRIDES_VALUE_NAME, scratch, actualLength));
         }
+        // レイヤー条件の値（2026-11-25）。固定長（128件分）だけをコピーする。
+        actualLength = 0;
+        if (NT_SUCCESS(RegReadBinary(KBDLAYER_SERVICE_NAME, srcPath, KBDLAYER_KEYOVERRIDE_LAYERS_VALUE_NAME,
+                                      scratch, scratchBytes, &actualLength)) &&
+            actualLength == KBDLAYER_KEYOVERRIDE_LAYERS_BLOB_BYTES) {
+            CheckPersistResult(devExt, KBDLAYER_KEYOVERRIDE_LAYERS_VALUE_NAME,
+                RegWriteBinary(KBDLAYER_SERVICE_NAME, dstPath, KBDLAYER_KEYOVERRIDE_LAYERS_VALUE_NAME, scratch, actualLength));
+        }
     }
 
     {
@@ -5294,6 +5329,7 @@ PersistAllKeyOverrides(
 {
     WCHAR subKeyPath[64];
     PKBDLAYER_KEY_OVERRIDE_PERSIST_ENTRY buffer;
+    PUSHORT layersBuffer;
     KIRQL oldIrql;
 
     buffer = (PKBDLAYER_KEY_OVERRIDE_PERSIST_ENTRY)ExAllocatePool2(
@@ -5302,18 +5338,32 @@ PersistAllKeyOverrides(
         return;
     }
 
+    layersBuffer = (PUSHORT)ExAllocatePool2(
+        POOL_FLAG_NON_PAGED, KBDLAYER_KEYOVERRIDE_LAYERS_BLOB_BYTES, KBDLAYER_REGTEMP_POOL_TAG);
+    if (layersBuffer == NULL) {
+        ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
+        return;
+    }
+
     KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
     for (ULONG i = 0; i < KBDLAYER_MAX_KEY_OVERRIDE_COUNT; i++) {
         buffer[i].Used = devExt->KeyOverrideUsed[i] ? 1 : 0;
         buffer[i].Entry = devExt->KeyOverrides[i];
+        layersBuffer[i] = devExt->KeyOverrideLayers[i];
     }
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
 
     BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
+    // "KeyOverrideLayers"を先に書く。途中で止まっても、"KeyOverrides"の条件付きの件が、条件の値なしで残ることはない
+    // （古い"KeyOverrideLayers"と合わない件は、読み込みで捨てる）。
+    CheckPersistResult(devExt, KBDLAYER_KEYOVERRIDE_LAYERS_VALUE_NAME,
+        RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_KEYOVERRIDE_LAYERS_VALUE_NAME,
+                        layersBuffer, KBDLAYER_KEYOVERRIDE_LAYERS_BLOB_BYTES));
     CheckPersistResult(devExt, KBDLAYER_KEYOVERRIDES_VALUE_NAME,
         RegWriteBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_KEYOVERRIDES_VALUE_NAME,
                         buffer, KBDLAYER_KEY_OVERRIDE_PERSIST_BLOB_BYTES));
 
+    ExFreePoolWithTag(layersBuffer, KBDLAYER_REGTEMP_POOL_TAG);
     ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
 }
 
@@ -5321,15 +5371,25 @@ PersistAllKeyOverrides(
 _IRQL_requires_max_(PASSIVE_LEVEL)
 static BOOLEAN
 IsValidKeyOverrideEntry(
-    _In_ const KBDLAYER_KEY_OVERRIDE_ENTRY* Entry
+    _In_ const KBDLAYER_KEY_OVERRIDE_ENTRY* Entry,
+    _In_ USHORT Layers
     )
 {
     if (Entry->TriggerMods == 0 || Entry->TriggerScanCode == 0 ||
-        (Entry->Flags & ~KBDLAYER_KEY_OVERRIDE_FLAG_REPEAT) != 0) {
+        (Entry->Flags & ~KBDLAYER_KEY_OVERRIDE_FLAGS_KNOWN) != 0) {
         return FALSE;
     }
     // REPEATはMACROのときだけ意味がある。
-    if (Entry->Flags != 0 && Entry->Replacement.Type != KBDLAYER_ACTION_MACRO) {
+    if ((Entry->Flags & KBDLAYER_KEY_OVERRIDE_FLAG_REPEAT) != 0 &&
+        Entry->Replacement.Type != KBDLAYER_ACTION_MACRO) {
+        return FALSE;
+    }
+    // レイヤー条件: FLAG_LAYERSとLayers（0以外・レイヤー数の範囲内）は、一緒に指定する。
+    if ((Entry->Flags & KBDLAYER_KEY_OVERRIDE_FLAG_LAYERS) != 0) {
+        if (Layers == 0 || ((ULONG)Layers & ~KBDLAYER_KEY_OVERRIDE_LAYERS_VALID) != 0) {
+            return FALSE;
+        }
+    } else if (Layers != 0) {
         return FALSE;
     }
     switch (Entry->Replacement.Type) {
@@ -5363,7 +5423,8 @@ NTSTATUS
 SetKeyOverrideForDevice(
     _In_ PDEVICE_EXTENSION devExt,
     _In_ ULONG Id,
-    _In_opt_ PKBDLAYER_KEY_OVERRIDE_ENTRY Entry
+    _In_opt_ PKBDLAYER_KEY_OVERRIDE_ENTRY Entry,
+    _In_ USHORT Layers
     )
 {
     KIRQL outputIrql;
@@ -5372,7 +5433,7 @@ SetKeyOverrideForDevice(
     if (Id >= KBDLAYER_MAX_KEY_OVERRIDE_COUNT) {
         return STATUS_INVALID_PARAMETER;
     }
-    if (Entry != NULL && !IsValidKeyOverrideEntry(Entry)) {
+    if (Entry != NULL && !IsValidKeyOverrideEntry(Entry, Layers)) {
         return STATUS_INVALID_PARAMETER;
     }
 
@@ -5381,9 +5442,11 @@ SetKeyOverrideForDevice(
     KeAcquireSpinLockAtDpcLevel(&devExt->EngineLock);
     if (Entry != NULL) {
         devExt->KeyOverrides[Id] = *Entry;
+        devExt->KeyOverrideLayers[Id] = Layers;
         devExt->KeyOverrideUsed[Id] = TRUE;
     } else {
         RtlZeroMemory(&devExt->KeyOverrides[Id], sizeof(devExt->KeyOverrides[Id]));
+        devExt->KeyOverrideLayers[Id] = 0;
         devExt->KeyOverrideUsed[Id] = FALSE;
     }
     for (ULONG i = 0; i < KBDLAYER_MAX_KEY_OVERRIDE_COUNT; i++) {
@@ -5405,6 +5468,7 @@ GetKeyOverrideForDevice(
     _In_ PDEVICE_EXTENSION devExt,
     _In_ ULONG Id,
     _Out_ PKBDLAYER_KEY_OVERRIDE_ENTRY OutEntry,
+    _Out_ PUSHORT OutLayers,
     _Out_ PBOOLEAN OutUsed
     )
 {
@@ -5416,6 +5480,7 @@ GetKeyOverrideForDevice(
 
     KeAcquireSpinLock(&devExt->EngineLock, &oldIrql);
     *OutEntry = devExt->KeyOverrides[Id];
+    *OutLayers = devExt->KeyOverrideLayers[Id];
     *OutUsed = devExt->KeyOverrideUsed[Id];
     KeReleaseSpinLock(&devExt->EngineLock, oldIrql);
     return STATUS_SUCCESS;
@@ -5431,8 +5496,11 @@ LoadPersistedKeyOverridesForDevice(
 {
     WCHAR subKeyPath[64];
     PKBDLAYER_KEY_OVERRIDE_PERSIST_ENTRY buffer;
+    PUSHORT layersBuffer;
     ULONG actualLength = 0;
+    ULONG layersLength = 0;
     ULONG persistedCount = 0;
+    BOOLEAN haveLayers = FALSE;
     NTSTATUS status;
 
     buffer = (PKBDLAYER_KEY_OVERRIDE_PERSIST_ENTRY)ExAllocatePool2(
@@ -5440,25 +5508,47 @@ LoadPersistedKeyOverridesForDevice(
     if (buffer == NULL) {
         return;
     }
+    layersBuffer = (PUSHORT)ExAllocatePool2(
+        POOL_FLAG_PAGED, KBDLAYER_KEYOVERRIDE_LAYERS_BLOB_BYTES, KBDLAYER_REGTEMP_POOL_TAG);
+    if (layersBuffer == NULL) {
+        ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
+        return;
+    }
     BuildLayerMapsSubKeyPath(devExt, subKeyPath, RTL_NUMBER_OF(subKeyPath));
     status = RegReadBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_KEYOVERRIDES_VALUE_NAME,
                             buffer, KBDLAYER_KEY_OVERRIDE_PERSIST_BLOB_BYTES, &actualLength);
     persistedCount = NT_SUCCESS(status) ? KeyOverridePersistCountFromLength(actualLength) : 0;
+    // レイヤー条件の値（2026-11-25）。無い・長さが合わないときは、条件付きの件（FLAG_LAYERS）を読み込まない。
+    status = RegReadBinary(KBDLAYER_SERVICE_NAME, subKeyPath, KBDLAYER_KEYOVERRIDE_LAYERS_VALUE_NAME,
+                            layersBuffer, KBDLAYER_KEYOVERRIDE_LAYERS_BLOB_BYTES, &layersLength);
+    haveLayers = (NT_SUCCESS(status) && layersLength == KBDLAYER_KEYOVERRIDE_LAYERS_BLOB_BYTES) ? TRUE : FALSE;
     if (persistedCount > 0) {
         ULONG count = 0;
         for (ULONG i = 0; i < KBDLAYER_MAX_KEY_OVERRIDE_COUNT; i++) {
             // 旧サイズ（32件分）の値は、先頭の件数ぶんだけ読み、残りは未設定にする。
-            BOOLEAN used = (i < persistedCount) && (buffer[i].Used != 0) && IsValidKeyOverrideEntry(&buffer[i].Entry);
+            BOOLEAN used = FALSE;
+            USHORT layers = 0;
+
+            if (i < persistedCount && buffer[i].Used != 0) {
+                // 条件なしの件は、"KeyOverrideLayers"の値（古いドライバが書き換えなかった残り）を見ない。
+                if ((buffer[i].Entry.Flags & KBDLAYER_KEY_OVERRIDE_FLAG_LAYERS) != 0) {
+                    layers = haveLayers ? layersBuffer[i] : 0; // 0なら、IsValidKeyOverrideEntryが落とす
+                }
+                used = IsValidKeyOverrideEntry(&buffer[i].Entry, layers);
+            }
             devExt->KeyOverrideUsed[i] = used;
             if (used) {
                 devExt->KeyOverrides[i] = buffer[i].Entry;
+                devExt->KeyOverrideLayers[i] = layers;
                 count++;
             } else {
                 RtlZeroMemory(&devExt->KeyOverrides[i], sizeof(devExt->KeyOverrides[i]));
+                devExt->KeyOverrideLayers[i] = 0;
             }
         }
         devExt->KeyOverrideCount = count;
     }
+    ExFreePoolWithTag(layersBuffer, KBDLAYER_REGTEMP_POOL_TAG);
     ExFreePoolWithTag(buffer, KBDLAYER_REGTEMP_POOL_TAG);
 }
 

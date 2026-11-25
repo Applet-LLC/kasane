@@ -369,8 +369,32 @@ typedef struct _KBDLAYER_GET_MACRO_OUTPUT {
 //     （マクロの32→128と同じ扱い）。
 #define KBDLAYER_MAX_KEY_OVERRIDE_COUNT 128
 
-// KBDLAYER_KEY_OVERRIDE_ENTRY.Flags のビット。ReplacementがMACROのときだけ指定できる。
-#define KBDLAYER_KEY_OVERRIDE_FLAG_REPEAT 0x01 // オートリピートでマクロを繰り返す
+// --- Key Overrideのレイヤー条件（2026-11-25） ---
+//
+// 1件に「このレイヤーが立っている間だけ効く」というレイヤーのマスク（16bit。bit n = レイヤーn）を付けられる。
+// 例: Excel用のアプリ別レイヤー（レイヤー3）が立っている間だけ、Ctrl+L → Ctrl+PageUp。
+//   - 条件付きの印は Flags の KBDLAYER_KEY_OVERRIDE_FLAG_LAYERS。マスク本体は、SET/GET の _EX 版の
+//     構造体の末尾（Layers）で受け渡す。1件の構造体（KBDLAYER_KEY_OVERRIDE_ENTRY）の形は変えない。
+//   - Layers=0（FLAG_LAYERSなし）= 全レイヤー（従来と同じ）。0以外 = 実効レイヤーマスク（キーボード側のレイヤー |
+//     アプリ別レイヤー | 既定レイヤー）と重なるときだけ候補になる。
+//   - 同じ出力キー・修飾キーの条件に当たる候補が複数あるときの優先順位:
+//       1. 条件付きのものを、条件なしより優先する。
+//       2. 条件付き同士は、「Layers & 実効マスク」の最上位のレイヤーが高いものを優先する
+//          （レイヤーマップの「上が勝つ」と同じ）。
+//       3. 並んだら、Idの小さいもの（従来と同じ）。
+//     そのため、上のレイヤーに Ctrl+S → Ctrl+S を置けば、そのレイヤーが立っている間だけ、別の置き換えを
+//     やめられる。
+//   - 押下の記録が置き換え先を持つので、押している間にレイヤーが変わっても、解放は押したときのまま。
+//   - 古いドライバは、知らないFlagsのビットをSTATUS_INVALID_PARAMETERで拒否する（黙って全体に効くことはない）。
+//   - 保存は別の値 "KeyOverrideLayers"（件数 × USHORT）。"KeyOverrides"値の形式は変えない。
+
+// KBDLAYER_KEY_OVERRIDE_ENTRY.Flags のビット。
+#define KBDLAYER_KEY_OVERRIDE_FLAG_REPEAT 0x01 // オートリピートでマクロを繰り返す。ReplacementがMACROのときだけ指定できる
+#define KBDLAYER_KEY_OVERRIDE_FLAG_LAYERS 0x02 // レイヤー条件つき。_EX版の構造体のLayers（0以外）が条件
+#define KBDLAYER_KEY_OVERRIDE_FLAGS_KNOWN \
+    (KBDLAYER_KEY_OVERRIDE_FLAG_REPEAT | KBDLAYER_KEY_OVERRIDE_FLAG_LAYERS)
+// Layersに立てられるビット（レイヤー数ぶん）。
+#define KBDLAYER_KEY_OVERRIDE_LAYERS_VALID ((1U << KBDLAYER_MAX_LAYERS) - 1U)
 
 typedef struct _KBDLAYER_KEY_OVERRIDE_ENTRY {
     UCHAR TriggerMods;            // KBDLAYER_MOD_* のOR（0以外）
@@ -398,6 +422,23 @@ typedef struct _KBDLAYER_GET_KEY_OVERRIDE_OUTPUT {
     ULONG Used;
     KBDLAYER_KEY_OVERRIDE_ENTRY Entry;
 } KBDLAYER_GET_KEY_OVERRIDE_OUTPUT, *PKBDLAYER_GET_KEY_OVERRIDE_OUTPUT;
+
+// レイヤー条件つき（FLAG_LAYERS）のときのSET_KEY_OVERRIDE入力。先頭は従来の構造体と同じ並びで、
+// 末尾にLayersを足す。Entry.Flags に FLAG_LAYERS を立てたときだけ、この長さが必要（Layers!=0、Reserved==0）。
+// 条件なしのときは、従来の長さのままでよい（古いドライバでも動く）。
+typedef struct _KBDLAYER_SET_KEY_OVERRIDE_INPUT_EX {
+    KBDLAYER_SET_KEY_OVERRIDE_INPUT Base;
+    USHORT Layers;   // bit n = レイヤーn。0 < Layers <= KBDLAYER_KEY_OVERRIDE_LAYERS_VALID
+    USHORT Reserved; // 0
+} KBDLAYER_SET_KEY_OVERRIDE_INPUT_EX, *PKBDLAYER_SET_KEY_OVERRIDE_INPUT_EX;
+
+// GET_KEY_OVERRIDEの出力。出力バッファがこの長さ以上のときだけ、Layersまで返す（足りなければ従来の長さ。
+// 呼び出し側はLayers=0とみなす）。条件なしの件は、Layers=0。
+typedef struct _KBDLAYER_GET_KEY_OVERRIDE_OUTPUT_EX {
+    KBDLAYER_GET_KEY_OVERRIDE_OUTPUT Base;
+    USHORT Layers;
+    USHORT Reserved;
+} KBDLAYER_GET_KEY_OVERRIDE_OUTPUT_EX, *PKBDLAYER_GET_KEY_OVERRIDE_OUTPUT_EX;
 
 // --- Phase 4: コンボ ---
 //
