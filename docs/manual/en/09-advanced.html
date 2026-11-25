@@ -237,8 +237,60 @@
 <li>If you put a key with modifiers such as <code>LCTL(KC_S)</code> on the layer you switched to with <code>OSL(n)</code> or the like, the output key (Ctrl+S in this example) may hit another key override. To avoid that, assign <code>MACRO(n)</code> to that key.</li>
 <li><code>MO(n)</code>, <code>LT(n, kc)</code>, <code>KC_NO</code>, and the like cannot be used as a replacement.</li>
 <li>With an old driver (one that supports only 32 key overrides), the 33rd and later, and replacements that are layer actions or helper actions, are not applied.</li>
+<li>A key override with <strong>Active layers</strong> needs driver 1.03 or later. With an older driver, applying it gives an error. The condition is never ignored so that the override works on all layers.</li>
 </ul>
-<h3 id="example-run-a-macro-with-ctrlf1">Example: run a macro with Ctrl+F1</h3>
+<h3 id="limiting-the-layers-where-an-override-works">Limiting the layers where an override works</h3>
+<p>A key override works only while one of the layers you check in <strong>Active layers</strong> is on. If you check no layer, it works on all layers (the same as before). If you check several layers, it works while any one of them is on.</p>
+<ul>
+<li>A layer being &quot;on&quot; is about the layers that currently affect input, not the layer you have selected in the keyboard picture. This covers layer 0, layers turned on with <code>MO</code> or <code>TG</code>, and layers turned on by an per-app layer rule.</li>
+<li>When several key overrides match the same key and modifiers, only one works. It is chosen as follows.
+<ol>
+<li>An override with active layers comes before one without.</li>
+<li>Among overrides with active layers, the one whose condition is the higher-numbered layer among the layers that are on comes first.</li>
+<li>If that still does not decide it, the override with the lower number comes first.</li>
+</ol>
+</li>
+<li>The R mark at the lower right of a key shows only while you view the condition layer. The assignment list shows &quot;(while layer 3 is on)&quot;.</li>
+</ul>
+<h3 id="example-switch-sheets-only-in-excel-with-ctrll-and-ctrl">Example: switch sheets only in Excel, with Ctrl+L and Ctrl+;</h3>
+<p>This lets you switch Excel sheets (Ctrl+PageUp is the left sheet, Ctrl+PageDown is the right sheet) with Ctrl+L and Ctrl+; as well. Outside Excel, Ctrl+L and Ctrl+; keep their original behavior.</p>
+<ol>
+<li><p>Make layer 3 with <strong>+ Add</strong> (all keys can stay ▽).</p>
+</li>
+<li><p>Open <strong>Key overrides...</strong> and make the next two. For both, check only layer 3 in <strong>Active layers</strong>. Press <strong>OK</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Modifiers</th>
+<th>Key</th>
+<th>Replace with</th>
+<th>Active layers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MOD_LCTL</code></td>
+<td><code>KC_L</code></td>
+<td><code>LCTL(KC_PGUP)</code></td>
+<td>3</td>
+</tr>
+<tr>
+<td><code>MOD_LCTL</code></td>
+<td><code>KC_SCLN</code></td>
+<td><code>LCTL(KC_PGDN)</code></td>
+<td>3</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li><p>On the <strong>Per-app layers</strong> tab of <strong>Settings...</strong>, add a rule that turns layer 3 on when the exe is <code>EXCEL.EXE</code> (<a href="11-helper-apprules.html">11. Helper actions and per-app layers</a>).</p>
+</li>
+<li><p>Press <strong>Apply to keyboard (ON)</strong>.</p>
+</li>
+<li><p>With Excel in front, press Ctrl+L to move to the left sheet. In Notepad and the like, Ctrl+L keeps its original behavior.</p>
+</li>
+</ol>
+<p>Layer 3 is empty, so other key overrides such as Ctrl+N and Ctrl+P keep working in Excel. This differs from adding Ctrl with a layer key (<code>LM</code>), because nothing adds Ctrl here.</p>
 <p>It is processed by the driver, so it works even when the tray is not running.</p>
 <ol>
 <li>With <strong>Macros...</strong>, make a macro with the contents you want (for example, macro 0).</li>

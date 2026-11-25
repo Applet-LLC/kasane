@@ -15,6 +15,7 @@ These are common setups, with steps. How to use the key assignment window and ea
 | Make Shift+BS into Delete | [Example 9](#recipe9) |
 | Send a sequence of keys (a macro) with Ctrl+1 | [Example 10](#recipe10) |
 | Make the numpad switch among three layouts each time you press a key | [Example 11](#recipe11) |
+| Switch sheets only in Excel, with Ctrl+L and Ctrl+; | [Example 12](#recipe12) |
 
 ## Steps for assigning a key
 
@@ -270,3 +271,24 @@ Press **Apply to keyboard (ON)**. Open Notepad and check as follows.
 4. Press the 0 key. It goes back to layer 0.
 
 You can also switch layers from **Layers** in the tray menu ([4. Tray](04-tray.html)).
+
+<a id="recipe12"></a>
+## Example 12: Switch sheets only in Excel, with Ctrl+L and Ctrl+;
+
+This lets you switch Excel sheets (Ctrl+PageUp is the left sheet, Ctrl+PageDown is the right sheet) with the Emacs-style Ctrl+L and Ctrl+; as well. In other apps, these two keys keep their original behavior. You give the key overrides **Active layers**, which limits them to a layer that is turned on only while Excel is in front.
+
+1. In the editor, press **+ Add** to make layer 3. Do not change any assignment on it.
+2. Open **Key overrides...** and make the next two. For both, check only layer 3 in **Active layers**, then press **OK**.
+
+   | Modifiers | Key | Replace with | Active layers |
+   |---|---|---|---|
+   | `MOD_LCTL` | `KC_L` | `LCTL(KC_PGUP)` | 3 |
+   | `MOD_LCTL` | `KC_SCLN` | `LCTL(KC_PGDN)` | 3 |
+
+3. On the **Per-app layers** tab of **Settings...**, press **Add...**, and choose Excel with **Choose from running apps...** (the exe is `EXCEL.EXE`). For the layers to turn on, check only layer 3.
+4. Press **Apply to keyboard (ON)**.
+5. With Excel in front, press Ctrl+L to move to the left sheet. Ctrl+; moves to the right sheet. In Notepad and the like, Ctrl+L keeps its original behavior.
+
+Even in Excel, the other Emacs-style key overrides, such as Ctrl+N (down) and Ctrl+P (up), keep working. Layer 3 holds no assignment that adds Ctrl.
+
+This combination is also in the Emacs-style setup example (`samples\emacs\emacs-excel.kasane.json`).

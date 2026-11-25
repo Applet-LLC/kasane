@@ -140,7 +140,7 @@ The small characters at the upper left of a key are the key's legend, and the la
 | M at the lower right | A macro (the assignment is `MACRO(n)`) |
 | D at the lower right | A tap dance (`TAPDANCE(n)`) |
 | C at the lower right | A key that is part of a combo (shown on every layer) |
-| R at the lower right | A key that is the target of a key override (shown on the layer that produces that key) |
+| R at the lower right | A key that is the target of a key override (shown on the layer that produces that key; for an override with active layers, only on those layers) |
 | H at the lower right | A helper action (the assignment is `HLP(Id)`). Hold the mouse over it to see the action's name and contents |
 | T at the lower right | A helper trigger key. Shown when the key that this key sends has a trigger (the **Helper actions** tab of Settings). Hold the mouse over it to see the trigger's contents |
 
@@ -169,6 +169,7 @@ override 1 "Ctrl-1": Ctrl+1  -> Macro 0           : MOD_LCTL + KC_1 -> MACRO(0)
 - For layer 0, only keys changed from their legend are shown. For layer 1 and above, only keys that are not ▽ (transparent) are shown.
 - A line has the form "key -> action : original key code". Within the same heading, the positions of `->` and `:` are aligned. Japanese characters are aligned as two half-width characters, so when you paste the list into Notepad or the like, view it in a monospaced font such as MS Gothic.
 - The original key code is useful when you ask for support. If you paste this list, your settings are communicated as they are.
+- A key override with active layers gets its condition layers, as in "(while layer 3 is on)".
 - All layers (layer 0, 1, 2…) are shown in order. Combos, tap dances, key overrides, macros, NICOLA, helper actions (including triggers), rules for the foreground app, and IME-linked layers are shown only when they have definitions. For helper actions and triggers, the steps of the operation and the contents of strings are also shown. A setting you disabled has `# ` at the start of its line. A section whose feature is OFF says so in its heading.
 - What is shown is what is currently open in the editor. It includes changes you have not saved or applied. If you change assignments while this window is open, press **Refresh**.
 - With **Copy** you can send it to the clipboard, and with **Save...** you can write it to a text file (UTF-8). You cannot edit in this window.

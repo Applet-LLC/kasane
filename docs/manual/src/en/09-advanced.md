@@ -138,8 +138,36 @@ With **Key overrides...**, you replace a combination of modifiers and a key with
 - If you put a key with modifiers such as `LCTL(KC_S)` on the layer you switched to with `OSL(n)` or the like, the output key (Ctrl+S in this example) may hit another key override. To avoid that, assign `MACRO(n)` to that key.
 - `MO(n)`, `LT(n, kc)`, `KC_NO`, and the like cannot be used as a replacement.
 - With an old driver (one that supports only 32 key overrides), the 33rd and later, and replacements that are layer actions or helper actions, are not applied.
+- A key override with **Active layers** needs driver 1.03 or later. With an older driver, applying it gives an error. The condition is never ignored so that the override works on all layers.
 
-### Example: run a macro with Ctrl+F1
+### Limiting the layers where an override works
+
+A key override works only while one of the layers you check in **Active layers** is on. If you check no layer, it works on all layers (the same as before). If you check several layers, it works while any one of them is on.
+
+- A layer being "on" is about the layers that currently affect input, not the layer you have selected in the keyboard picture. This covers layer 0, layers turned on with `MO` or `TG`, and layers turned on by an per-app layer rule.
+- When several key overrides match the same key and modifiers, only one works. It is chosen as follows.
+  1. An override with active layers comes before one without.
+  2. Among overrides with active layers, the one whose condition is the higher-numbered layer among the layers that are on comes first.
+  3. If that still does not decide it, the override with the lower number comes first.
+- The R mark at the lower right of a key shows only while you view the condition layer. The assignment list shows "(while layer 3 is on)".
+
+### Example: switch sheets only in Excel, with Ctrl+L and Ctrl+;
+
+This lets you switch Excel sheets (Ctrl+PageUp is the left sheet, Ctrl+PageDown is the right sheet) with Ctrl+L and Ctrl+; as well. Outside Excel, Ctrl+L and Ctrl+; keep their original behavior.
+
+1. Make layer 3 with **+ Add** (all keys can stay ▽).
+2. Open **Key overrides...** and make the next two. For both, check only layer 3 in **Active layers**. Press **OK**.
+
+   | Modifiers | Key | Replace with | Active layers |
+   |---|---|---|---|
+   | `MOD_LCTL` | `KC_L` | `LCTL(KC_PGUP)` | 3 |
+   | `MOD_LCTL` | `KC_SCLN` | `LCTL(KC_PGDN)` | 3 |
+
+3. On the **Per-app layers** tab of **Settings...**, add a rule that turns layer 3 on when the exe is `EXCEL.EXE` ([11. Helper actions and per-app layers](11-helper-apprules.html)).
+4. Press **Apply to keyboard (ON)**.
+5. With Excel in front, press Ctrl+L to move to the left sheet. In Notepad and the like, Ctrl+L keeps its original behavior.
+
+Layer 3 is empty, so other key overrides such as Ctrl+N and Ctrl+P keep working in Excel. This differs from adding Ctrl with a layer key (`LM`), because nothing adds Ctrl here.
 
 It is processed by the driver, so it works even when the tray is not running.
 

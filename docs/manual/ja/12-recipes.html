@@ -91,6 +91,10 @@
 <td>テンキーを、押すたびに切り替わる 3 つの配置にする</td>
 <td><a href="#recipe11">例 11</a></td>
 </tr>
+<tr>
+<td>Excel のときだけ、Ctrl+L と Ctrl+; でシートを切り替える</td>
+<td><a href="#recipe12">例 12</a></td>
+</tr>
 </tbody>
 </table>
 <h2 id="section-1">キーを割り当てる手順</h2>
@@ -539,6 +543,47 @@
 <li>0 キーを押す。レイヤー 0 に戻る。</li>
 </ol>
 <p>トレイのメニューの <strong>レイヤー</strong> からも、レイヤーを切り替えられます（<a href="04-tray.html">4. トレイ</a>）。</p>
+<p><a id="recipe12"></a></p>
+<h2 id="excel-ctrll-ctrl">例 12: Excel のときだけ、Ctrl+L と Ctrl+; でシートを切り替える</h2>
+<p>Excel のシート切り替え（Ctrl+PageUp が左のシート、Ctrl+PageDown が右のシート）を、Emacs 風の Ctrl+L と Ctrl+; でも行います。Excel 以外のアプリでは、この 2 つのキーは元の動きのままです。キー置換に <strong>効くレイヤー</strong> を付けて、Excel のときだけ有効にするレイヤーに限ります。</p>
+<ol>
+<li><p>エディタで <strong>＋ 追加</strong> を押し、レイヤー 3 を作ります。割り当ては何も変えません。</p>
+</li>
+<li><p><strong>キー置換...</strong> を開き、次の 2 つを作ります。どちらも <strong>効くレイヤー</strong> は 3 だけにチェックを付け、<strong>OK</strong> を押します。</p>
+<table>
+<thead>
+<tr>
+<th>修飾キー</th>
+<th>キー</th>
+<th>置き換え先</th>
+<th>効くレイヤー</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MOD_LCTL</code></td>
+<td><code>KC_L</code></td>
+<td><code>LCTL(KC_PGUP)</code></td>
+<td>3</td>
+</tr>
+<tr>
+<td><code>MOD_LCTL</code></td>
+<td><code>KC_SCLN</code></td>
+<td><code>LCTL(KC_PGDN)</code></td>
+<td>3</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li><p><strong>設定...</strong> の <strong>アプリ別レイヤー</strong> タブで <strong>追加...</strong> を押し、<strong>実行中のアプリから選ぶ...</strong> で Excel を選びます（exe は <code>EXCEL.EXE</code>）。有効にするレイヤーは 3 だけにチェックを付けます。</p>
+</li>
+<li><p><strong>キーボードに適用(ON)</strong> を押します。</p>
+</li>
+<li><p>Excel を前面にして Ctrl+L を押すと、左のシートに移ります。Ctrl+; は右のシートです。メモ帳などで Ctrl+L を押しても、元の動きのままです。</p>
+</li>
+</ol>
+<p>Excel でも、Ctrl+N（↓）や Ctrl+P（↑）などの、ほかの Emacs 風のキー置換はそのまま働きます。レイヤー 3 には、Ctrl を足す割り当てを置いていないためです。</p>
+<p>この組み合わせは、Emacs 風の設定例にも入っています（<code>samples\emacs\emacs-excel.kasane.json</code>）。</p>
 
 <div class="pager"><a href="11-helper-apprules.html">← 11. ヘルパー動作とアプリ別レイヤー</a><a href="13-settings.html">13. 設定ダイアログ →</a></div>
 </main>

@@ -341,6 +341,10 @@ PCを再起動し、ログイン後にもう一度手順8を試します。設�
   - 例: `KeymapTool --set-key-override <ID> 0 MOD_LSFT KC_BSPACE KC_DELETE`（Shift+BS → Delete）
   - 修飾キーは `"MOD_LCTL|MOD_LSFT"` のように複数書けます（全部押されているときに置き換え。左右は区別しない）。
   - 置き換え先には `"LCTL(KC_Y)"` のような修飾付きキーも書けます。番号（0〜127。古いドライバは 0〜31）だけを指定すると消えます。
+  - 最後に `layers=3` や `layers=2,3` を付けると、そのレイヤーが有効なときだけ働きます（付けないと、すべてのレイヤー）。
+    例: `KeymapTool --set-key-override <ID> 35 MOD_LCTL KC_L "LCTL(KC_PGUP)" layers=3`（レイヤー 3 のときだけ、Ctrl+L が Ctrl+PageUp）。
+    `--get-key-override <ID> <番号>` の出力の `Layers=0x0008` は、レイヤー 3 だけの意味です（ビットの位置がレイヤーの番号）。ドライバ 1.03 以降が必要で、古いドライバではエラーになります。
+    PowerShell では、括弧を含む置き換え先を、引用符で囲んでください。
   - 置き換え先には `MACRO(n)` も書けます（押したときにマクロnを1回実行。実行の間だけ条件の修飾キーを離し、終わったときに戻します）。
     例: `KeymapTool --set-key-override <ID> 1 MOD_LCTL KC_F1 "MACRO(0)"`（Ctrl+F1 でマクロ0）。マクロの機能が ON のときだけ動きます。
     キーを押し続けたときもマクロを繰り返したいときは、最後に `repeat` を付けます（既定は繰り返しません）。

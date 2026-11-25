@@ -278,7 +278,7 @@
 </tr>
 <tr>
 <td>R at the lower right</td>
-<td>A key that is the target of a key override (shown on the layer that produces that key)</td>
+<td>A key that is the target of a key override (shown on the layer that produces that key; for an override with active layers, only on those layers)</td>
 </tr>
 <tr>
 <td>H at the lower right</td>
@@ -308,6 +308,7 @@ override 1 &quot;Ctrl-1&quot;: Ctrl+1  -&gt; Macro 0           : MOD_LCTL + KC_1
 <li>For layer 0, only keys changed from their legend are shown. For layer 1 and above, only keys that are not ▽ (transparent) are shown.</li>
 <li>A line has the form &quot;key -&gt; action : original key code&quot;. Within the same heading, the positions of <code>-&gt;</code> and <code>:</code> are aligned. Japanese characters are aligned as two half-width characters, so when you paste the list into Notepad or the like, view it in a monospaced font such as MS Gothic.</li>
 <li>The original key code is useful when you ask for support. If you paste this list, your settings are communicated as they are.</li>
+<li>A key override with active layers gets its condition layers, as in &quot;(while layer 3 is on)&quot;.</li>
 <li>All layers (layer 0, 1, 2…) are shown in order. Combos, tap dances, key overrides, macros, NICOLA, helper actions (including triggers), rules for the foreground app, and IME-linked layers are shown only when they have definitions. For helper actions and triggers, the steps of the operation and the contents of strings are also shown. A setting you disabled has <code># </code> at the start of its line. A section whose feature is OFF says so in its heading.</li>
 <li>What is shown is what is currently open in the editor. It includes changes you have not saved or applied. If you change assignments while this window is open, press <strong>Refresh</strong>.</li>
 <li>With <strong>Copy</strong> you can send it to the clipboard, and with <strong>Save...</strong> you can write it to a text file (UTF-8). You cannot edit in this window.</li>

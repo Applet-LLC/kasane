@@ -145,6 +145,7 @@ With **Combo** and **Key override** at the end of the list on the left, you open
 - One key can be used in only one combo. When this key is already used in an enabled combo, **Create a combo with this key...** cannot be pressed.
 - The condition of a key override is the key that this key sends on this layer. A ▽ key is decided by the assignment of the layer below. For a key with modifiers such as `LALT(KC_ZKHK)`, the condition is `KC_ZKHK`. For an assignment that sends no key, such as `MO(1)`, you cannot make a key override.
 - You can make several key overrides with different modifiers for the same key.
+- A key override with active layers appears in the list only while you view one of those layers.
 - Disabled combos and key overrides also appear in the list, with " (disabled)" added. You can open one and enable it again.
 - A combo or key override you made does not go into the settings until you press **OK** or **Apply** in its own window. If you cancel, nothing changes.
 

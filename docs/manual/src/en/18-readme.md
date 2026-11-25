@@ -12,6 +12,18 @@ The installation steps are also in [1. Installation](01-install.html) of this he
 <a id="history"></a>
 ## Version history
 
+### 2026-11-25 1.03
+
+New features
+
+- Key overrides now have "Active layers". An override works only while a layer you chose is on (supported by the driver, the editor, `layers=` in KeymapTool, and exchange files)
+- Nodoka import: assignments with a modifier held, inside window and `&Prefix` keymaps, are now converted to key overrides with active layers
+- Emacs-style setup example: added a version for switching Excel sheets (emacs-excel.kasane.json). The Ctrl+L and Ctrl+; key overrides are limited to a layer that is on only while Excel is in front
+
+Bug fixes
+
+- When an exchange file was imported with "Append", the MACRO and HLP numbers in the replacement of a key override were not renumbered
+
 ### 2026-11-17 1.02
 
 New features

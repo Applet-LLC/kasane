@@ -91,6 +91,10 @@
 <td>Make the numpad switch among three layouts each time you press a key</td>
 <td><a href="#recipe11">Example 11</a></td>
 </tr>
+<tr>
+<td>Switch sheets only in Excel, with Ctrl+L and Ctrl+;</td>
+<td><a href="#recipe12">Example 12</a></td>
+</tr>
 </tbody>
 </table>
 <h2 id="steps-for-assigning-a-key">Steps for assigning a key</h2>
@@ -539,6 +543,47 @@
 <li>Press the 0 key. It goes back to layer 0.</li>
 </ol>
 <p>You can also switch layers from <strong>Layers</strong> in the tray menu (<a href="04-tray.html">4. Tray</a>).</p>
+<p><a id="recipe12"></a></p>
+<h2 id="example-12-switch-sheets-only-in-excel-with-ctrll-and-ctrl">Example 12: Switch sheets only in Excel, with Ctrl+L and Ctrl+;</h2>
+<p>This lets you switch Excel sheets (Ctrl+PageUp is the left sheet, Ctrl+PageDown is the right sheet) with the Emacs-style Ctrl+L and Ctrl+; as well. In other apps, these two keys keep their original behavior. You give the key overrides <strong>Active layers</strong>, which limits them to a layer that is turned on only while Excel is in front.</p>
+<ol>
+<li><p>In the editor, press <strong>+ Add</strong> to make layer 3. Do not change any assignment on it.</p>
+</li>
+<li><p>Open <strong>Key overrides...</strong> and make the next two. For both, check only layer 3 in <strong>Active layers</strong>, then press <strong>OK</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Modifiers</th>
+<th>Key</th>
+<th>Replace with</th>
+<th>Active layers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MOD_LCTL</code></td>
+<td><code>KC_L</code></td>
+<td><code>LCTL(KC_PGUP)</code></td>
+<td>3</td>
+</tr>
+<tr>
+<td><code>MOD_LCTL</code></td>
+<td><code>KC_SCLN</code></td>
+<td><code>LCTL(KC_PGDN)</code></td>
+<td>3</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li><p>On the <strong>Per-app layers</strong> tab of <strong>Settings...</strong>, press <strong>Add...</strong>, and choose Excel with <strong>Choose from running apps...</strong> (the exe is <code>EXCEL.EXE</code>). For the layers to turn on, check only layer 3.</p>
+</li>
+<li><p>Press <strong>Apply to keyboard (ON)</strong>.</p>
+</li>
+<li><p>With Excel in front, press Ctrl+L to move to the left sheet. Ctrl+; moves to the right sheet. In Notepad and the like, Ctrl+L keeps its original behavior.</p>
+</li>
+</ol>
+<p>Even in Excel, the other Emacs-style key overrides, such as Ctrl+N (down) and Ctrl+P (up), keep working. Layer 3 holds no assignment that adds Ctrl.</p>
+<p>This combination is also in the Emacs-style setup example (<code>samples\emacs\emacs-excel.kasane.json</code>).</p>
 
 <div class="pager"><a href="11-helper-apprules.html">← 11. Helper Actions and Per-App Layers</a><a href="13-settings.html">13. Settings Dialog →</a></div>
 </main>

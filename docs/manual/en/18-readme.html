@@ -60,7 +60,18 @@
 <p>The installation steps are also in <a href="01-install.html">1. Installation</a> of this help, with screenshots.</p>
 <p><a id="history"></a></p>
 <h2 id="version-history">Version history</h2>
-<h3 id="section">2026-11-17 1.02</h3>
+<h3 id="section">2026-11-25 1.03</h3>
+<p>New features</p>
+<ul>
+<li>Key overrides now have &quot;Active layers&quot;. An override works only while a layer you chose is on (supported by the driver, the editor, <code>layers=</code> in KeymapTool, and exchange files)</li>
+<li>Nodoka import: assignments with a modifier held, inside window and <code>&amp;Prefix</code> keymaps, are now converted to key overrides with active layers</li>
+<li>Emacs-style setup example: added a version for switching Excel sheets (emacs-excel.kasane.json). The Ctrl+L and Ctrl+; key overrides are limited to a layer that is on only while Excel is in front</li>
+</ul>
+<p>Bug fixes</p>
+<ul>
+<li>When an exchange file was imported with &quot;Append&quot;, the MACRO and HLP numbers in the replacement of a key override were not renumbered</li>
+</ul>
+<h3 id="section-1">2026-11-17 1.02</h3>
 <p>New features</p>
 <ul>
 <li>Installer: added a &quot;Browse...&quot; button to the settings folder page (when the box already holds a path, or the KASANE environment variable is already set, the dialog opens with that folder selected)</li>
@@ -82,7 +93,7 @@
 <ul>
 <li>After a key override with Alt or Win as its condition, a lone Alt press could reach the app and make the menu bar react in Notepad and similar apps (Issue #2). The driver now inserts a Ctrl tap right after it puts the released Alt or Win back</li>
 </ul>
-<h3 id="section-1">2026-11-10 1.01</h3>
+<h3 id="section-2">2026-11-10 1.01</h3>
 <p>New features</p>
 <ul>
 <li>Support for Emacs-style operation: importing a settings file for it, mark mode (MARK), and KillLine (C-k)</li>
@@ -101,7 +112,7 @@
 <ul>
 <li>Fixed a bug in macros where a modifier key that was physically held was released after the macro ran</li>
 </ul>
-<h3 id="section-2">2026-11-01 1.00</h3>
+<h3 id="section-3">2026-11-01 1.00</h3>
 <p>First release.</p>
 
 <div class="pager"><a href="17-keymaptool.html">← 17. KeymapTool and Samples</a><a href="19-terms.html">19. Terms of Use →</a></div>
