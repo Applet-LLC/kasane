@@ -46,6 +46,12 @@ try {
     Start-Sleep -Milliseconds 800
     Chk "import items are enabled after a file is loaded" ((Find-ChildByAutomationId $dlg "ImportLayersCheck").Current.IsEnabled)
     Chk "replace/add is enabled after a file is loaded" ((Find-ChildByAutomationId $dlg "ImportModeReplace").Current.IsEnabled)
+    # 2026-11-25: a per-keyboard file lets you choose the first layer to import into (0 by default). The two options
+    # that only matter for a shifted import are disabled while it is 0.
+    $offset = Find-ChildByAutomationId $dlg "ImportLayerOffsetCombo"
+    Chk "the first-layer combo is present and enabled for a per-keyboard file" ($offset -and $offset.Current.IsEnabled)
+    Chk "the pass-through option is present and disabled while the first layer is 0" ((Find-ChildByAutomationId $dlg "ImportPassThroughCheck") -and -not (Find-ChildByAutomationId $dlg "ImportPassThroughCheck").Current.IsEnabled)
+    Chk "the key override scope option is present and disabled while the first layer is 0" ((Find-ChildByAutomationId $dlg "ImportScopeOverridesCheck") -and -not (Find-ChildByAutomationId $dlg "ImportScopeOverridesCheck").Current.IsEnabled)
 
     Invoke-Element (Find-ChildByAutomationId $dlg "CloseButton")
     Start-Sleep -Milliseconds 500

@@ -183,6 +183,8 @@ New features
   - Key overrides now have "Active layers". An override works only while a layer
     you chose is on (supported by the driver, the editor, layers= in KeymapTool,
     and exchange files)
+  - Exchange files: a per-keyboard file can now be imported with a chosen first
+    layer (all layer numbers shift, so it can be laid over your current layers)
   - Nodoka import: assignments with a modifier held, inside window and &Prefix
     keymaps, are now converted to key overrides with active layers
   - Emacs-style setup example: added a version for switching Excel sheets

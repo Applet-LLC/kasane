@@ -104,7 +104,7 @@
 <p>Keys that are not in the current layout are not imported and are shown on the screen.</p>
 <p>Layers are imported as follows.</p>
 <ul>
-<li>The layers in the file are imported by number (from layer 0 in order). Layer 0 of the file goes into the current layer 0, and layer 1 into the current layer 1.</li>
+<li>The layers in the file are imported by number (from layer 0 in order). Layer 0 of the file goes into the current layer 0, and layer 1 into the current layer 1. If you choose a <strong>First layer to import into</strong>, they go in order from that number (<a href="#import-offset">Choosing the first layer to import into</a>).</li>
 <li>Replace: rebuilds the current layer from the contents of the layer in the file. Add: adds the keys of the file on top of the current layer. Missing layers are added.</li>
 <li>If you clear the <strong>Layers</strong> check, no layer of the file is imported. You cannot choose the layers in the file and import them one by one.</li>
 <li>For a file in which only one layer was exported, you can choose which layer to import into.</li>
@@ -113,6 +113,18 @@
 <p>Before importing, export your current settings and keep them. Except for importing everything, no automatic backup is made.</p>
 </blockquote>
 <p>Before importing everything, the current settings are backed up automatically to <code>backup</code> in the settings folder.</p>
+<p><a id="import-offset"></a></p>
+<h3 id="choosing-the-first-layer-to-import-into">Choosing the first layer to import into</h3>
+<p>For a per-keyboard file, you can choose the <strong>First layer to import into</strong>. The default is 0, and the layers are imported with the layer numbers in the file. If you choose 3, for example, layers 0, 1, and 2 of the file go into layers 3, 4, and 5. Use this when you want to lay an Emacs-style setup or the like over your current settings, without touching your current layers 0 to 2.</p>
+<ul>
+<li>With Replace, only the range the file's layers go into (layers 3 to 5 in this example) is replaced. The layers below and above it stay as they are. If you do not have enough layers, empty layers are added in between. With Add, the keys of the file are added to the layers with the shifted numbers.</li>
+<li>The layer numbers inside the imported content shift by the same amount. This covers keys such as <code>MO(1)</code>, <code>OSL(1)</code>, <code>LT(1, …)</code>, and <code>LM(1, …)</code>, the outputs of combos and tap dances, the replacement and active layers of key overrides, and, in the helper settings, the per-app layer rules, AppLayer actions, and IME link layers. The NICOLA layer also shifts with Replace. Anything that would go over 15 after shifting is not imported and is shown in the result.</li>
+<li><strong>Make the pass-through keys of file layer 0 transparent</strong> (checked by default): layer 0 of the file also lists the keys left as they are on the keycap. If they were placed as they are, they would hide the assignments of the layers below, so keys left as they are on the keycap are not placed and stay transparent (▽).</li>
+<li><strong>Limit key overrides without a condition to the imported layers</strong> (checked by default): key overrides with no active layers get the imported layers (layers 3, 4, and 5 in this example). If you uncheck it, they work on all layers.</li>
+<li>Only layer 0 is always on. To use the layer that file layer 0 went into, you need a way to turn that layer on (a per-app layer rule, <code>TG</code>, an IME link, or the like). The result also shows this note.</li>
+<li>Combos have no layer condition. The imported combos work on all layers.</li>
+<li>For a one-layer file and an everything-at-once file, you cannot choose the first layer.</li>
+</ul>
 <h3 id="importing-the-emacs-example">Importing the Emacs example</h3>
 <p>Press <strong>Emacs Example...</strong> under <strong>Choose File...</strong> in the <strong>Import</strong> tab, and the Emacs-style key operation example bundled with the installation (<code>samples\emacs\emacs.kasane.json</code>) is loaded (the same folder also has <a href="../../samples/emacs/EMACS-KEYBINDINGS.en-US.html" target="_blank" rel="noopener">EMACS-KEYBINDINGS.en-US.html</a>, which explains how to use it; click it to open it in a new window). Choose the three items &quot;Layers&quot;, &quot;Macros&quot;, and &quot;Key overrides&quot;, set the mode to <strong>Replace</strong>, check the contents, and press <strong>Import</strong>. Then press <strong>Apply to keyboard (ON)</strong>.</p>
 <p><a id="nodoka"></a></p>

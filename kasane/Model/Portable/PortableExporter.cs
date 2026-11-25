@@ -34,16 +34,33 @@ public static class TokenIds
             if (TryParseId(m.Groups[2].Value, out int id)) yield return (m.Groups[1].Value, id);
     }
 
-    /// <summary>番号を付け替える。表に無い番号はそのまま（HLP は10進に直す）。</summary>
+    /// <summary>
+    /// 番号を付け替える。表に無い番号はそのまま（HLP は10進に直す）。<paramref name="layerOffset"/> が 0 より大きいときは、
+    /// レイヤーを指すトークン（MO・TG・DF・OSL・LT・LM・TO・TT）のレイヤー番号も、その分だけずらす
+    /// （正規表現ではなく、トークンを解釈して書き直す。ずらした結果が 15 を超えると、トークンとして読めなくなる）。
+    /// </summary>
     public static string Rewrite(string token, IReadOnlyDictionary<int, int>? macro, IReadOnlyDictionary<int, int>? tapDance,
-                                 IReadOnlyDictionary<int, int>? helper) =>
-        Ref.Replace(token, m =>
+                                 IReadOnlyDictionary<int, int>? helper, int layerOffset = 0)
+    {
+        string rewritten = Ref.Replace(token, m =>
         {
             if (!TryParseId(m.Groups[2].Value, out int id)) return m.Value;
             var map = m.Groups[1].Value switch { "MACRO" => macro, "TAPDANCE" => tapDance, _ => helper };
             if (map != null && map.TryGetValue(id, out int to)) id = to;
             return $"{m.Groups[1].Value}({id})";
         });
+        return layerOffset > 0 ? ShiftLayerReference(rewritten, layerOffset) : rewritten;
+    }
+
+    /// <summary>レイヤーを指すトークンなら、レイヤー番号を offset だけずらしたトークンを返す。それ以外はそのまま。</summary>
+    public static string ShiftLayerReference(string token, int offset)
+    {
+        if (offset == 0 || !KeycodeTable.TryResolve(token.Trim(), out var a) || !ActionType.ReferencesLayer(a.Type)) return token;
+        int layer = a.Param1 + offset;
+        // 範囲外（16 以上）は、トークンとして読めない形のまま返す（取り込みで、そのキーが警告つきで読み飛ばされる）。
+        if (layer > 255) layer = 255;
+        return KeycodeTable.ToToken(a with { Param1 = (byte)layer });
+    }
 }
 
 public static class PortableExporter

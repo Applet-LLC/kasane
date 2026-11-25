@@ -66,7 +66,7 @@ Keys that are not in the current layout are not imported and are shown on the sc
 
 Layers are imported as follows.
 
-- The layers in the file are imported by number (from layer 0 in order). Layer 0 of the file goes into the current layer 0, and layer 1 into the current layer 1.
+- The layers in the file are imported by number (from layer 0 in order). Layer 0 of the file goes into the current layer 0, and layer 1 into the current layer 1. If you choose a **First layer to import into**, they go in order from that number ([Choosing the first layer to import into](#import-offset)).
 - Replace: rebuilds the current layer from the contents of the layer in the file. Add: adds the keys of the file on top of the current layer. Missing layers are added.
 - If you clear the **Layers** check, no layer of the file is imported. You cannot choose the layers in the file and import them one by one.
 - For a file in which only one layer was exported, you can choose which layer to import into.
@@ -74,6 +74,19 @@ Layers are imported as follows.
 > Before importing, export your current settings and keep them. Except for importing everything, no automatic backup is made.
 
 Before importing everything, the current settings are backed up automatically to `backup` in the settings folder.
+
+<a id="import-offset"></a>
+### Choosing the first layer to import into
+
+For a per-keyboard file, you can choose the **First layer to import into**. The default is 0, and the layers are imported with the layer numbers in the file. If you choose 3, for example, layers 0, 1, and 2 of the file go into layers 3, 4, and 5. Use this when you want to lay an Emacs-style setup or the like over your current settings, without touching your current layers 0 to 2.
+
+- With Replace, only the range the file's layers go into (layers 3 to 5 in this example) is replaced. The layers below and above it stay as they are. If you do not have enough layers, empty layers are added in between. With Add, the keys of the file are added to the layers with the shifted numbers.
+- The layer numbers inside the imported content shift by the same amount. This covers keys such as `MO(1)`, `OSL(1)`, `LT(1, …)`, and `LM(1, …)`, the outputs of combos and tap dances, the replacement and active layers of key overrides, and, in the helper settings, the per-app layer rules, AppLayer actions, and IME link layers. The NICOLA layer also shifts with Replace. Anything that would go over 15 after shifting is not imported and is shown in the result.
+- **Make the pass-through keys of file layer 0 transparent** (checked by default): layer 0 of the file also lists the keys left as they are on the keycap. If they were placed as they are, they would hide the assignments of the layers below, so keys left as they are on the keycap are not placed and stay transparent (▽).
+- **Limit key overrides without a condition to the imported layers** (checked by default): key overrides with no active layers get the imported layers (layers 3, 4, and 5 in this example). If you uncheck it, they work on all layers.
+- Only layer 0 is always on. To use the layer that file layer 0 went into, you need a way to turn that layer on (a per-app layer rule, `TG`, an IME link, or the like). The result also shows this note.
+- Combos have no layer condition. The imported combos work on all layers.
+- For a one-layer file and an everything-at-once file, you cannot choose the first layer.
 
 ### Importing the Emacs example
 

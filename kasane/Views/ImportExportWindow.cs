@@ -78,6 +78,15 @@ public sealed class ImportExportWindow : Window
     private readonly RadioButton _imAppend = new() { Name = "ImportModeAppend", Content = Loc.T("追加", "Add"), ToolTip = Loc.T("今の設定を残して、足します", "Keeps the current settings and adds to them"), GroupName = "ImMode" };
     private readonly StackPanel _imLayerRow = new() { Orientation = Orientation.Horizontal, Visibility = Visibility.Collapsed, Margin = new Thickness(0, 6, 0, 0) };
     private readonly ComboBox _imLayerTarget = new() { Name = "ImportLayerTargetCombo", Width = 260 };
+    // 読み込み先の先頭レイヤー（キーボード単位のファイルのときだけ出す。2026-11-25）。
+    private readonly StackPanel _imOffsetPanel = new() { Visibility = Visibility.Collapsed, Margin = new Thickness(0, 6, 0, 0) };
+    private readonly ComboBox _imLayerOffset = new() { Name = "ImportLayerOffsetCombo", Width = 260,
+        ToolTip = Loc.T("ファイルのレイヤー0 は、ここで選んだレイヤーに入ります。0 以外にすると、読み込む内容の中のレイヤー番号も、同じだけずれます",
+                        "File layer 0 goes into the layer you choose here. If you choose something other than 0, the layer numbers inside the imported content shift by the same amount") };
+    private readonly CheckBox _imPassThrough = Check("ImportPassThroughCheck", Loc.T("ファイルのレイヤー0 の、素通しのキーは透過にする", "Make the pass-through keys of file layer 0 transparent"),
+        Loc.T("刻印のままのキーを置かないので、下のレイヤーの割り当てを隠しません", "Keys left as they are on the keycap are not placed, so they do not hide the assignments of the layers below"));
+    private readonly CheckBox _imScopeOverrides = Check("ImportScopeOverridesCheck", Loc.T("条件のないキー置換は、読み込んだレイヤーのときだけ効かせる", "Limit key overrides without a condition to the imported layers"),
+        Loc.T("読み込んだ設定が、そのレイヤーが有効な間だけ効きます。外すと、すべてのレイヤーで効きます", "The imported settings work only while those layers are on. If you uncheck this, they work on all layers"));
     private readonly TextBox _imReport = ReportBox("ImportReport");
     private readonly Button _imPreview = new() { Name = "ImportPreviewButton", Content = Loc.T("内容確認", "Preview"), Width = 110, IsEnabled = false,
                                                      ToolTip = Loc.T("何も変えずに、読み込んだときの結果を表示します", "Shows what the import would do, without changing anything") };
@@ -598,6 +607,24 @@ public sealed class ImportExportWindow : Window
         _imModeRow.Children.Add(_imReplace);
         _imModeRow.Children.Add(_imAppend);
         p.Children.Add(_imModeRow);
+
+        var offsetRow = new StackPanel { Orientation = Orientation.Horizontal };
+        offsetRow.Children.Add(new TextBlock { Text = Loc.T("読み込み先の先頭レイヤー:", "First layer to import into:"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
+        offsetRow.Children.Add(_imLayerOffset);
+        _imOffsetPanel.Children.Add(offsetRow);
+        _imPassThrough.Margin = new Thickness(0, 4, 0, 0);
+        _imScopeOverrides.Margin = new Thickness(0, 2, 0, 0);
+        _imPassThrough.IsChecked = true;
+        _imScopeOverrides.IsChecked = true;
+        _imOffsetPanel.Children.Add(_imPassThrough);
+        _imOffsetPanel.Children.Add(_imScopeOverrides);
+        _imLayerOffset.SelectionChanged += (_, _) =>
+        {
+            bool shifted = _imLayerOffset.SelectedIndex > 0;
+            _imPassThrough.IsEnabled = shifted;
+            _imScopeOverrides.IsEnabled = shifted;
+        };
+        p.Children.Add(_imOffsetPanel);
         // ファイルを読むまでは、読み込む項目と読み込み方は使えない状態にする。ファイルを読むと、ファイルの中身に合わせて項目が選び直されるため
         // （先に選んでも置き換わる。2026-11-08、利用者の指摘）。
         SetImportChoicesEnabled(false);
@@ -621,6 +648,7 @@ public sealed class ImportExportWindow : Window
     {
         _imOptions.IsEnabled = enabled;
         _imModeRow.IsEnabled = enabled;
+        _imOffsetPanel.IsEnabled = enabled;
         _imLayerRow.IsEnabled = enabled;
         _imSourceRow.IsEnabled = enabled;
     }
@@ -716,6 +744,9 @@ public sealed class ImportExportWindow : Window
         _imSourceRow.Visibility = !all && !layer && file.Keyboards.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
         _imMapPanel.Visibility = all ? Visibility.Visible : Visibility.Collapsed;
         _imModeRow.Visibility = layer ? Visibility.Collapsed : Visibility.Visible;
+        // 先頭レイヤーは、キーボード単位のファイルだけ（全体一括は 0 のまま。レイヤー1枚は、行き先を選ぶ）。
+        _imOffsetPanel.Visibility = !all && !layer ? Visibility.Visible : Visibility.Collapsed;
+        if (!all && !layer) BuildOffsetChoices();
         _imLayerRow.Visibility = layer ? Visibility.Visible : Visibility.Collapsed;
         _imOptions.Visibility = layer ? Visibility.Collapsed : Visibility.Visible;
         if (all) BuildMapping(file);
@@ -732,6 +763,17 @@ public sealed class ImportExportWindow : Window
         PortableScope.Layer => Loc.T("レイヤー1枚", "One layer"),
         _ => Loc.T("キーボード単位", "Per keyboard"),
     };
+
+    /// <summary>先頭レイヤーの選択肢（0〜15）。今あるレイヤーは名前つきで、無いレイヤーは「新しいレイヤー」と出す。</summary>
+    private void BuildOffsetChoices()
+    {
+        _imLayerOffset.Items.Clear();
+        for (int i = 0; i < KbdLayerClient.MaxLayers; i++)
+            _imLayerOffset.Items.Add(i < _project.Layers.Count
+                ? ProjectService.LayerLabel(_project, i)
+                : Loc.T($"{i}(新しいレイヤー)", $"{i} (new layer)"));
+        _imLayerOffset.SelectedIndex = 0;
+    }
 
     private void BuildLayerTargets(PortableKeyboard kb)
     {
@@ -843,6 +885,10 @@ public sealed class ImportExportWindow : Window
             MeasuredScanCodes = _imMeasured.IsEnabled && _imMeasured.IsChecked == true,
             Recovery = _imRecovery.IsEnabled && _imRecovery.IsChecked == true,
             Mode = _imAppend.IsChecked == true ? ImportMode.Append : ImportMode.Replace,
+            // 先頭レイヤー（キーボード単位のファイルのときだけ。全体一括は 0）。
+            LayerOffset = _imOffsetPanel.Visibility == Visibility.Visible ? Math.Max(0, _imLayerOffset.SelectedIndex) : 0,
+            BaseLayerPassThroughToTransparent = _imPassThrough.IsChecked == true,
+            ScopeKeyOverridesToLayers = _imScopeOverrides.IsChecked == true,
         };
     }
 

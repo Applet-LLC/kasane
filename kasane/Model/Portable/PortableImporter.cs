@@ -31,6 +31,25 @@ public sealed class ImportOptions
 
     /// <summary>レイヤー単位の読み込みの行き先。null = 新しいレイヤーとして末尾に足す。数字 = そのレイヤーを上書きする。</summary>
     public int? TargetLayer { get; set; }
+
+    /// <summary>
+    /// 読み込み先の先頭レイヤー N（0〜15。既定 0 = ファイルのレイヤー番号のまま）。キーボード単位のファイルのときだけ使う。
+    /// ファイルのレイヤー i は、レイヤー N+i に入る。置き換えは、レイヤー N〜N+k-1 だけを置き換える（それより下・上のレイヤーは残す）。
+    /// 取り込む内容の中のレイヤー番号（MO(1) など）・キー置換の効くレイヤー・ヘルパー設定・NICOLA のレイヤーも、N だけずらす。
+    /// </summary>
+    public int LayerOffset { get; set; }
+
+    /// <summary>
+    /// LayerOffset が 0 より大きいとき、ファイルのレイヤー 0 の、素通しのキー（刻印のキーのまま）を、透過にする
+    /// （ファイルは、レイヤー 0 の全キーを書くので、そのまま N に置くと、下のレイヤーの割り当てを隠してしまうため）。
+    /// </summary>
+    public bool BaseLayerPassThroughToTransparent { get; set; } = true;
+
+    /// <summary>
+    /// LayerOffset が 0 より大きいとき、効くレイヤーの無いキー置換に、読み込んだレイヤー（N〜N+k-1）の条件を付ける
+    /// （読み込んだ設定一式が、そのレイヤー群が有効な間だけ効くようにする）。false なら、全レイヤーで効く。
+    /// </summary>
+    public bool ScopeKeyOverridesToLayers { get; set; } = true;
 }
 
 public sealed class ImportResult
@@ -56,6 +75,8 @@ public static class PortableImporter
         var result = new ImportResult();
         var r = result.Report;
         var mode = layerScope ? ImportMode.Append : o.Mode;
+        // 先頭レイヤー N。レイヤー1枚のファイルでは使わない（そちらは、上書き先・新しいレイヤーの選び方のまま）。
+        int offset = layerScope ? 0 : Math.Clamp(o.LayerOffset, 0, KbdLayerClient.MaxLayers - 1);
 
         ProjectService.NormalizeShape(target, layout);
 
@@ -76,7 +97,13 @@ public static class PortableImporter
         Dictionary<int, int>? helperMap = null;
         if (o.Helper && src.Helper != null)
         {
-            var merged = HelperMerge.Merge(deviceHelper, globalHelper, src.Helper, mode, out helperMap, r);
+            var incomingHelper = src.Helper;
+            if (offset > 0)
+            {
+                incomingHelper = PortableExporter.CloneHelper(src.Helper);
+                HelperMerge.ShiftLayers(incomingHelper, offset, r);
+            }
+            var merged = HelperMerge.Merge(deviceHelper, globalHelper, incomingHelper, mode, out helperMap, r);
             result.Helper = merged;
         }
         else if (!o.Helper && src.Helper != null && src.Helper.Actions.Count > 0)
@@ -84,23 +111,33 @@ public static class PortableImporter
 
         Dictionary<int, int>? macroMap = null, tdMap = null;
         if (o.Macros && src.Macros != null) macroMap = ImportMacros(src.Macros, target, mode, r);
-        if (o.TapDances && src.TapDances != null) tdMap = ImportTapDances(src.TapDances, target, mode, macroMap, helperMap, r);
+        if (o.TapDances && src.TapDances != null) tdMap = ImportTapDances(src.TapDances, target, mode, macroMap, helperMap, offset, r);
 
-        string Fix(string token) => TokenIds.Rewrite(token, macroMap, tdMap, helperMap);
+        string Fix(string token) => TokenIds.Rewrite(token, macroMap, tdMap, helperMap, offset);
 
         var bySc = ProjectService.SlotsByScanCode(target, layout);
 
         if (o.Layers && src.Layers is { Count: > 0 })
         {
             if (layerScope) ImportOneLayer(src.Layers[0], target, layout, bySc, o.TargetLayer, Fix, r);
-            else if (mode == ImportMode.Replace) ReplaceLayers(src.Layers, target, layout, bySc, Fix, r);
-            else OverlayLayers(src.Layers, target, layout, bySc, Fix, r);
+            else if (mode == ImportMode.Replace) ReplaceLayers(src.Layers, target, layout, bySc, Fix, offset, o.BaseLayerPassThroughToTransparent, r);
+            else OverlayLayers(src.Layers, target, layout, bySc, Fix, offset, o.BaseLayerPassThroughToTransparent, r);
             result.ProjectChanged = true;
+        }
+
+        // 先頭レイヤーを指定したときの、読み込んだレイヤー（N〜N+k-1。ファイルの何枚目まで入ったか）。
+        List<int>? importedLayers = null;
+        if (offset > 0 && o.Layers && src.Layers is { Count: > 0 })
+        {
+            importedLayers = src.Layers.Select(l => l.Index + offset)
+                .Where(n => n >= offset && n < KbdLayerClient.MaxLayers && n < target.Layers.Count).Distinct().OrderBy(n => n).ToList();
+            ReportOffsetNotes(src, o, offset, r);
         }
 
         Dictionary<int, int>? comboMap = null, keyOverrideMap = null;
         if (o.Combos && src.Combos != null) comboMap = ImportCombos(src.Combos, target, bySc, mode, Fix, r);
-        if (o.KeyOverrides && src.KeyOverrides != null) keyOverrideMap = ImportKeyOverrides(src.KeyOverrides, target, mode, Fix, r);
+        if (o.KeyOverrides && src.KeyOverrides != null) keyOverrideMap = ImportKeyOverrides(src.KeyOverrides, target, mode, Fix, offset,
+                                                                                    o.ScopeKeyOverridesToLayers ? importedLayers : null, r);
 
         // 名前の表（中身が空の番号の名前も含む）。レイヤー1枚の取り込みでは、参照するマクロ・タップダンスの名前だけが入っている。
         if (o.Macros && src.Macros != null)
@@ -131,9 +168,16 @@ public static class PortableImporter
             }
             if (o.Nicola && src.Nicola != null)
             {
-                target.Nicola = src.Nicola.Clone();
-                target.ClearNicola = false;
-                r.Info(Loc.T("NICOLAの設定を読み込みました", "Imported NICOLA settings"));
+                var nicola = src.Nicola.Clone();
+                nicola.Layer += offset;
+                if (nicola.Layer >= KbdLayerClient.MaxLayers)
+                    r.Warn(Loc.T($"NICOLAのレイヤーが{nicola.Layer}になり、{KbdLayerClient.MaxLayers - 1}を超えるため、NICOLAの設定は読み込みません", $"The NICOLA layer would become {nicola.Layer}, which is more than {KbdLayerClient.MaxLayers - 1}, so the NICOLA settings are not imported"));
+                else
+                {
+                    target.Nicola = nicola;
+                    target.ClearNicola = false;
+                    r.Info(Loc.T("NICOLAの設定を読み込みました", "Imported NICOLA settings"));
+                }
             }
         }
         else if ((o.Timing && src.Timing != null) || (o.Features && src.EnabledFeatures != null) || (o.Nicola && src.Nicola != null))
@@ -147,43 +191,77 @@ public static class PortableImporter
     // レイヤー
     // ------------------------------------------------------------------
 
+    /// <summary>
+    /// 置き換え。offset が 0 なら、レイヤー全部をファイルの内容にする（従来どおり）。0 より大きいときは、レイヤー offset〜offset+k-1
+    /// だけを置き換え、それより下・上のレイヤーと名前は残す（足りなければ、間のレイヤーを空で足す）。
+    /// </summary>
     private static void ReplaceLayers(List<PortableLayer> layers, KeymapProject target, KeyboardLayout layout,
-                                      Dictionary<ushort, KeySlot> bySc, Func<string, string> fix, PortableReport r)
+                                      Dictionary<ushort, KeySlot> bySc, Func<string, string> fix, int offset, bool passThrough, PortableReport r)
     {
-        int count = Math.Min(layers.Max(l => l.Index) + 1, KbdLayerClient.MaxLayers);
-        if (layers.Any(l => l.Index >= KbdLayerClient.MaxLayers))
-            r.Warn(Loc.T($"レイヤーは{KbdLayerClient.MaxLayers}枚までなので、レイヤー{KbdLayerClient.MaxLayers}以降は読み込みません", $"A maximum of {KbdLayerClient.MaxLayers} layers is allowed, so layer {KbdLayerClient.MaxLayers} and later are not imported"));
-        count = Math.Max(count, 1);
-        target.Layers = Enumerable.Range(0, count).Select(i => ProjectService.DefaultLayer(layout, i)).ToList();
-        target.LayerNames = null;
+        int count = layers.Max(l => l.Index) + 1;
+        if (layers.Any(l => l.Index + offset >= KbdLayerClient.MaxLayers))
+            r.Warn(offset == 0
+                ? Loc.T($"レイヤーは{KbdLayerClient.MaxLayers}枚までなので、レイヤー{KbdLayerClient.MaxLayers}以降は読み込みません", $"A maximum of {KbdLayerClient.MaxLayers} layers is allowed, so layer {KbdLayerClient.MaxLayers} and later are not imported")
+                : Loc.T($"先頭レイヤーが{offset}なので、ファイルのレイヤー{KbdLayerClient.MaxLayers - offset}以降は、レイヤーが{KbdLayerClient.MaxLayers}枚を超えるため読み込みません", $"The first layer is {offset}, so file layer {KbdLayerClient.MaxLayers - offset} and later are not imported because they would exceed {KbdLayerClient.MaxLayers} layers"));
+        count = Math.Max(Math.Min(count, KbdLayerClient.MaxLayers - offset), 1);
+
+        if (offset == 0)
+        {
+            target.Layers = Enumerable.Range(0, count).Select(i => ProjectService.DefaultLayer(layout, i)).ToList();
+            target.LayerNames = null;
+        }
+        else
+        {
+            while (target.Layers.Count < offset + count) target.Layers.Add(ProjectService.DefaultLayer(layout, target.Layers.Count));
+            for (int i = 0; i < count; i++)
+            {
+                target.Layers[offset + i] = ProjectService.DefaultLayer(layout, offset + i);
+                ProjectService.SetLayerName(target, offset + i, null);
+            }
+        }
         foreach (var l in layers)
-            if (l.Index >= 0 && l.Index < count && !string.IsNullOrWhiteSpace(l.Name)) ProjectService.SetLayerName(target, l.Index, l.Name);
+            if (l.Index >= 0 && l.Index < count && !string.IsNullOrWhiteSpace(l.Name)) ProjectService.SetLayerName(target, offset + l.Index, l.Name);
         var missing = new List<string>();
         int placed = 0;
+        var baseKeys = offset > 0 && passThrough ? ProjectService.DefaultLayer(layout, 0) : null;
         foreach (var l in layers)
-            if (l.Index >= 0 && l.Index < count) placed += PlaceKeys(l, target.Layers[l.Index], bySc, fix, missing, r, l.Index);
-        r.Info(Loc.T($"レイヤーを{count}枚、キーを{placed}個読み込みました", $"Imported {count} layer(s) and {placed} key(s)"));
+            if (l.Index >= 0 && l.Index < count)
+                placed += PlaceKeys(l, target.Layers[offset + l.Index], bySc, fix, missing, r, offset + l.Index, l.Index == 0 ? baseKeys : null);
+        r.Info(offset == 0
+            ? Loc.T($"レイヤーを{count}枚、キーを{placed}個読み込みました", $"Imported {count} layer(s) and {placed} key(s)")
+            : Loc.T($"レイヤー{offset}〜{offset + count - 1}を置き換え、キーを{placed}個読み込みました", $"Replaced layers {offset} to {offset + count - 1} and imported {placed} key(s)"));
         ReportMissing(missing, r);
     }
 
     private static void OverlayLayers(List<PortableLayer> layers, KeymapProject target, KeyboardLayout layout,
-                                      Dictionary<ushort, KeySlot> bySc, Func<string, string> fix, PortableReport r)
+                                      Dictionary<ushort, KeySlot> bySc, Func<string, string> fix, int offset, bool passThrough, PortableReport r)
     {
         var missing = new List<string>();
         int placed = 0;
+        var baseKeys = offset > 0 && passThrough ? ProjectService.DefaultLayer(layout, 0) : null;
         foreach (var l in layers.OrderBy(l => l.Index))
         {
-            if (l.Index < 0 || l.Index >= KbdLayerClient.MaxLayers)
+            int index = l.Index + offset;
+            if (l.Index < 0 || index >= KbdLayerClient.MaxLayers)
             {
-                r.Warn(Loc.T($"レイヤー{l.Index}は読み込めません(0〜{KbdLayerClient.MaxLayers - 1})", $"Layer {l.Index} cannot be imported (0 to {KbdLayerClient.MaxLayers - 1})"));
+                r.Warn(Loc.T($"レイヤー{l.Index}は読み込めません(読み込み先は、0〜{KbdLayerClient.MaxLayers - 1}の範囲)", $"Layer {l.Index} cannot be imported (the destination must be in the range 0 to {KbdLayerClient.MaxLayers - 1})"));
                 continue;
             }
-            while (target.Layers.Count <= l.Index) target.Layers.Add(ProjectService.DefaultLayer(layout, target.Layers.Count));
-            placed += PlaceKeys(l, target.Layers[l.Index], bySc, fix, missing, r, l.Index);
-            if (!string.IsNullOrWhiteSpace(l.Name) && ProjectService.LayerName(target, l.Index) == null) ProjectService.SetLayerName(target, l.Index, l.Name);
+            while (target.Layers.Count <= index) target.Layers.Add(ProjectService.DefaultLayer(layout, target.Layers.Count));
+            placed += PlaceKeys(l, target.Layers[index], bySc, fix, missing, r, index, l.Index == 0 ? baseKeys : null);
+            if (!string.IsNullOrWhiteSpace(l.Name) && ProjectService.LayerName(target, index) == null) ProjectService.SetLayerName(target, index, l.Name);
         }
         r.Info(Loc.T($"キーを{placed}個、今のレイヤーに重ねました", $"Layered {placed} key(s) onto the current layer"));
         ReportMissing(missing, r);
+    }
+
+    /// <summary>先頭レイヤーを指定した取り込みで、知っておいてほしいこと。</summary>
+    private static void ReportOffsetNotes(PortableKeyboard src, ImportOptions o, int offset, PortableReport r)
+    {
+        r.Warn(Loc.T($"ファイルのレイヤー0 は、レイヤー{offset} になりました。常に効くのはレイヤー0 だけなので、レイヤー{offset} を有効にする方法（アプリ別レイヤーの規則、TG、IME連動など）が要ります",
+                     $"File layer 0 became layer {offset}. Only layer 0 is always on, so you need a way to turn layer {offset} on (a per-app layer rule, TG, IME link, or the like)"));
+        if (o.Combos && src.Combos is { Count: > 0 })
+            r.Warn(Loc.T("コンボには、レイヤーの条件がありません。読み込んだコンボは、すべてのレイヤーで効きます", "Combos have no layer condition. The imported combos work on all layers"));
     }
 
     private static void ImportOneLayer(PortableLayer src, KeymapProject target, KeyboardLayout layout,
@@ -215,8 +293,9 @@ public static class PortableImporter
             r.Warn(Loc.T("レイヤーを切り替えるキー(MO(1) など)は、元の番号のまま取り込みました。番号が合っているか確かめてください", "Keys that switch layers (such as MO(1)) were imported with their original numbers. Check that the numbers are correct"));
     }
 
+    /// <param name="skipIfSameAs">null でなければ、スロットごとの「素通し」のトークン。ファイルのキーがこれと同じなら、置かずに透過のままにする。</param>
     private static int PlaceKeys(PortableLayer l, List<string> tokens, Dictionary<ushort, KeySlot> bySc, Func<string, string> fix,
-                                 List<string> missing, PortableReport r, int index)
+                                 List<string> missing, PortableReport r, int index, List<string>? skipIfSameAs = null)
     {
         int placed = 0;
         foreach (var (name, raw) in l.Keys)
@@ -237,6 +316,8 @@ public static class PortableImporter
                 missing.Add(PortableExporter.ScName(sc));
                 continue;
             }
+            if (skipIfSameAs != null && slot.Index < skipIfSameAs.Count && string.Equals(skipIfSameAs[slot.Index], token, StringComparison.OrdinalIgnoreCase))
+                continue; // 素通しのキーは、下のレイヤーの割り当てを隠さないよう、透過のままにする
             tokens[slot.Index] = token;
             placed++;
         }
@@ -316,10 +397,10 @@ public static class PortableImporter
     }
 
     private static Dictionary<int, int> ImportTapDances(List<TapDanceDef> src, KeymapProject target, ImportMode mode,
-                                                         Dictionary<int, int>? macroMap, Dictionary<int, int>? helperMap, PortableReport r)
+                                                         Dictionary<int, int>? macroMap, Dictionary<int, int>? helperMap, int layerOffset, PortableReport r)
     {
         var map = new Dictionary<int, int>();
-        string Fix(string t) => TokenIds.Rewrite(t, macroMap, null, helperMap);
+        string Fix(string t) => TokenIds.Rewrite(t, macroMap, null, helperMap, layerOffset);
         TapDanceDef Copy(TapDanceDef t, int id) => new()
         {
             Id = id, SingleTap = Fix(t.SingleTap), SingleHold = Fix(t.SingleHold), DoubleTap = Fix(t.DoubleTap), TripleTap = Fix(t.TripleTap), Disabled = t.Disabled,
@@ -393,8 +474,10 @@ public static class PortableImporter
         return map;
     }
 
+    /// <param name="offset">先頭レイヤー。効くレイヤーを、この分だけずらす。</param>
+    /// <param name="scopeLayers">null でなければ、効くレイヤーの無いキー置換に付ける条件（読み込んだレイヤー）。</param>
     private static Dictionary<int, int> ImportKeyOverrides(List<KeyOverrideDef> src, KeymapProject target, ImportMode mode,
-                                                           Func<string, string> fix, PortableReport r)
+                                                           Func<string, string> fix, int offset, List<int>? scopeLayers, PortableReport r)
     {
         var map = new Dictionary<int, int>();
         if (mode == ImportMode.Replace) target.KeyOverrides = new List<KeyOverrideDef>();
@@ -406,6 +489,8 @@ public static class PortableImporter
             // 効くレイヤーは、番号を付け替えない（レイヤーは、置き換えでも追加でも、ファイルの番号のまま入るため）。
             // 今のプロジェクトに無いレイヤーは外す。全部外れたら、条件なし（全レイヤー）になってしまうので、読み込まない。
             var layers = ProjectService.NormalizeOverrideLayers(k.Layers);
+            if (layers != null && offset > 0) layers = layers.Select(n => n + offset).ToList();
+            else if (layers == null && scopeLayers is { Count: > 0 }) layers = new List<int>(scopeLayers);
             if (layers != null)
             {
                 var missing = layers.Where(n => n < 0 || n >= target.Layers.Count).ToList();
@@ -466,6 +551,39 @@ public static class PortableImporter
 /// <summary>ヘルパー設定（helper.json）の取り込み。</summary>
 public static class HelperMerge
 {
+    /// <summary>
+    /// 取り込む設定（複製）の、レイヤー番号を offset だけずらす: アプリ別レイヤーの規則、AppLayer 動作、IME 連動のレイヤー、
+    /// 文字入力の速さのレイヤー別の上書き。ずらした結果が 15 を超えるものは外し、警告する。
+    /// </summary>
+    public static void ShiftLayers(HelperConfig h, int offset, PortableReport r)
+    {
+        int dropped = 0;
+        List<int> Shift(List<int> layers)
+        {
+            var result = new List<int>();
+            foreach (var n in layers)
+            {
+                if (n + offset >= KbdLayerClient.MaxLayers) { dropped++; continue; }
+                result.Add(n + offset);
+            }
+            return result;
+        }
+        foreach (var rule in h.AppLayerRules) rule.Layers = Shift(rule.Layers);
+        foreach (var a in h.Actions)
+            if (a.Action.Layers != null) a.Action.Layers = Shift(a.Action.Layers);
+        if (h.ImeLayers != null) h.ImeLayers.Layers = Shift(h.ImeLayers.Layers);
+        if (h.TextTyping?.Layers != null)
+        {
+            foreach (var t in h.TextTyping.Layers.ToList())
+            {
+                if (t.Layer + offset >= KbdLayerClient.MaxLayers) { dropped++; h.TextTyping.Layers.Remove(t); }
+                else t.Layer += offset;
+            }
+        }
+        if (dropped > 0)
+            r.Warn(Loc.T($"ヘルパー設定のレイヤー番号のうち、{offset}だけずらすと{KbdLayerClient.MaxLayers - 1}を超えるもの({dropped}個)は、外しました", $"Removed {dropped} layer number(s) in the helper settings that would exceed {KbdLayerClient.MaxLayers - 1} after shifting by {offset}"));
+    }
+
     /// <summary>
     /// 置き換え: 取り込む設定そのものにする。追加: 今の設定に足す。動作（Actions）は、同じ内容のものがあればそれを使い、
     /// 番号が重なれば空き番号に付け直す（キーボードごとの設定と共通の設定の、両方の番号を避ける）。
