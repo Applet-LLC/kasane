@@ -75,6 +75,48 @@ try {
     Invoke-Element (Find-ChildByAutomationId $dlg2 "CancelButton")
     Start-Sleep -Milliseconds 300
 
+    # 2026-11-25: "効くレイヤー" (Active layers). One check per layer of the project (OverrideLayerCheck<n>); none checked = all layers.
+    # The project of this test has one layer, so layer 0's check is used: check it -> OK -> reopen -> still checked -> clear it -> OK -> reopen -> cleared.
+    $before3 = Get-AllTopWindowHandles $proc.Id
+    Invoke-Element $btn
+    $dlg3 = Find-NewTopWindow $proc.Id $before3 -timeoutMs 6000
+    Select-ListItemByIndex (Find-ChildByAutomationId $dlg3 "IdList") 2
+    Start-Sleep -Milliseconds 300
+    Chk "the layer checks exist (layer 0)" ([bool](Find-ChildByAutomationId $dlg3 "OverrideLayerCheck0"))
+    Chk "no layer is checked at first (works on all layers)" ((Get-ToggleState (Find-ChildByAutomationId $dlg3 "OverrideLayerCheck0")) -eq [System.Windows.Automation.ToggleState]::Off)
+    Set-ElementValue (Find-ChildByAutomationId $dlg3 "ModsBox") "MOD_LCTL"
+    Set-ElementValue (Find-ChildByAutomationId $dlg3 "KeyBox") "KC_L"
+    Set-ElementValue (Find-ChildByAutomationId $dlg3 "ReplacementBox") "LCTL(KC_PGUP)"
+    Set-ToggleState (Find-ChildByAutomationId $dlg3 "OverrideLayerCheck0") $true
+    Start-Sleep -Milliseconds 300
+    Chk "a key override limited to layer 0 validates OK" ((Find-ChildByAutomationId $dlg3 "ValidationText").Current.Name -eq "OK")
+    $dlg3Handle = $dlg3.Current.NativeWindowHandle.ToString()
+    Invoke-Element (Find-ChildByAutomationId $dlg3 "OkButton")
+    Start-Sleep -Milliseconds 600
+    Chk "editor closed after OK (layer check)" ((Get-AllTopWindowHandles $proc.Id) -notcontains $dlg3Handle)
+
+    $before4 = Get-AllTopWindowHandles $proc.Id
+    Invoke-Element $btn
+    $dlg4 = Find-NewTopWindow $proc.Id $before4 -timeoutMs 6000
+    Select-ListItemByIndex (Find-ChildByAutomationId $dlg4 "IdList") 2
+    Start-Sleep -Milliseconds 300
+    Chk "the layer check round-trips (layer 0 stays checked)" ((Get-ToggleState (Find-ChildByAutomationId $dlg4 "OverrideLayerCheck0")) -eq [System.Windows.Automation.ToggleState]::On)
+    Chk "Replacement round-trips with the layer check (LCTL(KC_PGUP))" ((Get-ElementValue (Find-ChildByAutomationId $dlg4 "ReplacementBox")) -eq "LCTL(KC_PGUP)")
+    Set-ToggleState (Find-ChildByAutomationId $dlg4 "OverrideLayerCheck0") $false
+    Start-Sleep -Milliseconds 300
+    $dlg4Handle = $dlg4.Current.NativeWindowHandle.ToString()
+    Invoke-Element (Find-ChildByAutomationId $dlg4 "OkButton")
+    Start-Sleep -Milliseconds 600
+
+    $before5 = Get-AllTopWindowHandles $proc.Id
+    Invoke-Element $btn
+    $dlg5 = Find-NewTopWindow $proc.Id $before5 -timeoutMs 6000
+    Select-ListItemByIndex (Find-ChildByAutomationId $dlg5 "IdList") 2
+    Start-Sleep -Milliseconds 300
+    Chk "clearing the layer check round-trips (works on all layers again)" ((Get-ToggleState (Find-ChildByAutomationId $dlg5 "OverrideLayerCheck0")) -eq [System.Windows.Automation.ToggleState]::Off)
+    Invoke-Element (Find-ChildByAutomationId $dlg5 "CancelButton")
+    Start-Sleep -Milliseconds 300
+
     "=== FAIL COUNT: $fail ==="
 }
 catch { "EXCEPTION: $_"; $fail++ }

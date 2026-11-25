@@ -131,8 +131,14 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
             ShowValidation(errors.Count == 0 ? "OK" : string.Join("\n", errors), errors.Count > 0);
         }
         foreach (var b in new[] { mods, key, replacement }) b.TextChanged += (_, _) => Changed();
-        repeat.Click += (_, _) => Changed();
-        foreach (var c in layerChecks) c.Click += (_, _) => Changed();
+        // Click ではなく Checked/Unchecked で受ける（UI オートメーションの Toggle など、Click が起きない操作でも定義に反映するため）。
+        repeat.Checked += (_, _) => Changed();
+        repeat.Unchecked += (_, _) => Changed();
+        foreach (var c in layerChecks)
+        {
+            c.Checked += (_, _) => Changed();
+            c.Unchecked += (_, _) => Changed();
+        }
 
         Detail.Children.Add(Row(Loc.T("修飾キー", "Modifiers"), ModsWithChecks(mods)));
         Detail.Children.Add(Row(Loc.T("キー", "Key"), KeycodeField.Wrap(key, allowMods: false)));
