@@ -48,6 +48,13 @@ public sealed class KeyOverrideDef
     /// <summary>置き換え先が MACRO(n) のとき、キーを押し続けたときのオートリピートでマクロを繰り返す（既定はオフ）。</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public bool RepeatMacro { get; set; }
+    /// <summary>
+    /// 効くレイヤー（0〜15）。null または空なら、全レイヤーで効く。ここに挙げたレイヤーのどれかが立っている間だけ効く。
+    /// 同じキーと修飾キーに、条件つきと条件なしの置き換えが当たるときは、条件つきが優先され、条件つき同士は上のレイヤーが勝つ。
+    /// 空のときはファイルに書かない。
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public List<int>? Layers { get; set; }
     /// <summary>無効にする（定義は残すが、キーボードへ適用しない）。false のときはファイルに書かない。</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public bool Disabled { get; set; }

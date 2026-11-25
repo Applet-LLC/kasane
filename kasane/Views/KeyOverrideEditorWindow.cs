@@ -9,18 +9,21 @@ namespace Kasane.Views;
 public sealed class KeyOverrideEditorWindow : IdListEditorWindow
 {
     private readonly KeyOverrideDef?[] _defs = new KeyOverrideDef?[KbdLayerClient.MaxKeyOverrideCount];
+    // 「効くレイヤー」のチェックを並べるレイヤーの数と名前（プロジェクトのレイヤー）。
+    private readonly KeymapProject? _project;
 
     public List<KeyOverrideDef> Result { get; private set; } = new();
 
     protected override string HelpTopic => HelpTopics.KeyOverride;
 
-    public KeyOverrideEditorWindow(IEnumerable<KeyOverrideDef> keyOverrides, IReadOnlyDictionary<int, string>? names = null)
+    public KeyOverrideEditorWindow(IEnumerable<KeyOverrideDef> keyOverrides, IReadOnlyDictionary<int, string>? names = null, KeymapProject? project = null)
         : base(Loc.T("キー置換", "Key Override"), KbdLayerClient.MaxKeyOverrideCount)
     {
+        _project = project;
         foreach (var k in keyOverrides)
             if (k.Id >= 0 && k.Id < _defs.Length)
             {
-                _defs[k.Id] = new KeyOverrideDef { Id = k.Id, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement, RepeatMacro = k.RepeatMacro };
+                _defs[k.Id] = new KeyOverrideDef { Id = k.Id, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement, RepeatMacro = k.RepeatMacro, Layers = k.Layers == null ? null : new List<int>(k.Layers) };
                 LoadDisabled(k.Id, k.Disabled);
             }
         LoadNames(names);
@@ -43,7 +46,7 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
     protected override bool CanReorder => true;
     protected override void ClearItem(int id) => _defs[id] = null;
     protected override void CopyItem(int from, int to) =>
-        _defs[to] = _defs[from] is { } k ? new KeyOverrideDef { Id = to, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement, RepeatMacro = k.RepeatMacro } : null;
+        _defs[to] = _defs[from] is { } k ? new KeyOverrideDef { Id = to, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement, RepeatMacro = k.RepeatMacro, Layers = k.Layers == null ? null : new List<int>(k.Layers) } : null;
     protected override void SwapItems(int a, int b)
     {
         (_defs[a], _defs[b]) = (_defs[b], _defs[a]);
@@ -60,7 +63,11 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
     }
 
     protected override string Summary(int id) =>
-        _defs[id] is { } k ? $"{k.Mods} + {k.Key} → {k.Replacement}" + (k.RepeatMacro ? Loc.T("(繰り返す)", " (repeat)") : "") : "";
+        _defs[id] is { } k ? $"{k.Mods} + {k.Key} → {k.Replacement}" + (k.RepeatMacro ? Loc.T("(繰り返す)", " (repeat)") : "") + LayersSuffix(k) : "";
+
+    /// <summary>一覧の要約に付ける、効くレイヤー（全レイヤーなら何も付けない）。</summary>
+    private static string LayersSuffix(KeyOverrideDef k) =>
+        k.Layers is { Count: > 0 } l ? Loc.T($"(レイヤー {string.Join("・", l)})", $" (layer {string.Join(", ", l)})") : "";
 
     private static bool IsMacro(string replacement) => replacement.Trim().StartsWith("MACRO(", StringComparison.OrdinalIgnoreCase);
 
@@ -79,6 +86,31 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
             Margin = new Thickness(0, 6, 0, 0),
         };
 
+        // 効くレイヤー: プロジェクトのレイヤーごとのチェック。どれも選ばなければ、すべてのレイヤーで効く。
+        // 範囲外の番号が書いてあるときも、外せるように並べる（検証がエラーにする）。
+        var layerChecks = new List<CheckBox>();
+        var layerPanel = new WrapPanel { MaxWidth = 560 };
+        int shown = Math.Max(Math.Max(_project?.Layers.Count ?? 1, 1), (d?.Layers?.Max() ?? -1) + 1);
+        for (int n = 0; n < shown; n++)
+        {
+            string? layerName = _project == null ? null : ProjectService.LayerName(_project, n);
+            var c = new CheckBox
+            {
+                Name = $"OverrideLayerCheck{n}",
+                Content = string.IsNullOrWhiteSpace(layerName) ? n.ToString() : $"{n}: {layerName}",
+                IsChecked = d?.Layers?.Contains(n) ?? false,
+                Margin = new Thickness(0, 0, 10, 0),
+                Tag = n,
+            };
+            layerChecks.Add(c);
+            layerPanel.Children.Add(c);
+        }
+        var layerHint = new TextBlock
+        {
+            Text = Loc.T("どれも選ばないと、すべてのレイヤーで効きます", "If none is checked, it works on all layers"),
+            Foreground = System.Windows.Media.Brushes.Gray, Margin = new Thickness(110, 0, 0, 0),
+        };
+
         void Changed()
         {
             repeat.Visibility = IsMacro(replacement.Text) ? Visibility.Visible : Visibility.Collapsed;
@@ -91,6 +123,7 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
                 Key = key.Text.Trim(),
                 Replacement = replacement.Text.Trim(),
                 RepeatMacro = repeat.IsChecked == true && IsMacro(replacement.Text),
+                Layers = ProjectService.NormalizeOverrideLayers(layerChecks.Where(c => c.IsChecked == true).Select(c => (int)c.Tag)),
             };
             RefreshItem(id);
             var errors = new List<string>();
@@ -99,10 +132,13 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
         }
         foreach (var b in new[] { mods, key, replacement }) b.TextChanged += (_, _) => Changed();
         repeat.Click += (_, _) => Changed();
+        foreach (var c in layerChecks) c.Click += (_, _) => Changed();
 
         Detail.Children.Add(Row(Loc.T("修飾キー", "Modifiers"), ModsWithChecks(mods)));
         Detail.Children.Add(Row(Loc.T("キー", "Key"), KeycodeField.Wrap(key, allowMods: false)));
         Detail.Children.Add(Row(Loc.T("置き換え先", "Replace with"), KeycodeField.Wrap(replacement, acceptsMacro: true)));
+        Detail.Children.Add(Row(Loc.T("効くレイヤー", "Active layers"), layerPanel));
+        Detail.Children.Add(layerHint);
         Detail.Children.Add(repeat);
         repeat.Visibility = IsMacro(replacement.Text) ? Visibility.Visible : Visibility.Collapsed;
     }

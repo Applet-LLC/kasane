@@ -23,10 +23,16 @@ public sealed record MacroStep(ushort ScanCode, bool IsBreak);
 
 public sealed record ComboEntry(ushort ScanCode1, ushort ScanCode2, KeyAction Output);
 /// <summary>KBDLAYER_KEY_OVERRIDE_ENTRY。TriggerModsはKBDLAYER_MOD_*のOR、TriggerScanCodeは出力キー（Enc16）。</summary>
-public sealed record KeyOverrideEntry(byte TriggerMods, ushort TriggerScanCode, KeyAction Replacement, byte Flags = 0)
+/// <remarks>
+/// Layers は、効くレイヤーのマスク（bit n = レイヤー n。0 = 全レイヤー）。0 以外のときだけ、SetKeyOverride が FlagLayers を立てて
+/// _EX 版の長さで送る（Flags 側に FlagLayers を入れておく必要はない）。古いドライバに送ると、ドライバが拒否する。
+/// </remarks>
+public sealed record KeyOverrideEntry(byte TriggerMods, ushort TriggerScanCode, KeyAction Replacement, byte Flags = 0, ushort Layers = 0)
 {
     /// <summary>KBDLAYER_KEY_OVERRIDE_FLAG_REPEAT。置き換え先が MACRO のとき、オートリピートでマクロを繰り返す。</summary>
     public const byte FlagRepeat = 0x01;
+    /// <summary>KBDLAYER_KEY_OVERRIDE_FLAG_LAYERS。レイヤー条件つき（_EX 版の末尾の Layers が条件）。</summary>
+    public const byte FlagLayers = 0x02;
 }
 
 public sealed record TapDanceEntry(KeyAction SingleTap, KeyAction SingleHold, KeyAction DoubleTap, KeyAction TripleTap);
@@ -58,6 +64,13 @@ public static class TapHoldModes
 public sealed class KbdLayerException : Exception
 {
     public int Win32Error { get; }
+    /// <summary>Win32 のエラー文ではなく、決まった文面で出したいとき（例: ドライバが対応していない機能）。</summary>
+    public KbdLayerException(string message, int win32Error, bool customMessage)
+        : base(message)
+    {
+        Win32Error = win32Error;
+    }
+
     public KbdLayerException(string operation, int win32Error)
         : base(Loc.T($"{operation} に失敗しました: {new Win32Exception(win32Error).Message} (エラー {win32Error})", $"{operation} failed: {new Win32Exception(win32Error).Message} (error {win32Error})"))
     {
@@ -366,9 +379,17 @@ public sealed partial class KbdLayerClient : IDisposable
             w.Write(uniqId);
             w.Write((uint)id);
             w.Write((byte)(entry?.TriggerMods ?? 0));
-            w.Write((byte)(entry?.Flags ?? 0)); // Flags（KeyOverrideEntry.FlagRepeat）
+            // Flags（FlagRepeat）。レイヤー条件つきのときだけ FlagLayers を足し、末尾に Layers と Reserved（_EX 版）を付ける。
+            // 条件なしのときは、従来の長さで送る（古いドライバでも今までどおり動く）。
+            ushort layers = entry?.Layers ?? 0;
+            w.Write((byte)(((entry?.Flags ?? 0) & ~KeyOverrideEntry.FlagLayers) | (layers != 0 ? KeyOverrideEntry.FlagLayers : 0)));
             w.Write((ushort)(entry?.TriggerScanCode ?? 0));
             WriteAction(w, entry?.Replacement ?? KeyAction.None);
+            if (layers != 0)
+            {
+                w.Write(layers);
+                w.Write((ushort)0); // Reserved
+            }
         }), 0);
 
     public KeyOverrideEntry? GetKeyOverride(uint uniqId, int id)
@@ -377,13 +398,16 @@ public sealed partial class KbdLayerClient : IDisposable
         {
             w.Write(uniqId);
             w.Write((uint)id);
-        }), 4 + 8);
+        }), 4 + 8 + 4); // _EX 版の長さ。古いドライバは従来の長さ（12 バイト）しか返さないので、Layers は 0 とみなす。
         using var r = new BinaryReader(new MemoryStream(data));
         bool used = r.ReadUInt32() != 0;
         byte mods = r.ReadByte();
         byte flags = r.ReadByte();
         ushort triggerScanCode = r.ReadUInt16();
-        var e = new KeyOverrideEntry(mods, triggerScanCode, ReadAction(r), flags);
+        var action = ReadAction(r);
+        ushort layers = data.Length >= 4 + 8 + 4 ? r.ReadUInt16() : (ushort)0;
+        // Flags の FlagLayers は、Layers から決まる（呼び出し側が二重に持たない）。
+        var e = new KeyOverrideEntry(mods, triggerScanCode, action, (byte)(flags & ~KeyOverrideEntry.FlagLayers), layers);
         return used ? e : null;
     }
 

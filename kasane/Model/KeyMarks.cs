@@ -45,9 +45,40 @@ public static class KeyMarks
             else if (action.Type == ActionType.TapDance) tapDance = action.Param1;
         }
         var combos = project.Combos.Where(c => c.Slot1 == slot.Index || c.Slot2 == slot.Index).OrderBy(c => c.Id).ToList();
-        var overrides = project.KeyOverrides.Where(k => TriggersOverride(k, token)).OrderBy(k => k.Id).ToList();
+        var overrides = project.KeyOverrides.Where(k => TriggersOverride(k, token) && AppliesInLayer(project, k, layer, slot)).OrderBy(k => k.Id).ToList();
         return new Related(token, combos, overrides, macro, tapDance);
     }
+
+    /// <summary>
+    /// レイヤー <paramref name="layer"/> の画面で、このキー置換を、そのキーの印・説明に出すか。効くレイヤーを決めていなければ、
+    /// どの画面にも出す。決めていれば、その条件のレイヤーの画面と、そのキーが条件のレイヤーより上のレイヤーで透過のため、
+    /// 条件のレイヤーの割り当てが届く画面にだけ出す（レイヤー 3 の条件の置き換えは、レイヤー 3 の画面と、
+    /// レイヤー 4 でこのキーが透過のときのレイヤー 4 の画面に出る）。
+    /// </summary>
+    public static bool AppliesInLayer(KeymapProject project, KeyOverrideDef k, int layer, KeySlot slot)
+    {
+        if (k.Layers is not { Count: > 0 } layers) return true;
+        foreach (int n in layers)
+        {
+            if (n < 0 || n > layer) continue;
+            bool reaches = true;
+            for (int l = n + 1; l <= layer && reaches; l++)
+            {
+                if (l >= project.Layers.Count) break;
+                var row = project.Layers[l];
+                string t = slot.Index < row.Count ? row[slot.Index] : "";
+                if (!string.IsNullOrEmpty(t) && t != "KC_TRNS") reaches = false;
+            }
+            if (reaches) return true;
+        }
+        return false;
+    }
+
+    /// <summary>キー置換の「効くレイヤー」の説明（全レイヤーなら空）。例:「(レイヤー 3 のとき)」。</summary>
+    public static string OverrideLayersText(KeyOverrideDef k) =>
+        k.Layers is { Count: > 0 } l
+            ? Loc.T($"(レイヤー {string.Join("・", l)} のとき)", $" (while layer {string.Join(", ", l)} is on)")
+            : "";
 
     /// <summary>
     /// ヘルパー動作とトリガー（helper.json）の、印に使う分（2026-11-09）。動作は Id → 説明、トリガーは (キー, 説明)。
@@ -141,7 +172,7 @@ public static class KeyMarks
     public static string KeyOverrideText(KeymapProject project, KeyOverrideDef k)
     {
         string ko = Describe(Loc.T("キー置換", "Key override"), k.Id, project.KeyOverrideNames);
-        return Loc.T($"{ko}: {k.Mods.Replace(" ", "")} を押しながら → {k.Replacement}", $"{ko}: while holding {k.Mods.Replace(" ", "")} → {k.Replacement}");
+        return Loc.T($"{ko}: {k.Mods.Replace(" ", "")} を押しながら → {k.Replacement}", $"{ko}: while holding {k.Mods.Replace(" ", "")} → {k.Replacement}") + OverrideLayersText(k);
     }
 
     /// <summary>

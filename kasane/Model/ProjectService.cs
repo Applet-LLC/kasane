@@ -115,6 +115,15 @@ public static partial class ProjectService
         project.ComboNames = CleanNames(project.ComboNames, KbdLayerClient.MaxComboCount);
         project.TapDanceNames = CleanNames(project.TapDanceNames, KbdLayerClient.MaxTapDanceCount);
         project.KeyOverrideNames = CleanNames(project.KeyOverrideNames, KbdLayerClient.MaxKeyOverrideCount);
+        // 効くレイヤーは、重複を除いて昇順にし、空なら null（全レイヤー。ファイルに書かない）にする。
+        foreach (var ko in project.KeyOverrides) ko.Layers = NormalizeOverrideLayers(ko.Layers);
+    }
+
+    /// <summary>キー置換の「効くレイヤー」を、重複を除いて昇順にそろえる。空なら null（全レイヤー）。</summary>
+    public static List<int>? NormalizeOverrideLayers(IEnumerable<int>? layers)
+    {
+        var list = layers?.Distinct().OrderBy(n => n).ToList();
+        return list == null || list.Count == 0 ? null : list;
     }
 
     /// <summary>レイヤーの名前の並びを、レイヤーの枚数に合わせる（足りなければ null を足し、余りは捨てる）。名前が1つも無ければ null にする。</summary>
@@ -331,6 +340,15 @@ public static partial class ProjectService
             // 置き換え先のレイヤー操作（OSL・TG・TO・DF）が、存在しないレイヤーを指しているとき。
             if (ActionType.ReferencesLayer(a.Type) && a.Param1 >= project.Layers.Count)
                 errors.Add(Loc.T($"キー置換{ko.Id}: {ko.Replacement} のレイヤー{a.Param1}がありません(レイヤーを追加してください)", $"Key override {ko.Id}: {ko.Replacement} refers to layer {a.Param1}, which does not exist (add the layer)"));
+        }
+        // キー置換の「効くレイヤー」が、存在しないレイヤーを指しているとき（立つことがないので、置き換えは働かない）。
+        foreach (var ko in project.KeyOverrides.Where(k => !k.Disabled))
+        {
+            foreach (int n in (ko.Layers ?? new List<int>()).Distinct().OrderBy(n => n))
+            {
+                if (n < 0 || n >= project.Layers.Count)
+                    errors.Add(Loc.T($"キー置換{ko.Id}: 効くレイヤー{n}がありません(レイヤーを追加してください)", $"Key override {ko.Id}: the layer {n} it is limited to does not exist (add the layer)"));
+            }
         }
     }
 
@@ -552,7 +570,7 @@ public static partial class ProjectService
         {
             for (int k = 0; k < KbdLayerClient.MaxKeyOverrideCount; k++)
             {
-                if (keyOverrides.TryGetValue(k, out var ko) && ko != null) client.SetKeyOverride(id, k, ko);
+                if (keyOverrides.TryGetValue(k, out var ko) && ko != null) SetKeyOverrideChecked(client, id, k, ko);
                 else if (client.GetKeyOverride(id, k) != null) client.SetKeyOverride(id, k, null);
             }
         }
@@ -656,10 +674,29 @@ public static partial class ProjectService
                     Key = KeycodeTable.KeyToken(ko.TriggerScanCode),
                     Replacement = KeycodeTable.ToToken(ko.Replacement),
                     RepeatMacro = (ko.Flags & KeyOverrideEntry.FlagRepeat) != 0,
+                    Layers = LayerMaskToList(ko.Layers),
                 });
             }
         }
         return project;
+    }
+
+    /// <summary>
+    /// キー置換を 1 件書き込む。レイヤー条件つきを、条件に対応していない古いドライバが拒否したとき（STATUS_INVALID_PARAMETER =
+    /// Win32 の 87）は、原因が分かる文面にする。ドライバは、知らない Flags のビットを拒否するので、条件が黙って
+    /// 全体に効くことはない。
+    /// </summary>
+    private static void SetKeyOverrideChecked(KbdLayerClient client, uint uniqId, int id, KeyOverrideEntry entry)
+    {
+        const int ErrorInvalidParameter = 87;
+        try { client.SetKeyOverride(uniqId, id, entry); }
+        catch (KbdLayerException ex) when (entry.Layers != 0 && ex.Win32Error == ErrorInvalidParameter)
+        {
+            throw new KbdLayerException(
+                Loc.T($"キー置換{id}を書き込めませんでした: このドライバは、レイヤー条件つきのキー置換に対応していません(ドライバを更新してください)",
+                      $"Could not write key override {id}: this driver does not support key overrides limited to layers (update the driver)"),
+                ex.Win32Error, true);
+        }
     }
 
     /// <summary>ドライバがKey Override（GET_KEY_OVERRIDE）に対応しているか（古いドライバはIOCTLが無い）。</summary>
@@ -685,7 +722,23 @@ public static partial class ProjectService
             errors.Add(Loc.T($"キー置換{ko.Id}: 置き換え先「{ko.Replacement}」はキー(KC_*)、修飾付きキー(LCTL(KC_Z)等)、マクロ(MACRO(n))、レイヤー操作(OSL(n)・TG(n)・TO(n)・DF(n))、ヘルパー動作(HLP(n))、マークモード(MARK(on)・MARK(off)・MARK(toggle))のどれかにしてください", $"Key override {ko.Id}: the replacement \"{ko.Replacement}\" must be a key (KC_*), a key with modifiers (such as LCTL(KC_Z)), a macro (MACRO(n)), a layer operation (OSL(n), TG(n), TO(n), DF(n)) a helper action (HLP(n)) or mark mode (MARK(on), MARK(off), MARK(toggle))"));
         // オートリピートの印は、置き換え先がマクロのときだけ有効（ドライバも、マクロ以外では受け付けない）。
         byte flags = ko.RepeatMacro && replacement.Type == ActionType.Macro ? KeyOverrideEntry.FlagRepeat : (byte)0;
-        return errors.Count == before ? new KeyOverrideEntry(mods, key.Param2, replacement, flags) : null;
+        // 効くレイヤー: マスクにする（null・空 = 0 = 全レイヤー）。範囲外（0〜15 以外）はエラー。
+        ushort layerMask = 0;
+        foreach (int n in ko.Layers ?? new List<int>())
+        {
+            if (n < 0 || n >= KbdLayerClient.MaxLayers)
+                errors.Add(Loc.T($"キー置換{ko.Id}: 効くレイヤー「{n}」は 0〜{KbdLayerClient.MaxLayers - 1} にしてください", $"Key override {ko.Id}: the layer \"{n}\" it is limited to must be 0 to {KbdLayerClient.MaxLayers - 1}"));
+            else layerMask |= (ushort)(1 << n);
+        }
+        return errors.Count == before ? new KeyOverrideEntry(mods, key.Param2, replacement, flags, layerMask) : null;
+    }
+
+    /// <summary>キー置換のレイヤーのマスク（bit n = レイヤー n）を、番号の昇順の一覧にする。0 なら null（全レイヤー）。</summary>
+    public static List<int>? LayerMaskToList(ushort mask)
+    {
+        var list = new List<int>();
+        for (int n = 0; n < KbdLayerClient.MaxLayers; n++) if ((mask & (1 << n)) != 0) list.Add(n);
+        return list.Count == 0 ? null : list;
     }
 
     /// <summary>キー置換の置き換え先に使える動作か（ドライバの IsValidKeyOverrideEntry と同じ範囲）。</summary>

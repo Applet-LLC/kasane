@@ -419,6 +419,9 @@ public partial class MainWindow : Window
         if (_project.Layers.Any(l => l.Any(t => ReferencesLayer(t, last))))
             SetStatus(Loc.T($"注意: まだレイヤー{last}を参照するキー(MO({last})等)が残っています。適用時にエラーになるので変更してください。",
                             $"Note: some keys (such as MO({last})) still refer to layer {last}. Applying will fail, so change them."), StatusKind.Warn);
+        else if (_project.KeyOverrides.Any(k => !k.Disabled && k.Layers?.Contains(last) == true))
+            SetStatus(Loc.T($"注意: まだレイヤー{last}を「効くレイヤー」にしたキー置換が残っています。適用時にエラーになるので変更してください。",
+                            $"Note: some key overrides are still limited to layer {last}. Applying will fail, so change them."), StatusKind.Warn);
     }
 
     private static bool ReferencesLayer(string token, int layer) =>
@@ -798,7 +801,7 @@ public partial class MainWindow : Window
     private void OpenKeyOverrides(Action<KeyOverrideEditorWindow>? request = null)
     {
         if (_project == null) return;
-        OpenEditor("keyoverrides", () => new KeyOverrideEditorWindow(_project.KeyOverrides, _project.KeyOverrideNames), w =>
+        OpenEditor("keyoverrides", () => new KeyOverrideEditorWindow(_project.KeyOverrides, _project.KeyOverrideNames, _project), w =>
         {
             _project.KeyOverrides = w.Result;
             _project.KeyOverrideNames = w.ResultNames;

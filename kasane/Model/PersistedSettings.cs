@@ -11,7 +11,8 @@ namespace Kasane.Model;
 /// 書いた設定は、キーボードが接続されたとき（再接続・再起動）にドライバが読み込む。
 ///
 /// 形式は driver/kbdlayer/LayerEngine.c の PersistAll* / Set*ForDevice と同じ（実機のレジストリのサイズで確認済み:
-/// Macros 33280 / Combos 192 / TapDances 320 バイト。KeyOverrides は 128 件ぶんの 1536 バイトで、旧ドライバの 384 バイト〔32 件ぶん〕も読める）。
+/// Macros 33280 / Combos 192 / TapDances 320 バイト。KeyOverrides は 128 件ぶんの 1536 バイトで、旧ドライバの 384 バイト〔32 件ぶん〕も読める。
+/// KeyOverrideLayers は 128 件ぶんの USHORT で 256 バイト〔2026-11-25〕。キー置換のレイヤー条件のマスクで、KeyOverrides の Flags に FlagLayers がある件だけが見る）。
 /// 置き換える前の値は、1世代だけ「&lt;名前&gt;.bak」に退避する（ドライバは読まない名前）。復元は <see cref="Restore"/>。
 /// </summary>
 public sealed class PersistedSettings
@@ -130,9 +131,26 @@ public sealed class PersistedSettings
             ms.Position = (long)id * KeyOverrideEntryBytes;
             w.Write(1u);
             w.Write(e.TriggerMods);
-            w.Write(e.Flags);
+            // レイヤー条件つきの件は、Flags に FlagLayers を立てる（条件のマスクは、別の値 "KeyOverrideLayers"）。
+            w.Write((byte)((e.Flags & ~KeyOverrideEntry.FlagLayers) | (e.Layers != 0 ? KeyOverrideEntry.FlagLayers : 0)));
             w.Write(e.TriggerScanCode);
             WriteAction(w, e.Replacement);
+        }
+        return buffer;
+    }
+
+    /// <summary>
+    /// "KeyOverrideLayers" 値: 128個ぶん固定長の USHORT（件の番号の位置に、効くレイヤーのマスク。0 = 全レイヤー）。
+    /// 常に 256 バイト（ドライバは、この長さでないと読まない）。
+    /// </summary>
+    public static byte[] SerializeKeyOverrideLayers(IReadOnlyDictionary<int, KeyOverrideEntry?> keyOverrides)
+    {
+        var buffer = new byte[KbdLayerClient.MaxKeyOverrideCount * sizeof(ushort)];
+        foreach (var (id, e) in keyOverrides)
+        {
+            if (e == null || e.Layers == 0) continue;
+            if (id < 0 || id >= KbdLayerClient.MaxKeyOverrideCount) throw new InvalidOperationException(Loc.T($"キー置換の番号 {id} が範囲外です", $"Key override number {id} is out of range"));
+            BitConverter.TryWriteBytes(buffer.AsSpan(id * sizeof(ushort), sizeof(ushort)), e.Layers);
         }
         return buffer;
     }
@@ -162,6 +180,8 @@ public sealed class PersistedSettings
         if (s.Combos.Values.Any(c => c != null)) Binary("Combos", SerializeCombos(s.Combos));
         if (s.TapDances.Values.Any(t => t != null)) Binary("TapDances", SerializeTapDances(s.TapDances));
         if (s.KeyOverrides.Values.Any(k => k != null)) Binary("KeyOverrides", SerializeKeyOverrides(s.KeyOverrides));
+        // 条件の値は、レイヤー条件つきの件があるときだけ書く。条件なしの件は、この値が残っていても見られない（ドライバ側）。
+        if (s.KeyOverrides.Values.Any(k => k != null && k.Layers != 0)) Binary("KeyOverrideLayers", SerializeKeyOverrideLayers(s.KeyOverrides));
         if (s.Features is uint f)
         {
             if ((f & ~KbdLayerClient.FeatureAll) != 0) throw new InvalidOperationException(Loc.T($"機能のON/OFFの値 0x{f:X} に未知のビットがあります", $"The feature on/off value 0x{f:X} has unknown bits"));

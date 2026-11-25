@@ -61,7 +61,7 @@ public static class RemapTextFormatter
 
         Section(Line, Loc.T("キー置換", "Key overrides"), project, KbdLayerClient.FeatureKeyOverride, project.KeyOverrides.OrderBy(k => k.Id).Select(k =>
             new Row(Disabled(k.Disabled) + $"override {Numbered(k.Id, project.KeyOverrideNames)}: {ModsText(k.Mods)}{KeyText(k.Key)}",
-                    Describe(project, k.Replacement, device, global) + (k.RepeatMacro ? Loc.T("(繰り返す)", " (repeat)") : ""),
+                    Describe(project, k.Replacement, device, global) + (k.RepeatMacro ? Loc.T("(繰り返す)", " (repeat)") : "") + KeyMarks.OverrideLayersText(k),
                     $"{k.Mods} + {k.Key} -> {k.Replacement}")));
 
         Section(Line, Loc.T("マクロ", "Macros"), project, KbdLayerClient.FeatureMacro, project.Macros.OrderBy(m => m.Id).Select(m =>
