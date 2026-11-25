@@ -90,6 +90,9 @@ New-Item -ItemType Directory -Path $tmp | Out-Null
 try {
     $layers = @($kb.Layers | Sort-Object Index)
     $codes = @($layers[0].Keys.PSObject.Properties.Name | Sort-Object)
+    # レイヤー 0 のキーが 1 個も無いと、レイヤーマップを作れない（1〜256 個）。レイヤーマップを消してから失敗して、
+    # 何も効かない状態で残らないよう、何も書き換える前に止める。
+    if ($codes.Count -lt 1 -or $codes.Count -gt 256) { throw "レイヤー 0 のキーが $($codes.Count) 個です（1〜256 個が必要です）。何も書き換えていません: $File" }
     $pos = for ($i = 0; $i -lt $codes.Count; $i++) { '{{"row":0,"col":{0},"scanCode":{1}}}' -f $i, [Convert]::ToInt32($codes[$i].Substring(3), 16) }
     Set-Content (Join-Path $tmp 'profile.json') ('{ "positions": [ ' + ($pos -join ',') + ' ] }') -Encoding ASCII
     $rows = foreach ($layer in $layers) {
