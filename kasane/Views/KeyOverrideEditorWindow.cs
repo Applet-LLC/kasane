@@ -180,13 +180,17 @@ public sealed class KeyOverrideEditorWindow : IdListEditorWindow
                 Name = g.Id, Content = g.Label, Margin = new Thickness(i == 0 ? 12 : 8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
                 ToolTip = Loc.T("チェックすると、修飾キーの欄に書き足します(左右は区別しません)", "Check to add it to the modifiers field (left and right are not distinguished)"),
             };
-            c.Click += (_, _) =>
+            // Click ではなく Checked/Unchecked で受ける（UI オートメーションの Toggle など、Click が起きない操作でも欄に反映するため）。
+            // 欄から入れ直すときの IsChecked の変更は、syncing で読み飛ばす。
+            void ToChecked()
             {
                 if (syncing) return;
                 byte m = CurrentMask();
                 if (c.IsChecked == true) m |= g.Left; else m = (byte)(m & ~(g.Left | g.Right));
                 box.Text = m == 0 ? "" : Kasane.Keycodes.KeycodeTable.ModMaskToNames(m);
-            };
+            }
+            c.Checked += (_, _) => ToChecked();
+            c.Unchecked += (_, _) => ToChecked();
             checks.Add(c);
             panel.Children.Add(c);
         }

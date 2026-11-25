@@ -45,8 +45,29 @@ public static class KeyMarks
             else if (action.Type == ActionType.TapDance) tapDance = action.Param1;
         }
         var combos = project.Combos.Where(c => c.Slot1 == slot.Index || c.Slot2 == slot.Index).OrderBy(c => c.Id).ToList();
-        var overrides = project.KeyOverrides.Where(k => TriggersOverride(k, token) && AppliesInLayer(project, k, layer, slot)).OrderBy(k => k.Id).ToList();
+        var overrides = project.KeyOverrides
+            .Where(k => AppliesInLayer(project, k, layer, slot) && TriggersOverride(k, TokenForOverride(project, k, layer, slot, token)))
+            .OrderBy(k => k.Id).ToList();
         return new Related(token, combos, overrides, macro, tapDance);
+    }
+
+    /// <summary>
+    /// キー置換の条件（出力のキー）を比べるときの、そのキーの割り当て。条件なしのキー置換は、レイヤーを通したキー（<paramref name="effective"/>）で比べる。
+    /// 効くレイヤーを決めたキー置換は、実際に同時に有効になるレイヤーだけをたどる。表示中のレイヤー・条件のレイヤー・レイヤー 0 の順に見て、
+    /// 透過でない最初の割り当てを使う（途中の、C-q の一時レイヤーなどが、同時には有効にならないため）。
+    /// </summary>
+    private static string TokenForOverride(KeymapProject project, KeyOverrideDef k, int layer, KeySlot slot, string effective)
+    {
+        if (k.Layers is not { Count: > 0 } layers) return effective;
+        for (int l = layer; l >= 0; l--)
+        {
+            if (l != layer && l != 0 && !layers.Contains(l)) continue;
+            if (l >= project.Layers.Count) continue;
+            var row = project.Layers[l];
+            string t = slot.Index < row.Count ? row[slot.Index] : "";
+            if (!string.IsNullOrEmpty(t) && t != "KC_TRNS") return t;
+        }
+        return effective;
     }
 
     /// <summary>

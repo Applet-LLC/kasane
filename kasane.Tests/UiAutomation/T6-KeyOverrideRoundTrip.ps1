@@ -114,6 +114,21 @@ try {
     Select-ListItemByIndex (Find-ChildByAutomationId $dlg5 "IdList") 2
     Start-Sleep -Milliseconds 300
     Chk "clearing the layer check round-trips (works on all layers again)" ((Get-ToggleState (Find-ChildByAutomationId $dlg5 "OverrideLayerCheck0")) -eq [System.Windows.Automation.ToggleState]::Off)
+
+    # 2026-11-26: the modifier checks (Shift / Alt / Ctrl / Win) also write the modifiers box when toggled without a click
+    # (UI Automation's Toggle pattern), and the box drives the checks back.
+    Select-ListItemByIndex (Find-ChildByAutomationId $dlg5 "IdList") 3
+    Start-Sleep -Milliseconds 300
+    Set-ToggleState (Find-ChildByAutomationId $dlg5 "ModCtrlCheck") $true
+    Start-Sleep -Milliseconds 200
+    Chk "toggling the Ctrl check writes MOD_LCTL into the modifiers box" ((Get-ElementValue (Find-ChildByAutomationId $dlg5 "ModsBox")) -eq "MOD_LCTL")
+    Set-ToggleState (Find-ChildByAutomationId $dlg5 "ModShiftCheck") $true
+    Start-Sleep -Milliseconds 200
+    $modsText = Get-ElementValue (Find-ChildByAutomationId $dlg5 "ModsBox")
+    Chk "toggling Shift as well keeps both (MOD_LCTL and MOD_LSFT)" (($modsText -match "MOD_LCTL") -and ($modsText -match "MOD_LSFT"))
+    Set-ToggleState (Find-ChildByAutomationId $dlg5 "ModCtrlCheck") $false
+    Start-Sleep -Milliseconds 200
+    Chk "clearing the Ctrl check removes it from the box" ((Get-ElementValue (Find-ChildByAutomationId $dlg5 "ModsBox")) -eq "MOD_LSFT")
     Invoke-Element (Find-ChildByAutomationId $dlg5 "CancelButton")
     Start-Sleep -Milliseconds 300
 

@@ -237,6 +237,7 @@
 <li>If you put a key with modifiers such as <code>LCTL(KC_S)</code> on the layer you switched to with <code>OSL(n)</code> or the like, the output key (Ctrl+S in this example) may hit another key override. To avoid that, assign <code>MACRO(n)</code> to that key.</li>
 <li><code>MO(n)</code>, <code>LT(n, kc)</code>, <code>KC_NO</code>, and the like cannot be used as a replacement.</li>
 <li>With an old driver (one that supports only 32 key overrides), the 33rd and later, and replacements that are layer actions or helper actions, are not applied.</li>
+<li>Key overrides work only while the layer map of that keyboard is ON. On a keyboard that has no layer map (one you have not applied with <strong>Apply to keyboard (ON)</strong>) or one you have turned OFF, key overrides do not work even if you set them.</li>
 <li>A key override with <strong>Active layers</strong> needs driver 1.03 or later. With an older driver, applying it gives an error. The condition is never ignored so that the override works on all layers.</li>
 </ul>
 <h3 id="limiting-the-layers-where-an-override-works">Limiting the layers where an override works</h3>

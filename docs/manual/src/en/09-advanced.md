@@ -138,6 +138,7 @@ With **Key overrides...**, you replace a combination of modifiers and a key with
 - If you put a key with modifiers such as `LCTL(KC_S)` on the layer you switched to with `OSL(n)` or the like, the output key (Ctrl+S in this example) may hit another key override. To avoid that, assign `MACRO(n)` to that key.
 - `MO(n)`, `LT(n, kc)`, `KC_NO`, and the like cannot be used as a replacement.
 - With an old driver (one that supports only 32 key overrides), the 33rd and later, and replacements that are layer actions or helper actions, are not applied.
+- Key overrides work only while the layer map of that keyboard is ON. On a keyboard that has no layer map (one you have not applied with **Apply to keyboard (ON)**) or one you have turned OFF, key overrides do not work even if you set them.
 - A key override with **Active layers** needs driver 1.03 or later. With an older driver, applying it gives an error. The condition is never ignored so that the override works on all layers.
 
 ### Limiting the layers where an override works

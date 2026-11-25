@@ -212,6 +212,24 @@ public class KeyOverrideLayersTests
     }
 
     [Fact]
+    public void KeyMarks_ConditionedOverride_IgnoresALowerLayerThatIsNotActiveTogether()
+    {
+        // emacs-excel と同じ形: レイヤー 2（C-q の一時レイヤー）で L がマクロ。レイヤー 3 は空。条件のレイヤーは 3。
+        // 実際には、レイヤー 2 とレイヤー 3 は同時に有効にならないので、レイヤー 3 の L は、レイヤー 0 の KC_L として働く。
+        var p = NewProject(4);
+        p.Layers[0][0] = "KC_L";
+        p.Layers[2][0] = "MACRO(104)";
+        p.Macros.Add(new MacroDef { Id = 104, Keys = { "KC_A" } });
+        p.KeyOverrides.Add(Def(0, 3));
+        Assert.Contains("R", KeyMarks.For(p, Layout, 3, Slot(0)).Marks);
+        Assert.DoesNotContain("R", KeyMarks.For(p, Layout, 2, Slot(0)).Marks);
+        Assert.DoesNotContain("R", KeyMarks.For(p, Layout, 0, Slot(0)).Marks);
+        // 条件のレイヤー自身が、このキーを別のキーにしているときは、R は出ない。
+        p.Layers[3][0] = "KC_Q";
+        Assert.DoesNotContain("R", KeyMarks.For(p, Layout, 3, Slot(0)).Marks);
+    }
+
+    [Fact]
     public void KeyMarks_ShowsRonEveryLayerWhenNoCondition()
     {
         var p = NewProject(4);
