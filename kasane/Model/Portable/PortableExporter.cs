@@ -69,7 +69,12 @@ public static class PortableExporter
 
         kb.Macros = p.Macros.Select(CloneMacro).ToList();
         kb.TapDances = p.TapDances.Select(CloneTapDance).ToList();
-        kb.KeyOverrides = p.KeyOverrides.Select(k => new KeyOverrideDef { Id = k.Id, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement, RepeatMacro = k.RepeatMacro, Disabled = k.Disabled }).ToList();
+        kb.KeyOverrides = p.KeyOverrides.Select(k => new KeyOverrideDef { Id = k.Id, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement, RepeatMacro = k.RepeatMacro, Layers = k.Layers == null ? null : new List<int>(k.Layers), Disabled = k.Disabled }).ToList();
+        // 効くレイヤーを決めたキー置換は、「効くレイヤー」に対応していない古い版では、その欄を読み飛ばして、全レイヤーで効くものとして
+        // 読み込まれる。ファイルの Version は変えないので、書き出すときに知らせる。
+        if (p.KeyOverrides.Any(k => k.Layers is { Count: > 0 }))
+            report.Warn(Loc.T("効くレイヤーを決めたキー置換が入っています。「効くレイヤー」に対応していない古い版の kasane で読み込むと、その条件が無視されて、すべてのレイヤー・アプリで効きます",
+                              "This file has key overrides limited to layers. An older kasane that does not support \"layers\" ignores the condition, so they would work on all layers and apps"));
         kb.Combos = new List<PortableCombo>();
         foreach (var c in p.Combos)
         {

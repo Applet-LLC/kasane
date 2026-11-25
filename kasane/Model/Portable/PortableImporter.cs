@@ -100,7 +100,7 @@ public static class PortableImporter
 
         Dictionary<int, int>? comboMap = null, keyOverrideMap = null;
         if (o.Combos && src.Combos != null) comboMap = ImportCombos(src.Combos, target, bySc, mode, Fix, r);
-        if (o.KeyOverrides && src.KeyOverrides != null) keyOverrideMap = ImportKeyOverrides(src.KeyOverrides, target, mode, r);
+        if (o.KeyOverrides && src.KeyOverrides != null) keyOverrideMap = ImportKeyOverrides(src.KeyOverrides, target, mode, Fix, r);
 
         // 名前の表（中身が空の番号の名前も含む）。レイヤー1枚の取り込みでは、参照するマクロ・タップダンスの名前だけが入っている。
         if (o.Macros && src.Macros != null)
@@ -393,20 +393,42 @@ public static class PortableImporter
         return map;
     }
 
-    private static Dictionary<int, int> ImportKeyOverrides(List<KeyOverrideDef> src, KeymapProject target, ImportMode mode, PortableReport r)
+    private static Dictionary<int, int> ImportKeyOverrides(List<KeyOverrideDef> src, KeymapProject target, ImportMode mode,
+                                                           Func<string, string> fix, PortableReport r)
     {
         var map = new Dictionary<int, int>();
         if (mode == ImportMode.Replace) target.KeyOverrides = new List<KeyOverrideDef>();
         int added = 0;
         foreach (var k in src)
         {
+            // 置き換え先の MACRO(n)・HLP(n) の番号は、取り込んだマクロ・ヘルパー動作の付け直しに合わせる（コンボと同じ）。
+            string replacement = fix(k.Replacement);
+            // 効くレイヤーは、番号を付け替えない（レイヤーは、置き換えでも追加でも、ファイルの番号のまま入るため）。
+            // 今のプロジェクトに無いレイヤーは外す。全部外れたら、条件なし（全レイヤー）になってしまうので、読み込まない。
+            var layers = ProjectService.NormalizeOverrideLayers(k.Layers);
+            if (layers != null)
+            {
+                var missing = layers.Where(n => n < 0 || n >= target.Layers.Count).ToList();
+                if (missing.Count == layers.Count)
+                {
+                    r.Warn(Loc.T($"キー置換{k.Id}: 効くレイヤー({string.Join("・", missing)})が今のプロジェクトに無いため、読み込みません(レイヤーを足してから、もう一度読み込んでください)",
+                                 $"Key override {k.Id}: the layers it is limited to ({string.Join(", ", missing)}) do not exist in the current project, so it is not imported (add the layers and import again)"));
+                    continue;
+                }
+                if (missing.Count > 0)
+                {
+                    r.Warn(Loc.T($"キー置換{k.Id}: 効くレイヤーのうち、今のプロジェクトに無いレイヤー({string.Join("・", missing)})は外しました", $"Key override {k.Id}: removed the layers that do not exist in the current project ({string.Join(", ", missing)}) from the layers it is limited to"));
+                    layers = layers.Except(missing).ToList();
+                }
+            }
             if (mode == ImportMode.Append &&
-                target.KeyOverrides.Any(x => x.Mods == k.Mods && x.Key == k.Key && x.Replacement == k.Replacement && x.RepeatMacro == k.RepeatMacro && x.Disabled == k.Disabled)) continue;
+                target.KeyOverrides.Any(x => x.Mods == k.Mods && x.Key == k.Key && x.Replacement == replacement && x.RepeatMacro == k.RepeatMacro && x.Disabled == k.Disabled
+                                             && (x.Layers ?? new List<int>()).SequenceEqual(layers ?? new List<int>()))) continue;
             int id = k.Id;
             if (id < 0 || id >= KbdLayerClient.MaxKeyOverrideCount || target.KeyOverrides.Any(x => x.Id == id))
                 id = FreeId(target.KeyOverrides.Select(x => x.Id), KbdLayerClient.MaxKeyOverrideCount);
             if (id < 0) { r.Warn(Loc.T($"キー置換の空きが無いため、キー置換{k.Id}は読み込めませんでした(上限{KbdLayerClient.MaxKeyOverrideCount})", $"No free key override slot, so key override {k.Id} could not be imported (limit {KbdLayerClient.MaxKeyOverrideCount})")); continue; }
-            target.KeyOverrides.Add(new KeyOverrideDef { Id = id, Mods = k.Mods, Key = k.Key, Replacement = k.Replacement, RepeatMacro = k.RepeatMacro, Disabled = k.Disabled });
+            target.KeyOverrides.Add(new KeyOverrideDef { Id = id, Mods = k.Mods, Key = k.Key, Replacement = replacement, RepeatMacro = k.RepeatMacro, Layers = layers, Disabled = k.Disabled });
             map[k.Id] = id;
             added++;
         }
