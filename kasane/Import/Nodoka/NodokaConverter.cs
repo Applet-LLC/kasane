@@ -129,7 +129,7 @@ internal sealed class TargetBuilder
     private readonly HelperConfig _helper = new();
     private readonly Dictionary<string, List<SourceRef>> _approx = new();
     private readonly HashSet<string> _reportedOnce = new();
-    private readonly List<(ushort Sc, byte Mods, Plan Plan, SourceRef Src)> _pending = new();
+    private readonly List<(ushort Sc, byte Mods, Plan Plan, SourceRef Src, int Layer)> _pending = new();
 
     public TargetBuilder(NodokaSetting s, int? device, bool primary, List<ConvLine> output)
     {
@@ -725,8 +725,8 @@ internal sealed class TargetBuilder
         if (left.Mods != 0)
         {
             // 修飾キーを押しながらのキー: レイヤーには置けない。キー置換か、トリガー（キーフック）にする。
-            if (layer != 0) { Say(ConvLevel.Skipped, a.Src, Loc.T($"{label}: レイヤー0以外での修飾キー付きの割り当ては対応しません", $"{label}: assignments with modifier keys on layers other than layer 0 are not supported"), deviceSpecific); return; }
-            _pending.Add((sc.Value, left.Mods, plan, a.Src));
+            // レイヤー 0 以外（window・プレフィックスのキーマップなど）は、そのレイヤーのときだけ効くキー置換にする。
+            _pending.Add((sc.Value, left.Mods, plan, a.Src, layer));
             foreach (var n in plan.Notes) Approx(n, a.Src, deviceSpecific);
             return;
         }
@@ -753,7 +753,7 @@ internal sealed class TargetBuilder
         ushort? to = PhysicalKey(sub.To.KeyName, out string? e2);
         if (to == null) { Say(ConvLevel.Skipped, sub.Src, $"def subst {sub.KeyName}: {e2}"); return; }
         var plan = new Plan { Kind = PlanKind.Key, Token = WithMods(MaskOf(sub.To.Mod), KeycodeTable.KeyToken(to.Value)) };
-        if (left.Mods != 0) { _pending.Add((from.Value, left.Mods, plan, sub.Src)); return; }
+        if (left.Mods != 0) { _pending.Add((from.Value, left.Mods, plan, sub.Src, 0)); return; }
         _layers[0][from.Value] = plan.Token;
         Say(ConvLevel.Converted, sub.Src, Loc.T($"def subst {sub.KeyName} → レイヤー0 {PortableExporter.ScName(from.Value)} = {plan.Token}", $"def subst {sub.KeyName} → layer 0 {PortableExporter.ScName(from.Value)} = {plan.Token}"));
     }
@@ -766,15 +766,23 @@ internal sealed class TargetBuilder
 
     private void ResolvePending()
     {
-        foreach (var (sc, mods, plan, src) in _pending)
+        foreach (var (sc, mods, plan, src, layer) in _pending)
         {
-            string outKey = Layer0Output(sc);
+            // 出力キー: そのレイヤーに単純なキーが割り当ててあればそれ。無ければ（透過なので）レイヤー0 の動作。
+            string outKey = layer != 0 && _layers[layer].TryGetValue(sc, out var layerToken) ? layerToken : Layer0Output(sc);
+            int outLayer = layer != 0 && _layers[layer].ContainsKey(sc) ? layer : 0;
             if (!KeycodeTable.TryResolve(outKey, out var outAction) || outAction.Type != ActionType.Key)
             {
-                Say(ConvLevel.Skipped, src, Loc.T($"{PortableExporter.ScName(sc)} に修飾キーを付けた割り当て: このキーのレイヤー0 の動作({outKey})が単純なキーではないため、変換しません", $"assignment with modifier keys on {PortableExporter.ScName(sc)}: not converted because the layer 0 action of this key ({outKey}) is not a simple key"));
+                Say(ConvLevel.Skipped, src, Loc.T($"{PortableExporter.ScName(sc)} に修飾キーを付けた割り当て: このキーのレイヤー{outLayer} の動作({outKey})が単純なキーではないため、変換しません", $"assignment with modifier keys on {PortableExporter.ScName(sc)}: not converted because the layer {outLayer} action of this key ({outKey}) is not a simple key"));
                 continue;
             }
             string modNames = KeycodeTable.ModMaskToNames(mods);
+            if (layer != 0 && plan.Kind == PlanKind.Helper)
+            {
+                Say(ConvLevel.Skipped, src, Loc.T($"{modNames}+{outKey}: レイヤー{layer} のときだけのヘルパーのトリガーは対応しません", $"{modNames}+{outKey}: a helper trigger that applies only on layer {layer} is not supported"));
+                continue;
+            }
+            string layerNote = layer != 0 ? Loc.T($" (レイヤー{layer} のとき)", $" (on layer {layer})") : "";
             switch (plan.Kind)
             {
                 case PlanKind.Key:
@@ -789,10 +797,16 @@ internal sealed class TargetBuilder
                         Say(ConvLevel.Skipped, src, Loc.T($"キー置換が{KbdLayerClient.MaxKeyOverrideCount}個を超えるため、{modNames}+{outKey} は変換しません", $"{modNames}+{outKey} is not converted because there would be more than {KbdLayerClient.MaxKeyOverrideCount} key overrides"));
                         break;
                     }
-                    var existing = _overrides.FirstOrDefault(o => o.Mods == modNames && o.Key == outKey);
+                    // 同じキー・修飾キー・効くレイヤーの置き換えがあれば、置き換え先だけ差し替える。
+                    var existing = _overrides.FirstOrDefault(o => o.Mods == modNames && o.Key == outKey
+                        && (o.Layers == null ? 0 : o.Layers.Count == 1 ? o.Layers[0] : -1) == layer);
                     if (existing != null) existing.Replacement = plan.Token;
-                    else _overrides.Add(new KeyOverrideDef { Id = _overrides.Count, Mods = modNames, Key = outKey, Replacement = plan.Token });
-                    Say(ConvLevel.Converted, src, Loc.T($"{modNames}+{outKey} → キー置換 {plan.Token}", $"{modNames}+{outKey} → key override {plan.Token}"));
+                    else _overrides.Add(new KeyOverrideDef
+                    {
+                        Id = _overrides.Count, Mods = modNames, Key = outKey, Replacement = plan.Token,
+                        Layers = layer != 0 ? new List<int> { layer } : null,
+                    });
+                    Say(ConvLevel.Converted, src, Loc.T($"{modNames}+{outKey} → キー置換 {plan.Token}{layerNote}", $"{modNames}+{outKey} → key override {plan.Token}{layerNote}"));
                     break;
                 }
                 case PlanKind.Helper:

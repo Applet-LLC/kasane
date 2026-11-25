@@ -190,6 +190,56 @@ endif
     }
 
     [Fact]
+    public void Convert_ModifierKeyInWindowKeymap_BecomesAnOverrideLimitedToThatLayer()
+    {
+        // Excel の window キーマップの key C-C = Home は、レイヤー1 のときだけ効くキー置換になる。
+        var c = Run(Kbd + "window Excel /EXCEL/\nkey C-C = Home\n");
+        var ko = Assert.Single(c.File.Keyboards[0].KeyOverrides!);
+        Assert.Equal("MOD_LCTL", ko.Mods);
+        Assert.Equal(Tok(0x2E), ko.Key);
+        Assert.Equal(new[] { 1 }, ko.Layers);
+        Assert.DoesNotContain(c.Lines, l => l.Level == ConvLevel.Skipped);
+        Assert.Contains(c.Lines, l => l.Level == ConvLevel.Converted && l.Text.Contains("レイヤー1 のとき"));
+    }
+
+    [Fact]
+    public void Convert_ModifierKeyInPrefixKeymap_BecomesAnOverrideLimitedToThatLayer()
+    {
+        var c = Run(Kbd + "keymap Ctrl-X\nkey C-A = Home\nkeymap Global\nkey *X = &Prefix(Ctrl-X)\n");
+        var ko = Assert.Single(c.File.Keyboards[0].KeyOverrides!);
+        Assert.Equal(new[] { 1 }, ko.Layers);
+        Assert.Equal(Tok(0x1E), ko.Key);
+    }
+
+    [Fact]
+    public void Convert_ModifierKeyOnLayer0_StaysUnconditional_AndDifferentLayersAreSeparateOverrides()
+    {
+        var c = Run(Kbd + "key C-C = Home\nwindow Excel /EXCEL/\nkey C-C = Esc\n");
+        var overrides = c.File.Keyboards[0].KeyOverrides!;
+        Assert.Equal(2, overrides.Count);
+        Assert.Null(overrides.Single(o => o.Layers == null).Layers);
+        Assert.Equal(new[] { 1 }, overrides.Single(o => o.Layers != null).Layers);
+    }
+
+    [Fact]
+    public void Convert_ModifierKeyOnALayer_UsesTheLayersOwnOutputKey()
+    {
+        // レイヤー1 で C が D に置き換わるなら、C-C のキー置換のトリガーは D（レイヤー1 の出力）になる。
+        var c = Run(Kbd + "window W /w/\nkey *C = *D\nkey C-C = Home\n");
+        var ko = Assert.Single(c.File.Keyboards[0].KeyOverrides!);
+        Assert.Equal(Tok(0x20), ko.Key);
+        Assert.Equal(new[] { 1 }, ko.Layers);
+    }
+
+    [Fact]
+    public void Convert_HelperTriggerLimitedToALayer_IsReportedAsSkipped()
+    {
+        var c = Run(Kbd + "window W /w/\nkey C-C = &SendText(\"hi\")\n");
+        Assert.Empty(c.File.Keyboards[0].KeyOverrides ?? new());
+        Assert.Contains(c.Lines, l => l.Level == ConvLevel.Skipped && l.Text.Contains("レイヤー1 のときだけ"));
+    }
+
+    [Fact]
     public void Convert_SubstituteBecomesARemap()
     {
         var c = Run(Kbd + "def subst *C = *D\n");
