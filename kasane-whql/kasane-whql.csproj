@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\AppVersion.props" />
+
+  <!--
+    WHQL 申請のための CodeQL 解析と DVL（Driver Verification Log）作成を、Subsc/Pro × x64/ARM64 の 4 本について
+    同じ手順で実行する開発用ツール。配布はしない（MSI には入れない）。
+    実行: dotnet run（使い方は引数なしで実行すると表示する）
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>KasaneWhql</RootNamespace>
+    <AssemblyName>kasane-whql</AssemblyName>
+    <Company>Applet LLC</Company>
+    <Platforms>AnyCPU;x64</Platforms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Update="kasane-whql.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
